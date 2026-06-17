@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Menu, X, Swords, ShoppingBag, LogIn } from 'lucide-react'
-import LoginModal from './LoginModal'
+import { Menu, X, Swords, ShoppingBag } from 'lucide-react'
 
 const NAV_ITEMS = [
   { to: '/pokemon', label: 'Pokémon',  Icon: Swords      },
@@ -19,7 +18,7 @@ function PokeballIcon() {
   )
 }
 
-function SidebarContent({ onNavClick, onLoginClick, onBrandClick }) {
+function SidebarContent({ onNavClick, onBrandClick }) {
   return (
     <div className="flex flex-col h-full">
       {/* Brand */}
@@ -55,19 +54,6 @@ function SidebarContent({ onNavClick, onLoginClick, onBrandClick }) {
         ))}
       </nav>
 
-      {/* Login */}
-      <div className="px-4 pb-4">
-        <button
-          onClick={onLoginClick}
-          className="w-full flex items-center justify-center gap-2 bg-gray-700 hover:bg-red-600
-                     text-gray-300 hover:text-white py-2.5 px-4 rounded-xl text-sm font-medium
-                     transition-all duration-150"
-        >
-          <LogIn size={16} />
-          Iniciar Sesión
-        </button>
-      </div>
-
       {/* Footer */}
       <div className="px-4 py-4 border-t border-gray-700/60 text-center">
         <p className="text-gray-500 text-xs leading-relaxed">
@@ -83,11 +69,9 @@ function SidebarContent({ onNavClick, onLoginClick, onBrandClick }) {
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [loginOpen,   setLoginOpen]   = useState(false)
   const navigate = useNavigate()
 
   const closeSidebar = () => setSidebarOpen(false)
-  const openLogin    = () => { setLoginOpen(true); closeSidebar() }
   const goHome       = () => { navigate('/'); closeSidebar() }
 
   return (
@@ -110,7 +94,7 @@ export default function Layout() {
           lg:translate-x-0 lg:static lg:z-auto
         `}
       >
-        <SidebarContent onNavClick={closeSidebar} onLoginClick={openLogin} onBrandClick={goHome} />
+        <SidebarContent onNavClick={closeSidebar} onBrandClick={goHome} />
       </aside>
 
       {/* ── Main area ── */}
@@ -132,13 +116,6 @@ export default function Layout() {
             <span className="font-bold text-white text-base">
               Pokemon <span className="text-red-400">DnD</span>
             </span>
-          </button>
-          <button
-            onClick={openLogin}
-            className="ml-auto text-gray-400 hover:text-white p-1 transition-colors"
-            aria-label="Iniciar sesión"
-          >
-            <LogIn size={20} />
           </button>
         </header>
 
@@ -163,8 +140,6 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* ── Login modal ── */}
-      {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} />}
     </div>
   )
 }

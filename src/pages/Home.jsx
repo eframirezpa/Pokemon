@@ -1,18 +1,21 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Swords, ShoppingBag, Home } from 'lucide-react'
+import { Swords, ShoppingBag, LogIn } from 'lucide-react'
+import LoginModal from '../components/LoginModal'
 
 const CARDS = [
-  { to: '/',        label: 'Inicio',   Icon: Home,         desc: 'Página principal'                   },
-  { to: '/pokemon', label: 'Pokémon',  Icon: Swords,       desc: '1,139 criaturas con stats D&D 5e'  },
-  { to: '/items',   label: 'Items',    Icon: ShoppingBag,  desc: 'Objetos, pociones y equipamiento'   },
+  { to: '/pokemon', label: 'Pokémon', Icon: Swords,      desc: '1,139 criaturas con stats D&D 5e' },
+  { to: '/items',   label: 'Items',   Icon: ShoppingBag, desc: 'Objetos, pociones y equipamiento'  },
 ]
 
 export default function HomePage() {
   const navigate = useNavigate()
+  const [loginOpen, setLoginOpen] = useState(false)
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-60px)] lg:min-h-[calc(100vh-73px)] px-6 py-12">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-xl">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-60px)] lg:min-h-[calc(100vh-73px)] px-6 py-12 gap-6">
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-md">
         {CARDS.map(({ to, label, Icon, desc }) => (
           <button
             key={to}
@@ -32,6 +35,18 @@ export default function HomePage() {
           </button>
         ))}
       </div>
+
+      <button
+        onClick={() => setLoginOpen(true)}
+        className="flex items-center gap-2 bg-gray-900 hover:bg-red-600 text-white
+                   px-6 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+                   shadow-sm hover:shadow-md"
+      >
+        <LogIn size={16} />
+        Iniciar Sesión
+      </button>
+
+      {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} />}
     </div>
   )
 }
