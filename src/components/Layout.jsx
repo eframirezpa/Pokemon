@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Menu, X, Swords, ShoppingBag } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -70,6 +70,8 @@ function SidebarContent({ onNavClick, onBrandClick }) {
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const isHome = pathname === '/'
 
   const closeSidebar = () => setSidebarOpen(false)
   const goHome       = () => { navigate('/'); closeSidebar() }
@@ -85,39 +87,43 @@ export default function Layout() {
         />
       )}
 
-      {/* ── Sidebar ── */}
-      <aside
-        className={`
-          fixed top-0 left-0 h-full w-64 bg-gray-900 z-30 flex flex-col
-          transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          lg:translate-x-0 lg:static lg:z-auto
-        `}
-      >
-        <SidebarContent onNavClick={closeSidebar} onBrandClick={goHome} />
-      </aside>
+      {/* ── Sidebar (oculto en home) ── */}
+      {!isHome && (
+        <aside
+          className={`
+            fixed top-0 left-0 h-full w-64 bg-gray-900 z-30 flex flex-col
+            transition-transform duration-300 ease-in-out
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            lg:translate-x-0 lg:static lg:z-auto
+          `}
+        >
+          <SidebarContent onNavClick={closeSidebar} onBrandClick={goHome} />
+        </aside>
+      )}
 
       {/* ── Main area ── */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Mobile top bar */}
-        <header className="lg:hidden sticky top-0 z-10 bg-gray-900 px-4 py-3 flex items-center gap-3 shadow-md">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="text-white p-1 rounded-lg hover:bg-gray-700 transition-colors"
-            aria-label="Abrir menú"
-          >
-            <Menu size={22} />
-          </button>
-          <button onClick={goHome} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white">
-              <PokeballIcon />
-            </div>
-            <span className="font-bold text-white text-base">
-              Pokemon <span className="text-red-400">DnD</span>
-            </span>
-          </button>
-        </header>
+        {/* Mobile top bar (oculto en home) */}
+        {!isHome && (
+          <header className="lg:hidden sticky top-0 z-10 bg-gray-900 px-4 py-3 flex items-center gap-3 shadow-md">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="text-white p-1 rounded-lg hover:bg-gray-700 transition-colors"
+              aria-label="Abrir menú"
+            >
+              <Menu size={22} />
+            </button>
+            <button onClick={goHome} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <div className="w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white">
+                <PokeballIcon />
+              </div>
+              <span className="font-bold text-white text-base">
+                Pokemon <span className="text-red-400">DnD</span>
+              </span>
+            </button>
+          </header>
+        )}
 
         {/* Page header */}
         <div className="hidden lg:flex items-center px-8 py-5 border-b border-gray-200 bg-white">
