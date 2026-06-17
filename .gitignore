@@ -13,6 +13,9 @@ dist
 dist-ssr
 *.local
 
+# Assets descargados (se sirven desde CDN de poke5e)
+src/assets/pokemon/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
