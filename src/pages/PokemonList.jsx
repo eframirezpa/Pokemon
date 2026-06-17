@@ -213,22 +213,54 @@ export default function PokemonList() {
   )
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <>
+      {/* ════════════════════════════════════════════
+          Layout desktop: panel izquierdo + lista derecha
+          Umbral: lg (1024px)
+         ════════════════════════════════════════════ */}
+      <div className="hidden lg:flex h-full overflow-hidden">
 
-      {/* Panel de detalle – izquierda (full width en móvil, 420px en desktop) */}
-      {selectedId && (
-        <div className="flex-1 lg:flex-none lg:w-[420px] shrink-0 border-r border-gray-200 flex flex-col overflow-hidden bg-white">
-          <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
+        {/* Panel de detalle – izquierda */}
+        {selectedId && (
+          <div className="w-[420px] shrink-0 border-r border-gray-200 flex flex-col overflow-hidden bg-white">
+            <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
+          </div>
+        )}
+
+        {/* Lista – derecha (o ancho completo sin selección) */}
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          {Header}
+          {Table}
+          {Pagination}
         </div>
-      )}
+      </div>
 
-      {/* Lista – oculta en móvil cuando hay panel abierto */}
-      <div className={`flex flex-col flex-1 min-w-0 overflow-hidden ${selectedId ? 'hidden lg:flex' : 'flex'}`}>
+      {/* ════════════════════════════════════════════
+          Layout móvil: lista normal + modal bottom sheet
+         ════════════════════════════════════════════ */}
+      <div className="lg:hidden flex flex-col h-full overflow-hidden">
         {Header}
         {Table}
         {Pagination}
-      </div>
 
-    </div>
+        {/* Bottom sheet modal */}
+        {selectedId && (
+          <div
+            className="fixed inset-0 z-50 flex flex-col justify-end"
+            style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+            onClick={e => { if (e.target === e.currentTarget) setSelectedId(null) }}
+          >
+            <div className="bg-white rounded-t-2xl flex flex-col overflow-hidden"
+              style={{ maxHeight: '90dvh' }}>
+              {/* drag handle */}
+              <div className="flex justify-center pt-3 pb-1 shrink-0">
+                <div className="w-10 h-1 bg-gray-300 rounded-full" />
+              </div>
+              <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   )
 }
