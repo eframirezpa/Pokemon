@@ -65,6 +65,11 @@ export default function Layout() {
         <Outlet />
       </main>
 
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-400 text-center text-xs py-4">
+        Creado por <span className="text-gray-200">Efrain Ramirez</span> &amp; <span className="text-gray-200">Gustavo Quintero</span>
+      </footer>
+
     </div>
   )
 }
