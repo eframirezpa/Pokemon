@@ -1,28 +1,18 @@
 import { useNavigate } from 'react-router-dom'
-import { Swords, ShoppingBag } from 'lucide-react'
+import { Swords, ShoppingBag, Home } from 'lucide-react'
 
 const CARDS = [
-  { to: '/pokemon', label: 'Pokémon',  Icon: Swords,       desc: '1,139 criaturas con stats D&D 5e' },
+  { to: '/',        label: 'Inicio',   Icon: Home,         desc: 'Página principal'                   },
+  { to: '/pokemon', label: 'Pokémon',  Icon: Swords,       desc: '1,139 criaturas con stats D&D 5e'  },
   { to: '/items',   label: 'Items',    Icon: ShoppingBag,  desc: 'Objetos, pociones y equipamiento'   },
 ]
 
-export default function Home() {
+export default function HomePage() {
   const navigate = useNavigate()
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-60px)] lg:min-h-screen px-6 py-12">
-      {/* Logo */}
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl lg:text-5xl font-extrabold text-gray-900 mb-2">
-          Pokemon <span className="text-red-600">DnD</span>
-        </h1>
-        <p className="text-gray-500 text-sm lg:text-base">
-          Referencia de Pokémon para Dungeons &amp; Dragons 5e
-        </p>
-      </div>
-
-      {/* Quick access cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-md">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-60px)] lg:min-h-[calc(100vh-73px)] px-6 py-12">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-xl">
         {CARDS.map(({ to, label, Icon, desc }) => (
           <button
             key={to}

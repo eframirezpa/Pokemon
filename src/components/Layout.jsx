@@ -142,6 +142,21 @@ export default function Layout() {
           </button>
         </header>
 
+        {/* Page header */}
+        <div className="hidden lg:flex items-center px-8 py-5 border-b border-gray-200 bg-white">
+          <button onClick={goHome} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div className="w-9 h-9 bg-red-600 rounded-full flex items-center justify-center text-white">
+              <PokeballIcon />
+            </div>
+            <div className="text-left">
+              <h1 className="text-xl font-extrabold text-gray-900 leading-none">
+                Pokemon <span className="text-red-600">DnD</span>
+              </h1>
+              <p className="text-xs text-gray-400 leading-none mt-0.5">Referencia para D&amp;D 5e</p>
+            </div>
+          </button>
+        </div>
+
         {/* Page content */}
         <main className="flex-1">
           <Outlet />
