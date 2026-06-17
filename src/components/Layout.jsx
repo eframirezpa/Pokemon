@@ -1,0 +1,155 @@
+import { useState } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Menu, X, Swords, ShoppingBag, LogIn } from 'lucide-react'
+import LoginModal from './LoginModal'
+
+const NAV_ITEMS = [
+  { to: '/pokemon', label: 'Pokémon',  Icon: Swords      },
+  { to: '/items',   label: 'Items',    Icon: ShoppingBag },
+]
+
+function PokeballIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <path d="M2 12h20" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <path d="M9 12a3 3 0 0 1 6 0" stroke="currentColor" strokeWidth="0" fill="currentColor" opacity="0.15" />
+    </svg>
+  )
+}
+
+function SidebarContent({ onNavClick, onLoginClick, onBrandClick }) {
+  return (
+    <div className="flex flex-col h-full">
+      {/* Brand */}
+      <div className="px-6 py-5 border-b border-gray-700/60">
+        <button onClick={onBrandClick} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white">
+            <PokeballIcon />
+          </div>
+          <span className="font-bold text-lg text-white tracking-wide">
+            Pokemon <span className="text-red-400">DnD</span>
+          </span>
+        </button>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-4 space-y-1">
+        {NAV_ITEMS.map(({ to, label, Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            onClick={onNavClick}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 ${
+                isActive
+                  ? 'bg-red-600 text-white shadow-lg shadow-red-900/30'
+                  : 'text-gray-400 hover:bg-gray-700/60 hover:text-white'
+              }`
+            }
+          >
+            <Icon size={18} />
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Login */}
+      <div className="px-4 pb-4">
+        <button
+          onClick={onLoginClick}
+          className="w-full flex items-center justify-center gap-2 bg-gray-700 hover:bg-red-600
+                     text-gray-300 hover:text-white py-2.5 px-4 rounded-xl text-sm font-medium
+                     transition-all duration-150"
+        >
+          <LogIn size={16} />
+          Iniciar Sesión
+        </button>
+      </div>
+
+      {/* Footer */}
+      <div className="px-4 py-4 border-t border-gray-700/60 text-center">
+        <p className="text-gray-500 text-xs leading-relaxed">
+          Creado por<br />
+          <span className="text-gray-400">Efrain Ramirez</span>
+          {' & '}
+          <span className="text-gray-400">Gustavo Quintero</span>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+export default function Layout() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [loginOpen,   setLoginOpen]   = useState(false)
+  const navigate = useNavigate()
+
+  const closeSidebar = () => setSidebarOpen(false)
+  const openLogin    = () => { setLoginOpen(true); closeSidebar() }
+  const goHome       = () => { navigate('/'); closeSidebar() }
+
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+
+      {/* ── Mobile overlay ── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+
+      {/* ── Sidebar ── */}
+      <aside
+        className={`
+          fixed top-0 left-0 h-full w-64 bg-gray-900 z-30 flex flex-col
+          transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0 lg:static lg:z-auto
+        `}
+      >
+        <SidebarContent onNavClick={closeSidebar} onLoginClick={openLogin} onBrandClick={goHome} />
+      </aside>
+
+      {/* ── Main area ── */}
+      <div className="flex-1 flex flex-col min-w-0">
+
+        {/* Mobile top bar */}
+        <header className="lg:hidden sticky top-0 z-10 bg-gray-900 px-4 py-3 flex items-center gap-3 shadow-md">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-white p-1 rounded-lg hover:bg-gray-700 transition-colors"
+            aria-label="Abrir menú"
+          >
+            <Menu size={22} />
+          </button>
+          <button onClick={goHome} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <div className="w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white">
+              <PokeballIcon />
+            </div>
+            <span className="font-bold text-white text-base">
+              Pokemon <span className="text-red-400">DnD</span>
+            </span>
+          </button>
+          <button
+            onClick={openLogin}
+            className="ml-auto text-gray-400 hover:text-white p-1 transition-colors"
+            aria-label="Iniciar sesión"
+          >
+            <LogIn size={20} />
+          </button>
+        </header>
+
+        {/* Page content */}
+        <main className="flex-1">
+          <Outlet />
+        </main>
+      </div>
+
+      {/* ── Login modal ── */}
+      {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} />}
+    </div>
+  )
+}
