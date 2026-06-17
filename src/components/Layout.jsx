@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Swords, ShoppingBag } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -17,16 +17,13 @@ function PokeballIcon() {
 }
 
 export default function Layout() {
-  const navigate  = useNavigate()
-  const { pathname } = useLocation()
-  const isHome    = pathname === '/'
+  const navigate = useNavigate()
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
 
-      {/* ── Top bar (oculto en home) ── */}
-      {!isHome && (
-        <header className="sticky top-0 z-20 bg-gray-900 shadow-md">
+      {/* ── Top bar ── */}
+      <header className="sticky top-0 z-20 bg-gray-900 shadow-md">
           <div className="flex items-center gap-4 px-4 lg:px-8 py-3">
             {/* Brand */}
             <button
@@ -61,8 +58,7 @@ export default function Layout() {
               ))}
             </nav>
           </div>
-        </header>
-      )}
+      </header>
 
       {/* Page content */}
       <main className="flex-1">
