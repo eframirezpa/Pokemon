@@ -4,6 +4,15 @@ import Home from './pages/Home'
 import PokemonList from './pages/PokemonList'
 import PokemonDetail from './pages/PokemonDetail'
 import ItemsList from './pages/ItemsList'
+import NaturesList from './pages/NaturesList'
+import FeatsList from './pages/FeatsList'
+import BackgroundsList from './pages/BackgroundsList'
+import OriginsList from './pages/OriginsList'
+import BondsList from './pages/BondsList'
+import ArmorTypesList from './pages/ArmorTypesList'
+import WeaponTypesList from './pages/WeaponTypesList'
+import WeaponPropertiesList from './pages/WeaponPropertiesList'
+import MovesList from './pages/MovesList'
 
 export default function App() {
   return (
@@ -13,8 +22,17 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="pokemon" element={<PokemonList />} />
           <Route path="pokemon/:id" element={<PokemonDetail />} />
-          <Route path="items"   element={<ItemsList />} />
-          <Route path="*"       element={<Navigate to="/" replace />} />
+          <Route path="items" element={<ItemsList />} />
+          <Route path="natures" element={<NaturesList />} />
+          <Route path="feats" element={<FeatsList />} />
+          <Route path="backgrounds" element={<BackgroundsList />} />
+          <Route path="origins" element={<OriginsList />} />
+          <Route path="bonds" element={<BondsList />} />
+          <Route path="armor-types" element={<ArmorTypesList />} />
+          <Route path="weapon-types" element={<WeaponTypesList />} />
+          <Route path="weapon-properties" element={<WeaponPropertiesList />} />
+          <Route path="moves" element={<MovesList />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

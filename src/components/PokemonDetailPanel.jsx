@@ -82,19 +82,19 @@ function MovesSection({ title, moveNames, movesMap }) {
             </thead>
             <tbody className="bg-[#FDF1DC]">
               {moves.length > 0 ? moves.map(m => {
-                const c = typeBg(m.moves_move_type)
+                const c = typeBg(m.move_type)
                 return (
                   <tr key={m.move_id} className="border-b border-gray-100 hover:bg-amber-50/50">
-                    <td className="py-1 px-2 font-medium text-gray-800">{m.moves_move_name}</td>
+                    <td className="py-1 px-2 font-medium text-gray-800">{m.move_name}</td>
                     <td className="py-1 px-2">
                       <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
                         style={{ backgroundColor: c.bg, color: c.dark ? '#374151' : '#fff' }}>
-                        {m.moves_move_type}
+                        {m.move_type}
                       </span>
                     </td>
-                    <td className="py-1 px-2 text-center text-gray-500">{m.moves_move_pp}</td>
-                    <td className="py-1 px-2 text-gray-500">{m.moves_move_time}</td>
-                    <td className="py-1 px-2 text-gray-500">{m.moves_move_range}</td>
+                    <td className="py-1 px-2 text-center text-gray-500">{m.move_pp}</td>
+                    <td className="py-1 px-2 text-gray-500">{m.move_time}</td>
+                    <td className="py-1 px-2 text-gray-500">{m.move_range}</td>
                   </tr>
                 )
               }) : moveNames.map(n => (
@@ -174,7 +174,7 @@ export default function PokemonDetailPanel({ id, onClose }) {
       setPk(pkData)
       setEvols(evolData.value ?? [])
       const mm = {}
-      for (const m of (movData.data ?? [])) mm[m.moves_move_name.toLowerCase()] = m
+      for (const m of (movData.data ?? [])) mm[m.move_name.toLowerCase()] = m
       setMoves(mm)
       const tm = {}
       for (const t of (tmData.data ?? [])) tm[t.tm_number] = t

@@ -94,22 +94,22 @@ function TypeRow({ label, types }) {
 
 function MoveRow({ move }) {
   if (!move) return null
-  const c = typeBg(move.moves_move_type)
+  const c = typeBg(move.move_type)
   return (
     <tr className="border-b border-gray-100 hover:bg-amber-50/50 text-xs">
-      <td className="py-1.5 px-3 font-medium text-gray-800">{move.moves_move_name}</td>
+      <td className="py-1.5 px-3 font-medium text-gray-800">{move.move_name}</td>
       <td className="py-1.5 px-2">
         <span
           className="px-2 py-0.5 rounded-full text-[10px] font-bold"
           style={{ backgroundColor: c.bg, color: c.dark ? '#374151' : '#fff' }}
         >
-          {move.moves_move_type}
+          {move.move_type}
         </span>
       </td>
-      <td className="py-1.5 px-2 text-gray-500">{move.moves_move_power_1 ?? '—'}</td>
-      <td className="py-1.5 px-2 text-gray-500 text-center">{move.moves_move_pp}</td>
-      <td className="py-1.5 px-2 text-gray-500">{move.moves_move_time}</td>
-      <td className="py-1.5 px-2 text-gray-500">{move.moves_move_range}</td>
+      <td className="py-1.5 px-2 text-gray-500">{move.move_power_1 ?? '—'}</td>
+      <td className="py-1.5 px-2 text-gray-500 text-center">{move.move_pp}</td>
+      <td className="py-1.5 px-2 text-gray-500">{move.move_time}</td>
+      <td className="py-1.5 px-2 text-gray-500">{move.move_range}</td>
     </tr>
   )
 }
@@ -274,7 +274,7 @@ export default function PokemonDetail() {
         setEvols(evolData.value ?? [])
         const movMap = {}
         for (const m of (movData.data ?? [])) {
-          movMap[m.moves_move_name.toLowerCase()] = m
+          movMap[m.move_name.toLowerCase()] = m
         }
         setMovesMap(movMap)
         const tmMap = {}
