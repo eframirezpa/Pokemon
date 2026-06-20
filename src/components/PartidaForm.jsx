@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { X, Upload, Image } from 'lucide-react'
 import { apiFetch } from '../api'
 
@@ -9,7 +9,27 @@ const EMPTY = {
   titulo3: '', leyenda3: '',
 }
 
-function SpriteField({ label, name, preview, onChange }) {
+// Comprime la imagen a max 1280px y calidad 0.75 para evitar 413 en Vercel
+function compressImage(file, maxWidth = 1280, quality = 0.75) {
+  return new Promise((resolve) => {
+    const img = new window.Image()
+    img.onload = () => {
+      const scale  = Math.min(1, maxWidth / img.width)
+      const canvas = document.createElement('canvas')
+      canvas.width  = Math.round(img.width  * scale)
+      canvas.height = Math.round(img.height * scale)
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob(
+        blob => resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })),
+        'image/jpeg',
+        quality
+      )
+    }
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+function SpriteField({ label, preview, onChange }) {
   const ref = useRef()
   return (
     <div className="space-y-1">
@@ -48,29 +68,25 @@ function Field({ label, name, value, onChange, textarea }) {
 
 export default function PartidaForm({ partida, onClose, onSaved }) {
   const isEdit = !!partida
-  const [fields, setFields]   = useState(isEdit ? {
-    nombre: partida.nombre_partida, descripcion: partida.descripcion_partida,
-    titulo1: partida.titulo1_partida, leyenda1: partida.leyenda1_partida,
-    titulo2: partida.titulo2_partida, leyenda2: partida.leyenda2_partida,
-    titulo3: partida.titulo3_partida, leyenda3: partida.leyenda3_partida,
+  const [fields, setFields] = useState(isEdit ? {
+    nombre:      partida.nombre_partida,
+    descripcion: partida.descripcion_partida,
+    titulo1:     partida.titulo1_partida,  leyenda1: partida.leyenda1_partida,
+    titulo2:     partida.titulo2_partida,  leyenda2: partida.leyenda2_partida,
+    titulo3:     partida.titulo3_partida,  leyenda3: partida.leyenda3_partida,
   } : { ...EMPTY })
 
-  const [sprites, setSprites] = useState({ sprite1: null, sprite2: null, sprite3: null })
-  const [previews, setPreviews] = useState({
-    sprite1: partida?.sprite1_partida ? null : null,
-    sprite2: partida?.sprite2_partida ? null : null,
-    sprite3: partida?.sprite3_partida ? null : null,
-  })
-  const [error, setError]     = useState('')
-  const [saving, setSaving]   = useState(false)
+  const [sprites,  setSprites]  = useState({ sprite1: null, sprite2: null, sprite3: null })
+  const [previews, setPreviews] = useState({ sprite1: null, sprite2: null, sprite3: null })
+  const [error,    setError]    = useState('')
+  const [saving,   setSaving]   = useState(false)
 
   const handleField = e => setFields(f => ({ ...f, [e.target.name]: e.target.value }))
 
   const handleSprite = (key, file) => {
     if (!file) return
-    setSprites(s => ({ ...s, [key]: file }))
-    const url = URL.createObjectURL(file)
-    setPreviews(p => ({ ...p, [key]: url }))
+    setSprites(s  => ({ ...s,  [key]: file }))
+    setPreviews(p => ({ ...p,  [key]: URL.createObjectURL(file) }))
   }
 
   const handleSubmit = async (e) => {
@@ -82,11 +98,16 @@ export default function PartidaForm({ partida, onClose, onSaved }) {
     try {
       const fd = new FormData()
       Object.entries(fields).forEach(([k, v]) => fd.append(k, v))
-      if (sprites.sprite1) fd.append('sprite1', sprites.sprite1)
-      if (sprites.sprite2) fd.append('sprite2', sprites.sprite2)
-      if (sprites.sprite3) fd.append('sprite3', sprites.sprite3)
 
-      const res = await apiFetch(isEdit ? `/partida/${partida.id_partida}` : '/partida', {
+      // Comprimir cada imagen antes de enviar
+      for (const key of ['sprite1', 'sprite2', 'sprite3']) {
+        if (sprites[key]) {
+          const compressed = await compressImage(sprites[key])
+          fd.append(key, compressed)
+        }
+      }
+
+      const res  = await apiFetch(isEdit ? `/partida/${partida.id_partida}` : '/partida', {
         method: isEdit ? 'PUT' : 'POST',
         body: fd,
       })
@@ -109,24 +130,25 @@ export default function PartidaForm({ partida, onClose, onSaved }) {
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4 max-h-[75vh] overflow-y-auto">
-          <Field label="Nombre de la partida" name="nombre" value={fields.nombre} onChange={handleField} />
-          <Field label="Descripción" name="descripcion" value={fields.descripcion} onChange={handleField} textarea />
+          <Field label="Nombre de la partida" name="nombre"       value={fields.nombre}       onChange={handleField} />
+          <Field label="Descripción"           name="descripcion" value={fields.descripcion}  onChange={handleField} textarea />
 
           {[1, 2, 3].map(n => (
             <div key={n} className="space-y-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sección {n}</p>
-              <Field label={`Título ${n}`} name={`titulo${n}`} value={fields[`titulo${n}`]} onChange={handleField} />
+              <Field label={`Título ${n}`}  name={`titulo${n}`}  value={fields[`titulo${n}`]}  onChange={handleField} />
               <Field label={`Leyenda ${n}`} name={`leyenda${n}`} value={fields[`leyenda${n}`]} onChange={handleField} textarea />
               <SpriteField
                 label={`Sprite ${n}${!isEdit ? ' *' : ''}`}
-                name={`sprite${n}`}
                 preview={previews[`sprite${n}`]}
                 onChange={file => handleSprite(`sprite${n}`, file)}
               />
             </div>
           ))}
 
-          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+          {error && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+          )}
 
           <div className="flex gap-2 pt-1 pb-1">
             <button type="button" onClick={onClose}
@@ -135,7 +157,7 @@ export default function PartidaForm({ partida, onClose, onSaved }) {
             </button>
             <button type="submit" disabled={saving}
               className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-60">
-              {saving ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear partida'}
+              {saving ? 'Comprimiendo y guardando...' : isEdit ? 'Guardar cambios' : 'Crear partida'}
             </button>
           </div>
         </form>
