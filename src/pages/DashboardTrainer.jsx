@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, UserCircle, Pencil, Lock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 import PartidaPresentacion from '../components/PartidaPresentacion'
+import AvatarSelector, { avatarFaceUrl } from '../components/AvatarSelector'
 
 export default function DashboardTrainer() {
   const { user } = useAuth()
   const [partidas, setPartidas]           = useState([])
   const [loading, setLoading]             = useState(true)
-  const [presentacion, setPresentacion]   = useState(null)  // partida activa en presentación
-  const [panelPartida, setPanelPartida]   = useState(null)  // partida cuyo panel se muestra
+  const [presentacion, setPresentacion]   = useState(null)
+  const [panelPartida, setPanelPartida]   = useState(null)
+  const [showAvatar, setShowAvatar]       = useState(false)
+
+  const hasAvatar = !!user?.avatar_id
 
   useEffect(() => {
     apiFetch('/partida/mis-partidas')
@@ -20,6 +24,7 @@ export default function DashboardTrainer() {
   }, [])
 
   const handleSelect = (partida) => {
+    if (!hasAvatar) return
     setPresentacion(partida)
     setPanelPartida(null)
   }
@@ -58,15 +63,57 @@ export default function DashboardTrainer() {
   // ── Lista de partidas ────────────────────────────────────────────────────
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Mis Partidas</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Bienvenido, <span className="font-medium text-gray-700">{user?.user_name}</span>
-        </p>
+
+      {/* Cabecera */}
+      <div className="flex items-start justify-between mb-6 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Mis Partidas</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Bienvenido, <span className="font-medium text-gray-700">{user?.user_name}</span>
+          </p>
+        </div>
+
+        {/* Botón de avatar */}
+        <button
+          onClick={() => setShowAvatar(true)}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border transition-all shrink-0
+            ${hasAvatar
+              ? 'border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-600 bg-white'
+              : 'border-red-400 text-red-600 hover:bg-red-50 bg-red-50'
+            }`}
+        >
+          {hasAvatar ? (
+            <>
+              <img src={avatarFaceUrl(user.avatar_id)} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
+              <Pencil size={13} />
+              <span>Editar avatar</span>
+            </>
+          ) : (
+            <>
+              <UserCircle size={16} />
+              <span>Agregar avatar</span>
+            </>
+          )}
+        </button>
       </div>
 
+      {/* Alerta si no tiene avatar */}
+      {!hasAvatar && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4 mb-5">
+          <Lock size={18} className="text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-red-800 text-sm">Selecciona un avatar para continuar</p>
+            <p className="text-red-600 text-xs mt-0.5 leading-relaxed">
+              Debes elegir tu avatar antes de poder ingresar a una partida.
+            </p>
+          </div>
+        </div>
+      )}
+
       {!loading && partidas.length > 0 && (
-        <p className="text-base font-medium text-gray-600 mb-4">Selecciona tu partida</p>
+        <p className={`text-base font-medium mb-4 ${hasAvatar ? 'text-gray-600' : 'text-gray-300'}`}>
+          Selecciona tu partida
+        </p>
       )}
 
       {loading ? (
@@ -95,23 +142,31 @@ export default function DashboardTrainer() {
             <button
               key={p.id_partida}
               onClick={() => handleSelect(p)}
-              className="w-full text-left bg-white border border-gray-200 rounded-2xl p-4
-                         hover:border-red-300 hover:shadow-md hover:-translate-y-0.5
-                         transition-all duration-200 group flex items-center gap-4"
+              disabled={!hasAvatar}
+              className={`w-full text-left rounded-2xl p-4 border transition-all duration-200 group flex items-center gap-4
+                ${hasAvatar
+                  ? 'bg-white border-gray-200 hover:border-red-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer'
+                  : 'bg-gray-50 border-gray-100 cursor-not-allowed opacity-50'
+                }`}
             >
-              <span className="text-2xl font-bold text-gray-200 group-hover:text-red-200 transition-colors w-8 shrink-0 text-center">
+              <span className={`text-2xl font-bold w-8 shrink-0 text-center transition-colors
+                ${hasAvatar ? 'text-gray-200 group-hover:text-red-200' : 'text-gray-200'}`}>
                 {i + 1}
               </span>
-              <div className="min-w-0">
-                <p className="font-semibold text-gray-800 group-hover:text-red-700 transition-colors">
+              <div className="min-w-0 flex-1">
+                <p className={`font-semibold transition-colors
+                  ${hasAvatar ? 'text-gray-800 group-hover:text-red-700' : 'text-gray-400'}`}>
                   {p.nombre_partida}
                 </p>
                 <p className="text-xs text-gray-500 mt-1 line-clamp-2">{p.descripcion_partida}</p>
               </div>
+              {!hasAvatar && <Lock size={15} className="text-gray-300 shrink-0" />}
             </button>
           ))}
         </div>
       )}
+
+      {showAvatar && <AvatarSelector onClose={() => setShowAvatar(false)} />}
     </div>
   )
 }
