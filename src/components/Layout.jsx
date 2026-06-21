@@ -50,14 +50,16 @@ export default function Layout() {
           {user && (
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setShowAvatarSelector(true)}
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                title="Cambiar avatar"
+                onClick={() => user.role !== 'master' && setShowAvatarSelector(true)}
+                className={`flex items-center gap-2 transition-opacity ${user.role !== 'master' ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}`}
+                title={user.role !== 'master' ? 'Cambiar avatar' : ''}
               >
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 border-2 border-gray-600 hover:border-red-500 transition-colors">
-                  {user.avatar_face_url
-                    ? <img src={user.avatar_face_url} alt="avatar" className="w-full h-full object-cover" />
-                    : <div className="w-full h-full flex items-center justify-center"><User size={14} className="text-gray-300" /></div>
+                  {user.role === 'master'
+                    ? <img src="/avatars/chuckface.png" alt="avatar" className="w-full h-full object-cover" />
+                    : user.avatar_face_url
+                      ? <img src={user.avatar_face_url} alt="avatar" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center"><User size={14} className="text-gray-300" /></div>
                   }
                 </div>
                 <div className="hidden sm:block text-left">
