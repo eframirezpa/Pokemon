@@ -17,8 +17,8 @@ export default function AvatarSelector({ onClose }) {
     if (saving !== null) return
     setSaving(avatarId)
     try {
-      const res = await apiFetch(`/usuarios/${user.user_id}`, {
-        method: 'PUT',
+      const res = await apiFetch('/usuarios/me/avatar', {
+        method: 'PATCH',
         body: JSON.stringify({ avatar_id: avatarId }),
       })
       if (res.ok) {
