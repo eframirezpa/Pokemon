@@ -3,8 +3,12 @@ import { X, Check } from 'lucide-react'
 import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
 
-// Normaliza paths con backslash que vienen del DB (Windows)
-const toUrl = (path) => path ? path.replace(/\\/g, '/') : ''
+// Extrae el nombre del archivo y lo sirve desde public/avatars/
+const toUrl = (path) => {
+  if (!path) return ''
+  const filename = path.replace(/\\/g, '/').split('/').pop()
+  return `/avatars/${filename}`
+}
 
 export default function AvatarSelector({ onClose }) {
   const { user, updateAvatar } = useAuth()
