@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Pencil, Power, Users, LogIn } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch, API_BASE_URL } from '../api'
@@ -83,12 +84,12 @@ function PartidaCard({ partida, onEdit, onToggle, onUsers, onEnter }) {
 
 export default function DashboardMaster() {
   const { user } = useAuth()
+  const navigate  = useNavigate()
   const [partidas, setPartidas]           = useState([])
   const [loading, setLoading]             = useState(true)
   const [formPartida, setFormPartida]     = useState(null)
   const [usersPartida, setUsersPartida]   = useState(null)
   const [presentacion, setPresentacion]   = useState(null)
-  const [panelPartida, setPanelPartida]   = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -115,24 +116,9 @@ export default function DashboardMaster() {
   }
 
   const handleFinishPresentacion = () => {
-    setPanelPartida(presentacion)
+    const p = presentacion
     setPresentacion(null)
-  }
-
-  // ── Panel de la partida ──────────────────────────────────────────────────
-  if (panelPartida) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-6">
-        <h1 className="text-2xl font-bold text-gray-800">Panel del Master</h1>
-        <p className="text-gray-500 text-sm">{panelPartida.nombre_partida}</p>
-        <button
-          onClick={() => setPanelPartida(null)}
-          className="text-xs text-gray-400 hover:text-gray-600 underline"
-        >
-          ← Volver a mis partidas
-        </button>
-      </div>
-    )
+    navigate(`/master-partida/${p.id_partida}`, { state: { nombre: p.nombre_partida } })
   }
 
   // ── Presentación ─────────────────────────────────────────────────────────

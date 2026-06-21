@@ -17,13 +17,17 @@ import MovesList from './pages/MovesList'
 import DashboardMaster from './pages/DashboardMaster'
 import DashboardTrainer from './pages/DashboardTrainer'
 import DashboardEspectador from './pages/DashboardEspectador'
+import TrainerPartida from './pages/TrainerPartida'
+import MasterPartida from './pages/MasterPartida'
+import EspectadorPartida from './pages/EspectadorPartida'
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+
+        {/* Páginas con header/footer */}
         <Route element={<Layout />}>
-          {/* Públicas */}
           <Route index element={<Home />} />
           <Route path="pokemon" element={<PokemonList />} />
           <Route path="pokemon/:id" element={<PokemonDetail />} />
@@ -38,7 +42,6 @@ export default function App() {
           <Route path="weapon-properties" element={<WeaponPropertiesList />} />
           <Route path="moves" element={<MovesList />} />
 
-          {/* Protegidas por rol */}
           <Route path="dashboard/master" element={
             <ProtectedRoute role="master"><DashboardMaster /></ProtectedRoute>
           } />
@@ -51,6 +54,18 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
+
+        {/* Salas de partida — pantalla completa sin header */}
+        <Route path="trainer-partida/:id" element={
+          <ProtectedRoute role="trainer"><TrainerPartida /></ProtectedRoute>
+        } />
+        <Route path="master-partida/:id" element={
+          <ProtectedRoute role="master"><MasterPartida /></ProtectedRoute>
+        } />
+        <Route path="espectador-partida/:id" element={
+          <ProtectedRoute role="espectador"><EspectadorPartida /></ProtectedRoute>
+        } />
+
       </Routes>
     </BrowserRouter>
   )
