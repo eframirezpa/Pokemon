@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Sparkles, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react'
 import { apiFetch } from '../api'
 
 /* ─────────────────── helpers ─────────────────── */
@@ -271,7 +271,7 @@ export default function PokemonDetail() {
     ])
       .then(([pkData, evolData, movData, tmData]) => {
         setPk(pkData)
-        setEvols(evolData.value ?? [])
+        setEvols(Array.isArray(evolData) ? evolData : (evolData.value ?? []))
         const movMap = {}
         for (const m of (movData.data ?? [])) {
           movMap[m.move_name.toLowerCase()] = m
@@ -334,6 +334,8 @@ export default function PokemonDetail() {
   const immun = splitList(pk.pokemon_immunities)
 
   const mainImg  = shiny ? pk.pokemon_media_main_shiny  : pk.pokemon_media_main
+  const evolFrom = evols.find(ev => Number(ev.evolution_to_pokemon_id)   === Number(id))
+  const evolTo   = evols.find(ev => Number(ev.evolution_from_pokemon_id) === Number(id))
   const abilityEntries = [
     pk.pokemon_ability_1 && { id: pk.pokemon_ability_1, hidden: !!pk.pokemon_ability_1_is_hidden },
     pk.pokemon_ability_2 && { id: pk.pokemon_ability_2, hidden: !!pk.pokemon_ability_2_is_hidden },
@@ -372,15 +374,65 @@ export default function PokemonDetail() {
               {pk.pokemon_type_1 && <TypeBadge type={pk.pokemon_type_1} />}
               {pk.pokemon_type_2 && <TypeBadge type={pk.pokemon_type_2} />}
             </div>
-            <div className="relative">
-              <img
-                src={mainImg}
-                alt={pk.pokemon_name}
-                className="w-40 h-40 object-contain"
-                onError={e => { e.target.style.opacity = '0.2' }}
-              />
+
+            {/* Evolution from · main sprite · evolution to */}
+            <div className="flex items-center w-full">
+              {/* Left: pre-evolution */}
+              <div className="w-14 shrink-0 flex justify-center">
+                {evolFrom && (
+                  <button
+                    onClick={() => goTo(evolFrom.evolution_from_pokemon_id)}
+                    className="flex flex-col items-center gap-1 p-1.5 rounded-xl hover:bg-gray-50 hover:shadow transition-all group"
+                    title={`Ver ${evolFrom.from_name}`}
+                  >
+                    <img src={evolFrom.from_sprite} alt={evolFrom.from_name}
+                      className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                    <span className="text-[9px] text-gray-400 group-hover:text-red-600 text-center leading-tight max-w-[52px] truncate">
+                      {evolFrom.from_name}
+                    </span>
+                    <span className="flex items-center gap-0.5 text-[9px] text-gray-400 group-hover:text-red-500">
+                      <ChevronLeft size={10} /> ev. from
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {evolFrom && <ChevronRight size={12} className="text-gray-300 shrink-0" />}
+
+              {/* Center: main sprite */}
+              <div className="flex-1 flex justify-center">
+                <img
+                  src={mainImg}
+                  alt={pk.pokemon_name}
+                  className="w-40 h-40 object-contain"
+                  onError={e => { e.target.style.opacity = '0.2' }}
+                />
+              </div>
+
+              {evolTo && <ChevronRight size={12} className="text-gray-300 shrink-0" />}
+
+              {/* Right: next evolution */}
+              <div className="w-14 shrink-0 flex justify-center">
+                {evolTo && (
+                  <button
+                    onClick={() => goTo(evolTo.evolution_to_pokemon_id)}
+                    className="flex flex-col items-center gap-1 p-1.5 rounded-xl hover:bg-gray-50 hover:shadow transition-all group"
+                    title={`Ver ${evolTo.to_name}`}
+                  >
+                    <img src={evolTo.to_sprite} alt={evolTo.to_name}
+                      className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                    <span className="text-[9px] text-gray-400 group-hover:text-red-600 text-center leading-tight max-w-[52px] truncate">
+                      {evolTo.to_name}
+                    </span>
+                    <span className="flex items-center gap-0.5 text-[9px] text-gray-400 group-hover:text-red-500">
+                      ev. to <ChevronRight size={10} />
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
-            {(pk.pokemon_media_main_shiny) && (
+
+            {pk.pokemon_media_main_shiny && (
               <button
                 onClick={() => setShiny(s => !s)}
                 className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-all ${
