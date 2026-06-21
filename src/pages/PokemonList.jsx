@@ -223,7 +223,7 @@ export default function PokemonList() {
         {/* Panel de detalle – izquierda */}
         {selectedId && (
           <div className="w-[420px] shrink-0 border-r border-gray-200 flex flex-col overflow-hidden bg-white">
-            <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
+            <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} />
           </div>
         )}
 
@@ -256,7 +256,7 @@ export default function PokemonList() {
               <div className="flex justify-center pt-3 pb-1 shrink-0">
                 <div className="w-10 h-1 bg-gray-300 rounded-full" />
               </div>
-              <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
+              <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} />
             </div>
           </div>
         )}

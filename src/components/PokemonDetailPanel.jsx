@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Sparkles, ChevronRight, ExternalLink } from 'lucide-react'
+import { X, Sparkles, ChevronRight, ChevronLeft, ExternalLink } from 'lucide-react'
 import { apiFetch } from '../api'
 
 /* ── helpers (mismos que PokemonDetail) ── */
@@ -152,7 +152,7 @@ function TmSection({ tmNumbers, tmsMap }) {
 }
 
 /* ── main component ── */
-export default function PokemonDetailPanel({ id, onClose }) {
+export default function PokemonDetailPanel({ id, onClose, onSelectId }) {
   const navigate  = useNavigate()
   const [pk,       setPk]      = useState(null)
   const [evols,    setEvols]   = useState([])
@@ -172,7 +172,7 @@ export default function PokemonDetailPanel({ id, onClose }) {
       apiFetch('/tm?limit=200').then(r => r.json()),
     ]).then(([pkData, evolData, movData, tmData]) => {
       setPk(pkData)
-      setEvols(evolData.value ?? [])
+      setEvols(Array.isArray(evolData) ? evolData : (evolData.value ?? []))
       const mm = {}
       for (const m of (movData.data ?? [])) mm[m.move_name.toLowerCase()] = m
       setMoves(mm)
@@ -226,7 +226,9 @@ export default function PokemonDetailPanel({ id, onClose }) {
     pk.pokemon_ability_4 && { id: pk.pokemon_ability_4, hidden: !!pk.pokemon_ability_4_is_hidden },
   ].filter(Boolean)
 
-  const mainImg = shiny ? pk.pokemon_media_main_shiny : pk.pokemon_media_main
+  const mainImg  = shiny ? pk.pokemon_media_main_shiny : pk.pokemon_media_main
+  const evolFrom = evols.find(ev => Number(ev.evolution_to_pokemon_id)   === Number(id))
+  const evolTo   = evols.find(ev => Number(ev.evolution_from_pokemon_id) === Number(id))
 
   return (
     <div className="flex flex-col h-full">
@@ -255,19 +257,66 @@ export default function PokemonDetailPanel({ id, onClose }) {
       {/* ── scrollable content ── */}
       <div className="flex-1 overflow-y-auto">
 
-        {/* Image + shiny */}
-        <div className="flex flex-col items-center gap-2 py-4 bg-gray-50 border-b border-gray-100">
-          <img src={mainImg} alt={pk.pokemon_name}
-            className="w-32 h-32 object-contain"
-            onError={e => { e.target.style.opacity = '0.2' }} />
-          {pk.pokemon_media_main_shiny && (
-            <button onClick={() => setShiny(s => !s)}
-              className={`flex items-center gap-1 text-xs px-3 py-1 rounded-full border transition-all ${
-                shiny ? 'bg-yellow-400 border-yellow-500 text-yellow-900 font-semibold'
-                      : 'bg-white border-gray-200 text-gray-500 hover:border-yellow-400'}`}>
-              <Sparkles size={11} /> Shiny
-            </button>
-          )}
+        {/* Image + evolution sprites */}
+        <div className="flex items-center py-4 bg-gray-50 border-b border-gray-100 px-3">
+          {/* Left: pre-evolution */}
+          <div className="w-16 shrink-0 flex justify-center">
+            {evolFrom && (
+              <button
+                onClick={() => onSelectId?.(evolFrom.evolution_from_pokemon_id)}
+                className="flex flex-col items-center gap-1 p-1.5 rounded-xl hover:bg-white hover:shadow transition-all group"
+                title={`Ver ${evolFrom.from_name}`}
+              >
+                <img src={evolFrom.from_sprite} alt={evolFrom.from_name}
+                  className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] text-gray-400 group-hover:text-red-600 text-center leading-tight max-w-[56px] truncate">
+                  {evolFrom.from_name}
+                </span>
+                <span className="flex items-center gap-0.5 text-[9px] text-gray-400 group-hover:text-red-500">
+                  <ChevronLeft size={10} /> ev. from
+                </span>
+              </button>
+            )}
+          </div>
+
+          {evolFrom && <ChevronRight size={12} className="text-gray-300 shrink-0" />}
+
+          {/* Center: main sprite */}
+          <div className="flex-1 flex flex-col items-center gap-2">
+            <img src={mainImg} alt={pk.pokemon_name}
+              className="w-32 h-32 object-contain"
+              onError={e => { e.target.style.opacity = '0.2' }} />
+            {pk.pokemon_media_main_shiny && (
+              <button onClick={() => setShiny(s => !s)}
+                className={`flex items-center gap-1 text-xs px-3 py-1 rounded-full border transition-all ${
+                  shiny ? 'bg-yellow-400 border-yellow-500 text-yellow-900 font-semibold'
+                        : 'bg-white border-gray-200 text-gray-500 hover:border-yellow-400'}`}>
+                <Sparkles size={11} /> Shiny
+              </button>
+            )}
+          </div>
+
+          {evolTo && <ChevronRight size={12} className="text-gray-300 shrink-0" />}
+
+          {/* Right: next evolution */}
+          <div className="w-16 shrink-0 flex justify-center">
+            {evolTo && (
+              <button
+                onClick={() => onSelectId?.(evolTo.evolution_to_pokemon_id)}
+                className="flex flex-col items-center gap-1 p-1.5 rounded-xl hover:bg-white hover:shadow transition-all group"
+                title={`Ver ${evolTo.to_name}`}
+              >
+                <img src={evolTo.to_sprite} alt={evolTo.to_name}
+                  className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] text-gray-400 group-hover:text-red-600 text-center leading-tight max-w-[56px] truncate">
+                  {evolTo.to_name}
+                </span>
+                <span className="flex items-center gap-0.5 text-[9px] text-gray-400 group-hover:text-red-500">
+                  ev. to <ChevronRight size={10} />
+                </span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="px-4 py-4 space-y-4">

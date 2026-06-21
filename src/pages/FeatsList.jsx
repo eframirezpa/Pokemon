@@ -9,21 +9,25 @@ export default function FeatsList() {
   const [search, setSearch]   = useState('')
   const [expandedId, setExpandedId] = useState(null)
   const [searchParams] = useSearchParams()
-  const typeFilter = searchParams.get('type') ?? ''
+  const allowedTypes = (searchParams.get('type') ?? '')
+    .split(',')
+    .map(t => t.trim().toLowerCase())
+    .filter(Boolean)
 
   useEffect(() => {
     setLoading(true)
-    const qs = typeFilter ? `&type=${encodeURIComponent(typeFilter)}` : ''
-    apiFetch(`/feats?limit=200${qs}`)
+    apiFetch('/feats?limit=200')
       .then(r => r.json())
       .then(d => setItems(d.data ?? []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false))
-  }, [typeFilter])
+  }, [])
 
-  const filtered = items.filter(n =>
-    !search || n.feat_name?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = items.filter(n => {
+    const matchSearch = !search || n.feat_name?.toLowerCase().includes(search.toLowerCase())
+    const matchType   = allowedTypes.length === 0 || allowedTypes.includes(n.feat_type?.toLowerCase())
+    return matchSearch && matchType
+  })
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
