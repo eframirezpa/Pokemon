@@ -3,7 +3,7 @@ import { AlertCircle, UserCircle, Pencil, Lock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 import PartidaPresentacion from '../components/PartidaPresentacion'
-import AvatarSelector, { avatarFaceUrl } from '../components/AvatarSelector'
+import AvatarSelector from '../components/AvatarSelector'
 
 export default function DashboardTrainer() {
   const { user } = useAuth()
@@ -84,7 +84,7 @@ export default function DashboardTrainer() {
         >
           {hasAvatar ? (
             <>
-              <img src={avatarFaceUrl(user.avatar_id)} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
+              <img src={user.avatar_face_url} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
               <Pencil size={13} />
               <span>Editar avatar</span>
             </>

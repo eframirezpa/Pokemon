@@ -19,8 +19,8 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
-  const updateAvatar = (avatar_id) => {
-    const updated = { ...user, avatar_id }
+  const updateAvatar = (avatar_id, avatar_face_url) => {
+    const updated = { ...user, avatar_id, avatar_face_url }
     localStorage.setItem('auth_user', JSON.stringify(updated))
     setUser(updated)
   }

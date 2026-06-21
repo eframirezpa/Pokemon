@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { LogOut, User } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import AvatarSelector, { avatarFaceUrl } from './AvatarSelector'
+import AvatarSelector from './AvatarSelector'
 
 const ROLE_COLORS = {
   master:     'bg-red-600',
@@ -55,8 +55,8 @@ export default function Layout() {
                 title="Cambiar avatar"
               >
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 border-2 border-gray-600 hover:border-red-500 transition-colors">
-                  {user.avatar_id
-                    ? <img src={avatarFaceUrl(user.avatar_id)} alt="avatar" className="w-full h-full object-cover" />
+                  {user.avatar_face_url
+                    ? <img src={user.avatar_face_url} alt="avatar" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center"><User size={14} className="text-gray-300" /></div>
                   }
                 </div>

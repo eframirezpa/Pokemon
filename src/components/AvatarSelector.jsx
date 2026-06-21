@@ -1,29 +1,37 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Check } from 'lucide-react'
 import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
 
-export const avatarFaceUrl      = (id) => `/avatars/face${id}.png`
-export const avatarCompleteUrl  = (id) => `/avatars/complete${id}.png`
-
-const TOTAL_AVATARS = 14
+// Normaliza paths con backslash que vienen del DB (Windows)
+const toUrl = (path) => path ? path.replace(/\\/g, '/') : ''
 
 export default function AvatarSelector({ onClose }) {
   const { user, updateAvatar } = useAuth()
+  const [avatars,  setAvatars]  = useState([])
   const [selected, setSelected] = useState(user?.avatar_id ?? null)
   const [saving,   setSaving]   = useState(null)
+  const [loading,  setLoading]  = useState(true)
 
-  const handleSelect = async (avatarId) => {
+  useEffect(() => {
+    apiFetch('/avatar')
+      .then(r => r.json())
+      .then(d => setAvatars(Array.isArray(d) ? d : []))
+      .catch(() => setAvatars([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleSelect = async (avatar) => {
     if (saving !== null) return
-    setSaving(avatarId)
+    setSaving(avatar.avatar_id)
     try {
       const res = await apiFetch('/usuarios/me/avatar', {
         method: 'PATCH',
-        body: JSON.stringify({ avatar_id: avatarId }),
+        body: JSON.stringify({ avatar_id: avatar.avatar_id }),
       })
       if (res.ok) {
-        setSelected(avatarId)
-        updateAvatar(avatarId)
+        setSelected(avatar.avatar_id)
+        updateAvatar(avatar.avatar_id, toUrl(avatar.avatar_sprite_face))
       }
     } finally {
       setSaving(null)
@@ -42,36 +50,42 @@ export default function AvatarSelector({ onClose }) {
         </div>
 
         <div className="p-4 grid grid-cols-4 gap-2 max-h-[55vh] overflow-y-auto">
-          {Array.from({ length: TOTAL_AVATARS }, (_, i) => i + 1).map(id => (
-            <button
-              key={id}
-              onClick={() => handleSelect(id)}
-              disabled={saving !== null}
-              className={`relative rounded-xl overflow-hidden border-2 aspect-square transition-all
-                ${selected === id
-                  ? 'border-red-500 shadow-md scale-105'
-                  : 'border-gray-200 hover:border-gray-400 hover:scale-105'
-                }`}
-            >
-              <img
-                src={avatarFaceUrl(id)}
-                alt={`Avatar ${id}`}
-                className="w-full h-full object-cover bg-gray-100"
-              />
-              {selected === id && (
-                <div className="absolute inset-0 bg-red-500/10 flex items-end justify-end p-1">
-                  <div className="bg-red-500 rounded-full p-0.5">
-                    <Check size={10} className="text-white" />
+          {loading ? (
+            Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="aspect-square rounded-xl bg-gray-100 animate-pulse" />
+            ))
+          ) : (
+            avatars.map(avatar => (
+              <button
+                key={avatar.avatar_id}
+                onClick={() => handleSelect(avatar)}
+                disabled={saving !== null}
+                className={`relative rounded-xl overflow-hidden border-2 aspect-square transition-all
+                  ${selected === avatar.avatar_id
+                    ? 'border-red-500 shadow-md scale-105'
+                    : 'border-gray-200 hover:border-gray-400 hover:scale-105'
+                  }`}
+              >
+                <img
+                  src={toUrl(avatar.avatar_sprite_face)}
+                  alt={`Avatar ${avatar.avatar_id}`}
+                  className="w-full h-full object-cover bg-gray-100"
+                />
+                {selected === avatar.avatar_id && (
+                  <div className="absolute inset-0 bg-red-500/10 flex items-end justify-end p-1">
+                    <div className="bg-red-500 rounded-full p-0.5">
+                      <Check size={10} className="text-white" />
+                    </div>
                   </div>
-                </div>
-              )}
-              {saving === id && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-            </button>
-          ))}
+                )}
+                {saving === avatar.avatar_id && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </button>
+            ))
+          )}
         </div>
 
         <div className="px-4 pb-4">
