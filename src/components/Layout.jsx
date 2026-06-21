@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { LogOut, User } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import AvatarSelector, { avatarFaceUrl } from './AvatarSelector'
 
 const ROLE_COLORS = {
   master:     'bg-red-600',
@@ -19,8 +21,9 @@ function PokeballIcon() {
 }
 
 export default function Layout() {
-  const navigate    = useNavigate()
+  const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const [showAvatarSelector, setShowAvatarSelector] = useState(false)
 
   const handleLogout = () => {
     logout()
@@ -46,17 +49,25 @@ export default function Layout() {
 
           {user && (
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-gray-700 rounded-full flex items-center justify-center">
-                  <User size={14} className="text-gray-300" />
+              <button
+                onClick={() => setShowAvatarSelector(true)}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                title="Cambiar avatar"
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 border-2 border-gray-600 hover:border-red-500 transition-colors">
+                  {user.avatar_id
+                    ? <img src={avatarFaceUrl(user.avatar_id)} alt="avatar" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center"><User size={14} className="text-gray-300" /></div>
+                  }
                 </div>
-                <div className="hidden sm:block">
+                <div className="hidden sm:block text-left">
                   <p className="text-white text-xs font-medium leading-none">{user.user_name}</p>
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-white ${ROLE_COLORS[user.role] ?? 'bg-gray-500'}`}>
                     {user.role}
                   </span>
                 </div>
-              </div>
+              </button>
+
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-1.5 text-gray-400 hover:text-white text-xs
@@ -77,6 +88,10 @@ export default function Layout() {
       <footer className="bg-gray-900 text-gray-400 text-center text-xs py-4">
         Creado por <span className="text-gray-200">Efrain Ramirez</span> &amp; <span className="text-gray-200">Gustavo Quintero</span>
       </footer>
+
+      {showAvatarSelector && (
+        <AvatarSelector onClose={() => setShowAvatarSelector(false)} />
+      )}
 
     </div>
   )

@@ -65,6 +65,10 @@ export default function DashboardTrainer() {
         </p>
       </div>
 
+      {!loading && partidas.length > 0 && (
+        <p className="text-base font-medium text-gray-600 mb-4">Selecciona tu partida</p>
+      )}
+
       {loading ? (
         <div className="space-y-3">
           {[1, 2].map(i => (
@@ -87,18 +91,23 @@ export default function DashboardTrainer() {
         </div>
       ) : (
         <div className="space-y-3">
-          {partidas.map(p => (
+          {partidas.map((p, i) => (
             <button
               key={p.id_partida}
               onClick={() => handleSelect(p)}
               className="w-full text-left bg-white border border-gray-200 rounded-2xl p-4
                          hover:border-red-300 hover:shadow-md hover:-translate-y-0.5
-                         transition-all duration-200 group"
+                         transition-all duration-200 group flex items-center gap-4"
             >
-              <p className="font-semibold text-gray-800 group-hover:text-red-700 transition-colors">
-                {p.nombre_partida}
-              </p>
-              <p className="text-xs text-gray-500 mt-1 line-clamp-2">{p.descripcion_partida}</p>
+              <span className="text-2xl font-bold text-gray-200 group-hover:text-red-200 transition-colors w-8 shrink-0 text-center">
+                {i + 1}
+              </span>
+              <div className="min-w-0">
+                <p className="font-semibold text-gray-800 group-hover:text-red-700 transition-colors">
+                  {p.nombre_partida}
+                </p>
+                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{p.descripcion_partida}</p>
+              </div>
             </button>
           ))}
         </div>
