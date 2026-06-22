@@ -38,7 +38,7 @@ function SkeletonRow() {
 }
 
 /* ── Lista + panel de detalle ── */
-export default function PokemonList() {
+export default function PokemonList({ title = 'Pokémon' }) {
   const [pokemon, setPokemon]           = useState([])
   const [total, setTotal]               = useState(0)
   const [loading, setLoading]           = useState(true)
@@ -88,7 +88,7 @@ export default function PokemonList() {
     <div className="px-4 pt-5 pb-3 border-b border-gray-200 bg-white shrink-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Pokémon</h1>
+          <h1 className="text-xl font-bold text-gray-900">{title}</h1>
           <p className="text-xs text-gray-500 mt-0.5">
             {loading ? 'Cargando...' : `Mostrando ${fromItem}–${toItem} de ${total}`}
           </p>

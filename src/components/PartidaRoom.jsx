@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { LogOut, ChevronLeft, ChevronDown } from 'lucide-react'
+import { LogOut, ChevronLeft, ChevronDown, Users, Send } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 
@@ -16,11 +16,73 @@ const ROLE_COLORS = {
   master:     'text-red-400',
 }
 
+/* Banner superior del master — visible para trainer y espectador */
+function MasterBanner({ nombre, message }) {
+  return (
+    <div className="shrink-0 px-4 pt-4">
+      <div className="flex items-center gap-3 bg-gradient-to-r from-slate-800 via-gray-800 to-slate-900
+                      border border-gray-700 rounded-2xl p-3 shadow-lg">
+        <img
+          src="/avatars/chuckface.png"
+          alt="Master"
+          className="w-14 h-14 rounded-full border-2 border-amber-500/60 object-cover shrink-0 bg-gray-700"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-1 truncate">
+            Campaña: {nombre}
+          </p>
+          <div className="relative bg-gray-700/70 rounded-xl rounded-tl-sm px-3 py-2">
+            <p className="text-sm text-gray-100 leading-snug">{message}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* Componente de envío de mensaje — visible solo para el master */
+function MasterSendMessage({ onSend }) {
+  const [text, setText] = useState('')
+  const submit = () => {
+    const t = text.trim()
+    if (!t) return
+    onSend(t)
+    setText('')
+  }
+  return (
+    <div className="shrink-0 px-4 pt-4">
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl p-3 shadow-lg">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Enviar mensaje</p>
+        <div className="flex items-center gap-2">
+          <input
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submit() }}
+            placeholder="Escribe un mensaje para los jugadores..."
+            className="flex-1 bg-gray-700 text-white text-sm rounded-full px-4 py-2.5
+                       placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/50"
+          />
+          <button
+            onClick={submit}
+            disabled={!text.trim()}
+            className="w-11 h-11 shrink-0 rounded-full bg-green-500 hover:bg-green-600
+                       disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center
+                       text-white transition-all shadow-md"
+            title="Enviar"
+          >
+            <Send size={18} />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function TrainerCard({ u }) {
   const initials = (u.user_name ?? '?').slice(0, 2).toUpperCase()
   return (
-    <div className="flex flex-col items-center gap-1.5 bg-white/10 rounded-xl p-2.5">
-      <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/20 bg-gray-700 shrink-0">
+    <div className="flex flex-col items-center gap-1 bg-white/10 rounded-xl p-1.5">
+      <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white/20 bg-gray-700 shrink-0">
         {u.avatar_face_url
           ? <img src={u.avatar_face_url} alt="" className="w-full h-full object-cover" />
           : null
@@ -42,14 +104,14 @@ export default function PartidaRoom({ children, roleLabel }) {
   const logEndRef   = useRef(null)
 
   const nombre = location.state?.nombre || `Partida #${id}`
-  const [panelOpen, setPanelOpen]             = useState(true)
-  const [masterPanelOpen, setMasterPanelOpen] = useState(true)
-  const [logOpen, setLogOpen]                 = useState(true)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [logOpen, setLogOpen]     = useState(true)
 
-  const { presentes, log } = usePartidaPresence(id, user)
+  const isMaster = user?.role === 'master'
+
+  const { presentes, log, masterMessage, sendMasterMessage } = usePartidaPresence(id, user)
 
   const trainers = presentes.filter(u => u.role === 'trainer' || u.role === 'espectador')
-  const master   = presentes.find(u => u.role === 'master')
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -74,36 +136,53 @@ export default function PartidaRoom({ children, roleLabel }) {
       </div>
 
       {/* Main layout */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
+
+        {/* Botón flotante — abre el panel de jugadores cuando está oculto */}
+        {!panelOpen && (
+          <button
+            onClick={() => setPanelOpen(true)}
+            className="absolute bottom-3 left-3 z-20 flex items-center justify-center w-10 h-10
+                       rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                       border border-gray-600 transition-all"
+            title="Mostrar jugadores"
+          >
+            <Users size={18} />
+          </button>
+        )}
 
         {/* Left — Trainers */}
-        <div className={`shrink-0 flex flex-col bg-gray-800/50 border-r border-gray-700 overflow-hidden transition-all duration-300 ${panelOpen ? 'w-52' : 'w-10'}`}>
-          {/* Header con toggle */}
-          <div className="flex items-center justify-between px-3 pt-4 pb-2 shrink-0">
-            {panelOpen && (
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Jugadores</p>
-            )}
-            <button
-              onClick={() => setPanelOpen(o => !o)}
-              className="ml-auto text-gray-400 hover:text-white transition-colors"
-            >
-              <ChevronLeft size={14} className={`transition-transform duration-300 ${panelOpen ? '' : 'rotate-180'}`} />
-            </button>
-          </div>
+        {panelOpen && (
+          <div className="w-16 shrink-0 flex flex-col bg-gray-800/50 border-r border-gray-700 overflow-hidden">
+            {/* Header con toggle */}
+            <div className="flex items-center justify-center pt-3 pb-2 shrink-0">
+              <button
+                onClick={() => setPanelOpen(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+                title="Ocultar jugadores"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            </div>
 
-          {/* Lista de jugadores */}
-          {panelOpen && (
-            <div className="flex flex-col gap-2 px-3 pb-4 overflow-y-auto">
+            {/* Lista de jugadores */}
+            <div className="flex flex-col gap-2 px-1.5 pb-4 overflow-y-auto">
               {trainers.length === 0
-                ? <p className="text-xs text-gray-600 italic">Sin jugadores conectados</p>
+                ? <p className="text-[10px] text-gray-600 italic text-center">Sin jugadores</p>
                 : trainers.map(u => <TrainerCard key={u.user_id} u={u} />)
               }
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Center — content + activity log */}
+        {/* Center — master panel + content + activity log */}
         <div className="flex flex-col flex-1 overflow-hidden">
+
+          {/* Panel del master arriba */}
+          {isMaster
+            ? <MasterSendMessage onSend={sendMasterMessage} />
+            : <MasterBanner nombre={nombre} message={masterMessage} />
+          }
 
           {/* Role-specific content area */}
           <div className="flex-1 overflow-auto p-6">
@@ -142,46 +221,6 @@ export default function PartidaRoom({ children, roleLabel }) {
               </div>
             )}
           </div>
-        </div>
-
-        {/* Right — Master */}
-        <div className={`shrink-0 flex flex-col bg-gray-800/50 border-l border-gray-700 overflow-hidden transition-all duration-300 ${masterPanelOpen ? 'w-48' : 'w-10'}`}>
-          {/* Header con toggle */}
-          <div className="flex items-center justify-between px-3 pt-4 pb-2 shrink-0">
-            <button
-              onClick={() => setMasterPanelOpen(o => !o)}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <ChevronLeft size={14} className={`transition-transform duration-300 ${masterPanelOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {masterPanelOpen && (
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Master</p>
-            )}
-          </div>
-
-          {/* Contenido master */}
-          {masterPanelOpen && (
-            <div className="flex flex-col items-center gap-2 px-3 pb-4">
-              {master ? (
-                <>
-                  <div className="w-28 rounded-xl overflow-hidden border-2 border-red-500/40 bg-gray-800">
-                    <img src="/avatars/chuckcomplete.png" alt="Master" className="w-full object-cover" />
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-white text-xs font-bold leading-none">
-                      {(master.user_name ?? '?').slice(0, 2).toUpperCase()}
-                    </span>
-                    <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse shrink-0" />
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col items-center gap-2 opacity-30 w-full">
-                  <div className="w-28 h-40 rounded-xl bg-gray-700 border-2 border-gray-600" />
-                  <p className="text-xs text-gray-500">Sin conectar</p>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
       </div>
