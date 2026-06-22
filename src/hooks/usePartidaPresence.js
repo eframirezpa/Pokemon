@@ -7,10 +7,12 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [presentes, setPresentes]         = useState([])
   const [log,       setLog]               = useState([])
   const [masterMessage, setMasterMessage] = useState(DEFAULT_MASTER_MESSAGE)
+  const [activePokemon, setActivePokemon] = useState(null)
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
   const messageRef  = useRef(DEFAULT_MASTER_MESSAGE)
+  const pokemonRef  = useRef(null)
 
   userInfoRef.current = userInfo
 
@@ -31,13 +33,10 @@ export function usePartidaPresence(partidaId, userInfo) {
       })
       .on('presence', { event: 'join' }, ({ newPresences }) => {
         newPresences.forEach(p => addLog(`${p.user_name} se unió a la partida`, p.role))
-        // Si soy el master, reenvío el mensaje actual para los que recién entran
+        // Si soy el master, reenvío el estado actual para los que recién entran
         if (userInfoRef.current?.role === 'master') {
-          channel.send({
-            type: 'broadcast',
-            event: 'master_message',
-            payload: { text: messageRef.current },
-          })
+          channel.send({ type: 'broadcast', event: 'master_message', payload: { text: messageRef.current } })
+          channel.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemon: pokemonRef.current } })
         }
       })
       .on('presence', { event: 'leave' }, ({ leftPresences }) => {
@@ -48,6 +47,10 @@ export function usePartidaPresence(partidaId, userInfo) {
           messageRef.current = payload.text
           setMasterMessage(payload.text)
         }
+      })
+      .on('broadcast', { event: 'pokemon_update' }, ({ payload }) => {
+        pokemonRef.current = payload?.pokemon ?? null
+        setActivePokemon(payload?.pokemon ?? null)
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -69,13 +72,15 @@ export function usePartidaPresence(partidaId, userInfo) {
     const t = (text ?? '').trim()
     if (!t) return
     messageRef.current = t
-    setMasterMessage(t) // actualización optimista local (broadcast no se envía a sí mismo)
-    channelRef.current?.send({
-      type: 'broadcast',
-      event: 'master_message',
-      payload: { text: t },
-    })
+    setMasterMessage(t)
+    channelRef.current?.send({ type: 'broadcast', event: 'master_message', payload: { text: t } })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage }
+  const sendPokemon = useCallback((pokemon) => {
+    pokemonRef.current = pokemon
+    setActivePokemon(pokemon)
+    channelRef.current?.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemon } })
+  }, [])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemon, sendPokemon }
 }

@@ -38,7 +38,7 @@ function SkeletonRow() {
 }
 
 /* ── Lista + panel de detalle ── */
-export default function PokemonList({ title = 'Pokémon' }) {
+export default function PokemonList({ title = 'Pokémon', onPick = null }) {
   const [pokemon, setPokemon]           = useState([])
   const [total, setTotal]               = useState(0)
   const [loading, setLoading]           = useState(true)
@@ -154,7 +154,7 @@ export default function PokemonList({ title = 'Pokémon' }) {
                 const isSelected = pk.pokemon_id === selectedId
                 return (
                   <tr key={pk.pokemon_id}
-                    onClick={() => setSelectedId(isSelected ? null : pk.pokemon_id)}
+                    onClick={() => onPick ? onPick(pk) : setSelectedId(isSelected ? null : pk.pokemon_id)}
                     className={`cursor-pointer transition-colors group ${
                       isSelected ? 'bg-red-50 border-l-2 border-red-500' : 'hover:bg-gray-50'}`}>
                     <td className="py-2 px-4">

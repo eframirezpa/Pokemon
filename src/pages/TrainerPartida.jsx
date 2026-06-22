@@ -14,12 +14,12 @@ export default function TrainerPartida() {
         {/* Botón de celular — abre la Pokédex */}
         <button
           onClick={() => setShowPokedex(true)}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center
-                     w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-lg
-                     hover:shadow-xl hover:-translate-y-0.5 transition-all"
+          className="fixed left-3 top-1/2 translate-y-[6px] z-30 flex items-center justify-center
+                     w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                     border border-gray-600 transition-all"
           title="Abrir Pokédex"
         >
-          <Smartphone size={24} />
+          <Smartphone size={18} />
         </button>
       </div>
 
