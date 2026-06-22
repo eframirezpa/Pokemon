@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { LogOut, ChevronLeft, ChevronDown, Users, Send, Plus, Minus, X } from 'lucide-react'
+import {
+  LogOut, ChevronLeft, ChevronDown, Users, Send, Plus, Minus, X,
+  Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
+  Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star,
+} from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
@@ -25,6 +29,15 @@ const TYPE_COLORS = {
   Flying:{bg:'#A890F0',dark:false}, Psychic:{bg:'#F85888',dark:false}, Bug:{bg:'#A8B820',dark:false},
   Rock:{bg:'#B8A038',dark:false}, Ghost:{bg:'#705898',dark:false}, Dragon:{bg:'#7038F8',dark:false},
   Dark:{bg:'#705848',dark:false}, Steel:{bg:'#B8B8D0',dark:true}, Fairy:{bg:'#EE99AC',dark:true},
+}
+
+// Icono representativo por tipo de ataque
+const TYPE_ICONS = {
+  Normal: Star,    Fire: Flame,      Water: Droplet,   Grass: Leaf,
+  Electric: Zap,   Ice: Snowflake,   Fighting: Swords, Poison: Skull,
+  Ground: Mountain, Flying: Feather, Psychic: Brain,   Bug: Bug,
+  Rock: Gem,       Ghost: Ghost,     Dragon: Sparkles, Dark: Moon,
+  Steel: Shield,   Fairy: Wand2,
 }
 
 function TypeBadge({ type }) {
@@ -151,7 +164,7 @@ function MasterPokemonPanel({ pokemon, onAdd, onHp, onHpSet, onRemove, onCast })
                       <TypeBadge type={m.type} />
                     </div>
                     <button
-                      onClick={() => onCast(m.name)}
+                      onClick={() => onCast(m.name, m.type)}
                       className="shrink-0 text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 px-2.5 py-1 rounded-md transition-colors"
                     >
                       Lanzar
@@ -261,13 +274,23 @@ export default function PartidaRoom({ children, roleLabel }) {
 
   const isMaster = user?.role === 'master'
 
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemon, sendPokemon } = usePartidaPresence(id, user)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemon, sendPokemon, lastAttack, sendAttack } = usePartidaPresence(id, user)
 
   const trainers = presentes.filter(u => u.role === 'trainer' || u.role === 'espectador')
+
+  const [attackFx, setAttackFx] = useState(null)
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [log])
+
+  // Efecto visual del ataque: aparece y desaparece a los 1.2s
+  useEffect(() => {
+    if (!lastAttack) return
+    setAttackFx(lastAttack)
+    const t = setTimeout(() => setAttackFx(null), 1200)
+    return () => clearTimeout(t)
+  }, [lastAttack])
 
   // El master elige un Pokémon de la Pokédex → se carga su info completa
   const handlePickPokemon = async (pk) => {
@@ -312,9 +335,10 @@ export default function PartidaRoom({ children, roleLabel }) {
     sendPokemon({ ...activePokemon, hp_current: hp })
   }
 
-  const handleCast = (moveName) => {
+  const handleCast = (moveName, moveType) => {
     if (!activePokemon) return
     sendMasterMessage(`${activePokemon.name} ha usado el movimiento ${moveName}`)
+    sendAttack({ pokemonName: activePokemon.name, moveName, type: moveType })
   }
 
   return (
@@ -403,6 +427,28 @@ export default function PartidaRoom({ children, roleLabel }) {
                 <PokemonHpCard p={activePokemon} />
               </div>
             )}
+
+            {/* Efecto visual del ataque */}
+            {attackFx && (() => {
+              const FxIcon = TYPE_ICONS[attackFx.type] ?? Sparkles
+              const color  = TYPE_COLORS[attackFx.type]?.bg ?? '#888'
+              return (
+                <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                  <div className="animate-attack-burst flex flex-col items-center gap-3">
+                    <div className="relative flex items-center justify-center">
+                      <span className="absolute w-24 h-24 rounded-full animate-ping opacity-60"
+                        style={{ backgroundColor: color }} />
+                      <FxIcon size={56} className="relative text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]" />
+                    </div>
+                    <span className="px-4 py-1.5 rounded-full text-white font-black text-lg shadow-xl"
+                      style={{ backgroundColor: color }}>
+                      {attackFx.moveName}
+                    </span>
+                  </div>
+                </div>
+              )
+            })()}
+
             {children}
           </div>
 

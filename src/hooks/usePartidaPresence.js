@@ -8,6 +8,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [log,       setLog]               = useState([])
   const [masterMessage, setMasterMessage] = useState(DEFAULT_MASTER_MESSAGE)
   const [activePokemon, setActivePokemon] = useState(null)
+  const [lastAttack,    setLastAttack]    = useState(null)
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
@@ -15,6 +16,17 @@ export function usePartidaPresence(partidaId, userInfo) {
   const pokemonRef  = useRef(null)
 
   userInfoRef.current = userInfo
+
+  // Registra el ataque en la actividad y dispara el efecto visual
+  const applyAttack = useCallback((payload) => {
+    if (!payload?.moveName) return
+    setLog(prev => [...prev, {
+      text: `${payload.pokemonName} usó ${payload.moveName}`,
+      role: 'master',
+      time: new Date().toISOString(),
+    }])
+    setLastAttack({ ...payload, id: Date.now() })
+  }, [])
 
   useEffect(() => {
     if (!partidaId || !userInfo?.user_id) return
@@ -52,6 +64,9 @@ export function usePartidaPresence(partidaId, userInfo) {
         pokemonRef.current = payload?.pokemon ?? null
         setActivePokemon(payload?.pokemon ?? null)
       })
+      .on('broadcast', { event: 'attack' }, ({ payload }) => {
+        applyAttack(payload)
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({
@@ -82,5 +97,10 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemon } })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemon, sendPokemon }
+  const sendAttack = useCallback((payload) => {
+    applyAttack(payload) // efecto/registro local inmediato (broadcast no se envía a sí mismo)
+    channelRef.current?.send({ type: 'broadcast', event: 'attack', payload })
+  }, [applyAttack])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemon, sendPokemon, lastAttack, sendAttack }
 }
