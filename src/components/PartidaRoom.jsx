@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import {
-  LogOut, ChevronLeft, ChevronDown, Users, Send, Plus, Minus, X,
+  LogOut, ChevronLeft, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
   Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star,
 } from 'lucide-react'
@@ -67,37 +67,64 @@ const levelMoves = (d, level) => {
   return [...new Set(names)]
 }
 
+/* Signo de interrogación estilo Pokémon (amarillo con contorno azul) */
+function MysteryMark({ size = 'text-4xl' }) {
+  return (
+    <span className={`${size} font-black text-yellow-400 leading-none`}
+      style={{ WebkitTextStroke: '1.5px #1e3a5f', textShadow: '0 1px 0 #1e3a5f' }}>
+      ?
+    </span>
+  )
+}
+
 /* Tarjeta de vida del Pokémon — vista de trainer/espectador (con imagen) */
 function PokemonHpCard({ p }) {
-  const pct = hpPct(p)
+  const pct    = hpPct(p)
+  const hidden = !!p.hidden
+  // Efecto de sangrado: pulso de fondo según la vida (se mantiene aunque esté oculto)
+  const bleedClass = pct <= 20 ? 'animate-bleed-red' : pct <= 50 ? 'animate-bleed-yellow' : 'bg-gray-100'
+
   return (
-    <div className="flex items-center gap-3 bg-gray-100 border-2 border-gray-700 rounded-2xl shadow-xl p-2.5 w-64">
-      <img src={p.sprite} alt={p.name}
-        className="w-16 h-16 object-contain bg-white rounded-xl shrink-0 border border-gray-300"
-        onError={e => { e.target.style.opacity = '0.2' }} />
+    <div className={`flex items-center gap-3 border-2 border-gray-700 rounded-2xl shadow-xl p-2.5 w-64 ${bleedClass}`}>
+      {/* Sprite */}
+      {hidden ? (
+        <div className="w-16 h-16 rounded-xl shrink-0 border border-gray-300 bg-white flex items-center justify-center">
+          <MysteryMark />
+        </div>
+      ) : (
+        <img src={p.sprite} alt={p.name}
+          className="w-16 h-16 object-contain bg-white rounded-xl shrink-0 border border-gray-300"
+          onError={e => { e.target.style.opacity = '0.2' }} />
+      )}
+
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-bold text-gray-900 text-sm truncate">{p.name}</span>
+          <span className="font-bold text-gray-900 text-sm truncate">{hidden ? '???' : p.name}</span>
           <span className="text-xs font-bold text-gray-700 shrink-0">Lv.{p.level}</span>
         </div>
-        <div className="flex gap-1 my-1">
-          <TypeBadge type={p.type1} />
-          <TypeBadge type={p.type2} />
+        <div className="flex gap-1 my-1 min-h-[14px]">
+          {!hidden && <><TypeBadge type={p.type1} /><TypeBadge type={p.type2} /></>}
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-[9px] font-black text-amber-600">HP</span>
-          <div className="flex-1 h-2 bg-gray-300 rounded-full overflow-hidden border border-gray-400">
-            <div className="h-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: hpColor(pct) }} />
-          </div>
+          {hidden ? (
+            <span className="text-[10px] font-bold text-gray-700">???</span>
+          ) : (
+            <div className="flex-1 h-2 bg-gray-300 rounded-full overflow-hidden border border-gray-400">
+              <div className="h-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: hpColor(pct) }} />
+            </div>
+          )}
         </div>
-        <p className="text-right text-[10px] font-bold text-gray-700 mt-0.5">{p.hp_current}/{p.hp_max}</p>
+        {!hidden && (
+          <p className="text-right text-[10px] font-bold text-gray-700 mt-0.5">{p.hp_current}/{p.hp_max}</p>
+        )}
       </div>
     </div>
   )
 }
 
 /* Panel de Pokémon del master — botón + Pokémon y controles de vida */
-function MasterPokemonPanel({ pokemon, onAdd, onHp, onHpSet, onRemove, onCast }) {
+function MasterPokemonPanel({ pokemon, onAdd, onHp, onHpSet, onRemove, onCast, onToggleHidden }) {
   return (
     <div className="shrink-0 px-4 pt-3">
       <button
@@ -121,9 +148,18 @@ function MasterPokemonPanel({ pokemon, onAdd, onHp, onHpSet, onRemove, onCast })
                 <TypeBadge type={pokemon.type2} />
               </div>
             </div>
-            <button onClick={onRemove} className="text-gray-500 hover:text-red-400 transition-colors shrink-0" title="Quitar">
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={onToggleHidden}
+                className={`transition-colors ${pokemon.hidden ? 'text-amber-400 hover:text-amber-300' : 'text-gray-500 hover:text-white'}`}
+                title={pokemon.hidden ? 'Revelar a los jugadores' : 'Ocultar a los jugadores'}
+              >
+                {pokemon.hidden ? <Eye size={16} /> : <EyeOff size={16} />}
+              </button>
+              <button onClick={onRemove} className="text-gray-500 hover:text-red-400 transition-colors" title="Quitar">
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           {/* Controles de vida */}
@@ -274,7 +310,7 @@ export default function PartidaRoom({ children, roleLabel }) {
 
   const isMaster = user?.role === 'master'
 
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemon, sendPokemon, lastAttack, sendAttack } = usePartidaPresence(id, user)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemon, sendPokemon, lastAttack, sendAttack, sendActivity } = usePartidaPresence(id, user)
 
   const trainers = presentes.filter(u => u.role === 'trainer' || u.role === 'espectador')
 
@@ -319,7 +355,12 @@ export default function PartidaRoom({ children, roleLabel }) {
         hp_current:  d.pokemon_hit_points,
         sprite:      d.pokemon_media_sprite || d.pokemon_media_main,
         moves,
+        hidden:      true,
       })
+
+      const text = 'Apareció un pokémon salvaje'
+      sendMasterMessage(text)
+      sendActivity(text)
     } catch { /* noop */ }
   }
 
@@ -333,6 +374,18 @@ export default function PartidaRoom({ children, roleLabel }) {
     if (!activePokemon) return
     const hp = Math.max(0, Math.min(activePokemon.hp_max, value))
     sendPokemon({ ...activePokemon, hp_current: hp })
+  }
+
+  const handleToggleHidden = () => {
+    if (!activePokemon) return
+    const nowHidden = !activePokemon.hidden
+    sendPokemon({ ...activePokemon, hidden: nowHidden })
+    if (!nowHidden) {
+      // Se revela el Pokémon → mostrar el nombre real
+      const text = `Apareció un ${activePokemon.name} salvaje`
+      sendMasterMessage(text)
+      sendActivity(text)
+    }
   }
 
   const handleCast = (moveName, moveType) => {
@@ -413,6 +466,7 @@ export default function PartidaRoom({ children, roleLabel }) {
                 onHpSet={handleHpSet}
                 onRemove={() => sendPokemon(null)}
                 onCast={handleCast}
+                onToggleHidden={handleToggleHidden}
               />
             </>
           ) : (
@@ -428,8 +482,8 @@ export default function PartidaRoom({ children, roleLabel }) {
               </div>
             )}
 
-            {/* Efecto visual del ataque */}
-            {attackFx && (() => {
+            {/* Efecto visual del ataque (no se muestra al master) */}
+            {!isMaster && attackFx && (() => {
               const FxIcon = TYPE_ICONS[attackFx.type] ?? Sparkles
               const color  = TYPE_COLORS[attackFx.type]?.bg ?? '#888'
               return (

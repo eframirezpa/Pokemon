@@ -33,3 +33,23 @@ body {
 .animate-attack-burst {
   animation: attack-burst 1.2s ease-out forwards;
 }
+
+/* Efecto de sangrado: pulso de fondo tipo latido del corazón */
+@keyframes bleed-pulse-yellow {
+  0%, 100% { background-color: #f3f4f6; }
+  35%      { background-color: #fde047; }
+  50%      { background-color: #f3f4f6; }
+  70%      { background-color: #fde047; }
+}
+@keyframes bleed-pulse-red {
+  0%, 100% { background-color: #f3f4f6; }
+  35%      { background-color: #f87171; }
+  50%      { background-color: #f3f4f6; }
+  70%      { background-color: #f87171; }
+}
+.animate-bleed-yellow {
+  animation: bleed-pulse-yellow 1.4s ease-in-out infinite;
+}
+.animate-bleed-red {
+  animation: bleed-pulse-red 1s ease-in-out infinite;
+}

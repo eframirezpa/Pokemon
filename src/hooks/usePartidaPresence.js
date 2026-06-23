@@ -17,16 +17,17 @@ export function usePartidaPresence(partidaId, userInfo) {
 
   userInfoRef.current = userInfo
 
+  // Agrega una entrada a la actividad de la partida
+  const pushLog = useCallback((text, role = 'master') => {
+    setLog(prev => [...prev, { text, role, time: new Date().toISOString() }])
+  }, [])
+
   // Registra el ataque en la actividad y dispara el efecto visual
   const applyAttack = useCallback((payload) => {
     if (!payload?.moveName) return
-    setLog(prev => [...prev, {
-      text: `${payload.pokemonName} usó ${payload.moveName}`,
-      role: 'master',
-      time: new Date().toISOString(),
-    }])
+    pushLog(`${payload.pokemonName} usó ${payload.moveName}`, 'master')
     setLastAttack({ ...payload, id: Date.now() })
-  }, [])
+  }, [pushLog])
 
   useEffect(() => {
     if (!partidaId || !userInfo?.user_id) return
@@ -67,6 +68,9 @@ export function usePartidaPresence(partidaId, userInfo) {
       .on('broadcast', { event: 'attack' }, ({ payload }) => {
         applyAttack(payload)
       })
+      .on('broadcast', { event: 'activity' }, ({ payload }) => {
+        if (payload?.text) pushLog(payload.text, payload.role)
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({
@@ -102,5 +106,10 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'attack', payload })
   }, [applyAttack])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemon, sendPokemon, lastAttack, sendAttack }
+  const sendActivity = useCallback((text, role = 'master') => {
+    pushLog(text, role) // registro local inmediato
+    channelRef.current?.send({ type: 'broadcast', event: 'activity', payload: { text, role } })
+  }, [pushLog])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemon, sendPokemon, lastAttack, sendAttack, sendActivity }
 }

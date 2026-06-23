@@ -33,7 +33,7 @@ export default function DashboardTrainer() {
   const handleFinishPresentacion = () => {
     const p = presentacion
     setPresentacion(null)
-    navigate(`/trainer-partida/${p.id_partida}`, { state: { nombre: p.nombre_partida } })
+    navigate(`/partida-lobby/${p.id_partida}`, { state: { nombre: p.nombre_partida } })
   }
 
   // ── Presentación ─────────────────────────────────────────────────────────

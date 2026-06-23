@@ -20,6 +20,7 @@ import DashboardEspectador from './pages/DashboardEspectador'
 import TrainerPartida from './pages/TrainerPartida'
 import MasterPartida from './pages/MasterPartida'
 import EspectadorPartida from './pages/EspectadorPartida'
+import PartidaLobby from './pages/PartidaLobby'
 
 export default function App() {
   return (
@@ -56,6 +57,9 @@ export default function App() {
         </Route>
 
         {/* Salas de partida — pantalla completa sin header */}
+        <Route path="partida-lobby/:id" element={
+          <ProtectedRoute role="trainer"><PartidaLobby /></ProtectedRoute>
+        } />
         <Route path="trainer-partida/:id" element={
           <ProtectedRoute role="trainer"><TrainerPartida /></ProtectedRoute>
         } />
