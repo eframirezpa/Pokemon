@@ -2,19 +2,25 @@ import { useState, useEffect } from 'react'
 import { X, Check, ChevronLeft, ChevronDown, Plus, Minus, Loader2 } from 'lucide-react'
 import { apiFetch } from '../api'
 
-const STEPS = ['Nombre', 'Stats', 'Origen', 'Background']
+const STEPS = ['Nombre', 'Origen', 'Background', 'Stats', 'Iniciales', 'Equipo', 'Detalles']
 
 const STAT_FIELDS = [
-  { key: 'personaje_dex', label: 'DEX' },
-  { key: 'personaje_str', label: 'STR' },
-  { key: 'personaje_con', label: 'CON' },
-  { key: 'personaje_int', label: 'INT' },
-  { key: 'personaje_wis', label: 'WIS' },
-  { key: 'personaje_cha', label: 'CHA' },
+  { key: 'personaje_dex', label: 'DEX', name: 'Dexterity',    desc: 'Agilidad, reflejos, equilibrio, sigilo, precisión, coordinación y reacción ante peligro.' },
+  { key: 'personaje_str', label: 'STR', name: 'Strength',     desc: 'Fuerza física, cargar peso, empujar, trepar con fuerza, sujetar, romper objetos y usar fuerza bruta.' },
+  { key: 'personaje_con', label: 'CON', name: 'Constitution', desc: 'Salud, resistencia física, aguante, veneno, cansancio, clima extremo y Hit Points.' },
+  { key: 'personaje_int', label: 'INT', name: 'Intelligence', desc: 'Memoria, lógica, estudio, análisis, tecnología, investigación y conocimiento técnico.' },
+  { key: 'personaje_wis', label: 'WIS', name: 'Wisdom',       desc: 'Percepción, intuición, instinto, supervivencia, lectura de intenciones y conexión con el entorno.' },
+  { key: 'personaje_cha', label: 'CHA', name: 'Charisma',     desc: 'Presencia, liderazgo, encanto, confianza, intimidación, persuasión, actuación y vínculos sociales.' },
 ]
 const EMPTY_STATS = { personaje_dex: 0, personaje_str: 0, personaje_con: 0, personaje_int: 0, personaje_wis: 0, personaje_cha: 0 }
-const MAX_POINTS = 20
 const BG_POINTS  = 3
+const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8]
+const AZAR_MIN = 4
+const MIN_DETALLES = 3
+const DETALLE_OPCIONES = [
+  'Tono de piel', 'Estatura', 'Complexión', 'Edad', 'Cabello', 'Ojos', 'Cicatrices',
+  'Ropa', 'Forma de hablar', 'Cultura', 'Manera de moverse', 'Actitud', 'Estilo personal',
+]
 
 const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
 
@@ -210,47 +216,83 @@ function NameStep({ nombre, setNombre }) {
   )
 }
 
-/* ── Paso 2: asignación de stats ── */
-function StatsStep({ stats, setStats }) {
-  const total     = STAT_FIELDS.reduce((a, f) => a + stats[f.key], 0)
-  const remaining = MAX_POINTS - total
-  const inc = (k) => { if (remaining > 0) setStats(s => ({ ...s, [k]: s[k] + 1 })) }
+/* ── Paso 4: asignación de stats (Azar / Predeterminados) ── */
+const fmtMod = (m) => (m >= 0 ? `+${m}` : `${m}`)
+
+function StatsStep({ mode, setMode, stats, setStats, modifiers }) {
+  const inc = (k) => setStats(s => ({ ...s, [k]: s[k] + 1 }))
   const dec = (k) => setStats(s => ({ ...s, [k]: Math.max(0, s[k] - 1) }))
+  const chooseMode = (m) => { setMode(m); setStats(EMPTY_STATS) }
+  const setStd = (k, value) => setStats(s => ({ ...s, [k]: value }))
 
   return (
     <div className="max-w-md mx-auto py-2">
-      <div className="text-center mb-5">
-        <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Puntos disponibles</p>
-        <p className={`text-4xl font-black ${remaining === 0 ? 'text-gray-400' : 'text-red-600'}`}>{remaining}</p>
-        <p className="text-[11px] text-gray-400 mt-0.5">de {MAX_POINTS} en total</p>
-      </div>
-
-      <div className="space-y-2">
-        {STAT_FIELDS.map(f => (
-          <div key={f.key} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-2">
-            <span className="font-bold text-gray-800 w-12">{f.label}</span>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => dec(f.key)}
-                disabled={stats[f.key] === 0}
-                className="w-8 h-8 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-100
-                           disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-              >
-                <Minus size={15} />
-              </button>
-              <span className="w-8 text-center font-bold text-lg text-gray-900 tabular-nums">{stats[f.key]}</span>
-              <button
-                onClick={() => inc(f.key)}
-                disabled={remaining === 0}
-                className="w-8 h-8 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-100
-                           disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-              >
-                <Plus size={15} />
-              </button>
-            </div>
-          </div>
+      {/* Selector de método */}
+      <div className="flex gap-2 justify-center mb-4">
+        {[['azar', 'Azar'], ['predeterminados', 'Predeterminados']].map(([m, label]) => (
+          <button key={m} onClick={() => chooseMode(m)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+              mode === m ? 'bg-red-600 border-red-600 text-white' : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'}`}>
+            {label}
+          </button>
         ))}
       </div>
+
+      {mode === 'azar' && (
+        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 leading-relaxed">
+          El jugador elige un Ability Score, tira 4d6, descarta el dado más bajo y suma los 3 dados más altos.
+        </p>
+      )}
+
+      {!mode ? (
+        <p className="text-center text-sm text-gray-400 mt-8">Elige un método para asignar tus stats.</p>
+      ) : (
+        <div className="space-y-2">
+          {STAT_FIELDS.map(f => (
+            <div key={f.key} className="flex items-center justify-between gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+              <div className="min-w-0">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="font-bold text-gray-800">{f.label}</span>
+                  <span className="text-sm font-semibold text-gray-600">{f.name}</span>
+                  <span className={`text-xs font-bold ${(modifiers[f.key] ?? 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    modifier {fmtMod(modifiers[f.key] ?? 0)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 leading-snug mt-0.5">{f.desc}</p>
+              </div>
+
+              {mode === 'azar' ? (
+                <div className="flex items-center gap-3 shrink-0">
+                  <button onClick={() => dec(f.key)} disabled={stats[f.key] === 0}
+                    className="w-8 h-8 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-100
+                               disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors">
+                    <Minus size={15} />
+                  </button>
+                  <span className="w-8 text-center font-bold text-lg text-gray-900 tabular-nums">{stats[f.key]}</span>
+                  <button onClick={() => inc(f.key)}
+                    className="w-8 h-8 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-100
+                               flex items-center justify-center transition-colors">
+                    <Plus size={15} />
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={stats[f.key] || ''}
+                  onChange={e => setStd(f.key, Number(e.target.value))}
+                  className="shrink-0 w-20 px-2 py-1.5 text-sm font-bold text-gray-900 border border-gray-300 rounded-lg bg-white
+                             focus:outline-none focus:ring-2 focus:ring-red-400"
+                >
+                  <option value="">—</option>
+                  {STANDARD_ARRAY.map(v => {
+                    const usedElsewhere = stats[f.key] !== v && STAT_FIELDS.some(o => o.key !== f.key && stats[o.key] === v)
+                    return <option key={v} value={v} disabled={usedElsewhere}>{v}</option>
+                  })}
+                </select>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -460,6 +502,230 @@ function BackgroundStep({ selected, selectedSkills, onSelect }) {
   )
 }
 
+/* ── Paso 5: valores iniciales ── */
+function IniRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+      <span className="text-xs font-bold text-red-700 uppercase tracking-wide">{label}</span>
+      <span className="text-sm font-semibold text-gray-800 text-right">{value}</span>
+    </div>
+  )
+}
+
+function IniciativesStep({ conMod, skills, iniSkills, setIniSkills, onMount }) {
+  useEffect(() => { onMount() }, []) // al entrar: agrega Animal Handling al prof in
+
+  const hp = 6 + conMod
+  const opciones = skills.filter(s => s.skill_name !== 'Animal Handling')
+  const toggle = (name) => setIniSkills(cur =>
+    cur.includes(name) ? cur.filter(x => x !== name) : (cur.length < 2 ? [...cur, name] : cur)
+  )
+
+  return (
+    <div className="max-w-md mx-auto py-2 space-y-2">
+      <IniRow label="Nivel inicial" value="1" />
+      <IniRow label="Hit Dice" value="1d6 por nivel" />
+      <IniRow label="Hit Points" value={`${hp}`} />
+      <IniRow label="Saving Throw Proficiency" value="CHA (Charisma)" />
+
+      <div className="pt-2">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Skill Proficiencies adicionales</p>
+          <span className={`text-xs font-bold ${iniSkills.length === 2 ? 'text-green-600' : 'text-gray-400'}`}>{iniSkills.length}/2</span>
+        </div>
+        <p className="text-[11px] text-gray-400 mb-2">Elige 2 habilidades.</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {opciones.map(s => {
+            const sel = iniSkills.includes(s.skill_name)
+            return (
+              <button key={s.skill_id} onClick={() => toggle(s.skill_name)}
+                className={`flex items-center justify-between gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  sel ? 'bg-red-600 border-red-600 text-white' : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'}`}>
+                <span className="truncate">{s.skill_name}</span>
+                {sel && <Check size={12} className="shrink-0" />}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Paso 6: equipo inicial (asociado a personaje_equipo) ── */
+const PACK_IDS = [361, 362, 363]
+
+function EquipoStep({ choice, setChoice, roll, setRoll }) {
+  const [items, setItems]     = useState({})
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const ids = [1, 25, 322, 323, ...PACK_IDS]
+    Promise.all(ids.map(id => apiFetch(`/items/${id}`).then(r => r.json())))
+      .then(arr => {
+        const map = {}
+        arr.forEach(it => { if (it && it.item_id) map[it.item_id] = it })
+        setItems(map)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-gray-400">
+        <Loader2 className="animate-spin mr-2" size={18} /> Cargando equipo...
+      </div>
+    )
+  }
+
+  const ItemCard = ({ id, cantidad }) => {
+    const it = items[id]
+    if (!it) return null
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+        <p className="font-bold text-gray-800">{it.item_name}</p>
+        <p className="text-xs text-gray-600 leading-snug mt-0.5">{it.item_description}</p>
+        <p className="text-xs font-semibold text-red-700 mt-1">Cantidad: {cantidad}</p>
+      </div>
+    )
+  }
+
+  const pokedollars = (roll === '' || isNaN(Number(roll))) ? null : 1000 + 100 * Number(roll)
+
+  return (
+    <div className="max-w-md mx-auto py-2 space-y-2">
+      <ItemCard id={1}  cantidad={5} />
+      <ItemCard id={25} cantidad={1} />
+
+      {/* Select de paquete (361 / 362 / 363) */}
+      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+        <select
+          value={choice ?? ''}
+          onChange={e => setChoice(e.target.value ? Number(e.target.value) : null)}
+          className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white
+                     focus:outline-none focus:ring-2 focus:ring-red-400"
+        >
+          <option value="">Selecciona un paquete...</option>
+          {PACK_IDS.map(id => <option key={id} value={id}>{items[id]?.item_name}</option>)}
+        </select>
+        {choice && items[choice] && (
+          <>
+            <p className="text-xs text-gray-600 leading-snug mt-2">{items[choice].item_description}</p>
+            <p className="text-xs font-semibold text-red-700 mt-1">Cantidad: 1</p>
+          </>
+        )}
+      </div>
+
+      <ItemCard id={322} cantidad={1} />
+      <ItemCard id={323} cantidad={1} />
+
+      {/* Pokédollars */}
+      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+        <p className="font-bold text-gray-800">Pokédollars</p>
+        <div className="flex items-center gap-2 mt-1.5">
+          <input
+            type="number"
+            value={roll}
+            onChange={e => setRoll(e.target.value)}
+            placeholder="4d4"
+            className="w-24 px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white
+                       focus:outline-none focus:ring-2 focus:ring-red-400"
+          />
+          {pokedollars !== null && (
+            <span className="text-sm font-bold text-green-700">= {pokedollars.toLocaleString()} ₽</span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Paso 7: detalles narrativos (asociado a personaje_details) ── */
+function DetallesStep({ detalles, setDetalles }) {
+  const [tipo,  setTipo]  = useState('')
+  const [texto, setTexto] = useState('')
+
+  const usados       = detalles.map(d => d.tipo)
+  const disponibles  = DETALLE_OPCIONES.filter(o => !usados.includes(o))
+
+  const agregar = () => {
+    if (!tipo || !texto.trim()) return
+    setDetalles([...detalles, { tipo, texto: texto.trim() }])
+    setTipo(''); setTexto('')
+  }
+  const quitar = (i) => setDetalles(detalles.filter((_, j) => j !== i))
+
+  return (
+    <div className="max-w-md mx-auto py-2">
+      <h3 className="text-sm font-semibold text-gray-800 text-center mb-1">
+        Define algunos detalles narrativos para enriquecer la historia
+      </h3>
+      <p className="text-xs text-gray-400 text-center mb-4">(Al menos {MIN_DETALLES})</p>
+
+      {/* Detalles agregados — parte superior */}
+      {detalles.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {detalles.map((d, i) => (
+            <div key={i} className="flex items-start justify-between gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-red-700 uppercase tracking-wide">{d.tipo}</p>
+                <p className="text-sm text-gray-700 leading-snug">{d.texto}</p>
+              </div>
+              <button onClick={() => quitar(i)} className="text-gray-400 hover:text-red-500 shrink-0" title="Quitar">
+                <X size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Selector + campo de texto */}
+      {disponibles.length > 0 ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-3">
+          <select
+            value={tipo}
+            onChange={e => { setTipo(e.target.value); setTexto('') }}
+            className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white
+                       focus:outline-none focus:ring-2 focus:ring-red-400"
+          >
+            <option value="">Selecciona un detalle...</option>
+            {disponibles.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+
+          {tipo && (
+            <div className="flex gap-2 mt-2">
+              <input
+                value={texto}
+                onChange={e => setTexto(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') agregar() }}
+                placeholder={`Describe: ${tipo.toLowerCase()}...`}
+                autoFocus
+                className="flex-1 px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50
+                           focus:outline-none focus:ring-2 focus:ring-red-400"
+              />
+              <button
+                onClick={agregar}
+                disabled={!texto.trim()}
+                className="shrink-0 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed
+                           text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+              >
+                Agregar
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-center text-sm text-gray-400">Has agregado todos los detalles disponibles.</p>
+      )}
+
+      <p className={`text-xs text-center mt-3 font-medium ${detalles.length >= MIN_DETALLES ? 'text-green-600' : 'text-gray-400'}`}>
+        {detalles.length}/{MIN_DETALLES} mínimo
+      </p>
+    </div>
+  )
+}
+
 export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const [step,        setStep]        = useState(0)
   const [origin,      setOrigin]      = useState(null)
@@ -471,6 +737,12 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const [skillsList,  setSkillsList]  = useState([])
   const [nombre,      setNombre]      = useState('')
   const [stats,       setStats]       = useState(EMPTY_STATS)
+  const [statsMode,   setStatsMode]   = useState(null) // 'azar' | 'predeterminados'
+  const [iniSkills,   setIniSkills]   = useState([]) // 2 skill proficiencies iniciales
+  const [animalHandling, setAnimalHandling] = useState(false) // prof base al entrar a Iniciales
+  const [equipoChoice, setEquipoChoice] = useState(null) // paquete elegido (361/362/363)
+  const [pokedollarsRoll, setPokedollarsRoll] = useState('') // resultado 4d4
+  const [detalles,    setDetalles]    = useState([]) // [{ tipo, texto }] → personaje_details
   const [background,  setBackground]  = useState(null)
   const [bgStats,     setBgStats]     = useState({}) // bonos de ability del background
   const [bgPopup,     setBgPopup]     = useState(null) // background con popup de ability abierto
@@ -484,11 +756,22 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
     apiFetch('/skills').then(r => r.json()).then(d => setSkillsList(Array.isArray(d) ? d : [])).catch(() => {})
   }, [])
 
+  // Validación de stats según el método elegido
+  const statVals = STAT_FIELDS.map(f => stats[f.key])
+  const statsValid =
+    statsMode === 'azar' ? statVals.every(v => v >= AZAR_MIN) :
+    statsMode === 'predeterminados'
+      ? [...statVals].sort((a, b) => a - b).join() === [...STANDARD_ARRAY].sort((a, b) => a - b).join()
+      : false
+
   const canNext =
     step === 0 ? nombre.trim().length > 0 :
-    step === 1 ? true :
-    step === 2 ? !!origin :
-    !!background
+    step === 1 ? !!origin :
+    step === 2 ? !!background :
+    step === 3 ? statsValid :
+    step === 4 ? iniSkills.length === 2 :
+    step === 5 ? (equipoChoice !== null && pokedollarsRoll !== '' && Number(pokedollarsRoll) > 0) :
+    detalles.length >= MIN_DETALLES // Detalles (último)
   const isLast  = step === STEPS.length - 1
 
   const isAnyOrigin = (o) =>
@@ -563,6 +846,13 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
     Object.keys(EMPTY_STATS).map(k => [k, stats[k] + (bonus[k] || 0)])
   )
 
+  // Modifier por habilidad: FLOOR((Ability Score - 10) / 2), sobre el score final
+  const modifiers = Object.fromEntries(
+    Object.keys(EMPTY_STATS).map(k => [k, Math.floor((displayStats[k] - 10) / 2)])
+  )
+  const [savedModifiers, setSavedModifiers] = useState({})
+  useEffect(() => { setSavedModifiers(modifiers) }, [JSON.stringify(modifiers)])
+
   // Skill proficiencies de los feat_bonus del origen seleccionado
   const originFeatProfSkills = []
   if (origin) {
@@ -592,12 +882,14 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
     bgFeatProfSkills.push(...bgSkills)
   }
 
-  // Skill proficiencies: origen (value_1 + feat_bonus) + background (value_1, value_2 + feat_bonus)
+  // Skill proficiencies: origen + background (+ feat_bonus) + iniciales
   const profSkills = [
     ...(origin ? [origin.origin_skill_proficiencies_value_1] : []),
     ...originFeatProfSkills,
     ...(background ? [background.background_skill_proficiencies_value_1, background.background_skill_proficiencies_value_2] : []),
     ...bgFeatProfSkills,
+    ...(animalHandling ? ['Animal Handling'] : []),
+    ...iniSkills,
   ].filter(Boolean)
 
   const handleCreate = async () => {
@@ -687,9 +979,27 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
         {/* Contenido del paso */}
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
           {step === 0 && <NameStep nombre={nombre} setNombre={setNombre} />}
-          {step === 1 && <StatsStep stats={stats} setStats={setStats} />}
-          {step === 2 && <OriginStep selected={origin} selectedSkills={originSkills} onSelect={handleSelectOrigin} />}
-          {step === 3 && <BackgroundStep selected={background} selectedSkills={bgSkills} onSelect={handleSelectBackground} />}
+          {step === 1 && <OriginStep selected={origin} selectedSkills={originSkills} onSelect={handleSelectOrigin} />}
+          {step === 2 && <BackgroundStep selected={background} selectedSkills={bgSkills} onSelect={handleSelectBackground} />}
+          {step === 3 && <StatsStep mode={statsMode} setMode={setStatsMode} stats={stats} setStats={setStats} modifiers={modifiers} />}
+          {step === 4 && (
+            <IniciativesStep
+              conMod={modifiers.personaje_con ?? 0}
+              skills={skillsList}
+              iniSkills={iniSkills}
+              setIniSkills={setIniSkills}
+              onMount={() => setAnimalHandling(true)}
+            />
+          )}
+          {step === 5 && (
+            <EquipoStep
+              choice={equipoChoice}
+              setChoice={setEquipoChoice}
+              roll={pokedollarsRoll}
+              setRoll={setPokedollarsRoll}
+            />
+          )}
+          {step === 6 && <DetallesStep detalles={detalles} setDetalles={setDetalles} />}
         </div>
 
         {/* Footer */}
