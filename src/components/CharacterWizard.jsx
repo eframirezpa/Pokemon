@@ -512,10 +512,10 @@ function IniRow({ label, value }) {
   )
 }
 
-function IniciativesStep({ conMod, skills, iniSkills, setIniSkills, onMount }) {
+function IniciativesStep({ conMod, hpBonus = 0, skills, iniSkills, setIniSkills, onMount }) {
   useEffect(() => { onMount() }, []) // al entrar: agrega Animal Handling al prof in
 
-  const hp = 6 + conMod
+  const hp = 6 + conMod + hpBonus
   const opciones = skills.filter(s => s.skill_name !== 'Animal Handling')
   const toggle = (name) => setIniSkills(cur =>
     cur.includes(name) ? cur.filter(x => x !== name) : (cur.length < 2 ? [...cur, name] : cur)
@@ -850,6 +850,10 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const modifiers = Object.fromEntries(
     Object.keys(EMPTY_STATS).map(k => [k, Math.floor((stats[k] - 10) / 2)])
   )
+  // Modifier del score final (base + bonos) para el header
+  const displayModifiers = Object.fromEntries(
+    Object.keys(EMPTY_STATS).map(k => [k, Math.floor((displayStats[k] - 10) / 2)])
+  )
   const [savedModifiers, setSavedModifiers] = useState({})
   useEffect(() => { setSavedModifiers(modifiers) }, [JSON.stringify(modifiers)])
 
@@ -871,6 +875,10 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
       if ((b.type || '').toLowerCase() === 'healing') healingBonuses.push(b)
     }
   }
+  // Bono total de HP (llave 'hp') para sumar a los Hit Points
+  const hpBonus = healingBonuses
+    .filter(b => (b.llave || '').toLowerCase() === 'hp')
+    .reduce((sum, b) => sum + (Number(b.valor) || 0), 0)
 
   // Skill proficiencies de los feat_bonus del background seleccionado
   const bgFeatProfSkills = []
@@ -935,6 +943,10 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                       <span key={f.key}
                         className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${hasBonus ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                         {f.label} <span className={hasBonus ? 'text-green-800' : 'text-gray-900'}>{displayStats[f.key]}</span>
+                        <span className={`text-[9px] ml-0.5 rounded px-0.5 ${
+                          displayModifiers[f.key] < 0 ? 'bg-red-500 text-white' : 'text-gray-500'}`}>
+                          {fmtMod(displayModifiers[f.key])}
+                        </span>
                       </span>
                     )
                   })}
@@ -985,6 +997,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
           {step === 4 && (
             <IniciativesStep
               conMod={modifiers.personaje_con ?? 0}
+              hpBonus={hpBonus}
               skills={skillsList}
               iniSkills={iniSkills}
               setIniSkills={setIniSkills}
