@@ -27,7 +27,6 @@ export default function DashboardTrainer() {
   const handleSelect = (partida) => {
     if (!hasAvatar) return
     setPresentacion(partida)
-    setPanelPartida(null)
   }
 
   const handleFinishPresentacion = () => {
