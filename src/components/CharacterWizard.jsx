@@ -846,9 +846,9 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
     Object.keys(EMPTY_STATS).map(k => [k, stats[k] + (bonus[k] || 0)])
   )
 
-  // Modifier por habilidad: FLOOR((Ability Score - 10) / 2), sobre el score final
+  // Modifier por habilidad: FLOOR((Ability Score - 10) / 2), sobre la base asignada
   const modifiers = Object.fromEntries(
-    Object.keys(EMPTY_STATS).map(k => [k, Math.floor((displayStats[k] - 10) / 2)])
+    Object.keys(EMPTY_STATS).map(k => [k, Math.floor((stats[k] - 10) / 2)])
   )
   const [savedModifiers, setSavedModifiers] = useState({})
   useEffect(() => { setSavedModifiers(modifiers) }, [JSON.stringify(modifiers)])
