@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { LogOut, Plus, UserCircle, Check, LogIn, Loader2 } from 'lucide-react'
+import { LogOut, Plus, UserCircle, Check, LogIn, Loader2, Eye } from 'lucide-react'
 import { apiFetch } from '../api'
 import CharacterWizard from '../components/CharacterWizard'
+import CharacterSheet from '../components/CharacterSheet'
 
 export default function PartidaLobby() {
   const { id }    = useParams()
@@ -14,6 +15,7 @@ export default function PartidaLobby() {
   const [loading, setLoading]       = useState(true)
   const [selected, setSelected]     = useState(null)
   const [showWizard, setShowWizard] = useState(false)
+  const [viewChar, setViewChar]     = useState(null)
 
   const load = () => {
     setLoading(true)
@@ -81,20 +83,28 @@ export default function PartidaLobby() {
             {personajes.map(p => {
               const isSel = selected === p.id_personaje
               return (
-                <button
-                  key={p.id_personaje}
-                  onClick={() => setSelected(p.id_personaje)}
-                  className={`text-left rounded-2xl border p-4 transition-all flex items-center gap-3 ${
-                    isSel ? 'border-red-400 bg-red-900/20 ring-1 ring-red-400' : 'border-gray-700 bg-gray-800/50 hover:border-gray-500'}`}
-                >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isSel ? 'bg-red-500' : 'bg-gray-700'}`}>
-                    {isSel ? <Check size={18} /> : <UserCircle size={20} className="text-gray-300" />}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold truncate">{p.nombre_personaje || 'Sin nombre'}</p>
-                    <p className="text-xs text-gray-400">Nivel {p.personaje_level ?? 1}</p>
-                  </div>
-                </button>
+                <div key={p.id_personaje} className="flex flex-col gap-1.5">
+                  <button
+                    onClick={() => setSelected(p.id_personaje)}
+                    className={`text-left rounded-2xl border p-4 transition-all flex items-center gap-3 ${
+                      isSel ? 'border-red-400 bg-red-900/20 ring-1 ring-red-400' : 'border-gray-700 bg-gray-800/50 hover:border-gray-500'}`}
+                  >
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isSel ? 'bg-red-500' : 'bg-gray-700'}`}>
+                      {isSel ? <Check size={18} /> : <UserCircle size={20} className="text-gray-300" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{p.nombre_personaje || 'Sin nombre'}</p>
+                      <p className="text-xs text-gray-400">Nivel {p.personaje_level ?? 1}</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setViewChar(p.id_personaje)}
+                    className="flex items-center justify-center gap-1.5 text-xs font-medium text-gray-400
+                               hover:text-white hover:bg-gray-800 border border-gray-700 rounded-xl py-1.5 transition-colors"
+                  >
+                    <Eye size={13} /> Ver información completa
+                  </button>
+                </div>
               )
             })}
           </div>
@@ -115,6 +125,10 @@ export default function PartidaLobby() {
 
       {showWizard && (
         <CharacterWizard idPartida={Number(id)} onClose={() => setShowWizard(false)} onCreated={handleCreated} />
+      )}
+
+      {viewChar && (
+        <CharacterSheet id={viewChar} onClose={() => setViewChar(null)} />
       )}
     </div>
   )

@@ -554,6 +554,7 @@ function IniciativesStep({ conMod, hpBonus = 0, skills, iniSkills, setIniSkills,
 
 /* ── Paso 6: equipo inicial (asociado a personaje_equipo) ── */
 const PACK_IDS = [361, 362, 363]
+const PACK_NAMES = { 361: "Dungeoneer's Pack", 362: "Explorer's Pack", 363: "Filcher's Pack" }
 
 function EquipoStep({ choice, setChoice, roll, setRoll }) {
   const [items, setItems]     = useState({})
@@ -642,7 +643,7 @@ function EquipoStep({ choice, setChoice, roll, setRoll }) {
 }
 
 /* ── Paso 7: detalles narrativos (asociado a personaje_details) ── */
-function DetallesStep({ detalles, setDetalles }) {
+function DetallesStep({ detalles, setDetalles, narrativa, setNarrativa }) {
   const [tipo,  setTipo]  = useState('')
   const [texto, setTexto] = useState('')
 
@@ -658,6 +659,23 @@ function DetallesStep({ detalles, setDetalles }) {
 
   return (
     <div className="max-w-md mx-auto py-2">
+      {/* Campos narrativos */}
+      <div className="space-y-3 mb-5">
+        {[['ideales', 'Ideales'], ['falencias', 'Falencias'], ['conexiones', 'Conexiones']].map(([key, label]) => (
+          <div key={key}>
+            <label className="block text-xs font-bold text-red-700 uppercase tracking-wide mb-1">{label}</label>
+            <textarea
+              value={narrativa[key]}
+              onChange={e => setNarrativa({ ...narrativa, [key]: e.target.value })}
+              rows={2}
+              placeholder={`Describe los ${label.toLowerCase()} de tu personaje...`}
+              className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50
+                         focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+            />
+          </div>
+        ))}
+      </div>
+
       <h3 className="text-sm font-semibold text-gray-800 text-center mb-1">
         Define algunos detalles narrativos para enriquecer la historia
       </h3>
@@ -743,6 +761,8 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const [equipoChoice, setEquipoChoice] = useState(null) // paquete elegido (361/362/363)
   const [pokedollarsRoll, setPokedollarsRoll] = useState('') // resultado 4d4
   const [detalles,    setDetalles]    = useState([]) // [{ tipo, texto }] → personaje_details
+  const [narrativa,   setNarrativa]   = useState({ ideales: '', falencias: '', conexiones: '' })
+  const [showVerify,  setShowVerify]  = useState(false)
   const [background,  setBackground]  = useState(null)
   const [bgStats,     setBgStats]     = useState({}) // bonos de ability del background
   const [bgPopup,     setBgPopup]     = useState(null) // background con popup de ability abierto
@@ -903,6 +923,18 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const handleCreate = async () => {
     setSaving(true); setError('')
     try {
+      const baseStats   = Object.fromEntries(STAT_FIELDS.map(f => [f.key, stats[f.key] || 0]))
+      const bonusStats  = Object.fromEntries(STAT_FIELDS.map(f => [f.key, bonus[f.key] || 0]))
+      const hitPoints   = 6 + (modifiers.personaje_con ?? 0) + hpBonus
+      const pokedollars = pokedollarsRoll === '' ? 0 : 1000 + 100 * Number(pokedollarsRoll)
+      const equipo = [
+        { id_item: 1,  cantidad: 5 },
+        { id_item: 25, cantidad: 1 },
+        ...(equipoChoice ? [{ id_item: equipoChoice, cantidad: 1 }] : []),
+        { id_item: 322, cantidad: 1 },
+        { id_item: 323, cantidad: 1 },
+      ]
+
       const res = await apiFetch('/personaje', {
         method: 'POST',
         body: JSON.stringify({
@@ -910,7 +942,19 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
           nombre_personaje: nombre.trim(),
           personaje_origin: origin?.origin_id ?? null,
           personaje_background: background?.background_id ?? null,
-          stats: displayStats,
+          stats_base: baseStats,
+          stats_bonus: bonusStats,
+          personaje_level: 1,
+          personaje_hit_dice: '1d6',
+          personaje_hp: hitPoints,
+          saving_throw_prof: 'CHA',
+          prof_skills: profSkills,
+          pokedollars,
+          equipo,
+          ideales: narrativa.ideales,
+          falencias: narrativa.falencias,
+          conexiones: narrativa.conexiones,
+          detalles,
         }),
       })
       if (!res.ok) {
@@ -1012,7 +1056,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
               setRoll={setPokedollarsRoll}
             />
           )}
-          {step === 6 && <DetallesStep detalles={detalles} setDetalles={setDetalles} />}
+          {step === 6 && <DetallesStep detalles={detalles} setDetalles={setDetalles} narrativa={narrativa} setNarrativa={setNarrativa} />}
         </div>
 
         {/* Footer */}
@@ -1028,12 +1072,12 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
 
           {isLast ? (
             <button
-              onClick={handleCreate}
-              disabled={!canNext || saving}
+              onClick={() => setShowVerify(true)}
+              disabled={!canNext}
               className="flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed
                          text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors"
             >
-              {saving && <Loader2 className="animate-spin" size={15} />} Crear personaje
+              Crear personaje
             </button>
           ) : (
             <button
@@ -1093,6 +1137,109 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
           onConfirm={handleConfirmBgSkills}
         />
       )}
+
+      {/* Ventana de verificación antes de crear */}
+      {showVerify && (() => {
+        const hitPoints   = 6 + (modifiers.personaje_con ?? 0) + hpBonus
+        const pokedollars = pokedollarsRoll === '' ? 0 : 1000 + 100 * Number(pokedollarsRoll)
+        const VRow = ({ label, value }) => (
+          <div className="flex justify-between gap-3 py-1 border-b border-gray-100">
+            <span className="text-xs font-semibold text-red-700 uppercase tracking-wide shrink-0">{label}</span>
+            <span className="text-sm text-gray-700 text-right">{value || '—'}</span>
+          </div>
+        )
+        return (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+            <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+                <h3 className="font-bold text-gray-900">Verifica tu personaje</h3>
+                <button onClick={() => setShowVerify(false)} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                {/* General */}
+                <div>
+                  <VRow label="Nombre"      value={nombre} />
+                  <VRow label="Origen"      value={origin?.origin_name} />
+                  <VRow label="Background"  value={background?.background_name} />
+                </div>
+
+                {/* Atributos */}
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Atributos</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {STAT_FIELDS.map(f => (
+                      <div key={f.key} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-center">
+                        <p className="text-[10px] font-bold text-gray-500">{f.label}</p>
+                        <p className="text-base font-bold text-gray-900 leading-tight">{displayStats[f.key]}</p>
+                        <p className={`text-[10px] font-bold ${displayModifiers[f.key] < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {fmtMod(displayModifiers[f.key])}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Proficiencias */}
+                {profSkills.length > 0 && (
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Proficiencias</p>
+                    <div className="flex flex-wrap gap-1">
+                      {profSkills.map((s, i) => (
+                        <span key={i} className="text-[11px] font-bold text-green-700 bg-green-100 rounded px-1.5 py-0.5">{cap(s)}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Iniciales */}
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Iniciales</p>
+                  <VRow label="Nivel"        value="1" />
+                  <VRow label="Hit Dice"     value="1d6 por nivel" />
+                  <VRow label="Hit Points"   value={hitPoints} />
+                  <VRow label="Saving Throw" value="CHA (Charisma)" />
+                </div>
+
+                {/* Equipo */}
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Equipo</p>
+                  <VRow label="Poké Ball"          value="x5" />
+                  <VRow label="Potion"             value="x1" />
+                  <VRow label="Paquete"            value={equipoChoice ? PACK_NAMES[equipoChoice] : '—'} />
+                  <VRow label="Trainer's License"  value="x1" />
+                  <VRow label="Pokédex"            value="x1" />
+                  <VRow label="Pokédollars"        value={`${pokedollars.toLocaleString()} ₽`} />
+                </div>
+
+                {/* Narrativa + detalles */}
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Detalles</p>
+                  {narrativa.ideales    && <VRow label="Ideales"    value={narrativa.ideales} />}
+                  {narrativa.falencias  && <VRow label="Falencias"  value={narrativa.falencias} />}
+                  {narrativa.conexiones && <VRow label="Conexiones" value={narrativa.conexiones} />}
+                  {detalles.map((d, i) => <VRow key={i} label={d.tipo} value={d.texto} />)}
+                </div>
+              </div>
+
+              <div className="px-5 py-3 border-t border-gray-200 shrink-0 flex items-center justify-between gap-3">
+                <button onClick={() => setShowVerify(false)} className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg">
+                  Volver
+                </button>
+                {error && <span className="text-xs text-red-600 flex-1 text-center">{error}</span>}
+                <button
+                  onClick={handleCreate}
+                  disabled={saving}
+                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed
+                             text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors"
+                >
+                  {saving && <Loader2 className="animate-spin" size={15} />} Confirmar y crear
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
