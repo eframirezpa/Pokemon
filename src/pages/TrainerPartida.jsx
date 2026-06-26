@@ -1,10 +1,39 @@
-import { useState } from 'react'
-import { Smartphone, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useLocation, useParams } from 'react-router-dom'
+import { Smartphone, User, X } from 'lucide-react'
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
+import CharacterSheet from '../components/CharacterSheet'
+import { apiFetch } from '../api'
 
 export default function TrainerPartida() {
+  const { id }   = useParams()
+  const location = useLocation()
+  const stateId  = location.state?.personaje?.id_personaje ?? null
+
+  const [personajeId, setPersonajeId] = useState(stateId)
   const [showPokedex, setShowPokedex] = useState(false)
+  const [showChar, setShowChar]       = useState(false)
+
+  // Recupera el personaje del usuario: state → localStorage → backend (para recargas)
+  useEffect(() => {
+    const storeKey = `trainer_personaje_${id}`
+    if (stateId) { localStorage.setItem(storeKey, String(stateId)); return }
+
+    const stored = localStorage.getItem(storeKey)
+    if (stored) { setPersonajeId(Number(stored)); return }
+
+    apiFetch(`/personaje?id_partida=${id}`)
+      .then(r => r.json())
+      .then(list => {
+        const first = Array.isArray(list) && list[0]
+        if (first) {
+          setPersonajeId(first.id_personaje)
+          localStorage.setItem(storeKey, String(first.id_personaje))
+        }
+      })
+      .catch(() => {})
+  }, [id, stateId])
 
   return (
     <PartidaRoom roleLabel="Trainer">
@@ -21,6 +50,19 @@ export default function TrainerPartida() {
         >
           <Smartphone size={18} />
         </button>
+
+        {/* Botón de usuario — muestra la información del personaje */}
+        {personajeId && (
+          <button
+            onClick={() => setShowChar(true)}
+            className="fixed left-3 top-1/2 translate-y-[calc(100%+12px)] z-30 flex items-center justify-center
+                       w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                       border border-gray-600 transition-all"
+            title="Ver mi personaje"
+          >
+            <User size={18} />
+          </button>
+        )}
       </div>
 
       {/* Modal Pokédex */}
@@ -42,6 +84,11 @@ export default function TrainerPartida() {
             <PokemonList title="Pokédex" />
           </div>
         </div>
+      )}
+
+      {/* Hoja del personaje */}
+      {showChar && personajeId && (
+        <CharacterSheet id={personajeId} onClose={() => setShowChar(false)} />
       )}
     </PartidaRoom>
   )
