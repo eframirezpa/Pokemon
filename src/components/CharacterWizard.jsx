@@ -23,6 +23,16 @@ const DETALLE_OPCIONES = [
 ]
 
 const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
+const PROF_INICIAL = 2 // bono de proficiencia a nivel 1
+
+function ReadCheck({ checked }) {
+  return (
+    <span className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 ${
+      checked ? 'bg-red-600 border-red-600' : 'border-red-400 bg-white'}`}>
+      {checked && <Check size={10} className="text-white" strokeWidth={3} />}
+    </span>
+  )
+}
 
 /* Badges de feat_bonus de un origen/background (healing / skill prof).
    selectedSkills: array de skills elegidas para los bonus skill "any" (en orden) */
@@ -769,11 +779,20 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const [bgSkills,    setBgSkills]    = useState([]) // skills elegidas para feat_bonus skill "any"
   const [bgSkillPopup, setBgSkillPopup] = useState(false)
   const [pendingBg,   setPendingBg]   = useState(null) // { b, abilityDist }
+  const [armorList,    setArmorList]    = useState([])
+  const [armorSelected, setArmorSelected] = useState(null)
+  const [showArmorPicker, setShowArmorPicker] = useState(false)
+  const [weaponList,   setWeaponList]   = useState([])
+  const [weaponSelected, setWeaponSelected] = useState(null)
+  const [showWeaponPicker, setShowWeaponPicker] = useState(false)
+  const [weaponSearch, setWeaponSearch] = useState('')
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState('')
 
   useEffect(() => {
     apiFetch('/skills').then(r => r.json()).then(d => setSkillsList(Array.isArray(d) ? d : [])).catch(() => {})
+    apiFetch('/armor-types?limit=200').then(r => r.json()).then(d => setArmorList(Array.isArray(d.data) ? d.data : [])).catch(() => {})
+    apiFetch('/weapon-types?limit=500').then(r => r.json()).then(d => setWeaponList(Array.isArray(d.data) ? d.data : [])).catch(() => {})
   }, [])
 
   // Validación de stats según el método elegido
@@ -830,6 +849,31 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   // Background: Seleccionar abre el popup de ability; luego (si aplica) el de skills
   const finalizeBackground = (b, abilityDist, skills) => {
     setBackground(b); setBgStats(abilityDist); setBgSkills(skills)
+    setArmorSelected(null); setWeaponSelected(null) // al cambiar de background se vuelve a elegir
+  }
+
+  // Armaduras cuyo armor_type_category coincide con la proficiencia del background
+  const armorOptions = (b) => {
+    if (!b) return []
+    const cats = [
+      b.background_armor_proficiencies_value_1, b.background_armor_proficiencies_value_2,
+      b.background_armor_proficiencies_value_3, b.background_armor_proficiencies_value_4,
+    ].filter(Boolean).map(c => c.toLowerCase())
+    if (!cats.length) return []
+    return armorList.filter(a => cats.includes((a.armor_type_category || '').toLowerCase()))
+  }
+
+  const handleSelectArmor = (armor) => {
+    setArmorSelected(armor)
+    setShowArmorPicker(false)
+    if (!weaponSelected) setShowWeaponPicker(true) // continuar con arma
+    else setStep(s => s + 1)
+  }
+
+  const handleSelectWeapon = (weapon) => {
+    setWeaponSelected(weapon)
+    setShowWeaponPicker(false)
+    setStep(s => s + 1) // avanza a Stats
   }
 
   const handleSelectBackground = (b) => setBgPopup(b)
@@ -874,6 +918,28 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const displayModifiers = Object.fromEntries(
     Object.keys(EMPTY_STATS).map(k => [k, Math.floor((displayStats[k] - 10) / 2)])
   )
+
+  // AC = base_ac + (DEX mod, tope max_dex) si usa modificador + ac_bonus
+  const armorAC = (() => {
+    if (!armorSelected) return null
+    const dexMod = displayModifiers.personaje_dex ?? 0
+    let ac = armorSelected.armor_type_base_ac || 0
+    if (armorSelected.armor_type_uses_dex_modifier === 1) {
+      const max = armorSelected.armor_type_max_dex_modifier
+      ac += (max != null) ? Math.min(dexMod, max) : dexMod
+    }
+    if (armorSelected.armor_type_ac_bonus != null) ac += armorSelected.armor_type_ac_bonus
+    return ac
+  })()
+
+  // Intercepta "Siguiente": en Background, pide armadura y luego arma antes de avanzar
+  const handleNext = () => {
+    if (step === 2 && background) {
+      if (!armorSelected && armorOptions(background).length > 0) { setShowArmorPicker(true); return }
+      if (!weaponSelected) { setShowWeaponPicker(true); return }
+    }
+    setStep(s => s + 1)
+  }
   const [savedModifiers, setSavedModifiers] = useState({})
   useEffect(() => { setSavedModifiers(modifiers) }, [JSON.stringify(modifiers)])
 
@@ -942,6 +1008,9 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
           nombre_personaje: nombre.trim(),
           personaje_origin: origin?.origin_id ?? null,
           personaje_background: background?.background_id ?? null,
+          id_armor: armorSelected?.armor_type_id ?? null,
+          personaje_ac: armorAC,
+          id_weapon: weaponSelected?.weapon_type_id ?? null,
           stats_base: baseStats,
           stats_bonus: bonusStats,
           personaje_level: 1,
@@ -1081,7 +1150,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
             </button>
           ) : (
             <button
-              onClick={() => setStep(s => s + 1)}
+              onClick={handleNext}
               disabled={!canNext}
               className="bg-gray-900 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed
                          text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors"
@@ -1138,6 +1207,74 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
         />
       )}
 
+      {/* Selección de armadura (al avanzar desde Background) */}
+      {showArmorPicker && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="font-bold text-gray-900">Equipar armadura</h3>
+                <p className="text-[11px] text-gray-500">Elige una (según tu background)</p>
+              </div>
+              <button onClick={() => setShowArmorPicker(false)} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+            </div>
+            <div className="overflow-y-auto p-3 space-y-2">
+              {armorOptions(background).map(a => (
+                <button key={a.armor_type_id} onClick={() => handleSelectArmor(a)}
+                  className="w-full text-left border border-gray-200 rounded-xl px-4 py-2.5 hover:border-red-300 hover:bg-red-50/40 transition-colors">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-gray-800 text-sm">{a.armor_type_name}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase">{a.armor_type_category}</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    AC base {a.armor_type_base_ac}
+                    {a.armor_type_uses_dex_modifier === 1 && ' + DEX'}
+                    {a.armor_type_max_dex_modifier != null && ` (máx +${a.armor_type_max_dex_modifier})`}
+                    {a.armor_type_ac_bonus != null && ` + ${a.armor_type_ac_bonus}`}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Selección de arma (después de la armadura) */}
+      {showWeaponPicker && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="font-bold text-gray-900">Equipar arma</h3>
+                <p className="text-[11px] text-gray-500">Elige una</p>
+              </div>
+              <button onClick={() => setShowWeaponPicker(false)} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+            </div>
+            <div className="px-4 pt-3 pb-2 shrink-0">
+              <input value={weaponSearch} onChange={e => setWeaponSearch(e.target.value)} placeholder="Buscar arma..."
+                className="w-full px-3 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+            </div>
+            <div className="overflow-y-auto p-3 space-y-2">
+              {weaponList
+                .filter(w => !weaponSearch || w.weapon_type_name?.toLowerCase().includes(weaponSearch.toLowerCase()))
+                .map(w => (
+                  <button key={w.weapon_type_id} onClick={() => handleSelectWeapon(w)}
+                    className="w-full text-left border border-gray-200 rounded-xl px-4 py-2.5 hover:border-red-300 hover:bg-red-50/40 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-gray-800 text-sm">{w.weapon_type_name}</span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">{w.weapon_type_dnd_category}</span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      {w.weapon_type_damage_dice} {w.weapon_type_damage_type}
+                      {w.weapon_type_range && ` · ${w.weapon_type_range}`}
+                    </p>
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Ventana de verificación antes de crear */}
       {showVerify && (() => {
         const hitPoints   = 6 + (modifiers.personaje_con ?? 0) + hpBonus
@@ -1162,6 +1299,9 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                   <VRow label="Nombre"      value={nombre} />
                   <VRow label="Origen"      value={origin?.origin_name} />
                   <VRow label="Background"  value={background?.background_name} />
+                  {background?.background_tool_proficiencies_values && (
+                    <VRow label="Herramientas" value={background.background_tool_proficiencies_values} />
+                  )}
                 </div>
 
                 {/* Atributos */}
@@ -1180,17 +1320,54 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                   </div>
                 </div>
 
-                {/* Proficiencias */}
-                {profSkills.length > 0 && (
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Proficiencias</p>
-                    <div className="flex flex-wrap gap-1">
-                      {profSkills.map((s, i) => (
-                        <span key={i} className="text-[11px] font-bold text-green-700 bg-green-100 rounded px-1.5 py-0.5">{cap(s)}</span>
-                      ))}
+                {/* Habilidades */}
+                {skillsList.length > 0 && (() => {
+                  const profSet = new Set(profSkills.map(s => (s || '').toLowerCase()))
+                  const skillVal = (sk) => {
+                    const key = `personaje_${(sk.skill_related_ability || '').toLowerCase()}`
+                    if (!(key in displayModifiers)) return null
+                    let v = displayModifiers[key]
+                    if (profSet.has((sk.skill_name || '').toLowerCase())) v += PROF_INICIAL
+                    return v
+                  }
+                  const half = Math.ceil(skillsList.length / 2)
+                  const cols = [skillsList.slice(0, half), skillsList.slice(half)]
+                  return (
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Habilidades</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">
+                        {cols.map((col, ci) => (
+                          <div key={ci}>
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className="w-3.5 text-center text-[9px] font-bold text-gray-500">E</span>
+                              <span className="w-3.5 text-center text-[9px] font-bold text-gray-500">P</span>
+                            </div>
+                            <div className="space-y-1.5">
+                              {col.map((sk, i) => {
+                                const v = skillVal(sk)
+                                const pref = profSet.has((sk.skill_name || '').toLowerCase())
+                                return (
+                                  <div key={i} className="flex items-center gap-1.5">
+                                    <ReadCheck checked={false} />
+                                    <ReadCheck checked={pref} />
+                                    <span className={`w-7 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
+                                      v != null && v < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                                      {v == null ? '' : fmtMod(v)}
+                                    </span>
+                                    <span className="text-[11px] leading-tight truncate">
+                                      <span className="font-semibold text-gray-800">{sk.skill_name}</span>
+                                      <span className="text-gray-400"> ({sk.skill_related_ability})</span>
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
 
                 {/* Iniciales */}
                 <div>
@@ -1198,7 +1375,11 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                   <VRow label="Nivel"        value="1" />
                   <VRow label="Hit Dice"     value="1d6 por nivel" />
                   <VRow label="Hit Points"   value={hitPoints} />
+                  <VRow label="Iniciativa"   value={fmtMod(displayModifiers.personaje_dex ?? 0)} />
                   <VRow label="Saving Throw" value="CHA (Charisma)" />
+                  <VRow label="Armadura"     value={armorSelected?.armor_type_name} />
+                  <VRow label="AC"           value={armorAC} />
+                  <VRow label="Arma"         value={weaponSelected?.weapon_type_name} />
                 </div>
 
                 {/* Equipo */}

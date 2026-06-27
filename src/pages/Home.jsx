@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShoppingBag, LogIn, Leaf, Star, BookOpen, Map, Heart, Shield, Tag, BookMarked, Swords, ChevronDown, Zap, Clock } from 'lucide-react'
+import { ShoppingBag, LogIn, Leaf, Star, BookOpen, Map, Heart, Shield, Tag, BookMarked, Swords, Sword, ChevronDown, Zap, Clock } from 'lucide-react'
 import LoginModal from '../components/LoginModal'
 
 function PokeballIcon({ size = 20, className = '' }) {
@@ -23,6 +23,7 @@ const SECTIONS = [
       { to: '/backgrounds',                  label: 'Trasfondos',      Icon: BookOpen,  desc: 'Historias y habilidades de origen'     },
       { to: '/feats?type=origin%2Cgeneral',  label: 'Rasgos',          Icon: Star,      desc: 'Rasgos de origen y generales'          },
       { to: '/origins',                      label: 'Orígenes',        Icon: Map,       desc: 'Lugar de procedencia del entrenador'   },
+      { to: '/weapon-types',                 label: 'Tipos de Arma',   Icon: Sword,     desc: 'Categorías de armas y su daño'         },
       { to: '/weapon-properties',            label: 'Prop. de Arma',   Icon: Tag,       desc: 'Propiedades especiales de armas'       },
       { to: '/bonds',                        label: 'Vínculos',        Icon: Heart,     desc: 'Niveles de lealtad con Pokémon'        },
     ],

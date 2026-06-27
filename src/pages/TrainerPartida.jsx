@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
-import { Smartphone, User, X } from 'lucide-react'
+import { Smartphone, User, Backpack, Shield, Sword, X } from 'lucide-react'
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
 import CharacterSheet from '../components/CharacterSheet'
+import Mochila from '../components/Mochila'
+import Equipamiento from '../components/Equipamiento'
 import { apiFetch } from '../api'
 
 export default function TrainerPartida() {
@@ -14,6 +16,8 @@ export default function TrainerPartida() {
   const [personajeId, setPersonajeId] = useState(stateId)
   const [showPokedex, setShowPokedex] = useState(false)
   const [showChar, setShowChar]       = useState(false)
+  const [showMochila, setShowMochila] = useState(false)
+  const [showEquip, setShowEquip]     = useState(false)
 
   // Recupera el personaje del usuario: state → localStorage → backend (para recargas)
   useEffect(() => {
@@ -63,6 +67,35 @@ export default function TrainerPartida() {
             <User size={18} />
           </button>
         )}
+
+        {/* Botón de mochila — items del personaje */}
+        {personajeId && (
+          <button
+            onClick={() => setShowMochila(true)}
+            className="fixed left-3 top-1/2 translate-y-[calc(200%+18px)] z-30 flex items-center justify-center
+                       w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                       border border-gray-600 transition-all"
+            title="Mochila"
+          >
+            <Backpack size={18} />
+          </button>
+        )}
+
+        {/* Botón de equipamiento — armas y armaduras equipadas */}
+        {personajeId && (
+          <button
+            onClick={() => setShowEquip(true)}
+            className="fixed left-3 top-1/2 translate-y-[calc(300%+24px)] z-30 flex items-center justify-center
+                       w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                       border border-gray-600 transition-all"
+            title="Equipamiento"
+          >
+            <span className="relative inline-flex items-center justify-center">
+              <Shield size={18} />
+              <Sword size={11} className="absolute -bottom-1 -right-1.5" />
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Modal Pokédex */}
@@ -89,6 +122,16 @@ export default function TrainerPartida() {
       {/* Hoja del personaje */}
       {showChar && personajeId && (
         <CharacterSheet id={personajeId} onClose={() => setShowChar(false)} />
+      )}
+
+      {/* Mochila */}
+      {showMochila && personajeId && (
+        <Mochila personajeId={personajeId} onClose={() => setShowMochila(false)} />
+      )}
+
+      {/* Equipamiento */}
+      {showEquip && personajeId && (
+        <Equipamiento personajeId={personajeId} onClose={() => setShowEquip(false)} />
       )}
     </PartidaRoom>
   )

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Loader2, Check } from 'lucide-react'
+import { X, Loader2, Check, ChevronDown } from 'lucide-react'
 import { apiFetch } from '../api'
 
 /* Checkbox de solo lectura (estilo de la imagen) */
@@ -18,11 +18,11 @@ const STATS = [
 ]
 const fmtMod = m => (m >= 0 ? `+${m}` : `${m}`)
 
-function InfoBox({ label, value }) {
+function InfoBox({ label, value, danger = false }) {
   return (
     <div className="border-2 border-gray-800 rounded-xl bg-white px-2 py-1 text-center">
       <p className="text-[9px] font-black text-gray-500 uppercase leading-tight">{label}</p>
-      <p className="text-lg font-black text-gray-900 leading-tight">{(value ?? '') === '' ? '—' : value}</p>
+      <p className={`text-lg font-black leading-tight ${danger ? 'text-red-600' : 'text-gray-900'}`}>{(value ?? '') === '' ? '—' : value}</p>
     </div>
   )
 }
@@ -39,6 +39,8 @@ function Row({ label, value }) {
 export default function CharacterSheet({ id, onClose }) {
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showDetalles, setShowDetalles] = useState(false)
+  const [showMochila, setShowMochila]   = useState(false)
 
   useEffect(() => {
     apiFetch(`/personaje/${id}/full`)
@@ -49,6 +51,13 @@ export default function CharacterSheet({ id, onClose }) {
   }, [id])
 
   const stats = data?.stats
+
+  // Modificador del ability: FLOOR((base + bonus - 10) / 2)
+  const abilMod = (key) => {
+    if (!stats) return 0
+    const final = (stats[`personaje_${key}`] || 0) + (stats[`personaje_${key}_bonus`] || 0)
+    return Math.floor((final - 10) / 2)
+  }
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -90,9 +99,11 @@ export default function CharacterSheet({ id, onClose }) {
                         <div className="h-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: color }} />
                       </div>
                     </div>
-                    <InfoBox label="AC"   value="—" />
-                    <InfoBox label="Prof" value={data.personaje_prof} />
-                    <InfoBox label="Init" value={data.personaje_initiative} />
+                    <InfoBox label="AC"   value={data.personaje_ac} />
+                    <InfoBox label="Prof"
+                      value={data.personaje_prof != null ? fmtMod(data.personaje_prof) : '—'}
+                      danger={(data.personaje_prof ?? 0) < 0} />
+                    <InfoBox label="Init" value={fmtMod(abilMod('dex'))} />
                   </div>
 
                   {/* Hit dice / Hit dice left / Speed / Poke lvs */}
@@ -100,11 +111,15 @@ export default function CharacterSheet({ id, onClose }) {
                     <InfoBox label="Hit Dice"      value={data.personaje_hit_dice} />
                     <InfoBox label="Hit Dice Left" value="0/0" />
                     <InfoBox label="Speed"         value={data.personaje_speed} />
-                    <InfoBox label="Poke lvs"      value="—" />
+                    <InfoBox label="Poke lvs"      value={data.personaje_pokelvls} />
                   </div>
 
-                  {/* Saving Throw */}
+                  {/* Saving Throw + armadura + arma */}
                   <Row label="Saving Throw" value={data.saving_throw_prof} />
+                  {data.armor && <Row label="Armadura" value={data.armor.armor_type_name} />}
+                  {(data.weapons || []).length > 0 && (
+                    <Row label="Arma" value={data.weapons.map(w => w.weapon_type_name).join(', ')} />
+                  )}
                 </div>
               )
             })()}
@@ -113,6 +128,9 @@ export default function CharacterSheet({ id, onClose }) {
             <div>
               <Row label="Origen"     value={data.origin_name} />
               <Row label="Background" value={data.background_name} />
+              {data.background_tool_proficiencies_values && (
+                <Row label="Herramientas" value={data.background_tool_proficiencies_values} />
+              )}
             </div>
 
             {/* Atributos — todos en una sola línea */}
@@ -151,8 +169,8 @@ export default function CharacterSheet({ id, onClose }) {
               const prof = data.personaje_prof || 0
               const abilityValue = (s) => {
                 const key = (s.skill_related_ability || '').toLowerCase()
-                if (!stats || stats[`personaje_${key}`] === undefined) return ''
-                let v = (stats[`personaje_${key}`] || 0) + (stats[`personaje_${key}_bonus`] || 0)
+                if (!stats || stats[`personaje_${key}`] === undefined) return null
+                let v = abilMod(key)                      // modificador del ability
                 if (s.personaje_skill_pref)   v += prof   // proficiente
                 if (s.personaje_skill_expert) v += prof   // experto (suma prof otra vez)
                 return v
@@ -170,19 +188,23 @@ export default function CharacterSheet({ id, onClose }) {
                           <span className="w-3.5 text-center text-[9px] font-bold text-gray-500">P</span>
                         </div>
                         <div className="space-y-1.5">
-                          {col.map((s, i) => (
-                            <div key={i} className="flex items-center gap-1.5">
-                              <ReadCheck checked={!!s.personaje_skill_expert} />
-                              <ReadCheck checked={!!s.personaje_skill_pref} />
-                              <span className="w-6 text-center text-[11px] font-bold text-gray-900 border-b border-gray-400 leading-tight">
-                                {abilityValue(s)}
-                              </span>
-                              <span className="text-[11px] leading-tight truncate">
-                                <span className="font-semibold text-gray-800">{s.skill_name}</span>
-                                <span className="text-gray-400"> ({s.skill_related_ability})</span>
-                              </span>
-                            </div>
-                          ))}
+                          {col.map((s, i) => {
+                            const v = abilityValue(s)
+                            return (
+                              <div key={i} className="flex items-center gap-1.5">
+                                <ReadCheck checked={!!s.personaje_skill_expert} />
+                                <ReadCheck checked={!!s.personaje_skill_pref} />
+                                <span className={`w-7 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
+                                  v != null && v < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                                  {v == null ? '' : fmtMod(v)}
+                                </span>
+                                <span className="text-[11px] leading-tight truncate">
+                                  <span className="font-semibold text-gray-800">{s.skill_name}</span>
+                                  <span className="text-gray-400"> ({s.skill_related_ability})</span>
+                                </span>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
                     ))}
@@ -193,21 +215,41 @@ export default function CharacterSheet({ id, onClose }) {
 
             {/* Equipo */}
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Equipo</p>
-              {(data.equipo || []).map((e, i) => (
-                <Row key={i} label={e.item_name} value={`x${e.cantidad}`} />
-              ))}
+              <button
+                onClick={() => setShowMochila(o => !o)}
+                className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-red-700 hover:text-red-800 transition-colors"
+              >
+                <ChevronDown size={14} className={`transition-transform ${showMochila ? 'rotate-180' : ''}`} />
+                Mochila
+              </button>
+              {showMochila && (
+                <div className="mt-1.5">
+                  {(data.equipo || []).map((e, i) => (
+                    <Row key={i} label={e.item_name} value={`x${e.cantidad}`} />
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Detalles */}
+            {/* Detalles narrativos (desplegable) */}
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Detalles</p>
-              {data.personaje_ideales    && <Row label="Ideales"    value={data.personaje_ideales} />}
-              {data.personaje_falencias  && <Row label="Falencias"  value={data.personaje_falencias} />}
-              {data.personaje_conexiones && <Row label="Conexiones" value={data.personaje_conexiones} />}
-              {(data.details || []).map((d, i) => (
-                <Row key={i} label={d.nombre_personaje_detail} value={d.descripcion_personaje_detail} />
-              ))}
+              <button
+                onClick={() => setShowDetalles(o => !o)}
+                className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-red-700 hover:text-red-800 transition-colors"
+              >
+                <ChevronDown size={14} className={`transition-transform ${showDetalles ? 'rotate-180' : ''}`} />
+                Detalles Narrativos
+              </button>
+              {showDetalles && (
+                <div className="mt-1.5">
+                  {data.personaje_ideales    && <Row label="Ideales"    value={data.personaje_ideales} />}
+                  {data.personaje_falencias  && <Row label="Falencias"  value={data.personaje_falencias} />}
+                  {data.personaje_conexiones && <Row label="Conexiones" value={data.personaje_conexiones} />}
+                  {(data.details || []).map((d, i) => (
+                    <Row key={i} label={d.nombre_personaje_detail} value={d.descripcion_personaje_detail} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

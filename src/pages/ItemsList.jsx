@@ -35,7 +35,7 @@ function SkeletonRow() {
   )
 }
 
-export default function ItemsList() {
+export default function ItemsList({ title = 'Items', onPick = null }) {
   const [items, setItems]               = useState([])
   const [total, setTotal]               = useState(0)
   const [loading, setLoading]           = useState(true)
@@ -82,7 +82,7 @@ export default function ItemsList() {
     <div className="px-4 pt-5 pb-3 border-b border-gray-200 bg-white shrink-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Items</h1>
+          <h1 className="text-xl font-bold text-gray-900">{title}</h1>
           <p className="text-xs text-gray-500 mt-0.5">
             {loading ? 'Cargando...' : `Mostrando ${fromItem}–${toItem} de ${total}`}
           </p>
@@ -91,7 +91,7 @@ export default function ItemsList() {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Buscar ítem..."
-            className="w-full pl-8 pr-7 py-1.5 text-sm border border-gray-200 rounded-xl bg-gray-50
+            className="w-full pl-8 pr-7 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50
                        focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent placeholder-gray-400" />
           {search && (
             <button onClick={clearSearch} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -150,7 +150,7 @@ export default function ItemsList() {
                 const isSelected = item.item_id === selectedId
                 return (
                   <tr key={item.item_id}
-                    onClick={() => setSelectedId(isSelected ? null : item.item_id)}
+                    onClick={() => onPick ? onPick(item) : setSelectedId(isSelected ? null : item.item_id)}
                     className={`cursor-pointer transition-colors group ${
                       isSelected ? 'bg-red-50 border-l-2 border-red-500' : 'hover:bg-gray-50'}`}>
                     <td className="py-2 px-4">
