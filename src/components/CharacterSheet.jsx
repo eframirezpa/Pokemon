@@ -103,13 +103,17 @@ export default function CharacterSheet({ id, onClose }) {
                       </div>
                     </div>
                     <InfoBox label="AC"   value={data.personaje_ac} />
-                    <InfoBox label="EXH"  value={data.personaje_exahust_lvl} />
-                    <InfoBox label="DSTS" value={data.personaje_dsts} green />
-                    <InfoBox label="DSTF" value={data.personaje_dstf} red />
                     <InfoBox label="Prof"
                       value={data.personaje_prof != null ? fmtMod(data.personaje_prof) : '—'}
                       danger={(data.personaje_prof ?? 0) < 0} />
                     <InfoBox label="Init" value={fmtMod(abilMod('dex'))} />
+                  </div>
+
+                  {/* EXH / DSTS / DSTF */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <InfoBox label="EXH"  value={data.personaje_exahust_lvl} />
+                    <InfoBox label="DSTS" value={data.personaje_dsts} green />
+                    <InfoBox label="DSTF" value={data.personaje_dstf} red />
                   </div>
 
                   {/* Hit dice / Hit dice left / Speed / Poke lvs */}
