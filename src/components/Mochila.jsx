@@ -273,7 +273,7 @@ export default function Mochila({ personajeId, onClose }) {
                         <p className="font-semibold text-gray-800 text-sm truncate">{a.armor_type_name}</p>
                         <p className="text-[11px] text-gray-400">
                           {a.armor_type_category} · AC base {a.armor_type_base_ac}
-                          {a.armor_type_uses_dex_modifier === 1 && ' + DEX'}
+                          {a.armor_type_uses_dex_modifier === 1 && ` + DEX${a.armor_type_max_dex_modifier != null ? ` (máx +${a.armor_type_max_dex_modifier})` : ''}`}
                           {a.armor_type_ac_bonus != null && ` + ${a.armor_type_ac_bonus}`}
                         </p>
                       </div>
@@ -400,7 +400,7 @@ export default function Mochila({ personajeId, onClose }) {
                     <span className="text-[10px] font-bold text-gray-400 uppercase">{a.armor_type_category}</span>
                   </div>
                   <p className="text-[11px] text-gray-500 mt-0.5">
-                    AC base {a.armor_type_base_ac}{a.armor_type_uses_dex_modifier === 1 && ' + DEX'}{a.armor_type_ac_bonus != null && ` + ${a.armor_type_ac_bonus}`}
+                    AC base {a.armor_type_base_ac}{a.armor_type_uses_dex_modifier === 1 && ` + DEX${a.armor_type_max_dex_modifier != null ? ` (máx +${a.armor_type_max_dex_modifier})` : ''}`}{a.armor_type_ac_bonus != null && ` + ${a.armor_type_ac_bonus}`}
                   </p>
                 </button>
               ))}

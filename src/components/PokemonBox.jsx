@@ -10,27 +10,12 @@ const TYPE_COLORS = {
 }
 const fmtSign = v => (Number(v) >= 0 ? `+${v}` : `${v}`)
 const fmtMod  = m => (m >= 0 ? `+${m}` : `${m}`)
-const natureHasEffect = n => n && n.nature_effect_increase && n.nature_effect_increase !== '-'
 
 function TypeBadge({ type }) {
   if (!type) return null
   return (
     <span className="text-[10px] font-bold text-white rounded-full px-2 py-0.5"
       style={{ backgroundColor: TYPE_COLORS[type] || '#9CA3AF' }}>{type}</span>
-  )
-}
-
-function NatureBadges({ n }) {
-  if (!natureHasEffect(n)) return <span className="text-[10px] text-gray-400">Neutral</span>
-  return (
-    <>
-      <span className="text-[10px] font-bold text-green-700 bg-green-100 rounded px-1.5 py-0.5">
-        {n.nature_effect_increase} {fmtSign(n.nature_effect_increase_value)}
-      </span>
-      <span className="text-[10px] font-bold text-red-700 bg-red-100 rounded px-1.5 py-0.5">
-        {n.nature_effect_decrease} {fmtSign(n.nature_effect_decrease_value)}
-      </span>
-    </>
   )
 }
 
@@ -140,7 +125,6 @@ function Detail({ personajeId, idpp, onBack, actionLabel, onAction }) {
             {nature && (
               <div className="flex items-center gap-1.5 mt-1">
                 <span className="text-xs font-semibold text-gray-600">{nature.nature_name}</span>
-                <NatureBadges n={nature} />
               </div>
             )}
             {/* Acción */}
