@@ -7,13 +7,13 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [presentes, setPresentes]         = useState([])
   const [log,       setLog]               = useState([])
   const [masterMessage, setMasterMessage] = useState(DEFAULT_MASTER_MESSAGE)
-  const [activePokemon, setActivePokemon] = useState(null)
+  const [activePokemons, setActivePokemons] = useState([])
   const [lastAttack,    setLastAttack]    = useState(null)
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
   const messageRef  = useRef(DEFAULT_MASTER_MESSAGE)
-  const pokemonRef  = useRef(null)
+  const pokemonRef  = useRef([])
 
   userInfoRef.current = userInfo
 
@@ -25,7 +25,10 @@ export function usePartidaPresence(partidaId, userInfo) {
   // Registra el ataque en la actividad y dispara el efecto visual
   const applyAttack = useCallback((payload) => {
     if (!payload?.moveName) return
-    pushLog(`${payload.pokemonName} usó ${payload.moveName}`, 'master')
+    // Si el Pokémon está oculto, los jugadores (no master) no ven su nombre
+    const isMaster = userInfoRef.current?.role === 'master'
+    const displayName = (payload.hidden && !isMaster) ? 'el pokemon' : payload.pokemonName
+    pushLog(`${displayName} usó ${payload.moveName}`, 'master')
     setLastAttack({ ...payload, id: Date.now() })
   }, [pushLog])
 
@@ -49,7 +52,7 @@ export function usePartidaPresence(partidaId, userInfo) {
         // Si soy el master, reenvío el estado actual para los que recién entran
         if (userInfoRef.current?.role === 'master') {
           channel.send({ type: 'broadcast', event: 'master_message', payload: { text: messageRef.current } })
-          channel.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemon: pokemonRef.current } })
+          channel.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemons: pokemonRef.current } })
         }
       })
       .on('presence', { event: 'leave' }, ({ leftPresences }) => {
@@ -62,8 +65,9 @@ export function usePartidaPresence(partidaId, userInfo) {
         }
       })
       .on('broadcast', { event: 'pokemon_update' }, ({ payload }) => {
-        pokemonRef.current = payload?.pokemon ?? null
-        setActivePokemon(payload?.pokemon ?? null)
+        const list = Array.isArray(payload?.pokemons) ? payload.pokemons : []
+        pokemonRef.current = list
+        setActivePokemons(list)
       })
       .on('broadcast', { event: 'attack' }, ({ payload }) => {
         applyAttack(payload)
@@ -95,10 +99,11 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'master_message', payload: { text: t } })
   }, [])
 
-  const sendPokemon = useCallback((pokemon) => {
-    pokemonRef.current = pokemon
-    setActivePokemon(pokemon)
-    channelRef.current?.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemon } })
+  const sendPokemons = useCallback((pokemons) => {
+    const list = Array.isArray(pokemons) ? pokemons : []
+    pokemonRef.current = list
+    setActivePokemons(list)
+    channelRef.current?.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemons: list } })
   }, [])
 
   const sendAttack = useCallback((payload) => {
@@ -111,5 +116,5 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'activity', payload: { text, role } })
   }, [pushLog])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemon, sendPokemon, lastAttack, sendAttack, sendActivity }
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity }
 }

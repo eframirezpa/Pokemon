@@ -123,48 +123,46 @@ function PokemonHpCard({ p }) {
   )
 }
 
-/* Panel de Pokémon del master — botón + Pokémon y controles de vida */
-function MasterPokemonPanel({ pokemon, onAdd, onHp, onHpSet, onRemove, onCast, onToggleHidden }) {
+/* Card de un Pokémon del master — colapsable (toggle) */
+function MasterPokemonCard({ pokemon, onHp, onHpSet, onRemove, onCast, onToggleHidden }) {
+  const [collapsed, setCollapsed] = useState(false)
   return (
-    <div className="shrink-0 px-4 pt-3">
-      <button
-        onClick={onAdd}
-        className="w-full flex items-center justify-center gap-1.5 py-2 bg-gray-800 hover:bg-gray-700
-                   border border-gray-700 text-gray-200 text-xs font-semibold rounded-xl transition-colors"
+    <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-lg self-start">
+      {/* Encabezado (toggle repliega/expande) */}
+      <div
+        onClick={() => setCollapsed(c => !c)}
+        className="flex items-start justify-between gap-2 cursor-pointer select-none"
       >
-        <Plus size={15} /> Pokémon
-      </button>
-
-      {pokemon && (
-        <div className="mt-2 bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-lg">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-white font-bold text-sm truncate">{pokemon.name}</span>
-                <span className="text-[10px] text-gray-400 shrink-0">Lv.{pokemon.level}</span>
-              </div>
-              <div className="flex gap-1 mt-1">
-                <TypeBadge type={pokemon.type1} />
-                <TypeBadge type={pokemon.type2} />
-              </div>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                onClick={onToggleHidden}
-                className={`transition-colors ${pokemon.hidden ? 'text-amber-400 hover:text-amber-300' : 'text-gray-500 hover:text-white'}`}
-                title={pokemon.hidden ? 'Revelar a los jugadores' : 'Ocultar a los jugadores'}
-              >
-                {pokemon.hidden ? <Eye size={16} /> : <EyeOff size={16} />}
-              </button>
-              <button onClick={onRemove} className="text-gray-500 hover:text-red-400 transition-colors" title="Quitar">
-                <X size={16} />
-              </button>
-            </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <ChevronDown size={14} className={`text-gray-400 shrink-0 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+            <span className="text-white font-bold text-sm truncate">{pokemon.name}</span>
+            <span className="text-[10px] text-gray-400 shrink-0">Lv.{pokemon.level}</span>
           </div>
+          <div className="flex gap-1 mt-1 pl-5">
+            <TypeBadge type={pokemon.type1} />
+            <TypeBadge type={pokemon.type2} />
+          </div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={e => { e.stopPropagation(); onToggleHidden(pokemon.uid) }}
+            className={`transition-colors ${pokemon.hidden ? 'text-amber-400 hover:text-amber-300' : 'text-gray-500 hover:text-white'}`}
+            title={pokemon.hidden ? 'Revelar a los jugadores' : 'Ocultar a los jugadores'}
+          >
+            {pokemon.hidden ? <Eye size={16} /> : <EyeOff size={16} />}
+          </button>
+          <button onClick={e => { e.stopPropagation(); onRemove(pokemon.uid) }} className="text-gray-500 hover:text-red-400 transition-colors" title="Quitar">
+            <X size={16} />
+          </button>
+        </div>
+      </div>
 
+      {!collapsed && (
+        <>
           {/* Controles de vida */}
           <div className="flex items-center gap-2 mt-3">
-            <button onClick={() => onHp(-1)}
+            <button onClick={() => onHp(pokemon.uid, -1)}
               className="w-8 h-8 shrink-0 rounded-lg bg-gray-700 hover:bg-red-600 flex items-center justify-center text-white transition-colors">
               <Minus size={15} />
             </button>
@@ -174,7 +172,7 @@ function MasterPokemonPanel({ pokemon, onAdd, onHp, onHpSet, onRemove, onCast, o
                 min={0}
                 max={pokemon.hp_max}
                 value={pokemon.hp_current}
-                onChange={e => onHpSet(Number(e.target.value))}
+                onChange={e => onHpSet(pokemon.uid, Number(e.target.value))}
                 className="w-full h-2.5 cursor-pointer"
                 style={{ accentColor: hpColor(hpPct(pokemon)) }}
               />
@@ -182,7 +180,7 @@ function MasterPokemonPanel({ pokemon, onAdd, onHp, onHpSet, onRemove, onCast, o
                 HP {pokemon.hp_current}/{pokemon.hp_max}
               </p>
             </div>
-            <button onClick={() => onHp(1)}
+            <button onClick={() => onHp(pokemon.uid, 1)}
               className="w-8 h-8 shrink-0 rounded-lg bg-gray-700 hover:bg-green-600 flex items-center justify-center text-white transition-colors">
               <Plus size={15} />
             </button>
@@ -200,7 +198,7 @@ function MasterPokemonPanel({ pokemon, onAdd, onHp, onHpSet, onRemove, onCast, o
                       <TypeBadge type={m.type} />
                     </div>
                     <button
-                      onClick={() => onCast(m.name, m.type)}
+                      onClick={() => onCast(pokemon, m.name, m.type)}
                       className="shrink-0 text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 px-2.5 py-1 rounded-md transition-colors"
                     >
                       Lanzar
@@ -210,6 +208,40 @@ function MasterPokemonPanel({ pokemon, onAdd, onHp, onHpSet, onRemove, onCast, o
               </div>
             </div>
           )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/* Panel de Pokémon del master — botón + grid de Pokémon (máx. según `max`) */
+function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onHpSet, onRemove, onCast, onToggleHidden }) {
+  const full = pokemons.length >= max
+  return (
+    <div className="shrink-0 px-4 pt-3">
+      <button
+        onClick={onAdd}
+        disabled={full}
+        className="w-full flex items-center justify-center gap-1.5 py-2 bg-gray-800 hover:bg-gray-700
+                   disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800
+                   border border-gray-700 text-gray-200 text-xs font-semibold rounded-xl transition-colors"
+      >
+        <Plus size={15} /> Pokémon <span className="text-gray-400">({pokemons.length}/{max})</span>
+      </button>
+
+      {pokemons.length > 0 && (
+        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 max-h-[45vh] overflow-y-auto">
+          {pokemons.map(p => (
+            <MasterPokemonCard
+              key={p.uid}
+              pokemon={p}
+              onHp={onHp}
+              onHpSet={onHpSet}
+              onRemove={onRemove}
+              onCast={onCast}
+              onToggleHidden={onToggleHidden}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -310,7 +342,9 @@ export default function PartidaRoom({ children, roleLabel }) {
 
   const isMaster = user?.role === 'master'
 
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemon, sendPokemon, lastAttack, sendAttack, sendActivity } = usePartidaPresence(id, user)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity } = usePartidaPresence(id, user)
+
+  const MAX_POKEMON = 4
 
   const trainers = presentes.filter(u => u.role === 'trainer' || u.role === 'espectador')
 
@@ -342,10 +376,13 @@ export default function PartidaRoom({ children, roleLabel }) {
       const moveType = {}
       for (const m of (mData.data ?? [])) moveType[m.move_name.toLowerCase()] = m.move_type
 
+      if (activePokemons.length >= MAX_POKEMON) return
+
       const level = d.pokemon_min_level || 1
       const moves = levelMoves(d, level).map(n => ({ name: n, type: moveType[n.toLowerCase()] || null }))
 
-      sendPokemon({
+      const nuevo = {
+        uid:         `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         pokemon_id:  d.pokemon_id,
         name:        d.pokemon_name,
         type1:       d.pokemon_type_1,
@@ -356,7 +393,8 @@ export default function PartidaRoom({ children, roleLabel }) {
         sprite:      d.pokemon_media_sprite || d.pokemon_media_main,
         moves,
         hidden:      true,
-      })
+      }
+      sendPokemons([...activePokemons, nuevo])
 
       const text = 'Apareció un pokémon salvaje'
       sendMasterMessage(text)
@@ -364,34 +402,42 @@ export default function PartidaRoom({ children, roleLabel }) {
     } catch { /* noop */ }
   }
 
-  const handleHpChange = (delta) => {
-    if (!activePokemon) return
-    const hp = Math.max(0, Math.min(activePokemon.hp_max, activePokemon.hp_current + delta))
-    sendPokemon({ ...activePokemon, hp_current: hp })
+  const updatePokemon = (uid, patch) =>
+    sendPokemons(activePokemons.map(p => (p.uid === uid ? { ...p, ...patch } : p)))
+
+  const handleHpChange = (uid, delta) => {
+    const p = activePokemons.find(x => x.uid === uid)
+    if (!p) return
+    updatePokemon(uid, { hp_current: Math.max(0, Math.min(p.hp_max, p.hp_current + delta)) })
   }
 
-  const handleHpSet = (value) => {
-    if (!activePokemon) return
-    const hp = Math.max(0, Math.min(activePokemon.hp_max, value))
-    sendPokemon({ ...activePokemon, hp_current: hp })
+  const handleHpSet = (uid, value) => {
+    const p = activePokemons.find(x => x.uid === uid)
+    if (!p) return
+    updatePokemon(uid, { hp_current: Math.max(0, Math.min(p.hp_max, value)) })
   }
 
-  const handleToggleHidden = () => {
-    if (!activePokemon) return
-    const nowHidden = !activePokemon.hidden
-    sendPokemon({ ...activePokemon, hidden: nowHidden })
+  const handleToggleHidden = (uid) => {
+    const p = activePokemons.find(x => x.uid === uid)
+    if (!p) return
+    const nowHidden = !p.hidden
+    updatePokemon(uid, { hidden: nowHidden })
     if (!nowHidden) {
       // Se revela el Pokémon → mostrar el nombre real
-      const text = `Apareció un ${activePokemon.name} salvaje`
+      const text = `Apareció un ${p.name} salvaje`
       sendMasterMessage(text)
       sendActivity(text)
     }
   }
 
-  const handleCast = (moveName, moveType) => {
-    if (!activePokemon) return
-    sendMasterMessage(`${activePokemon.name} ha usado el movimiento ${moveName}`)
-    sendAttack({ pokemonName: activePokemon.name, moveName, type: moveType })
+  const handleRemove = (uid) => sendPokemons(activePokemons.filter(p => p.uid !== uid))
+
+  const handleCast = (pokemon, moveName, moveType) => {
+    if (!pokemon) return
+    // Si está oculto, los jugadores no deben ver el nombre real (solo lo ve el master en su panel)
+    const displayName = pokemon.hidden ? 'el pokemon' : pokemon.name
+    sendMasterMessage(`${displayName} ha usado el movimiento ${moveName}`)
+    sendAttack({ pokemonName: pokemon.name, moveName, type: moveType, hidden: !!pokemon.hidden })
   }
 
   return (
@@ -460,11 +506,12 @@ export default function PartidaRoom({ children, roleLabel }) {
             <>
               <MasterSendMessage onSend={sendMasterMessage} />
               <MasterPokemonPanel
-                pokemon={activePokemon}
+                pokemons={activePokemons}
+                max={MAX_POKEMON}
                 onAdd={() => setShowPokedex(true)}
                 onHp={handleHpChange}
                 onHpSet={handleHpSet}
-                onRemove={() => sendPokemon(null)}
+                onRemove={handleRemove}
                 onCast={handleCast}
                 onToggleHidden={handleToggleHidden}
               />
@@ -475,10 +522,10 @@ export default function PartidaRoom({ children, roleLabel }) {
 
           {/* Role-specific content area */}
           <div className="relative flex-1 overflow-auto p-6">
-            {/* Tarjeta de vida del Pokémon — parte superior derecha (trainer/espectador) */}
-            {!isMaster && activePokemon && (
-              <div className="absolute top-4 right-4 z-10">
-                <PokemonHpCard p={activePokemon} />
+            {/* Tarjetas de vida de los Pokémon — parte superior derecha (trainer/espectador) */}
+            {!isMaster && activePokemons.length > 0 && (
+              <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+                {activePokemons.map(p => <PokemonHpCard key={p.uid} p={p} />)}
               </div>
             )}
 
