@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, ChevronDown, Venus, Mars, Check } from 'lucide-react'
+import { X, ChevronLeft, ChevronDown, Venus, Mars, Check, Sparkles } from 'lucide-react'
 import PokemonList from '../pages/PokemonList'
 import { apiFetch } from '../api'
 
-const STEPS = ['Básicos', 'Stats', 'Iniciales', 'Movimientos', 'Confirmación']
+const STEPS = ['Básicos', 'Stats', 'Iniciales', 'Movimientos', 'Pasivas', 'Confirmación']
+// Habilidades pasivas visibles (no ocultas) del Pokémon
+const nonHiddenAbilities = (pk) => !pk ? [] : [
+  !pk.pokemon_ability_1_is_hidden && pk.pokemon_ability_1,
+  !pk.pokemon_ability_2_is_hidden && pk.pokemon_ability_2,
+  !pk.pokemon_ability_3_is_hidden && pk.pokemon_ability_3,
+  !pk.pokemon_ability_4_is_hidden && pk.pokemon_ability_4,
+].filter(Boolean)
 const STRUGGLE_ID = 705
 const MAX_MOVES = 4
+const DEFAULT_BOND = 4 // Neutral
 
 const TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -128,6 +136,10 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
   const [struggle, setStruggle] = useState(null)
   const [selectedMoves, setSelectedMoves] = useState([]) // ids (aparte de Struggle)
   const [skillsList, setSkillsList] = useState([])
+  const [shiny, setShiny] = useState(false)
+  const [abilities, setAbilities] = useState({}) // id → ability (name/desc)
+  const [pasiva, setPasiva] = useState(null)     // ability id seleccionada
+  const [bond, setBond] = useState(null)         // vínculo por defecto (Neutral)
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -146,8 +158,10 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
           apodo: apodo || pokemon.pokemon_name,
           genero,
           id_nature: nature?.nature_id ?? null,
-          id_bond: 4,
+          id_bond: DEFAULT_BOND,
           move_ids,
+          is_shiny: shiny,
+          id_abilitie: pasiva,
         }),
       })
       if (!res.ok) {
@@ -181,7 +195,22 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
       .then(r => r.json())
       .then(d => setSkillsList(Array.isArray(d) ? d : (Array.isArray(d.data) ? d.data : [])))
       .catch(() => {})
+    apiFetch(`/bonds/${DEFAULT_BOND}`)
+      .then(r => r.json())
+      .then(d => setBond(d && d.bond_id ? d : null))
+      .catch(() => {})
   }, [])
+
+  // Al elegir el Pokémon: cargar sus habilidades pasivas (no ocultas) y seleccionar la primera
+  useEffect(() => {
+    const ids = nonHiddenAbilities(pokemon)
+    if (ids.length === 0) { setPasiva(null); return }
+    setPasiva(ids[0])
+    Promise.all(ids.map(aid => apiFetch(`/abilities/${aid}`).then(r => r.json())))
+      .then(res => { const m = {}; res.forEach(a => { if (a && a.ability_id) m[a.ability_id] = a }); setAbilities(m) })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pokemon])
 
   const toggleMove = (m) => {
     setSelectedMoves(prev => {
@@ -374,6 +403,29 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
             )
           })()}
           {step === 4 && (() => {
+            const ids = nonHiddenAbilities(pokemon)
+            return (
+              <div className="max-w-lg mx-auto py-2">
+                <p className="text-xs text-gray-500 text-center mb-3">Elige la habilidad pasiva de tu Pokémon (solo una).</p>
+                <div className="space-y-2">
+                  {ids.map(aid => {
+                    const ab = abilities[aid]
+                    const selected = pasiva === aid
+                    return (
+                      <button key={aid} type="button" onClick={() => setPasiva(aid)}
+                        className={`w-full text-left rounded-xl border px-3 py-2 transition-colors ${
+                          selected ? 'bg-green-100 border-green-300' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
+                        <span className="text-sm font-bold text-gray-800">{ab ? ab.ability_name : `#${aid}`}</span>
+                        {ab?.ability_description && <p className="text-xs text-gray-500 leading-relaxed mt-0.5">{ab.ability_description}</p>}
+                      </button>
+                    )
+                  })}
+                  {ids.length === 0 && <p className="text-sm text-gray-400 italic text-center py-6">Este Pokémon no tiene habilidades disponibles.</p>}
+                </div>
+              </div>
+            )
+          })()}
+          {step === 5 && (() => {
             const startMoves = splitList(pokemon.pokemon_moves_start).map(n => movesMap[n.toLowerCase()]).filter(Boolean)
             const chosen = [struggle, ...startMoves.filter(m => selectedMoves.includes(m.move_id))].filter(Boolean)
             const speeds = [1, 2, 3, 4]
@@ -389,7 +441,12 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
               <div className="max-w-md mx-auto py-2 space-y-4">
                 {/* Encabezado */}
                 <div className="flex flex-col items-center gap-1">
-                  {(pokemon.pokemon_media_main || sprite) && <img src={pokemon.pokemon_media_main || sprite} alt={pokemon.pokemon_name} className="w-[168px] h-[168px] object-contain" />}
+                  {(() => {
+                    const mainImg = (shiny && pokemon.pokemon_media_main_shiny)
+                      ? pokemon.pokemon_media_main_shiny
+                      : (pokemon.pokemon_media_main || sprite)
+                    return mainImg && <img src={mainImg} alt={pokemon.pokemon_name} className="w-[168px] h-[168px] object-contain" />
+                  })()}
                   <div className="flex items-center gap-2">
                     <span className="text-lg font-black text-gray-900">{apodo || pokemon.pokemon_name}</span>
                     {genero === 'F' && <Venus size={18} className="text-pink-500" strokeWidth={2.5} />}
@@ -405,6 +462,14 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
                       <span className="text-xs font-semibold text-gray-600">{nature.nature_name}</span>
                       <NatureBadges n={nature} />
                     </div>
+                  )}
+                  {pokemon.pokemon_media_main_shiny && (
+                    <button type="button" onClick={() => setShiny(s => !s)}
+                      className={`flex items-center gap-1 text-xs px-3 py-1 rounded-full border transition-all mt-2 ${
+                        shiny ? 'bg-yellow-400 border-yellow-500 text-yellow-900 font-semibold'
+                              : 'bg-white border-gray-200 text-gray-500 hover:border-yellow-400'}`}>
+                      <Sparkles size={11} /> Shiny
+                    </button>
                   )}
                 </div>
 
@@ -448,6 +513,18 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
                   <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
                   <div className="px-4 py-1.5 space-y-0.5 text-xs text-gray-800">
                     {pokemon.pokemon_saving_throws && <p><span className="font-bold text-[#7A200D]">Tiradas de Salvación</span> {pokemon.pokemon_saving_throws}</p>}
+                    {(() => {
+                      const senses = [1, 2]
+                        .map(i => pokemon[`pokemon_sense_${i}_name`] && `${pokemon[`pokemon_sense_${i}_value`]} ${pokemon[`pokemon_sense_${i}_name`]}`)
+                        .filter(Boolean).join(' · ')
+                      return senses && <p><span className="font-bold text-[#7A200D]">Sentidos</span> {senses}</p>
+                    })()}
+                    {bond && (
+                      <>
+                        <p><span className="font-bold text-[#7A200D]">Vínculo</span> {bond.bond_name}</p>
+                        {bond.bond_description && <p className="text-gray-500">{bond.bond_description}</p>}
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -500,6 +577,17 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
                   )
                 })()}
 
+                {/* Pasiva seleccionada */}
+                {pasiva && abilities[pasiva] && (
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Pasiva</p>
+                    <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
+                      <span className="text-sm font-bold text-gray-800">{abilities[pasiva].ability_name}</span>
+                      {abilities[pasiva].ability_description && <p className="text-xs text-gray-500 leading-relaxed mt-0.5">{abilities[pasiva].ability_description}</p>}
+                    </div>
+                  </div>
+                )}
+
                 {/* Movimientos */}
                 <div>
                   <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Movimientos</p>
@@ -533,12 +621,16 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setStep(s => s + 1)}
-              className="bg-gray-900 hover:bg-red-600 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors"
-            >
-              Siguiente
-            </button>
+            <div className="flex items-center gap-3">
+              {step === 0 && !nature && <span className="text-xs text-amber-600 font-medium">Selecciona una naturaleza</span>}
+              <button
+                onClick={() => setStep(s => s + 1)}
+                disabled={step === 0 && !nature}
+                className="bg-gray-900 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-900 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors"
+              >
+                Siguiente
+              </button>
+            </div>
           )}
         </div>
       </div>

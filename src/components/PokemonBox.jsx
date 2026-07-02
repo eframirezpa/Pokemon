@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, Sparkles, Venus, Mars, Check } from 'lucide-react'
+import { X, ChevronLeft, Venus, Mars, Check } from 'lucide-react'
 import { apiFetch } from '../api'
 
 const TYPE_COLORS = {
@@ -61,7 +61,6 @@ function MoveRow({ m }) {
 // ── Detalle de un Pokémon del personaje (tipo pokédex, datos persistidos) ──
 function Detail({ personajeId, idpp, onBack, actionLabel, onAction }) {
   const [d, setD] = useState(null)
-  const [shiny, setShiny] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -86,7 +85,7 @@ function Detail({ personajeId, idpp, onBack, actionLabel, onAction }) {
     nature_effect_decrease: d.nature_effect_decrease, nature_effect_decrease_value: d.nature_effect_decrease_value,
   } : null
   const genero = d.personaje_pokemon_genero
-  const mainImg = (shiny && d.pokemon_media_main_shiny) ? d.pokemon_media_main_shiny
+  const mainImg = (d.pokemon_is_shiny && d.pokemon_media_main_shiny) ? d.pokemon_media_main_shiny
     : (d.pokemon_media_main || d.pokemon_media_sprite)
   const speeds = [1, 2, 3, 4]
     .map(i => d[`personaje_pokemon_speed${i}_name`] && `${d[`personaje_pokemon_speed${i}_value`]} ${d[`personaje_pokemon_speed${i}_name`]}`)
@@ -144,16 +143,8 @@ function Detail({ personajeId, idpp, onBack, actionLabel, onAction }) {
                 <NatureBadges n={nature} />
               </div>
             )}
-            {/* Shiny + acción */}
+            {/* Acción */}
             <div className="flex items-center gap-2 mt-2">
-              {d.pokemon_media_main_shiny && (
-                <button onClick={() => setShiny(s => !s)}
-                  className={`flex items-center gap-1 text-xs px-3 py-1 rounded-full border transition-all ${
-                    shiny ? 'bg-yellow-400 border-yellow-500 text-yellow-900 font-semibold'
-                          : 'bg-white border-gray-200 text-gray-500 hover:border-yellow-400'}`}>
-                  <Sparkles size={11} /> Shiny
-                </button>
-              )}
               <button onClick={doAction} disabled={busy}
                 className="text-xs px-3 py-1 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-semibold transition-colors">
                 {busy ? 'Guardando…' : actionLabel}
@@ -181,7 +172,19 @@ function Detail({ personajeId, idpp, onBack, actionLabel, onAction }) {
               ))}
             </div>
             <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
-            <div className="px-4 py-2 flex justify-around">
+            <div className="px-4 py-2 flex justify-around items-stretch">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-black text-[#7A200D]">EXH</span>
+                <span className="text-base font-bold text-gray-900 leading-tight">{d.personaje_pokemon_exahust_lvl}</span>
+              </div>
+              <div className="flex flex-col items-center justify-center rounded-lg px-2 bg-green-100">
+                <span className="text-[10px] font-black text-green-700">DSTS</span>
+                <span className="text-base font-bold text-green-700 leading-tight">{d.personaje_pokemon_dsts}</span>
+              </div>
+              <div className="flex flex-col items-center justify-center rounded-lg px-2 bg-red-100">
+                <span className="text-[10px] font-black text-red-700">DSTF</span>
+                <span className="text-base font-bold text-red-700 leading-tight">{d.personaje_pokemon_dstf}</span>
+              </div>
               <div className="flex flex-col items-center">
                 <span className="text-[10px] font-black text-[#7A200D]">STAB</span>
                 <span className="text-base font-bold text-gray-900 leading-tight">{fmtSign(stab)}</span>
@@ -198,6 +201,18 @@ function Detail({ personajeId, idpp, onBack, actionLabel, onAction }) {
             <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
             <div className="px-4 py-1.5 space-y-0.5 text-xs text-gray-800">
               {d.pokemon_saving_throw_prof && <p><span className="font-bold text-[#7A200D]">Tiradas de Salvación</span> {d.pokemon_saving_throw_prof}</p>}
+              {(() => {
+                const senses = [1, 2]
+                  .map(i => d[`pokemon_sense_${i}_name`] && `${d[`pokemon_sense_${i}_value`]} ${d[`pokemon_sense_${i}_name`]}`)
+                  .filter(Boolean).join(' · ')
+                return senses && <p><span className="font-bold text-[#7A200D]">Sentidos</span> {senses}</p>
+              })()}
+              {d.bond_name && (
+                <>
+                  <p><span className="font-bold text-[#7A200D]">Vínculo</span> {d.bond_name}</p>
+                  {d.bond_description && <p className="text-gray-500">{d.bond_description}</p>}
+                </>
+              )}
             </div>
           </div>
 
@@ -231,6 +246,21 @@ function Detail({ personajeId, idpp, onBack, actionLabel, onAction }) {
                         )
                       })}
                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Pasiva */}
+          {(d.pasivas || []).length > 0 && (
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Pasiva</p>
+              <div className="space-y-2">
+                {d.pasivas.map(p => (
+                  <div key={p.ability_id} className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
+                    <span className="text-sm font-bold text-gray-800">{p.ability_name}</span>
+                    {p.ability_description && <p className="text-xs text-gray-500 leading-relaxed mt-0.5">{p.ability_description}</p>}
                   </div>
                 ))}
               </div>
@@ -320,7 +350,8 @@ export default function PokemonBox({ personajeId, mode, onClose }) {
                   {list.map(p => (
                     <button key={p.id_personaje_pokemon} onClick={() => setSelected(p.id_personaje_pokemon)}
                       className="flex flex-col items-center gap-1 p-3 rounded-xl border border-gray-200 hover:border-red-400 hover:shadow transition-all bg-white">
-                      <img src={p.pokemon_media_sprite || p.pokemon_media_main} alt={p.pokemon_apodo}
+                      <img src={(p.pokemon_is_shiny && p.pokemon_media_sprite_shiny) ? p.pokemon_media_sprite_shiny : (p.pokemon_media_sprite || p.pokemon_media_main)}
+                        alt={p.pokemon_apodo}
                         className="w-16 h-16 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
                       <span className="text-sm font-semibold text-gray-800 truncate max-w-full">{p.pokemon_apodo}</span>
                       <span className="text-[11px] text-gray-400 truncate max-w-full">{p.pokemon_name} · Nv {p.pokemon_level}</span>

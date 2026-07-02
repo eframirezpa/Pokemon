@@ -51,7 +51,21 @@ export default function Mochila({ personajeId, onClose }) {
   const loadArmor = () => {
     setLA(true)
     apiFetch(`/personaje/${personajeId}/armor`).then(r => r.json())
-      .then(d => setArmor(Array.isArray(d) ? d : [])).catch(() => setArmor([])).finally(() => setLA(false))
+      .then(d => {
+        const list = Array.isArray(d) ? d : []
+        // Si no hay ninguna en uso, seleccionar automáticamente la armadura id 1
+        const anyInUse = list.some(a => a.personaje_armor_in_use)
+        const def = list.find(a => a.armor_type_id === 1)
+        if (!anyInUse && def) {
+          apiFetch(`/personaje/${personajeId}/armor/${def.id_personaje_armor}`, {
+            method: 'PATCH', body: JSON.stringify({ in_use: true }),
+          }).catch(() => {})
+          setArmor(list.map(a => ({ ...a, personaje_armor_in_use: a.id_personaje_armor === def.id_personaje_armor })))
+        } else {
+          setArmor(list)
+        }
+      })
+      .catch(() => setArmor([])).finally(() => setLA(false))
   }
   const loadWeapons = () => {
     setLW(true)
@@ -91,13 +105,22 @@ export default function Mochila({ personajeId, onClose }) {
   }
 
   // ── Acciones armaduras ──
+  // Siempre debe quedar una armadura en uso; al desmarcar la activa se cae a la id 1.
   const toggleInUse = (row) => {
-    const nuevo = !row.personaje_armor_in_use
-    setArmor(prev => prev.map(a => ({
-      ...a,
-      personaje_armor_in_use: a.id_personaje_armor === row.id_personaje_armor ? nuevo : (nuevo ? false : a.personaje_armor_in_use),
-    })))
-    apiFetch(`/personaje/${personajeId}/armor/${row.id_personaje_armor}`, { method: 'PATCH', body: JSON.stringify({ in_use: nuevo }) }).catch(() => {})
+    const turningOn = !row.personaje_armor_in_use
+    let targetId = row.id_personaje_armor
+    if (!turningOn) {
+      const def = armor.find(a => a.armor_type_id === 1)
+      targetId = def ? def.id_personaje_armor : null
+    }
+    if (targetId == null) {
+      // No hay armadura por defecto: solo desmarcar
+      setArmor(prev => prev.map(a => a.id_personaje_armor === row.id_personaje_armor ? { ...a, personaje_armor_in_use: false } : a))
+      apiFetch(`/personaje/${personajeId}/armor/${row.id_personaje_armor}`, { method: 'PATCH', body: JSON.stringify({ in_use: false }) }).catch(() => {})
+      return
+    }
+    setArmor(prev => prev.map(a => ({ ...a, personaje_armor_in_use: a.id_personaje_armor === targetId })))
+    apiFetch(`/personaje/${personajeId}/armor/${targetId}`, { method: 'PATCH', body: JSON.stringify({ in_use: true }) }).catch(() => {})
   }
   const addArmor = async (a) => {
     try {

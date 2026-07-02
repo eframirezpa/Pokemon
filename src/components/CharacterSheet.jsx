@@ -18,11 +18,14 @@ const STATS = [
 ]
 const fmtMod = m => (m >= 0 ? `+${m}` : `${m}`)
 
-function InfoBox({ label, value, danger = false }) {
+function InfoBox({ label, value, danger = false, green = false, red = false }) {
+  const box = green ? 'border-green-600 bg-green-100' : red ? 'border-red-600 bg-red-100' : 'border-gray-800 bg-white'
+  const lbl = green ? 'text-green-700' : red ? 'text-red-700' : 'text-gray-500'
+  const val = danger ? 'text-red-600' : green ? 'text-green-700' : red ? 'text-red-700' : 'text-gray-900'
   return (
-    <div className="border-2 border-gray-800 rounded-xl bg-white px-2 py-1 text-center">
-      <p className="text-[9px] font-black text-gray-500 uppercase leading-tight">{label}</p>
-      <p className={`text-lg font-black leading-tight ${danger ? 'text-red-600' : 'text-gray-900'}`}>{(value ?? '') === '' ? '—' : value}</p>
+    <div className={`border-2 rounded-xl px-2 py-1 text-center ${box}`}>
+      <p className={`text-[9px] font-black uppercase leading-tight ${lbl}`}>{label}</p>
+      <p className={`text-lg font-black leading-tight ${val}`}>{(value ?? '') === '' ? '—' : value}</p>
     </div>
   )
 }
@@ -100,6 +103,9 @@ export default function CharacterSheet({ id, onClose }) {
                       </div>
                     </div>
                     <InfoBox label="AC"   value={data.personaje_ac} />
+                    <InfoBox label="EXH"  value={data.personaje_exahust_lvl} />
+                    <InfoBox label="DSTS" value={data.personaje_dsts} green />
+                    <InfoBox label="DSTF" value={data.personaje_dstf} red />
                     <InfoBox label="Prof"
                       value={data.personaje_prof != null ? fmtMod(data.personaje_prof) : '—'}
                       danger={(data.personaje_prof ?? 0) < 0} />
@@ -109,8 +115,8 @@ export default function CharacterSheet({ id, onClose }) {
                   {/* Hit dice / Hit dice left / Speed / Poke lvs */}
                   <div className="grid grid-cols-4 gap-2">
                     <InfoBox label="Hit Dice"      value={data.personaje_hit_dice} />
-                    <InfoBox label="Hit Dice Left" value="0/0" />
-                    <InfoBox label="Speed"         value={data.personaje_speed} />
+                    <InfoBox label="Hit Dice Left" value={data.personaje_hit_dice_left ?? '0/0'} />
+                    <InfoBox label="Speed"         value={data.personaje_speed != null ? `${data.personaje_speed} ft` : ''} />
                     <InfoBox label="Poke lvs"      value={data.personaje_pokelvls} />
                   </div>
 

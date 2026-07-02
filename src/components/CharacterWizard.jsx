@@ -1375,6 +1375,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                   <VRow label="Nivel"        value="1" />
                   <VRow label="Hit Dice"     value="1d6 por nivel" />
                   <VRow label="Hit Points"   value={hitPoints} />
+                  <VRow label="Velocidad"    value="30 ft" />
                   <VRow label="Iniciativa"   value={fmtMod(displayModifiers.personaje_dex ?? 0)} />
                   <VRow label="Saving Throw" value="CHA (Charisma)" />
                   <VRow label="Armadura"     value={armorSelected?.armor_type_name} />
