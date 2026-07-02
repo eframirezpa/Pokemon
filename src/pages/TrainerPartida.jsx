@@ -1,12 +1,29 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
-import { Smartphone, User, Backpack, Shield, Sword, X } from 'lucide-react'
+import { Smartphone, User, Backpack, Shield, Sword, Monitor, X } from 'lucide-react'
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
 import CharacterSheet from '../components/CharacterSheet'
 import Mochila from '../components/Mochila'
 import Equipamiento from '../components/Equipamiento'
+import PokemonBox from '../components/PokemonBox'
 import { apiFetch } from '../api'
+
+// Ícono de 3 pokébolas (para el cinturón)
+function PokeballsIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.5" strokeLinecap="round">
+      {[5, 12, 19].map(cx => (
+        <g key={cx}>
+          <circle cx={cx} cy="12" r="3.4" />
+          <line x1={cx - 3.4} y1="12" x2={cx + 3.4} y2="12" />
+          <circle cx={cx} cy="12" r="0.9" fill="currentColor" stroke="none" />
+        </g>
+      ))}
+    </svg>
+  )
+}
 
 export default function TrainerPartida() {
   const { id }   = useParams()
@@ -18,6 +35,8 @@ export default function TrainerPartida() {
   const [showChar, setShowChar]       = useState(false)
   const [showMochila, setShowMochila] = useState(false)
   const [showEquip, setShowEquip]     = useState(false)
+  const [showBelt, setShowBelt]       = useState(false)
+  const [showPC, setShowPC]           = useState(false)
 
   // Recupera el personaje del usuario: state → localStorage → backend (para recargas)
   useEffect(() => {
@@ -96,6 +115,32 @@ export default function TrainerPartida() {
             </span>
           </button>
         )}
+
+        {/* Botón de cinturón — Pokémon en el equipo */}
+        {personajeId && (
+          <button
+            onClick={() => setShowBelt(true)}
+            className="fixed left-3 top-1/2 translate-y-[calc(400%+30px)] z-30 flex items-center justify-center
+                       w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                       border border-gray-600 transition-all"
+            title="Cinturón"
+          >
+            <PokeballsIcon size={18} />
+          </button>
+        )}
+
+        {/* Botón de computadora — Pokémon almacenados */}
+        {personajeId && (
+          <button
+            onClick={() => setShowPC(true)}
+            className="fixed left-3 top-1/2 translate-y-[calc(500%+36px)] z-30 flex items-center justify-center
+                       w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                       border border-gray-600 transition-all"
+            title="Femputadora"
+          >
+            <Monitor size={18} />
+          </button>
+        )}
       </div>
 
       {/* Modal Pokédex */}
@@ -132,6 +177,16 @@ export default function TrainerPartida() {
       {/* Equipamiento */}
       {showEquip && personajeId && (
         <Equipamiento personajeId={personajeId} onClose={() => setShowEquip(false)} />
+      )}
+
+      {/* Cinturón — Pokémon en el equipo */}
+      {showBelt && personajeId && (
+        <PokemonBox personajeId={personajeId} mode="belt" onClose={() => setShowBelt(false)} />
+      )}
+
+      {/* Femputadora — Pokémon almacenados */}
+      {showPC && personajeId && (
+        <PokemonBox personajeId={personajeId} mode="pc" onClose={() => setShowPC(false)} />
       )}
     </PartidaRoom>
   )

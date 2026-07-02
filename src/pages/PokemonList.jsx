@@ -38,7 +38,7 @@ function SkeletonRow() {
 }
 
 /* ── Lista + panel de detalle ── */
-export default function PokemonList({ title = 'Pokémon', onPick = null }) {
+export default function PokemonList({ title = 'Pokémon', onPick = null, starter = false, onChoose = null }) {
   const [pokemon, setPokemon]           = useState([])
   const [total, setTotal]               = useState(0)
   const [loading, setLoading]           = useState(true)
@@ -71,12 +71,13 @@ export default function PokemonList({ title = 'Pokémon', onPick = null }) {
     const params = new URLSearchParams({ limit: LIMIT, offset: (page - 1) * LIMIT })
     if (debouncedSearch) params.set('search', debouncedSearch)
     if (selectedType)    params.set('type',   selectedType)
+    if (starter)         params.set('starter', '1')
     apiFetch(`/pokemon?${params}`)
       .then(r => r.json())
       .then(d => { setPokemon(d.data ?? []); setTotal(d.total ?? 0) })
       .catch(() => setPokemon([]))
       .finally(() => setLoading(false))
-  }, [debouncedSearch, selectedType, page])
+  }, [debouncedSearch, selectedType, page, starter])
 
   const totalPages = Math.ceil(total / LIMIT)
   const fromItem   = total === 0 ? 0 : (page - 1) * LIMIT + 1
@@ -223,7 +224,7 @@ export default function PokemonList({ title = 'Pokémon', onPick = null }) {
         {/* Panel de detalle – izquierda */}
         {selectedId && (
           <div className="w-[420px] shrink-0 border-r border-gray-200 flex flex-col overflow-hidden bg-white">
-            <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} />
+            <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} onChoose={onChoose} />
           </div>
         )}
 
@@ -256,7 +257,7 @@ export default function PokemonList({ title = 'Pokémon', onPick = null }) {
               <div className="flex justify-center pt-3 pb-1 shrink-0">
                 <div className="w-10 h-1 bg-gray-300 rounded-full" />
               </div>
-              <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} />
+              <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} onChoose={onChoose} />
             </div>
           </div>
         )}

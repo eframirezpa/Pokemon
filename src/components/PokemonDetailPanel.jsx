@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Sparkles, ChevronRight, ChevronLeft, ExternalLink } from 'lucide-react'
+import { X, Sparkles, ChevronRight, ChevronLeft, ExternalLink, Check } from 'lucide-react'
 import { apiFetch } from '../api'
 
 /* ── helpers (mismos que PokemonDetail) ── */
@@ -152,7 +152,7 @@ function TmSection({ tmNumbers, tmsMap }) {
 }
 
 /* ── main component ── */
-export default function PokemonDetailPanel({ id, onClose, onSelectId }) {
+export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose }) {
   const navigate  = useNavigate()
   const [pk,       setPk]      = useState(null)
   const [evols,    setEvols]   = useState([])
@@ -192,7 +192,7 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId }) {
   }, [pk])
 
   if (loading) return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full text-gray-800">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
         <div className="h-4 bg-gray-200 rounded w-24 animate-pulse" />
         <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1"><X size={18} /></button>
@@ -202,7 +202,7 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId }) {
   )
 
   if (!pk || pk.error) return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full text-gray-800">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
         <span className="text-sm text-gray-500">No encontrado</span>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1"><X size={18} /></button>
@@ -229,9 +229,11 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId }) {
   const mainImg  = shiny ? pk.pokemon_media_main_shiny : pk.pokemon_media_main
   const evolFrom = evols.find(ev => Number(ev.evolution_to_pokemon_id)   === Number(id))
   const evolTo   = evols.find(ev => Number(ev.evolution_from_pokemon_id) === Number(id))
+  // En modo selección (onChoose) no se permite navegar a evoluciones
+  const evoDisabled = !!onChoose
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full text-gray-800">
       {/* ── sticky header ── */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shrink-0 sticky top-0 z-10">
         <div className="flex items-center gap-2 min-w-0">
@@ -263,9 +265,11 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId }) {
           <div className="w-16 shrink-0 flex justify-center">
             {evolFrom && (
               <button
-                onClick={() => onSelectId?.(evolFrom.evolution_from_pokemon_id)}
-                className="flex flex-col items-center gap-1 p-1.5 rounded-xl hover:bg-white hover:shadow transition-all group"
-                title={`Ver ${evolFrom.from_name}`}
+                onClick={() => { if (!evoDisabled) onSelectId?.(evolFrom.evolution_from_pokemon_id) }}
+                disabled={evoDisabled}
+                className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-all group ${
+                  evoDisabled ? 'cursor-default opacity-60' : 'hover:bg-white hover:shadow'}`}
+                title={evoDisabled ? evolFrom.from_name : `Ver ${evolFrom.from_name}`}
               >
                 <img src={evolFrom.from_sprite} alt={evolFrom.from_name}
                   className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
@@ -286,14 +290,22 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId }) {
             <img src={mainImg} alt={pk.pokemon_name}
               className="w-32 h-32 object-contain"
               onError={e => { e.target.style.opacity = '0.2' }} />
-            {pk.pokemon_media_main_shiny && (
-              <button onClick={() => setShiny(s => !s)}
-                className={`flex items-center gap-1 text-xs px-3 py-1 rounded-full border transition-all ${
-                  shiny ? 'bg-yellow-400 border-yellow-500 text-yellow-900 font-semibold'
-                        : 'bg-white border-gray-200 text-gray-500 hover:border-yellow-400'}`}>
-                <Sparkles size={11} /> Shiny
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {pk.pokemon_media_main_shiny && (
+                <button onClick={() => setShiny(s => !s)}
+                  className={`flex items-center gap-1 text-xs px-3 py-1 rounded-full border transition-all ${
+                    shiny ? 'bg-yellow-400 border-yellow-500 text-yellow-900 font-semibold'
+                          : 'bg-white border-gray-200 text-gray-500 hover:border-yellow-400'}`}>
+                  <Sparkles size={11} /> Shiny
+                </button>
+              )}
+              {onChoose && (
+                <button onClick={() => onChoose(pk)}
+                  className="flex items-center gap-1 text-xs px-3 py-1 rounded-full bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
+                  <Check size={11} /> Seleccionar
+                </button>
+              )}
+            </div>
           </div>
 
           {evolTo && <ChevronRight size={12} className="text-gray-300 shrink-0" />}
@@ -302,9 +314,11 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId }) {
           <div className="w-16 shrink-0 flex justify-center">
             {evolTo && (
               <button
-                onClick={() => onSelectId?.(evolTo.evolution_to_pokemon_id)}
-                className="flex flex-col items-center gap-1 p-1.5 rounded-xl hover:bg-white hover:shadow transition-all group"
-                title={`Ver ${evolTo.to_name}`}
+                onClick={() => { if (!evoDisabled) onSelectId?.(evolTo.evolution_to_pokemon_id) }}
+                disabled={evoDisabled}
+                className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-all group ${
+                  evoDisabled ? 'cursor-default opacity-60' : 'hover:bg-white hover:shadow'}`}
+                title={evoDisabled ? evolTo.to_name : `Ver ${evolTo.to_name}`}
               >
                 <img src={evolTo.to_sprite} alt={evolTo.to_name}
                   className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />

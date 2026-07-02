@@ -4,6 +4,7 @@ import { LogOut, Plus, UserCircle, Check, LogIn, Loader2, Eye } from 'lucide-rea
 import { apiFetch } from '../api'
 import CharacterWizard from '../components/CharacterWizard'
 import CharacterSheet from '../components/CharacterSheet'
+import PokemonWizard from '../components/PokemonWizard'
 
 export default function PartidaLobby() {
   const { id }    = useParams()
@@ -11,17 +12,38 @@ export default function PartidaLobby() {
   const location  = useLocation()
   const nombre    = location.state?.nombre || `Partida #${id}`
 
-  const [personajes, setPersonajes] = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [selected, setSelected]     = useState(null)
-  const [showWizard, setShowWizard] = useState(false)
-  const [viewChar, setViewChar]     = useState(null)
+  const [personajes, setPersonajes]     = useState([])
+  const [pokemonByChar, setPokemonByChar] = useState({}) // { id_personaje: [pokemon] }
+  const [loading, setLoading]           = useState(true)
+  const [selected, setSelected]         = useState(null)
+  const [showWizard, setShowWizard]     = useState(false)
+  const [viewChar, setViewChar]         = useState(null)
+  const [addPokemonFor, setAddPokemonFor] = useState(null)
+
+  const reloadPokemon = async (idPers) => {
+    try {
+      const r = await apiFetch(`/personaje/${idPers}/pokemon`)
+      const pk = await r.json()
+      setPokemonByChar(prev => ({ ...prev, [idPers]: Array.isArray(pk) ? pk : [] }))
+    } catch { /* noop */ }
+  }
 
   const load = () => {
     setLoading(true)
     apiFetch(`/personaje?id_partida=${id}`)
       .then(r => r.json())
-      .then(d => setPersonajes(Array.isArray(d) ? d : []))
+      .then(async (d) => {
+        const list = Array.isArray(d) ? d : []
+        setPersonajes(list)
+        const entries = await Promise.all(list.map(async (c) => {
+          try {
+            const r = await apiFetch(`/personaje/${c.id_personaje}/pokemon`)
+            const pk = await r.json()
+            return [c.id_personaje, Array.isArray(pk) ? pk : []]
+          } catch { return [c.id_personaje, []] }
+        }))
+        setPokemonByChar(Object.fromEntries(entries))
+      })
       .catch(() => setPersonajes([]))
       .finally(() => setLoading(false))
   }
@@ -31,8 +53,11 @@ export default function PartidaLobby() {
   const handleCreated = (personaje) => {
     setShowWizard(false)
     setPersonajes(prev => [...prev, personaje])
+    setPokemonByChar(prev => ({ ...prev, [personaje.id_personaje]: [] }))
     setSelected(personaje.id_personaje)
   }
+
+  const selectedHasPokemon = selected && (pokemonByChar[selected]?.length > 0)
 
   const handleEnter = () => {
     const personaje = personajes.find(p => p.id_personaje === selected)
@@ -82,21 +107,45 @@ export default function PartidaLobby() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {personajes.map(p => {
               const isSel = selected === p.id_personaje
+              const pkmn  = pokemonByChar[p.id_personaje] || []
+              const first = pkmn[0]
               return (
                 <div key={p.id_personaje} className="flex flex-col gap-1.5">
-                  <button
-                    onClick={() => setSelected(p.id_personaje)}
-                    className={`text-left rounded-2xl border p-4 transition-all flex items-center gap-3 ${
-                      isSel ? 'border-red-400 bg-red-900/20 ring-1 ring-red-400' : 'border-gray-700 bg-gray-800/50 hover:border-gray-500'}`}
-                  >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isSel ? 'bg-red-500' : 'bg-gray-700'}`}>
-                      {isSel ? <Check size={18} /> : <UserCircle size={20} className="text-gray-300" />}
+                  <div className={`rounded-2xl border p-3 pr-4 flex items-center gap-3 transition-all ${
+                    isSel ? 'border-red-400 bg-red-900/20 ring-1 ring-red-400' : 'border-gray-700 bg-gray-800/50 hover:border-gray-500'}`}>
+                    {/* Zona seleccionable */}
+                    <button onClick={() => setSelected(p.id_personaje)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isSel ? 'bg-red-500' : 'bg-gray-700'}`}>
+                        {isSel ? <Check size={18} /> : <UserCircle size={20} className="text-gray-300" />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">{p.nombre_personaje || 'Sin nombre'}</p>
+                        <p className="text-xs text-gray-400">Nivel {p.personaje_level ?? 1}</p>
+                      </div>
+                    </button>
+
+                    {/* Pokémon inicial: sprite o botón agregar */}
+                    <div className="shrink-0">
+                      {first ? (
+                        <img
+                          src={first.pokemon_media_sprite || first.pokemon_media_main}
+                          alt={first.pokemon_name}
+                          title={first.pokemon_name}
+                          className="w-14 h-14 object-contain"
+                          onError={e => { e.target.style.opacity = '0.3' }}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setAddPokemonFor(p.id_personaje)}
+                          className="flex items-center gap-1.5 text-xs font-semibold text-gray-200
+                                     bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-xl px-3 py-2 transition-colors"
+                        >
+                          <Plus size={14} /> Agregar pokémon
+                        </button>
+                      )}
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold truncate">{p.nombre_personaje || 'Sin nombre'}</p>
-                      <p className="text-xs text-gray-400">Nivel {p.personaje_level ?? 1}</p>
-                    </div>
-                  </button>
+                  </div>
+
                   <button
                     onClick={() => setViewChar(p.id_personaje)}
                     className="flex items-center justify-center gap-1.5 text-xs font-medium text-gray-400
@@ -111,15 +160,18 @@ export default function PartidaLobby() {
         )}
 
         {/* Ingresar */}
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 flex flex-col items-center gap-2">
           <button
             onClick={handleEnter}
-            disabled={!selected}
+            disabled={!selected || !selectedHasPokemon}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed
                        text-white px-6 py-3 rounded-xl text-sm font-bold transition-colors shadow-lg"
           >
             <LogIn size={18} /> Ingresar a la partida
           </button>
+          {selected && !selectedHasPokemon && (
+            <p className="text-xs text-amber-400">Este personaje necesita al menos un Pokémon para ingresar.</p>
+          )}
         </div>
       </div>
 
@@ -129,6 +181,14 @@ export default function PartidaLobby() {
 
       {viewChar && (
         <CharacterSheet id={viewChar} onClose={() => setViewChar(null)} />
+      )}
+
+      {addPokemonFor && (
+        <PokemonWizard
+          personajeId={addPokemonFor}
+          onClose={() => setAddPokemonFor(null)}
+          onCreated={() => { reloadPokemon(addPokemonFor); setAddPokemonFor(null) }}
+        />
       )}
     </div>
   )
