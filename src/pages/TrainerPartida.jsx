@@ -48,7 +48,7 @@ const MOVE_TYPE_COLORS = {
 }
 
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
-function CombatePanel({ title, initial, moves, onCast, onPersist, onReturn, onClose }) {
+function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onReturn, onClose }) {
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
   if (!v) return null
@@ -114,19 +114,25 @@ function CombatePanel({ title, initial, moves, onCast, onPersist, onReturn, onCl
           <div className="mt-3 border-t border-gray-700 pt-2">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Movimientos</p>
             <div className="space-y-1 max-h-48 overflow-y-auto">
-              {moves.map((m, i) => (
-                <div key={i} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-white text-xs font-medium truncate">{m.move_name}</span>
-                    <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
-                      style={{ backgroundColor: MOVE_TYPE_COLORS[m.move_type] || '#9CA3AF' }}>{m.move_type}</span>
+              {moves.map((m, i) => {
+                const pp = movePP?.[m.move_id] ?? (Number(m.move_pp) || 0)
+                return (
+                  <div key={i} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-white text-xs font-medium truncate">{m.move_name}</span>
+                      <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
+                        style={{ backgroundColor: MOVE_TYPE_COLORS[m.move_type] || '#9CA3AF' }}>{m.move_type}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] font-black tabular-nums ${pp <= 0 ? 'text-red-400' : 'text-gray-300'}`}>PP {pp}</span>
+                      <button onClick={() => onCast?.(m)} disabled={pp <= 0}
+                        className="text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
+                        Lanzar
+                      </button>
+                    </div>
                   </div>
-                  <button onClick={() => onCast?.(m.move_name, m.move_type)}
-                    className="shrink-0 text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 px-2.5 py-1 rounded-md transition-colors">
-                    Lanzar
-                  </button>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
@@ -153,8 +159,20 @@ export default function TrainerPartida() {
   const [openControl, setOpenControl] = useState(null) // 'trainer' | 'pokemon' | null (solo uno a la vez)
   const [charData, setCharData] = useState(null)
   const [pokeData, setPokeData] = useState(null)
+  const [movePP, setMovePP] = useState({}) // PP actual por move_id (solo sesión, sin persistencia en BD)
   const partidaApiRef = useRef(null) // acciones expuestas por PartidaRoom (p. ej. sendPartyUpdate)
   const [fight, setFight] = useState({ active: false, players: [] }) // modo lucha
+  // Monitor (PC/escritorio con mouse) → iconos más grandes
+  const [isMonitor, setIsMonitor] = useState(() => typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches)
+  useEffect(() => {
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)')
+    const onChange = () => setIsMonitor(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  // Al cambiar el Pokémon invocado (nuevo o regresado), reinicia los PP de sesión
+  useEffect(() => { setMovePP({}) }, [pokemonInvocado])
 
   // Recupera el personaje del usuario: state → localStorage → backend (para recargas)
   useEffect(() => {
@@ -196,18 +214,29 @@ export default function TrainerPartida() {
     setOpenControl('pokemon')
     try {
       const d = await apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}`).then(r => r.json())
+      const moves = Array.isArray(d.moves) ? d.moves : []
       setPokeData({
         hp: d.pokemon_current_hp ?? d.pokemon_hp ?? 0, hpMax: d.pokemon_hp ?? 0,
         exhaust: d.personaje_pokemon_exahust_lvl ?? 0, dsts: d.personaje_pokemon_dsts ?? 0, dstf: d.personaje_pokemon_dstf ?? 0,
-        moves: Array.isArray(d.moves) ? d.moves : [],
+        moves,
         name: d.pokemon_apodo || 'Pokémon',
+      })
+      // Inicializa los PP con move_pp (solo los que aún no están en sesión → se conservan al reabrir)
+      setMovePP(prev => {
+        const next = { ...prev }
+        for (const m of moves) if (!(m.move_id in next)) next[m.move_id] = Number(m.move_pp) || 0
+        return next
       })
     } catch { /* noop */ }
   }
 
   // Lanzar movimiento del Pokémon invocado → animación de ataque (como el master)
-  const castMove = (moveName, moveType) => {
-    partidaApiRef.current?.sendAttack?.({ pokemonName: pokeData?.name || 'Pokémon', moveName, type: moveType, hidden: false })
+  // Descuenta 1 PP de sesión (sin persistencia en BD). Si no hay PP, no hace nada.
+  const castMove = (m) => {
+    const id = m.move_id
+    if ((movePP[id] ?? (Number(m.move_pp) || 0)) <= 0) return
+    setMovePP(prev => ({ ...prev, [id]: (prev[id] ?? (Number(m.move_pp) || 0)) - 1 }))
+    partidaApiRef.current?.sendAttack?.({ pokemonName: pokeData?.name || 'Pokémon', moveName: m.move_name, type: m.move_type, hidden: false })
   }
 
   const toBody = (patch) => {
@@ -264,13 +293,13 @@ export default function TrainerPartida() {
           {user?.avatar_face_url && (
             <button onClick={openTrainerControl} className="transition-transform hover:scale-105" title="Controlar jugador">
               <img src={user.avatar_face_url} alt="Jugador"
-                className="w-11 h-11 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
+                className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
             </button>
           )}
           {pokemonInvocado && invocadoSprite && (
             <button onClick={openPokemonControl} className="transition-transform hover:scale-105" title="Controlar Pokémon">
               <img src={invocadoSprite} alt="Pokémon invocado"
-                className="w-11 h-11 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
+                className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
             </button>
           )}
         </div>
@@ -397,6 +426,7 @@ export default function TrainerPartida() {
           title="Pokémon"
           initial={pokeData}
           moves={pokeData.moves}
+          movePP={movePP}
           onCast={castMove}
           onPersist={persistPoke}
           onReturn={returnPokemon}
