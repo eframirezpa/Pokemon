@@ -351,6 +351,35 @@ function EventosPanel({ onBackground }) {
   )
 }
 
+/* Efecto de brasas (evento fire) sobre toda la vista del trainer */
+function Embers({ count = 45 }) {
+  const particles = useMemo(() => Array.from({ length: count }, () => ({
+    left: Math.random() * 100,
+    size: 2 + Math.random() * 5,
+    duration: 4 + Math.random() * 6,
+    delay: Math.random() * 8,
+    drift: `${Math.round((Math.random() - 0.5) * 120)}px`,
+  })), [count])
+  return (
+    <div className="pointer-events-none fixed inset-0 overflow-hidden z-[15]">
+      {particles.map((p, i) => (
+        <span key={i} style={{
+          position: 'absolute',
+          bottom: '-12px',
+          left: `${p.left}%`,
+          width: `${p.size}px`,
+          height: `${p.size}px`,
+          borderRadius: '9999px',
+          background: 'radial-gradient(circle, #ffe08a 0%, #ff7a18 65%, rgba(255,90,0,0) 100%)',
+          boxShadow: '0 0 6px 1px rgba(255,110,0,0.75)',
+          animation: `ember-rise ${p.duration}s linear ${p.delay}s infinite`,
+          '--drift': p.drift,
+        }} />
+      ))}
+    </div>
+  )
+}
+
 export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
@@ -509,6 +538,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           <LogOut size={14} /> Salir
         </button>
       </div>
+
+      {/* Efecto de brasas del evento "fire" (solo trainer/espectador) */}
+      {!isMaster && !!background && background.includes('/evento0/fire') && <Embers />}
 
       {/* Main layout */}
       <div className="relative flex flex-1 overflow-hidden">
