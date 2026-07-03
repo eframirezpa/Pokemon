@@ -219,13 +219,16 @@ export default function TrainerPartida() {
     return b
   }
   const pendingPersist = useRef(Promise.resolve())
+  // Tras guardar, avisa a los demás para que su panel (party/rival) se actualice de inmediato
   const persistChar = (patch) => {
-    const p = apiFetch(`/personaje/${personajeId}/combate`, { method: 'PATCH', body: JSON.stringify(toBody(patch)) }).catch(() => {})
+    const p = apiFetch(`/personaje/${personajeId}/combate`, { method: 'PATCH', body: JSON.stringify(toBody(patch)) })
+      .then(() => { partidaApiRef.current?.sendPartyUpdate?.() }).catch(() => {})
     pendingPersist.current = p
     return p
   }
   const persistPoke = (patch) => {
-    const p = apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}/combate`, { method: 'PATCH', body: JSON.stringify(toBody(patch)) }).catch(() => {})
+    const p = apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}/combate`, { method: 'PATCH', body: JSON.stringify(toBody(patch)) })
+      .then(() => { partidaApiRef.current?.sendPartyUpdate?.() }).catch(() => {})
     pendingPersist.current = p
     return p
   }

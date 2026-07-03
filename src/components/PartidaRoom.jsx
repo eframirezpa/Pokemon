@@ -548,7 +548,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   // Expone el estado de lucha al padre (TrainerPartida oculta iconos de no-seleccionados)
   useEffect(() => { onFight?.(fight) }, [fight, onFight])
 
-  // Datos de la party (para mostrar al rival en modo lucha)
+  // Datos de la party (para mostrar al rival en modo lucha); se re-consulta en vivo con party_update
   const [fightChars, setFightChars] = useState([])
   useEffect(() => {
     if (!fight.active) { setFightChars([]); return }
@@ -556,7 +556,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       .then(r => r.json())
       .then(d => setFightChars(Array.isArray(d) ? d : []))
       .catch(() => setFightChars([]))
-  }, [fight.active, fight.at, id])
+  }, [fight.active, fight.at, id, partyUpdatedAt])
 
   // Mensaje central de lucha durante 10s (solo trainer/espectador)
   const [fightMsg, setFightMsg] = useState(false)
@@ -759,23 +759,38 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         </div>
       )}
 
-      {/* Modo lucha — panel del rival arriba centrado (solo al seleccionado) */}
-      {(() => {
-        if (isMaster || !fight.active || personajeId == null) return null
-        const imSelected = fight.players.some(p => String(p.id_personaje) === String(personajeId))
-        if (!imSelected) return null
-        const rival = fight.players.find(p => String(p.id_personaje) !== String(personajeId))
-        if (!rival) return null
-        const rivalChar = fightChars.find(c => String(c.id_personaje) === String(rival.id_personaje))
-        if (!rivalChar) return null
-        const rivalPres = presentes.find(u => String(u.user_id) === String(rival.user_id))
-        const rivalInv = invocados[String(rival.id_personaje)]
+      {/* Modo lucha — paneles de los peleadores (solo trainer/espectador) */}
+      {!isMaster && fight.active && (() => {
         // Celular: vertical −20% (0.8), horizontal −40% (0.6)
         const rivalScale = isPhoneLandscape ? 'scale-[0.6]' : (isPhone ? 'scale-[0.8]' : '')
+        const renderFighter = (player) => {
+          if (!player) return null
+          const char = fightChars.find(c => String(c.id_personaje) === String(player.id_personaje))
+          if (!char) return null
+          const pres = presentes.find(u => String(u.user_id) === String(player.user_id))
+          const inv = invocados[String(player.id_personaje)]
+          return <PlayerCard char={char} pres={pres} invId={inv} hideHp={false} />
+        }
+        const imSelected = personajeId != null && fight.players.some(p => String(p.id_personaje) === String(personajeId))
+        if (imSelected) {
+          // Seleccionado: ve al rival arriba
+          const rival = fight.players.find(p => String(p.id_personaje) !== String(personajeId))
+          return (
+            <div className={`fixed top-16 left-1/2 -translate-x-1/2 z-[20] origin-top ${rivalScale}`}>
+              {renderFighter(rival)}
+            </div>
+          )
+        }
+        // No seleccionado: ve a ambos peleadores (arriba y abajo)
         return (
-          <div className={`fixed top-16 left-1/2 -translate-x-1/2 z-[20] origin-top ${rivalScale}`}>
-            <PlayerCard char={rivalChar} pres={rivalPres} invId={rivalInv} hideHp={false} />
-          </div>
+          <>
+            <div className={`fixed top-16 left-1/2 -translate-x-1/2 z-[20] origin-top ${rivalScale}`}>
+              {renderFighter(fight.players[0])}
+            </div>
+            <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-[20] origin-bottom ${rivalScale}`}>
+              {renderFighter(fight.players[1])}
+            </div>
+          </>
         )
       })()}
 
