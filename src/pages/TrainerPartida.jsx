@@ -51,6 +51,18 @@ const MOVE_TYPE_COLORS = {
 function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onReturn, onClose }) {
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
+
+  // Cooldown de 3s tras lanzar un movimiento (deshabilita el botón Lanzar)
+  const [cooldown, setCooldown] = useState(false)
+  const cdTimer = useRef(null)
+  useEffect(() => () => { if (cdTimer.current) clearTimeout(cdTimer.current) }, [])
+  const handleCast = (m) => {
+    onCast?.(m)
+    setCooldown(true)
+    if (cdTimer.current) clearTimeout(cdTimer.current)
+    cdTimer.current = setTimeout(() => setCooldown(false), 3000)
+  }
+
   if (!v) return null
 
   const setHp = (hp) => {
@@ -128,7 +140,7 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className={`text-[10px] font-black tabular-nums ${disabled ? 'text-red-400' : 'text-gray-300'}`}>PP {unlimited ? '∞' : pp}</span>
-                      <button onClick={() => onCast?.(m)} disabled={disabled}
+                      <button onClick={() => handleCast(m)} disabled={disabled || cooldown}
                         className="text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
                         Lanzar
                       </button>
