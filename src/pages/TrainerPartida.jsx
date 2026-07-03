@@ -115,7 +115,10 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Movimientos</p>
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {moves.map((m, i) => {
-                const pp = movePP?.[m.move_id] ?? (Number(m.move_pp) || 0)
+                const base = Number(m.move_pp) || 0
+                const unlimited = base === 0 // move_pp 0 = PP ilimitado
+                const pp = movePP?.[m.move_id] ?? base
+                const disabled = !unlimited && pp <= 0
                 return (
                   <div key={i} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
                     <div className="flex items-center gap-2 min-w-0">
@@ -124,8 +127,8 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
                         style={{ backgroundColor: MOVE_TYPE_COLORS[m.move_type] || '#9CA3AF' }}>{m.move_type}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-[10px] font-black tabular-nums ${pp <= 0 ? 'text-red-400' : 'text-gray-300'}`}>PP {pp}</span>
-                      <button onClick={() => onCast?.(m)} disabled={pp <= 0}
+                      <span className={`text-[10px] font-black tabular-nums ${disabled ? 'text-red-400' : 'text-gray-300'}`}>PP {unlimited ? '∞' : pp}</span>
+                      <button onClick={() => onCast?.(m)} disabled={disabled}
                         className="text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
                         Lanzar
                       </button>
@@ -234,8 +237,11 @@ export default function TrainerPartida() {
   // Descuenta 1 PP de sesión (sin persistencia en BD). Si no hay PP, no hace nada.
   const castMove = (m) => {
     const id = m.move_id
-    if ((movePP[id] ?? (Number(m.move_pp) || 0)) <= 0) return
-    setMovePP(prev => ({ ...prev, [id]: (prev[id] ?? (Number(m.move_pp) || 0)) - 1 }))
+    const base = Number(m.move_pp) || 0
+    if (base !== 0) { // move_pp 0 = ilimitado: no descuenta ni bloquea
+      if ((movePP[id] ?? base) <= 0) return
+      setMovePP(prev => ({ ...prev, [id]: (prev[id] ?? base) - 1 }))
+    }
     partidaApiRef.current?.sendAttack?.({ pokemonName: pokeData?.name || 'Pokémon', moveName: m.move_name, type: m.move_type, hidden: false })
   }
 
