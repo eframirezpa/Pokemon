@@ -561,8 +561,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
   // Expone acciones de la partida al componente padre (p. ej. TrainerPartida)
   useEffect(() => {
-    if (apiRef) apiRef.current = { sendPartyUpdate }
-  }, [apiRef, sendPartyUpdate])
+    if (apiRef) apiRef.current = { sendPartyUpdate, sendAttack }
+  }, [apiRef, sendPartyUpdate, sendAttack])
 
   // Difunde el Pokémon invocado del jugador cuando cambia
   useEffect(() => {

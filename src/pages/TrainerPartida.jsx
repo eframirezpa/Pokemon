@@ -40,8 +40,15 @@ function PokeballIcon({ size = 18 }) {
 
 const hpColorPct = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
 
-// Panel de control (HP + exhaust/dsts/dstf). Persiste cada cambio vía onPersist.
-function CombatePanel({ title, initial, onPersist, onReturn, onClose }) {
+const MOVE_TYPE_COLORS = {
+  Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
+  Ice:'#98D8D8', Fighting:'#C03028', Poison:'#A040A0', Ground:'#E0C068', Flying:'#A890F0',
+  Psychic:'#F85888', Bug:'#A8B820', Rock:'#B8A038', Ghost:'#705898', Dragon:'#7038F8',
+  Dark:'#705848', Steel:'#B8B8D0', Fairy:'#EE99AC', Typeless:'#9CA3AF',
+}
+
+// Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
+function CombatePanel({ title, initial, moves, onCast, onPersist, onReturn, onClose }) {
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
   if (!v) return null
@@ -101,6 +108,28 @@ function CombatePanel({ title, initial, onPersist, onReturn, onClose }) {
             </div>
           ))}
         </div>
+
+        {/* Movimientos (mismo comportamiento que el panel del master) */}
+        {moves && moves.length > 0 && (
+          <div className="mt-3 border-t border-gray-700 pt-2">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Movimientos</p>
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {moves.map((m, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-white text-xs font-medium truncate">{m.move_name}</span>
+                    <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
+                      style={{ backgroundColor: MOVE_TYPE_COLORS[m.move_type] || '#9CA3AF' }}>{m.move_type}</span>
+                  </div>
+                  <button onClick={() => onCast?.(m.move_name, m.move_type)}
+                    className="shrink-0 text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 px-2.5 py-1 rounded-md transition-colors">
+                    Lanzar
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -169,8 +198,15 @@ export default function TrainerPartida() {
       setPokeData({
         hp: d.pokemon_current_hp ?? d.pokemon_hp ?? 0, hpMax: d.pokemon_hp ?? 0,
         exhaust: d.personaje_pokemon_exahust_lvl ?? 0, dsts: d.personaje_pokemon_dsts ?? 0, dstf: d.personaje_pokemon_dstf ?? 0,
+        moves: Array.isArray(d.moves) ? d.moves : [],
+        name: d.pokemon_apodo || 'Pokémon',
       })
     } catch { /* noop */ }
+  }
+
+  // Lanzar movimiento del Pokémon invocado → animación de ataque (como el master)
+  const castMove = (moveName, moveType) => {
+    partidaApiRef.current?.sendAttack?.({ pokemonName: pokeData?.name || 'Pokémon', moveName, type: moveType, hidden: false })
   }
 
   const toBody = (patch) => {
@@ -351,6 +387,8 @@ export default function TrainerPartida() {
         <CombatePanel
           title="Pokémon"
           initial={pokeData}
+          moves={pokeData.moves}
+          onCast={castMove}
           onPersist={persistPoke}
           onReturn={returnPokemon}
           onClose={closeControl}
