@@ -287,6 +287,70 @@ function MasterSendMessage({ onSend }) {
   )
 }
 
+/* Panel de eventos del master — toggle protegido por contraseña */
+const EVENT_PASSWORD = 'ravecalvitomaster'
+const EVENTOS = [
+  { label: 'Fire',   url: '/evento0/fire.png' },
+  { label: 'Forest', url: '/evento0/forest.png' },
+  { label: 'Frost',  url: '/evento0/frost.png' },
+]
+
+function EventosPanel({ onBackground }) {
+  const [open, setOpen] = useState(false)
+  const [unlocked, setUnlocked] = useState(false)
+  const [asking, setAsking] = useState(false)
+  const [pwd, setPwd] = useState('')
+  const [err, setErr] = useState(false)
+
+  const toggle = () => {
+    if (open) { setOpen(false); return }
+    if (unlocked) { setOpen(true); return }
+    setAsking(true); setErr(false); setPwd('')
+  }
+  const submit = () => {
+    if (pwd === EVENT_PASSWORD) {
+      setUnlocked(true); setOpen(true); setAsking(false); setPwd(''); setErr(false)
+    } else { setErr(true) }
+  }
+
+  return (
+    <div className="shrink-0 px-4 pt-3">
+      <button onClick={toggle}
+        className="w-full flex items-center justify-between gap-1.5 py-2 bg-gray-800 hover:bg-gray-700
+                   border border-gray-700 text-gray-200 text-xs font-semibold rounded-xl transition-colors">
+        <span>Eventos</span>
+        <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {asking && !unlocked && (
+        <div className="mt-2 bg-gray-800 border border-gray-700 rounded-xl p-3">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Contraseña</p>
+          <div className="flex items-center gap-2">
+            <input type="password" value={pwd} autoFocus
+              onChange={e => { setPwd(e.target.value); setErr(false) }}
+              onKeyDown={e => { if (e.key === 'Enter') submit() }}
+              placeholder="Contraseña"
+              className="flex-1 bg-gray-700 text-white text-sm rounded-lg px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/50" />
+            <button onClick={submit} className="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shrink-0">Entrar</button>
+          </div>
+          {err && <p className="text-[11px] text-red-400 mt-1">Contraseña incorrecta</p>}
+        </div>
+      )}
+
+      {open && unlocked && (
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {EVENTOS.map(ev => (
+            <button key={ev.url} onClick={() => onBackground(ev.url)}
+              className="py-2 bg-gray-700 hover:bg-red-600 border border-gray-600 text-gray-200 text-xs font-semibold rounded-xl transition-colors">
+              {ev.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
@@ -320,7 +384,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground } = usePartidaPresence(id, userInfo)
 
   // Expone acciones de la partida al componente padre (p. ej. TrainerPartida)
   useEffect(() => {
@@ -477,11 +541,13 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onCast={handleCast}
                 onToggleHidden={handleToggleHidden}
               />
+              <EventosPanel onBackground={sendBackground} />
             </>
           )}
 
           {/* Role-specific content area */}
-          <div className={`relative overflow-auto p-6 ${isMaster ? 'shrink-0' : 'flex-1'}`}>
+          <div className={`relative overflow-auto p-6 ${isMaster ? 'shrink-0' : 'flex-1'}`}
+            style={!isMaster && background ? { backgroundImage: `url("${background}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } : undefined}>
             {/* Tarjetas de vida de los Pokémon — parte superior derecha (trainer/espectador) */}
             {!isMaster && activePokemons.length > 0 && (
               <div className={`absolute top-4 right-4 z-10 flex gap-2 origin-top-right ${isPhone ? 'scale-[0.65]' : 'scale-100'} ${isPhoneLandscape ? 'flex-row-reverse' : 'flex-col'}`}>

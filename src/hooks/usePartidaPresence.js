@@ -11,11 +11,13 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [lastAttack,    setLastAttack]    = useState(null)
   const [partyUpdatedAt, setPartyUpdatedAt] = useState(0)
   const [invocados, setInvocados] = useState({}) // personaje_id → id_personaje_pokemon invocado
+  const [background, setBackground] = useState(null) // fondo del evento (url)
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
   const messageRef  = useRef(DEFAULT_MASTER_MESSAGE)
   const pokemonRef  = useRef([])
+  const backgroundRef = useRef(null)
   const subscribedRef = useRef(false)
 
   userInfoRef.current = userInfo
@@ -69,6 +71,7 @@ export function usePartidaPresence(partidaId, userInfo) {
         if (userInfoRef.current?.role === 'master') {
           channel.send({ type: 'broadcast', event: 'master_message', payload: { text: messageRef.current } })
           channel.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemons: pokemonRef.current } })
+          channel.send({ type: 'broadcast', event: 'background_update', payload: { background: backgroundRef.current } })
         }
         // Re-emito mi Pokémon invocado para los que recién entran
         const u = userInfoRef.current
@@ -103,6 +106,10 @@ export function usePartidaPresence(partidaId, userInfo) {
         if (payload?.personaje_id != null) {
           setInvocados(prev => ({ ...prev, [String(payload.personaje_id)]: payload.pokemon_invocado ?? null }))
         }
+      })
+      .on('broadcast', { event: 'background_update' }, ({ payload }) => {
+        backgroundRef.current = payload?.background ?? null
+        setBackground(payload?.background ?? null)
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -158,5 +165,12 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'invocado_update', payload: { personaje_id, pokemon_invocado: pokemon_invocado ?? null } })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado }
+  // Difunde el fondo del evento (url o null)
+  const sendBackground = useCallback((url) => {
+    backgroundRef.current = url ?? null
+    setBackground(url ?? null)
+    channelRef.current?.send({ type: 'broadcast', event: 'background_update', payload: { background: url ?? null } })
+  }, [])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground }
 }
