@@ -754,7 +754,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       {!isMaster && fight.active && fightMsg && (
         <div className="pointer-events-none fixed inset-0 z-[42] flex items-center justify-center p-6">
           <p className="max-w-2xl text-center text-2xl md:text-3xl font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] animate-event-pop">
-            Los jugadores ({fight.players.map(p => p.nombre).join(', ')}) deberán pelear a muerte para la diversión de los Masters de Masters
+            Los jugadores {fight.players.map(p => p.nombre).join(' y ')} deberán pelear a muerte para la diversión de los Masters de Masters
           </p>
         </div>
       )}
@@ -770,8 +770,10 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         if (!rivalChar) return null
         const rivalPres = presentes.find(u => String(u.user_id) === String(rival.user_id))
         const rivalInv = invocados[String(rival.id_personaje)]
+        // Celular: vertical −20% (0.8), horizontal −40% (0.6)
+        const rivalScale = isPhoneLandscape ? 'scale-[0.6]' : (isPhone ? 'scale-[0.8]' : '')
         return (
-          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[20]">
+          <div className={`fixed top-16 left-1/2 -translate-x-1/2 z-[20] origin-top ${rivalScale}`}>
             <PlayerCard char={rivalChar} pres={rivalPres} invId={rivalInv} hideHp={false} />
           </div>
         )
