@@ -380,6 +380,37 @@ function Embers({ count = 45 }) {
   )
 }
 
+/* Efecto de nieve (evento frost) sobre toda la vista del trainer */
+function Snow({ count = 60 }) {
+  const flakes = useMemo(() => Array.from({ length: count }, () => ({
+    left: Math.random() * 100,
+    size: 2 + Math.random() * 5,
+    duration: 6 + Math.random() * 8,
+    delay: Math.random() * 10,
+    drift: `${Math.round((Math.random() - 0.5) * 160)}px`,
+    blur: Math.random() < 0.5 ? 0.5 : 0,
+  })), [count])
+  return (
+    <div className="pointer-events-none fixed inset-0 overflow-hidden z-[15]">
+      {flakes.map((f, i) => (
+        <span key={i} style={{
+          position: 'absolute',
+          top: '-12px',
+          left: `${f.left}%`,
+          width: `${f.size}px`,
+          height: `${f.size}px`,
+          borderRadius: '9999px',
+          background: 'radial-gradient(circle, #ffffff 0%, #dbeafe 70%, rgba(255,255,255,0) 100%)',
+          boxShadow: '0 0 4px 1px rgba(255,255,255,0.7)',
+          filter: f.blur ? `blur(${f.blur}px)` : undefined,
+          animation: `snow-fall ${f.duration}s linear ${f.delay}s infinite`,
+          '--drift': f.drift,
+        }} />
+      ))}
+    </div>
+  )
+}
+
 export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
@@ -539,8 +570,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         </button>
       </div>
 
-      {/* Efecto de brasas del evento "fire" (solo trainer/espectador) */}
+      {/* Efectos de evento (solo trainer/espectador) */}
       {!isMaster && !!background && background.includes('/evento0/fire') && <Embers />}
+      {!isMaster && !!background && background.includes('/evento0/frost') && <Snow />}
 
       {/* Main layout */}
       <div className="relative flex flex-1 overflow-hidden">
