@@ -130,7 +130,10 @@ export default function PartyPanel({ partidaId, presentes, selfUserId, partyVers
 
                   {/* Pokémon invocado (misma línea) */}
                   {(() => {
-                    const invId = invocados[String(c.id_personaje)] ?? pres.pokemon_invocado
+                    // Solo el mapa de invocados (broadcast): si no hay entrada, se usa la presencia como respaldo
+                    const key = String(c.id_personaje)
+                    const invId = key in invocados ? invocados[key] : pres.pokemon_invocado
+                    if (invId == null) return null
                     return (c.pokemons || [])
                       .filter(p => String(p.id_personaje_pokemon) === String(invId))
                       .map(p => <PartyPokemon key={p.id_personaje_pokemon} p={p} hideHp={hideHp} />)

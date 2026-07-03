@@ -296,13 +296,24 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [showParty, setShowParty]   = useState(false)
   const [logOpen, setLogOpen]       = useState(true)
   const [showPokedex, setShowPokedex] = useState(false)
-  // Celular (no tablet): la dimensión menor de la pantalla es pequeña
-  const [isPhone, setIsPhone] = useState(() => typeof window !== 'undefined' && Math.min(window.innerWidth, window.innerHeight) < 500)
+  // Celular (no tablet) en orientación horizontal
+  const [isPhoneLandscape, setIsPhoneLandscape] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const w = window.innerWidth, h = window.innerHeight
+    return Math.min(w, h) < 500 && w > h
+  })
 
   useEffect(() => {
-    const onResize = () => setIsPhone(Math.min(window.innerWidth, window.innerHeight) < 500)
+    const onResize = () => {
+      const w = window.innerWidth, h = window.innerHeight
+      setIsPhoneLandscape(Math.min(w, h) < 500 && w > h)
+    }
     window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+    }
   }, [])
 
   const isMaster = user?.role === 'master'
@@ -472,7 +483,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           <div className={`relative overflow-auto p-6 ${isMaster ? 'shrink-0' : 'flex-1'}`}>
             {/* Tarjetas de vida de los Pokémon — parte superior derecha (trainer/espectador) */}
             {!isMaster && activePokemons.length > 0 && (
-              <div className={`absolute top-4 right-4 z-10 flex flex-col gap-2 ${isPhone ? 'scale-50 origin-top-right' : ''}`}>
+              <div className={`absolute top-4 right-4 z-10 flex gap-2 scale-[1.3] origin-top-right ${isPhoneLandscape ? 'flex-row-reverse' : 'flex-col'}`}>
                 {activePokemons.map(p => <PokemonHpCard key={p.uid} p={p} />)}
               </div>
             )}
