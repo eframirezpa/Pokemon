@@ -295,7 +295,18 @@ const EVENTOS = [
   { label: 'Frost',  url: '/evento0/frost.png' },
 ]
 
-function EventosPanel({ onBackground, partidaId, onUnlock, fireActive, counters, onCounter }) {
+// Contadores por evento (mismo mecanismo up/down, distintas etiquetas/colores)
+const COUNTER_EVENTS = {
+  fire:  { up: { label: 'UP',   tone: 'green' }, down: { label: 'DOWN',    tone: 'red'  } },
+  frost: { up: { label: '0 °K', tone: 'gray'  }, down: { label: '-273 °C', tone: 'gray' } },
+}
+const TONE = {
+  green: { box: 'bg-green-100 border-green-600', text: 'text-green-700', btn: 'bg-green-600 hover:bg-green-700' },
+  red:   { box: 'bg-red-100 border-red-600',     text: 'text-red-700',   btn: 'bg-red-600 hover:bg-red-700' },
+  gray:  { box: 'bg-gray-200 border-gray-400',   text: 'text-gray-700',  btn: 'bg-gray-500 hover:bg-gray-600' },
+}
+
+function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters, onCounter }) {
   const [open, setOpen] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
   const [asking, setAsking] = useState(false)
@@ -367,25 +378,22 @@ function EventosPanel({ onBackground, partidaId, onUnlock, fireActive, counters,
             ))}
           </div>
 
-          {/* Contadores del evento fire (solo master) */}
-          {fireActive && (
+          {/* Contadores del evento (fire/frost) — solo master */}
+          {counterCfg && (
             <div className="mt-2 grid grid-cols-2 gap-2">
-              <div className="flex items-center justify-between gap-1 bg-green-100 border border-green-600 rounded-xl px-2 py-1.5">
-                <button onClick={() => onCounter('up', -1)} className="w-7 h-7 shrink-0 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center justify-center"><Minus size={14} /></button>
-                <div className="text-center leading-none">
-                  <p className="text-[9px] font-black text-green-700 uppercase">UP</p>
-                  <p className="text-lg font-black text-green-700">{counters.up}</p>
-                </div>
-                <button onClick={() => onCounter('up', 1)} className="w-7 h-7 shrink-0 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center justify-center"><Plus size={14} /></button>
-              </div>
-              <div className="flex items-center justify-between gap-1 bg-red-100 border border-red-600 rounded-xl px-2 py-1.5">
-                <button onClick={() => onCounter('down', -1)} className="w-7 h-7 shrink-0 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center justify-center"><Minus size={14} /></button>
-                <div className="text-center leading-none">
-                  <p className="text-[9px] font-black text-red-700 uppercase">DOWN</p>
-                  <p className="text-lg font-black text-red-700">{counters.down}</p>
-                </div>
-                <button onClick={() => onCounter('down', 1)} className="w-7 h-7 shrink-0 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center justify-center"><Plus size={14} /></button>
-              </div>
+              {['up', 'down'].map(k => {
+                const cfg = counterCfg[k]; const t = TONE[cfg.tone]
+                return (
+                  <div key={k} className={`flex items-center justify-between gap-1 border rounded-xl px-2 py-1.5 ${t.box}`}>
+                    <button onClick={() => onCounter(k, -1)} className={`w-7 h-7 shrink-0 rounded-lg text-white flex items-center justify-center ${t.btn}`}><Minus size={14} /></button>
+                    <div className="text-center leading-none min-w-0">
+                      <p className={`text-[9px] font-black uppercase whitespace-nowrap ${t.text}`}>{cfg.label}</p>
+                      <p className={`text-lg font-black ${t.text}`}>{counters[k]}</p>
+                    </div>
+                    <button onClick={() => onCounter(k, 1)} className={`w-7 h-7 shrink-0 rounded-lg text-white flex items-center justify-center ${t.btn}`}><Plus size={14} /></button>
+                  </div>
+                )
+              })}
             </div>
           )}
 
@@ -529,7 +537,11 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
   const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter } = usePartidaPresence(id, userInfo)
 
-  const fireActive = !!background && background.includes('/evento0/fire')
+  const eventKey = !background ? null
+    : background.includes('/evento0/fire') ? 'fire'
+      : background.includes('/evento0/frost') ? 'frost' : null
+  const fireActive = eventKey === 'fire'
+  const counterCfg = COUNTER_EVENTS[eventKey] || null
 
   // Al desbloquear el evento: mensaje, avatar del master y avatar central 5s
   const startEvent = () => {
@@ -675,20 +687,20 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       {!isMaster && fireActive && <Embers />}
       {!isMaster && !!background && background.includes('/evento0/frost') && <Snow />}
 
-      {/* Contadores del evento fire — centrados (solo trainer/espectador) */}
-      {!isMaster && fireActive && (
+      {/* Contadores del evento (fire/frost) — centrados (solo trainer/espectador) */}
+      {!isMaster && counterCfg && (
         <div className="pointer-events-none fixed inset-0 z-[16] flex items-center justify-center">
           <div className="flex items-center gap-6">
-            <div style={{ flex: 'none', width: '7rem', height: '6rem' }}
-              className="flex flex-col items-center justify-center overflow-hidden rounded-2xl bg-green-100 border-2 border-green-600 shadow-2xl">
-              <span className="text-xs font-black text-green-700 uppercase tracking-widest">UP</span>
-              <span className="text-4xl font-black text-green-700 leading-none tabular-nums">{counters.up}</span>
-            </div>
-            <div style={{ flex: 'none', width: '7rem', height: '6rem' }}
-              className="flex flex-col items-center justify-center overflow-hidden rounded-2xl bg-red-100 border-2 border-red-600 shadow-2xl">
-              <span className="text-xs font-black text-red-700 uppercase tracking-widest">DOWN</span>
-              <span className="text-4xl font-black text-red-700 leading-none tabular-nums">{counters.down}</span>
-            </div>
+            {['up', 'down'].map(k => {
+              const cfg = counterCfg[k]; const t = TONE[cfg.tone]
+              return (
+                <div key={k} style={{ flex: 'none', width: '7rem', height: '6rem' }}
+                  className={`flex flex-col items-center justify-center overflow-hidden rounded-2xl border-2 shadow-2xl ${t.box}`}>
+                  <span className={`text-xs font-black uppercase whitespace-nowrap ${t.text}`}>{cfg.label}</span>
+                  <span className={`text-4xl font-black leading-none tabular-nums ${t.text}`}>{counters[k]}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -740,13 +752,18 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onToggleHidden={handleToggleHidden}
               />
               <EventosPanel onBackground={sendBackground} partidaId={id} onUnlock={startEvent}
-                fireActive={fireActive} counters={counters} onCounter={changeCounter} />
+                counterCfg={counterCfg} counters={counters} onCounter={changeCounter} />
             </>
           )}
 
           {/* Role-specific content area */}
-          <div className="relative overflow-auto p-6 flex-1"
-            style={!isMaster && background ? { backgroundImage: `url("${background}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } : undefined}>
+          <div className="relative overflow-auto p-6 flex-1">
+            {/* Fondo del evento con aparición suave (solo trainer/espectador) */}
+            {!isMaster && background && (
+              <div key={background} className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat animate-bgfade"
+                style={{ backgroundImage: `url("${background}")` }} />
+            )}
+
             {/* Tarjetas de vida de los Pokémon — parte superior derecha (trainer/espectador) */}
             {!isMaster && activePokemons.length > 0 && (
               <div className={`absolute top-4 right-4 z-10 flex gap-2 origin-top-right ${isPhone ? 'scale-[0.65]' : 'scale-100'} ${isPhoneLandscape ? 'flex-row-reverse' : 'flex-col'}`}>
