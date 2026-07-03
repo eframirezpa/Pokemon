@@ -483,7 +483,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           <div className={`relative overflow-auto p-6 ${isMaster ? 'shrink-0' : 'flex-1'}`}>
             {/* Tarjetas de vida de los Pokémon — parte superior derecha (trainer/espectador) */}
             {!isMaster && activePokemons.length > 0 && (
-              <div className={`absolute top-4 right-4 z-10 flex gap-2 scale-[1.3] origin-top-right ${isPhoneLandscape ? 'flex-row-reverse' : 'flex-col'}`}>
+              <div className={`absolute top-4 right-4 z-10 flex gap-2 scale-[0.65] origin-top-right ${isPhoneLandscape ? 'flex-row-reverse' : 'flex-col'}`}>
                 {activePokemons.map(p => <PokemonHpCard key={p.uid} p={p} />)}
               </div>
             )}
