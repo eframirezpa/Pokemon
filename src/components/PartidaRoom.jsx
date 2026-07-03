@@ -743,10 +743,12 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         </div>
       )}
 
-      {/* Alerta "En evento" abajo a la izquierda */}
+      {/* Alerta "Hielo y Fuego" abajo a la izquierda */}
       {eventActive && (
-        <div className="fixed left-3 bottom-3 z-[45] bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-red-400">
-          En evento
+        <div className="fixed left-3 bottom-3 z-[45] flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-red-400">
+          <Snowflake size={14} className="text-cyan-200" />
+          <span>Hielo y Fuego</span>
+          <Flame size={14} className="text-orange-300" />
         </div>
       )}
 
