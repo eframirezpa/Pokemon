@@ -296,18 +296,19 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [showParty, setShowParty]   = useState(false)
   const [logOpen, setLogOpen]       = useState(true)
   const [showPokedex, setShowPokedex] = useState(false)
-  // Celular (no tablet) en orientación horizontal
-  const [isPhoneLandscape, setIsPhoneLandscape] = useState(() => {
-    if (typeof window === 'undefined') return false
+  // Detecta celular (no tablet) y su orientación
+  const detectDevice = () => {
+    if (typeof window === 'undefined') return { phone: false, phoneLandscape: false }
     const w = window.innerWidth, h = window.innerHeight
-    return Math.min(w, h) < 500 && w > h
-  })
+    const phone = Math.min(w, h) < 500
+    return { phone, phoneLandscape: phone && w > h }
+  }
+  const [device, setDevice] = useState(detectDevice)
+  const isPhone = device.phone
+  const isPhoneLandscape = device.phoneLandscape
 
   useEffect(() => {
-    const onResize = () => {
-      const w = window.innerWidth, h = window.innerHeight
-      setIsPhoneLandscape(Math.min(w, h) < 500 && w > h)
-    }
+    const onResize = () => setDevice(detectDevice())
     window.addEventListener('resize', onResize)
     window.addEventListener('orientationchange', onResize)
     return () => {
@@ -483,7 +484,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           <div className={`relative overflow-auto p-6 ${isMaster ? 'shrink-0' : 'flex-1'}`}>
             {/* Tarjetas de vida de los Pokémon — parte superior derecha (trainer/espectador) */}
             {!isMaster && activePokemons.length > 0 && (
-              <div className={`absolute top-4 right-4 z-10 flex gap-2 scale-[0.65] origin-top-right ${isPhoneLandscape ? 'flex-row-reverse' : 'flex-col'}`}>
+              <div className={`absolute top-4 right-4 z-10 flex gap-2 origin-top-right ${isPhone ? 'scale-[0.65]' : 'scale-100'} ${isPhoneLandscape ? 'flex-row-reverse' : 'flex-col'}`}>
                 {activePokemons.map(p => <PokemonHpCard key={p.uid} p={p} />)}
               </div>
             )}
