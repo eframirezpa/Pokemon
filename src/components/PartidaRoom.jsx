@@ -219,7 +219,7 @@ function MasterPokemonCard({ pokemon, onHp, onHpSet, onRemove, onCast, onToggleH
 function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onHpSet, onRemove, onCast, onToggleHidden }) {
   const full = pokemons.length >= max
   return (
-    <div className="flex-1 min-h-0 flex flex-col px-4 pt-3">
+    <div className="shrink-0 flex flex-col px-4 pt-3">
       <button
         onClick={onAdd}
         disabled={full}
@@ -231,7 +231,7 @@ function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onHpSet, onRemove,
       </button>
 
       {pokemons.length > 0 && (
-        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 flex-1 min-h-0 overflow-y-auto content-start">
+        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 overflow-auto resize-y content-start h-80 min-h-[8rem] max-h-[75vh]">
           {pokemons.map(p => (
             <MasterPokemonCard
               key={p.uid}
@@ -546,7 +546,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           )}
 
           {/* Role-specific content area */}
-          <div className={`relative overflow-auto p-6 ${isMaster ? 'shrink-0' : 'flex-1'}`}
+          <div className="relative overflow-auto p-6 flex-1"
             style={!isMaster && background ? { backgroundImage: `url("${background}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } : undefined}>
             {/* Tarjetas de vida de los Pokémon — parte superior derecha (trainer/espectador) */}
             {!isMaster && activePokemons.length > 0 && (
