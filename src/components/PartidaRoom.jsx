@@ -306,7 +306,7 @@ const TONE = {
   gray:  { box: 'bg-gray-200 border-gray-400',   text: 'text-gray-700',  btn: 'bg-gray-500 hover:bg-gray-600' },
 }
 
-function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters, onCounter, onLuchar, onLimpiar }) {
+function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters, onCounter, onLuchar, onLimpiar, presentes = [], onPremiar }) {
   const [open, setOpen] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
   const [asking, setAsking] = useState(false)
@@ -315,6 +315,8 @@ function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters,
   const [chars, setChars] = useState([])          // personajes de la partida
   const [selected, setSelected] = useState([])    // personajes elegidos (máx 2)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [prizeChar, setPrizeChar] = useState(null)     // personaje a premiar (uno)
+  const [prizePickerOpen, setPrizePickerOpen] = useState(false)
 
   const toggle = () => {
     if (open) { setOpen(false); return }
@@ -342,6 +344,8 @@ function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters,
   }
   const removeChar = (id) => setSelected(prev => prev.filter(c => c.id_personaje !== id))
   const disponibles = chars.filter(c => !selected.some(s => s.id_personaje === c.id_personaje))
+  // Personajes activos y conectados a la partida (para premiar)
+  const conectados = chars.filter(c => presentes.some(p => String(p.personaje_id) === String(c.id_personaje)))
 
   return (
     <div className="shrink-0 px-4 pt-3">
@@ -440,6 +444,47 @@ function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters,
                   onClick={() => { setSelected([]); onLimpiar?.() }}
                   className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
                   Limpiar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Premios — entregar item a un personaje (uno) */}
+          <div className="mt-3 border-t border-gray-700 pt-3">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Premios</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              {prizeChar ? (
+                <span className="flex items-center gap-1 bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-xs text-gray-100">
+                  {prizeChar.nombre_personaje || 'Sin nombre'}
+                  <button onClick={() => setPrizeChar(null)} className="text-gray-400 hover:text-red-400" title="Quitar"><X size={12} /></button>
+                </span>
+              ) : (
+                <div className="relative">
+                  <button onClick={() => setPrizePickerOpen(o => !o)}
+                    className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-200">
+                    <Plus size={12} /> Personaje
+                  </button>
+                  {prizePickerOpen && (
+                    <div className="absolute z-20 mt-1 w-48 max-h-56 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg shadow-xl">
+                      {conectados.length === 0 ? (
+                        <p className="text-[11px] text-gray-500 px-3 py-2 italic">Sin personajes conectados</p>
+                      ) : conectados.map(c => (
+                        <button key={c.id_personaje} onClick={() => { setPrizeChar(c); setPrizePickerOpen(false) }}
+                          className="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-gray-700 border-b border-gray-700/50 last:border-0">
+                          {c.nombre_personaje || 'Sin nombre'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="ml-auto">
+                <button
+                  onClick={() => { if (prizeChar) { onPremiar?.(prizeChar); setPrizeChar(null) } }}
+                  disabled={!prizeChar}
+                  className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                  Premiar
                 </button>
               </div>
             </div>
@@ -543,7 +588,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize } = usePartidaPresence(id, userInfo)
 
   // Expone el estado de lucha al padre (TrainerPartida oculta iconos de no-seleccionados)
   useEffect(() => { onFight?.(fight) }, [fight, onFight])
@@ -566,6 +611,15 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     const t = setTimeout(() => setFightMsg(false), 10000)
     return () => clearTimeout(t)
   }, [fight.active, fight.at])
+
+  // Aviso de premio (Yoyo Nordico) durante 5s, solo para el personaje premiado
+  const [showPrize, setShowPrize] = useState(false)
+  useEffect(() => {
+    if (!prize.at || personajeId == null || String(prize.personaje_id) !== String(personajeId)) return
+    setShowPrize(true)
+    const t = setTimeout(() => setShowPrize(false), 5000)
+    return () => clearTimeout(t)
+  }, [prize.at, prize.personaje_id, personajeId])
 
   const eventKey = !background ? null
     : background.includes('/evento0/fire') ? 'fire'
@@ -752,6 +806,17 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         </div>
       )}
 
+      {/* Aviso de premio (Yoyo Nordico) durante 5s, solo para el personaje premiado */}
+      {!isMaster && showPrize && (
+        <div className="pointer-events-none fixed inset-0 z-[46] flex flex-col items-center justify-center gap-4 p-6">
+          <img src="/evento0/yoyo.png" alt="Yoyo Nordico"
+            className="w-40 h-40 object-contain drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)] animate-event-pop" />
+          <p className="max-w-md text-center text-2xl md:text-3xl font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] animate-event-pop">
+            Felicitaciones, obtuviste un Yoyo Nordico
+          </p>
+        </div>
+      )}
+
       {/* Modo lucha — mensaje central 10s (solo trainer/espectador) */}
       {!isMaster && fight.active && fightMsg && (
         <div className="pointer-events-none fixed inset-0 z-[42] flex items-center justify-center p-6">
@@ -830,7 +895,14 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
               <EventosPanel onBackground={sendBackground} partidaId={id} onUnlock={startEvent}
                 counterCfg={counterCfg} counters={counters} onCounter={changeCounter}
                 onLuchar={(players) => sendFight(players.map(p => ({ id_personaje: p.id_personaje, nombre: p.nombre_personaje || 'Sin nombre', user_id: p.user_id })))}
-                onLimpiar={clearFight} />
+                onLimpiar={clearFight}
+                presentes={presentes}
+                onPremiar={async (char) => {
+                  try {
+                    await apiFetch(`/personaje/${char.id_personaje}/equipo`, { method: 'POST', body: JSON.stringify({ id_item: 456, cantidad: 1 }) })
+                    sendPrize(char.id_personaje)
+                  } catch { /* noop */ }
+                }} />
             </>
           )}
 

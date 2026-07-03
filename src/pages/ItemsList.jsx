@@ -35,7 +35,7 @@ function SkeletonRow() {
   )
 }
 
-export default function ItemsList({ title = 'Items', onPick = null }) {
+export default function ItemsList({ title = 'Items', onPick = null, excludeType = '' }) {
   const [items, setItems]               = useState([])
   const [total, setTotal]               = useState(0)
   const [loading, setLoading]           = useState(true)
@@ -65,12 +65,13 @@ export default function ItemsList({ title = 'Items', onPick = null }) {
     const params = new URLSearchParams({ limit: LIMIT, offset: (page - 1) * LIMIT })
     if (debouncedSearch) params.set('search', debouncedSearch)
     if (selectedType)    params.set('type',   selectedType)
+    if (excludeType)     params.set('excludeType', excludeType)
     apiFetch(`/items?${params}`)
       .then(r => r.json())
       .then(d => { setItems(d.data ?? []); setTotal(d.total ?? 0) })
       .catch(() => setItems([]))
       .finally(() => setLoading(false))
-  }, [debouncedSearch, selectedType, page])
+  }, [debouncedSearch, selectedType, page, excludeType])
 
   const totalPages = Math.ceil(total / LIMIT)
   const fromItem   = total === 0 ? 0 : (page - 1) * LIMIT + 1

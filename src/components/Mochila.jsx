@@ -230,11 +230,18 @@ export default function Mochila({ personajeId, onClose }) {
                       )}
                     </button>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={() => setCantidad(it.id_personaje_equipo, it.cantidad - 1)} disabled={it.cantidad <= 0}
-                        className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors"><Minus size={15} /></button>
-                      <span className="w-7 text-center font-bold text-gray-900 tabular-nums">{it.cantidad}</span>
-                      <button onClick={() => setCantidad(it.id_personaje_equipo, it.cantidad + 1)}
-                        className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200 flex items-center justify-center transition-colors"><Plus size={15} /></button>
+                      {it.item_type === 'Event Item' ? (
+                        // Los Event Item no permiten cambiar cantidades
+                        <span className="w-7 text-center font-bold text-gray-900 tabular-nums">{it.cantidad}</span>
+                      ) : (
+                        <>
+                          <button onClick={() => setCantidad(it.id_personaje_equipo, it.cantidad - 1)} disabled={it.cantidad <= 0}
+                            className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors"><Minus size={15} /></button>
+                          <span className="w-7 text-center font-bold text-gray-900 tabular-nums">{it.cantidad}</span>
+                          <button onClick={() => setCantidad(it.id_personaje_equipo, it.cantidad + 1)}
+                            className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200 flex items-center justify-center transition-colors"><Plus size={15} /></button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -348,7 +355,7 @@ export default function Mochila({ personajeId, onClose }) {
           onClick={e => { if (e.target === e.currentTarget) setPicker(false) }}>
           <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl">
             <button onClick={() => setPicker(false)} className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600"><X size={18} /></button>
-            <ItemsList title="Agregar item" onPick={(item) => { setPickItem(item); setPickQty('1') }} />
+            <ItemsList title="Agregar item" excludeType="Event Item" onPick={(item) => { setPickItem(item); setPickQty('1') }} />
           </div>
         </div>
       )}

@@ -16,6 +16,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [eventFlashAt, setEventFlashAt] = useState(0)    // disparo del avatar central (5s)
   const [counters, setCounters] = useState({ up: 0, down: 0 }) // contadores del evento fire
   const [fight, setFight] = useState({ active: false, players: [], at: 0 }) // modo lucha
+  const [prize, setPrize] = useState({ personaje_id: null, at: 0 }) // premio entregado a un personaje
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
@@ -138,6 +139,9 @@ export function usePartidaPresence(partidaId, userInfo) {
         fightRef.current = f
         setFight({ ...f, at: Date.now() })
       })
+      .on('broadcast', { event: 'prize' }, ({ payload }) => {
+        if (payload?.personaje_id != null) setPrize({ personaje_id: payload.personaje_id, at: Date.now() })
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           subscribedRef.current = true
@@ -237,5 +241,11 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'fight_update', payload: f })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight }
+  // Notifica a un personaje que recibió un premio (muestra el aviso 5s en su partida)
+  const sendPrize = useCallback((personaje_id) => {
+    if (personaje_id == null) return
+    channelRef.current?.send({ type: 'broadcast', event: 'prize', payload: { personaje_id } })
+  }, [])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize }
 }
