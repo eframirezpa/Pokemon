@@ -14,6 +14,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [background, setBackground] = useState(null) // fondo del evento (url)
   const [eventActive, setEventActive] = useState(false) // evento desbloqueado
   const [eventFlashAt, setEventFlashAt] = useState(0)    // disparo del avatar central (5s)
+  const [counters, setCounters] = useState({ up: 0, down: 0 }) // contadores del evento fire
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
@@ -21,6 +22,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const pokemonRef  = useRef([])
   const backgroundRef = useRef(null)
   const eventActiveRef = useRef(false)
+  const countersRef = useRef({ up: 0, down: 0 })
   const subscribedRef = useRef(false)
 
   userInfoRef.current = userInfo
@@ -76,6 +78,7 @@ export function usePartidaPresence(partidaId, userInfo) {
           channel.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemons: pokemonRef.current } })
           channel.send({ type: 'broadcast', event: 'background_update', payload: { background: backgroundRef.current } })
           channel.send({ type: 'broadcast', event: 'event_state', payload: { active: eventActiveRef.current } })
+          channel.send({ type: 'broadcast', event: 'counters_update', payload: countersRef.current })
         }
         // Re-emito mi Pokémon invocado para los que recién entran
         const u = userInfoRef.current
@@ -121,6 +124,11 @@ export function usePartidaPresence(partidaId, userInfo) {
       })
       .on('broadcast', { event: 'event_flash' }, () => {
         setEventFlashAt(Date.now())
+      })
+      .on('broadcast', { event: 'counters_update' }, ({ payload }) => {
+        const c = { up: Number(payload?.up) || 0, down: Number(payload?.down) || 0 }
+        countersRef.current = c
+        setCounters(c)
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -196,5 +204,14 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'event_flash', payload: {} })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash }
+  // Ajusta un contador del evento (up/down) y lo difunde
+  const changeCounter = useCallback((key, delta) => {
+    const cur = countersRef.current
+    const next = { ...cur, [key]: (Number(cur[key]) || 0) + delta }
+    countersRef.current = next
+    setCounters(next)
+    channelRef.current?.send({ type: 'broadcast', event: 'counters_update', payload: next })
+  }, [])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter }
 }

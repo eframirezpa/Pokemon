@@ -295,7 +295,7 @@ const EVENTOS = [
   { label: 'Frost',  url: '/evento0/frost.png' },
 ]
 
-function EventosPanel({ onBackground, partidaId, onUnlock }) {
+function EventosPanel({ onBackground, partidaId, onUnlock, fireActive, counters, onCounter }) {
   const [open, setOpen] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
   const [asking, setAsking] = useState(false)
@@ -366,6 +366,28 @@ function EventosPanel({ onBackground, partidaId, onUnlock }) {
               </button>
             ))}
           </div>
+
+          {/* Contadores del evento fire (solo master) */}
+          {fireActive && (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="flex items-center justify-between gap-1 bg-green-100 border border-green-600 rounded-xl px-2 py-1.5">
+                <button onClick={() => onCounter('up', -1)} className="w-7 h-7 shrink-0 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center justify-center"><Minus size={14} /></button>
+                <div className="text-center leading-none">
+                  <p className="text-[9px] font-black text-green-700 uppercase">UP</p>
+                  <p className="text-lg font-black text-green-700">{counters.up}</p>
+                </div>
+                <button onClick={() => onCounter('up', 1)} className="w-7 h-7 shrink-0 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center justify-center"><Plus size={14} /></button>
+              </div>
+              <div className="flex items-center justify-between gap-1 bg-red-100 border border-red-600 rounded-xl px-2 py-1.5">
+                <button onClick={() => onCounter('down', -1)} className="w-7 h-7 shrink-0 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center justify-center"><Minus size={14} /></button>
+                <div className="text-center leading-none">
+                  <p className="text-[9px] font-black text-red-700 uppercase">DOWN</p>
+                  <p className="text-lg font-black text-red-700">{counters.down}</p>
+                </div>
+                <button onClick={() => onCounter('down', 1)} className="w-7 h-7 shrink-0 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center justify-center"><Plus size={14} /></button>
+              </div>
+            </div>
+          )}
 
           {/* Personajes para luchar (máx. 2) */}
           <div className="mt-3">
@@ -505,7 +527,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter } = usePartidaPresence(id, userInfo)
+
+  const fireActive = !!background && background.includes('/evento0/fire')
 
   // Al desbloquear el evento: mensaje, avatar del master y avatar central 5s
   const startEvent = () => {
@@ -648,14 +672,30 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       </div>
 
       {/* Efectos de evento (solo trainer/espectador) */}
-      {!isMaster && !!background && background.includes('/evento0/fire') && <Embers />}
+      {!isMaster && fireActive && <Embers />}
       {!isMaster && !!background && background.includes('/evento0/frost') && <Snow />}
+
+      {/* Contadores del evento fire — centrados (solo trainer/espectador) */}
+      {!isMaster && fireActive && (
+        <div className="pointer-events-none fixed inset-0 z-[16] flex items-center justify-center">
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col items-center rounded-2xl bg-green-100 border-2 border-green-600 px-6 py-3 shadow-2xl">
+              <span className="text-xs font-black text-green-700 uppercase tracking-widest">UP</span>
+              <span className="text-4xl font-black text-green-700 leading-none">{counters.up}</span>
+            </div>
+            <div className="flex flex-col items-center rounded-2xl bg-red-100 border-2 border-red-600 px-6 py-3 shadow-2xl">
+              <span className="text-xs font-black text-red-700 uppercase tracking-widest">DOWN</span>
+              <span className="text-4xl font-black text-red-700 leading-none">{counters.down}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Avatar central del evento durante 5s (solo trainer/espectador) */}
       {!isMaster && eventFlash && (
         <div className="pointer-events-none fixed inset-0 z-[40] flex items-center justify-center">
           <img src="/evento0/avatar.png" alt="Evento"
-            className="w-64 h-64 object-contain drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)] animate-event-pop" />
+            className="w-96 h-96 object-contain drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)] animate-event-pop" />
         </div>
       )}
 
@@ -697,7 +737,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onCast={handleCast}
                 onToggleHidden={handleToggleHidden}
               />
-              <EventosPanel onBackground={sendBackground} partidaId={id} onUnlock={startEvent} />
+              <EventosPanel onBackground={sendBackground} partidaId={id} onUnlock={startEvent}
+                fireActive={fireActive} counters={counters} onCounter={changeCounter} />
             </>
           )}
 
