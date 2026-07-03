@@ -295,12 +295,15 @@ const EVENTOS = [
   { label: 'Frost',  url: '/evento0/frost.png' },
 ]
 
-function EventosPanel({ onBackground }) {
+function EventosPanel({ onBackground, partidaId, onUnlock }) {
   const [open, setOpen] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
   const [asking, setAsking] = useState(false)
   const [pwd, setPwd] = useState('')
   const [err, setErr] = useState(false)
+  const [chars, setChars] = useState([])          // personajes de la partida
+  const [selected, setSelected] = useState([])    // personajes elegidos (máx 2)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const toggle = () => {
     if (open) { setOpen(false); return }
@@ -310,8 +313,24 @@ function EventosPanel({ onBackground }) {
   const submit = () => {
     if (pwd === EVENT_PASSWORD) {
       setUnlocked(true); setOpen(true); setAsking(false); setPwd(''); setErr(false)
+      onUnlock?.()
     } else { setErr(true) }
   }
+
+  useEffect(() => {
+    if (!unlocked || !partidaId) return
+    apiFetch(`/personaje/party?id_partida=${partidaId}`)
+      .then(r => r.json())
+      .then(d => setChars(Array.isArray(d) ? d : []))
+      .catch(() => {})
+  }, [unlocked, partidaId])
+
+  const addChar = (c) => {
+    setSelected(prev => (prev.length >= 2 || prev.some(x => x.id_personaje === c.id_personaje)) ? prev : [...prev, c])
+    setPickerOpen(false)
+  }
+  const removeChar = (id) => setSelected(prev => prev.filter(c => c.id_personaje !== id))
+  const disponibles = chars.filter(c => !selected.some(s => s.id_personaje === c.id_personaje))
 
   return (
     <div className="shrink-0 px-4 pt-3">
@@ -338,14 +357,56 @@ function EventosPanel({ onBackground }) {
       )}
 
       {open && unlocked && (
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          {EVENTOS.map(ev => (
-            <button key={ev.url} onClick={() => onBackground(ev.url)}
-              className="py-2 bg-gray-700 hover:bg-red-600 border border-gray-600 text-gray-200 text-xs font-semibold rounded-xl transition-colors">
-              {ev.label}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {EVENTOS.map(ev => (
+              <button key={ev.url} onClick={() => onBackground(ev.url)}
+                className="py-2 bg-gray-700 hover:bg-red-600 border border-gray-600 text-gray-200 text-xs font-semibold rounded-xl transition-colors">
+                {ev.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Personajes para luchar (máx. 2) */}
+          <div className="mt-3">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Personajes</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              {selected.map(c => (
+                <span key={c.id_personaje} className="flex items-center gap-1 bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-xs text-gray-100">
+                  {c.nombre_personaje || 'Sin nombre'}
+                  <button onClick={() => removeChar(c.id_personaje)} className="text-gray-400 hover:text-red-400" title="Quitar"><X size={12} /></button>
+                </span>
+              ))}
+
+              {selected.length < 2 && (
+                <div className="relative">
+                  <button onClick={() => setPickerOpen(o => !o)}
+                    className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-200">
+                    <Plus size={12} /> Personaje
+                  </button>
+                  {pickerOpen && (
+                    <div className="absolute z-20 mt-1 w-48 max-h-56 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg shadow-xl">
+                      {disponibles.length === 0 ? (
+                        <p className="text-[11px] text-gray-500 px-3 py-2 italic">Sin personajes</p>
+                      ) : disponibles.map(c => (
+                        <button key={c.id_personaje} onClick={() => addChar(c)}
+                          className="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-gray-700 border-b border-gray-700/50 last:border-0">
+                          {c.nombre_personaje || 'Sin nombre'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={() => { /* comportamiento pendiente */ }}
+                className="ml-auto bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                Luchar
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )
@@ -444,7 +505,23 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash } = usePartidaPresence(id, userInfo)
+
+  // Al desbloquear el evento: mensaje, avatar del master y avatar central 5s
+  const startEvent = () => {
+    sendMasterMessage('¡ Llegó el master de masters ! RAVE.')
+    sendEventState(true)
+    sendEventFlash()
+  }
+
+  // Avatar central del evento durante 5s (solo trainers)
+  const [eventFlash, setEventFlash] = useState(false)
+  useEffect(() => {
+    if (!eventFlashAt) return
+    setEventFlash(true)
+    const t = setTimeout(() => setEventFlash(false), 5000)
+    return () => clearTimeout(t)
+  }, [eventFlashAt])
 
   // Expone acciones de la partida al componente padre (p. ej. TrainerPartida)
   useEffect(() => {
@@ -557,7 +634,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       <div className="flex items-center justify-between px-6 py-3 bg-gray-800 border-b border-gray-700 shrink-0">
         {/* Mensaje del master */}
         <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
-          <img src="/avatars/chuckface.png" alt="Master"
+          <img src={eventActive ? '/evento0/avatar.png' : '/avatars/chuckface.png'} alt="Master"
             className="w-8 h-8 rounded-full border-2 border-amber-500/60 object-cover shrink-0 bg-gray-700" />
           <p className="text-sm text-gray-100 leading-snug truncate">{masterMessage}</p>
         </div>
@@ -573,6 +650,21 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       {/* Efectos de evento (solo trainer/espectador) */}
       {!isMaster && !!background && background.includes('/evento0/fire') && <Embers />}
       {!isMaster && !!background && background.includes('/evento0/frost') && <Snow />}
+
+      {/* Avatar central del evento durante 5s (solo trainer/espectador) */}
+      {!isMaster && eventFlash && (
+        <div className="pointer-events-none fixed inset-0 z-[40] flex items-center justify-center">
+          <img src="/evento0/avatar.png" alt="Evento"
+            className="w-64 h-64 object-contain drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)] animate-event-pop" />
+        </div>
+      )}
+
+      {/* Alerta "En evento" abajo a la izquierda */}
+      {eventActive && (
+        <div className="fixed left-3 bottom-3 z-[45] bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-red-400">
+          En evento
+        </div>
+      )}
 
       {/* Main layout */}
       <div className="relative flex flex-1 overflow-hidden">
@@ -605,7 +697,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onCast={handleCast}
                 onToggleHidden={handleToggleHidden}
               />
-              <EventosPanel onBackground={sendBackground} />
+              <EventosPanel onBackground={sendBackground} partidaId={id} onUnlock={startEvent} />
             </>
           )}
 

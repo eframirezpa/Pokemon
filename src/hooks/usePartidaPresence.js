@@ -12,12 +12,15 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [partyUpdatedAt, setPartyUpdatedAt] = useState(0)
   const [invocados, setInvocados] = useState({}) // personaje_id → id_personaje_pokemon invocado
   const [background, setBackground] = useState(null) // fondo del evento (url)
+  const [eventActive, setEventActive] = useState(false) // evento desbloqueado
+  const [eventFlashAt, setEventFlashAt] = useState(0)    // disparo del avatar central (5s)
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
   const messageRef  = useRef(DEFAULT_MASTER_MESSAGE)
   const pokemonRef  = useRef([])
   const backgroundRef = useRef(null)
+  const eventActiveRef = useRef(false)
   const subscribedRef = useRef(false)
 
   userInfoRef.current = userInfo
@@ -72,6 +75,7 @@ export function usePartidaPresence(partidaId, userInfo) {
           channel.send({ type: 'broadcast', event: 'master_message', payload: { text: messageRef.current } })
           channel.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemons: pokemonRef.current } })
           channel.send({ type: 'broadcast', event: 'background_update', payload: { background: backgroundRef.current } })
+          channel.send({ type: 'broadcast', event: 'event_state', payload: { active: eventActiveRef.current } })
         }
         // Re-emito mi Pokémon invocado para los que recién entran
         const u = userInfoRef.current
@@ -110,6 +114,13 @@ export function usePartidaPresence(partidaId, userInfo) {
       .on('broadcast', { event: 'background_update' }, ({ payload }) => {
         backgroundRef.current = payload?.background ?? null
         setBackground(payload?.background ?? null)
+      })
+      .on('broadcast', { event: 'event_state' }, ({ payload }) => {
+        eventActiveRef.current = !!payload?.active
+        setEventActive(!!payload?.active)
+      })
+      .on('broadcast', { event: 'event_flash' }, () => {
+        setEventFlashAt(Date.now())
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -172,5 +183,18 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'background_update', payload: { background: url ?? null } })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground }
+  // Activa/desactiva el estado de evento (persistente)
+  const sendEventState = useCallback((active) => {
+    eventActiveRef.current = !!active
+    setEventActive(!!active)
+    channelRef.current?.send({ type: 'broadcast', event: 'event_state', payload: { active: !!active } })
+  }, [])
+
+  // Dispara el avatar central de 5s en los trainers
+  const sendEventFlash = useCallback(() => {
+    setEventFlashAt(Date.now())
+    channelRef.current?.send({ type: 'broadcast', event: 'event_flash', payload: {} })
+  }, [])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash }
 }
