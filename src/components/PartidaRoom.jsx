@@ -679,11 +679,11 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       {!isMaster && fireActive && (
         <div className="pointer-events-none fixed inset-0 z-[16] flex items-center justify-center">
           <div className="flex items-center gap-6">
-            <div className="flex flex-col items-center rounded-2xl bg-green-100 border-2 border-green-600 px-6 py-3 shadow-2xl">
+            <div className="flex flex-col items-center justify-center w-28 h-24 rounded-2xl bg-green-100 border-2 border-green-600 shadow-2xl">
               <span className="text-xs font-black text-green-700 uppercase tracking-widest">UP</span>
               <span className="text-4xl font-black text-green-700 leading-none">{counters.up}</span>
             </div>
-            <div className="flex flex-col items-center rounded-2xl bg-red-100 border-2 border-red-600 px-6 py-3 shadow-2xl">
+            <div className="flex flex-col items-center justify-center w-28 h-24 rounded-2xl bg-red-100 border-2 border-red-600 shadow-2xl">
               <span className="text-xs font-black text-red-700 uppercase tracking-widest">DOWN</span>
               <span className="text-4xl font-black text-red-700 leading-none">{counters.down}</span>
             </div>
