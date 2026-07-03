@@ -44,7 +44,7 @@ function MoveRow({ m }) {
 }
 
 // ── Detalle de un Pokémon del personaje (tipo pokédex, datos persistidos) ──
-function Detail({ personajeId, idpp, onBack, actionLabel, onAction }) {
+function Detail({ personajeId, idpp, onBack, actionLabel, onAction, onInvoke }) {
   const [d, setD] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -133,6 +133,12 @@ function Detail({ personajeId, idpp, onBack, actionLabel, onAction }) {
                 className="text-xs px-3 py-1 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-semibold transition-colors">
                 {busy ? 'Guardando…' : actionLabel}
               </button>
+              {onInvoke && (
+                <button onClick={() => onInvoke(idpp, mainImg)}
+                  className="text-xs px-3 py-1 rounded-full bg-gray-800 hover:bg-gray-900 text-white font-semibold transition-colors">
+                  Invocar
+                </button>
+              )}
             </div>
             {error && <span className="text-xs text-red-600 font-medium mt-1">{error}</span>}
           </div>
@@ -266,7 +272,7 @@ function Detail({ personajeId, idpp, onBack, actionLabel, onAction }) {
   )
 }
 
-export default function PokemonBox({ personajeId, mode, onClose }) {
+export default function PokemonBox({ personajeId, mode, onClose, onInvoke }) {
   const isBelt = mode === 'belt'
   const title    = isBelt ? 'Cinturón' : 'Femputadora'
   const subtitle = isBelt ? 'Pokémones en tu equipo' : 'Pokémones almacenados'
@@ -315,7 +321,7 @@ export default function PokemonBox({ personajeId, mode, onClose }) {
 
         {selected ? (
           <Detail personajeId={personajeId} idpp={selected} onBack={() => setSelected(null)}
-            actionLabel={actionLabel} onAction={handleAction} />
+            actionLabel={actionLabel} onAction={handleAction} onInvoke={onInvoke} />
         ) : (
           <>
             <div className="px-5 py-4 border-b border-gray-200 shrink-0">

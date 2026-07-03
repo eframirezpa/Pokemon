@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import {
-  LogOut, ChevronLeft, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff,
+  LogOut, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
   Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star,
 } from 'lucide-react'
@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import PokemonList from '../pages/PokemonList'
+import PartyPanel from './PartyPanel'
 
 const ROLE_DASHBOARD = {
   master:     '/dashboard/master',
@@ -310,25 +311,7 @@ function MasterSendMessage({ onSend }) {
   )
 }
 
-function TrainerCard({ u }) {
-  const initials = (u.user_name ?? '?').slice(0, 2).toUpperCase()
-  return (
-    <div className="flex flex-col items-center gap-1 bg-white/10 rounded-xl p-1.5">
-      <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white/20 bg-gray-700 shrink-0">
-        {u.avatar_face_url
-          ? <img src={u.avatar_face_url} alt="" className="w-full h-full object-cover" />
-          : null
-        }
-      </div>
-      <div className="flex items-center gap-1">
-        <span className="text-white text-xs font-bold leading-none">{initials}</span>
-        <div className="w-1.5 h-1.5 bg-green-400 rounded-full shrink-0" />
-      </div>
-    </div>
-  )
-}
-
-export default function PartidaRoom({ children, roleLabel }) {
+export default function PartidaRoom({ children, roleLabel, personajeId = null, apiRef = null, pokemonInvocado = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
   const location    = useLocation()
@@ -336,17 +319,26 @@ export default function PartidaRoom({ children, roleLabel }) {
   const logEndRef   = useRef(null)
 
   const nombre = location.state?.nombre || `Partida #${id}`
-  const [panelOpen, setPanelOpen]   = useState(false)
+  const [showParty, setShowParty]   = useState(false)
   const [logOpen, setLogOpen]       = useState(true)
   const [showPokedex, setShowPokedex] = useState(false)
 
   const isMaster = user?.role === 'master'
 
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity } = usePartidaPresence(id, user)
+  const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado } = usePartidaPresence(id, userInfo)
+
+  // Expone acciones de la partida al componente padre (p. ej. TrainerPartida)
+  useEffect(() => {
+    if (apiRef) apiRef.current = { sendPartyUpdate }
+  }, [apiRef, sendPartyUpdate])
+
+  // Difunde el Pokémon invocado del jugador cuando cambia
+  useEffect(() => {
+    if (personajeId != null) sendInvocado(personajeId, pokemonInvocado)
+  }, [personajeId, pokemonInvocado, sendInvocado])
 
   const MAX_POKEMON = 4
-
-  const trainers = presentes.filter(u => u.role === 'trainer' || u.role === 'espectador')
 
   const [attackFx, setAttackFx] = useState(null)
 
@@ -461,42 +453,16 @@ export default function PartidaRoom({ children, roleLabel }) {
       {/* Main layout */}
       <div className="relative flex flex-1 overflow-hidden">
 
-        {/* Botón flotante — abre el panel de jugadores cuando está oculto */}
-        {!panelOpen && (
-          <button
-            onClick={() => setPanelOpen(true)}
-            className="fixed left-3 top-1/2 -translate-y-[calc(100%+6px)] z-30 flex items-center justify-center w-10 h-10
-                       rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                       border border-gray-600 transition-all"
-            title="Mostrar jugadores"
-          >
-            <Users size={18} />
-          </button>
-        )}
-
-        {/* Left — Trainers */}
-        {panelOpen && (
-          <div className="w-16 shrink-0 flex flex-col bg-gray-800/50 border-r border-gray-700 overflow-hidden">
-            {/* Header con toggle */}
-            <div className="flex items-center justify-center pt-3 pb-2 shrink-0">
-              <button
-                onClick={() => setPanelOpen(false)}
-                className="text-gray-400 hover:text-white transition-colors"
-                title="Ocultar jugadores"
-              >
-                <ChevronLeft size={16} />
-              </button>
-            </div>
-
-            {/* Lista de jugadores */}
-            <div className="flex flex-col gap-2 px-1.5 pb-4 overflow-y-auto">
-              {trainers.length === 0
-                ? <p className="text-[10px] text-gray-600 italic text-center">Sin jugadores</p>
-                : trainers.map(u => <TrainerCard key={u.user_id} u={u} />)
-              }
-            </div>
-          </div>
-        )}
+        {/* Botón flotante — abre la ventana Party */}
+        <button
+          onClick={() => setShowParty(true)}
+          className="fixed left-3 top-1/2 -translate-y-[calc(100%+6px)] z-30 flex items-center justify-center w-10 h-10
+                     rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                     border border-gray-600 transition-all"
+          title="Party"
+        >
+          <Users size={18} />
+        </button>
 
         {/* Center — master panel + content + activity log */}
         <div className="flex flex-col flex-1 overflow-hidden">
@@ -588,6 +554,19 @@ export default function PartidaRoom({ children, roleLabel }) {
         </div>
 
       </div>
+
+      {/* Ventana Party — jugadores conectados (solo lectura) */}
+      {showParty && (
+        <PartyPanel
+          partidaId={id}
+          presentes={presentes}
+          selfUserId={user?.user_id}
+          partyVersion={partyUpdatedAt}
+          hideHp={!isMaster}
+          invocados={invocados}
+          onClose={() => setShowParty(false)}
+        />
+      )}
 
       {/* Modal Pokédex — selección del master */}
       {showPokedex && (

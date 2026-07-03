@@ -9,13 +9,29 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [masterMessage, setMasterMessage] = useState(DEFAULT_MASTER_MESSAGE)
   const [activePokemons, setActivePokemons] = useState([])
   const [lastAttack,    setLastAttack]    = useState(null)
+  const [partyUpdatedAt, setPartyUpdatedAt] = useState(0)
+  const [invocados, setInvocados] = useState({}) // personaje_id → id_personaje_pokemon invocado
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
   const messageRef  = useRef(DEFAULT_MASTER_MESSAGE)
   const pokemonRef  = useRef([])
+  const subscribedRef = useRef(false)
 
   userInfoRef.current = userInfo
+
+  // Datos que se publican en la presencia (incluye el personaje activo)
+  const buildTrack = () => {
+    const u = userInfoRef.current || {}
+    return {
+      user_id:          u.user_id,
+      user_name:        u.user_name,
+      role:             u.role,
+      avatar_face_url:  u.role === 'master' ? '/avatars/chuckface.png' : (u.avatar_face_url || null),
+      personaje_id:     u.personaje_id ?? null,
+      pokemon_invocado: u.pokemon_invocado ?? null,
+    }
+  }
 
   // Agrega una entrada a la actividad de la partida
   const pushLog = useCallback((text, role = 'master') => {
@@ -54,6 +70,11 @@ export function usePartidaPresence(partidaId, userInfo) {
           channel.send({ type: 'broadcast', event: 'master_message', payload: { text: messageRef.current } })
           channel.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemons: pokemonRef.current } })
         }
+        // Re-emito mi Pokémon invocado para los que recién entran
+        const u = userInfoRef.current
+        if (u?.personaje_id != null) {
+          channel.send({ type: 'broadcast', event: 'invocado_update', payload: { personaje_id: u.personaje_id, pokemon_invocado: u.pokemon_invocado ?? null } })
+        }
       })
       .on('presence', { event: 'leave' }, ({ leftPresences }) => {
         leftPresences.forEach(p => addLog(`${p.user_name} salió de la partida`, p.role))
@@ -75,21 +96,30 @@ export function usePartidaPresence(partidaId, userInfo) {
       .on('broadcast', { event: 'activity' }, ({ payload }) => {
         if (payload?.text) pushLog(payload.text, payload.role)
       })
+      .on('broadcast', { event: 'party_update' }, () => {
+        setPartyUpdatedAt(Date.now())
+      })
+      .on('broadcast', { event: 'invocado_update' }, ({ payload }) => {
+        if (payload?.personaje_id != null) {
+          setInvocados(prev => ({ ...prev, [String(payload.personaje_id)]: payload.pokemon_invocado ?? null }))
+        }
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await channel.track({
-            user_id:         userInfo.user_id,
-            user_name:       userInfo.user_name,
-            role:            userInfo.role,
-            avatar_face_url: userInfo.role === 'master'
-              ? '/avatars/chuckface.png'
-              : (userInfo.avatar_face_url || null),
-          })
+          subscribedRef.current = true
+          await channel.track(buildTrack())
         }
       })
 
-    return () => { supabase.removeChannel(channel); channelRef.current = null }
+    return () => { subscribedRef.current = false; supabase.removeChannel(channel); channelRef.current = null }
   }, [partidaId])
+
+  // Re-publica la presencia cuando cambia el personaje activo (se resuelve después de entrar)
+  useEffect(() => {
+    if (subscribedRef.current && channelRef.current) {
+      channelRef.current.track(buildTrack()).catch(() => {})
+    }
+  }, [userInfo?.personaje_id, userInfo?.pokemon_invocado])
 
   const sendMasterMessage = useCallback((text) => {
     const t = (text ?? '').trim()
@@ -116,5 +146,17 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'activity', payload: { text, role } })
   }, [pushLog])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity }
+  // Avisa a los demás que cambió el estado de la party (para que re-consulten)
+  const sendPartyUpdate = useCallback(() => {
+    channelRef.current?.send({ type: 'broadcast', event: 'party_update', payload: {} })
+  }, [])
+
+  // Difunde el Pokémon invocado del jugador (id_personaje_pokemon o null)
+  const sendInvocado = useCallback((personaje_id, pokemon_invocado) => {
+    if (personaje_id == null) return
+    setInvocados(prev => ({ ...prev, [String(personaje_id)]: pokemon_invocado ?? null })) // local inmediato
+    channelRef.current?.send({ type: 'broadcast', event: 'invocado_update', payload: { personaje_id, pokemon_invocado: pokemon_invocado ?? null } })
+  }, [])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado }
 }
