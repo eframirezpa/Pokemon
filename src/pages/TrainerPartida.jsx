@@ -154,6 +154,7 @@ export default function TrainerPartida() {
   const [charData, setCharData] = useState(null)
   const [pokeData, setPokeData] = useState(null)
   const partidaApiRef = useRef(null) // acciones expuestas por PartidaRoom (p. ej. sendPartyUpdate)
+  const [fight, setFight] = useState({ active: false, players: [] }) // modo lucha
 
   // Recupera el personaje del usuario: state → localStorage → backend (para recargas)
   useEffect(() => {
@@ -248,10 +249,14 @@ export default function TrainerPartida() {
 
   const sideBtn = 'shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg border border-gray-600 transition-all'
 
+  // En modo lucha, los no seleccionados no ven sus iconos inferiores
+  const hideBottomIcons = fight.active && !fight.players.some(p => String(p.id_personaje) === String(personajeId))
+
   return (
-    <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado}>
+    <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight}>
       <div className="absolute inset-0">
         {/* Zona inferior: sprite del jugador + sprite del Pokémon invocado */}
+        {!hideBottomIcons && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-end justify-center gap-10">
           {user?.avatar_face_url && (
             <button onClick={openTrainerControl} className="transition-transform hover:scale-105" title="Controlar jugador">
@@ -266,6 +271,7 @@ export default function TrainerPartida() {
             </button>
           )}
         </div>
+        )}
 
         {/* Botones laterales — columna centrada y scrolleable (para pantallas bajas) */}
         <div className="fixed left-3 top-28 bottom-3 z-30 overflow-y-auto">

@@ -62,6 +62,38 @@ function PartyPokemon({ p, hideHp }) {
   )
 }
 
+/* Tarjeta de un jugador + su Pokémon invocado (estilo party, reutilizable) */
+export function PlayerCard({ char: c, pres, invId, hideHp }) {
+  const pct = hpPct(c.personaje_current_hp, c.personaje_hp)
+  const initials = (pres?.user_name ?? '?').slice(0, 2).toUpperCase()
+  const pokemon = invId != null
+    ? (c.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(invId))
+    : null
+  return (
+    <div className="bg-gray-800 border border-gray-700 rounded-xl p-3">
+      <div className="flex items-stretch gap-2 overflow-x-auto">
+        <div className={`flex items-center gap-2 rounded-xl p-2 border-2 border-gray-700 shrink-0 w-60 ${bleedClass(pct)}`}>
+          <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-300 bg-gray-200 shrink-0 flex items-center justify-center">
+            {pres?.avatar_face_url
+              ? <img src={pres.avatar_face_url} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
+              : <span className="text-sm font-black text-gray-600">{initials}</span>}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-gray-900 text-sm truncate">{c.nombre_personaje || 'Sin nombre'}</p>
+            {!hideHp && <HpBar cur={c.personaje_current_hp} max={c.personaje_hp} />}
+          </div>
+          <div className="flex flex-col gap-0.5 shrink-0">
+            <MiniStat label="EXH"  value={c.personaje_exahust_lvl} />
+            <MiniStat label="DSTS" value={c.personaje_dsts} tone="green" />
+            <MiniStat label="DSTF" value={c.personaje_dstf} tone="red" />
+          </div>
+        </div>
+        {pokemon && <PartyPokemon p={pokemon} hideHp={hideHp} />}
+      </div>
+    </div>
+  )
+}
+
 export default function PartyPanel({ partidaId, presentes, selfUserId, partyVersion, hideHp, invocados = {}, onClose }) {
   const [chars, setChars] = useState([])
   const [loading, setLoading] = useState(true)
@@ -105,42 +137,9 @@ export default function PartyPanel({ partidaId, presentes, selfUserId, partyVers
           ) : visibles.length === 0 ? (
             <p className="text-center text-gray-500 text-sm py-10">No hay otros jugadores conectados.</p>
           ) : visibles.map(({ char: c, pres }) => {
-            const pct = hpPct(c.personaje_current_hp, c.personaje_hp)
-            const initials = (pres.user_name ?? '?').slice(0, 2).toUpperCase()
-            return (
-              <div key={c.id_personaje} className="bg-gray-800 border border-gray-700 rounded-xl p-3">
-                <div className="flex items-stretch gap-2 overflow-x-auto">
-                  {/* Jugador */}
-                  <div className={`flex items-center gap-2 rounded-xl p-2 border-2 border-gray-700 shrink-0 w-60 ${bleedClass(pct)}`}>
-                    <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-300 bg-gray-200 shrink-0 flex items-center justify-center">
-                      {pres.avatar_face_url
-                        ? <img src={pres.avatar_face_url} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
-                        : <span className="text-sm font-black text-gray-600">{initials}</span>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 text-sm truncate">{c.nombre_personaje || 'Sin nombre'}</p>
-                      {!hideHp && <HpBar cur={c.personaje_current_hp} max={c.personaje_hp} />}
-                    </div>
-                    <div className="flex flex-col gap-0.5 shrink-0">
-                      <MiniStat label="EXH"  value={c.personaje_exahust_lvl} />
-                      <MiniStat label="DSTS" value={c.personaje_dsts} tone="green" />
-                      <MiniStat label="DSTF" value={c.personaje_dstf} tone="red" />
-                    </div>
-                  </div>
-
-                  {/* Pokémon invocado (misma línea) */}
-                  {(() => {
-                    // Solo el mapa de invocados (broadcast): si no hay entrada, se usa la presencia como respaldo
-                    const key = String(c.id_personaje)
-                    const invId = key in invocados ? invocados[key] : pres.pokemon_invocado
-                    if (invId == null) return null
-                    return (c.pokemons || [])
-                      .filter(p => String(p.id_personaje_pokemon) === String(invId))
-                      .map(p => <PartyPokemon key={p.id_personaje_pokemon} p={p} hideHp={hideHp} />)
-                  })()}
-                </div>
-              </div>
-            )
+            const key = String(c.id_personaje)
+            const invId = key in invocados ? invocados[key] : pres.pokemon_invocado
+            return <PlayerCard key={c.id_personaje} char={c} pres={pres} invId={invId} hideHp={hideHp} />
           })}
         </div>
       </div>

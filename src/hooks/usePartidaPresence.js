@@ -15,6 +15,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [eventActive, setEventActive] = useState(false) // evento desbloqueado
   const [eventFlashAt, setEventFlashAt] = useState(0)    // disparo del avatar central (5s)
   const [counters, setCounters] = useState({ up: 0, down: 0 }) // contadores del evento fire
+  const [fight, setFight] = useState({ active: false, players: [], at: 0 }) // modo lucha
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
@@ -23,6 +24,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const backgroundRef = useRef(null)
   const eventActiveRef = useRef(false)
   const countersRef = useRef({ up: 0, down: 0 })
+  const fightRef = useRef({ active: false, players: [] })
   const subscribedRef = useRef(false)
 
   userInfoRef.current = userInfo
@@ -79,6 +81,7 @@ export function usePartidaPresence(partidaId, userInfo) {
           channel.send({ type: 'broadcast', event: 'background_update', payload: { background: backgroundRef.current } })
           channel.send({ type: 'broadcast', event: 'event_state', payload: { active: eventActiveRef.current } })
           channel.send({ type: 'broadcast', event: 'counters_update', payload: countersRef.current })
+          channel.send({ type: 'broadcast', event: 'fight_update', payload: fightRef.current })
         }
         // Re-emito mi Pokémon invocado para los que recién entran
         const u = userInfoRef.current
@@ -129,6 +132,11 @@ export function usePartidaPresence(partidaId, userInfo) {
         const c = { up: Number(payload?.up) || 0, down: Number(payload?.down) || 0 }
         countersRef.current = c
         setCounters(c)
+      })
+      .on('broadcast', { event: 'fight_update' }, ({ payload }) => {
+        const f = { active: !!payload?.active, players: Array.isArray(payload?.players) ? payload.players : [] }
+        fightRef.current = f
+        setFight({ ...f, at: Date.now() })
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -213,5 +221,21 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'counters_update', payload: next })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter }
+  // Inicia el modo lucha con los jugadores seleccionados
+  const sendFight = useCallback((players) => {
+    const f = { active: true, players: Array.isArray(players) ? players : [] }
+    fightRef.current = f
+    setFight({ ...f, at: Date.now() })
+    channelRef.current?.send({ type: 'broadcast', event: 'fight_update', payload: f })
+  }, [])
+
+  // Limpia el modo lucha
+  const clearFight = useCallback(() => {
+    const f = { active: false, players: [] }
+    fightRef.current = f
+    setFight({ ...f, at: Date.now() })
+    channelRef.current?.send({ type: 'broadcast', event: 'fight_update', payload: f })
+  }, [])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight }
 }

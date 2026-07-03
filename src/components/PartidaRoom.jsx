@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import PokemonList from '../pages/PokemonList'
-import PartyPanel from './PartyPanel'
+import PartyPanel, { PlayerCard } from './PartyPanel'
 
 const ROLE_DASHBOARD = {
   master:     '/dashboard/master',
@@ -306,7 +306,7 @@ const TONE = {
   gray:  { box: 'bg-gray-200 border-gray-400',   text: 'text-gray-700',  btn: 'bg-gray-500 hover:bg-gray-600' },
 }
 
-function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters, onCounter }) {
+function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters, onCounter, onLuchar, onLimpiar }) {
   const [open, setOpen] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
   const [asking, setAsking] = useState(false)
@@ -429,11 +429,19 @@ function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters,
                 </div>
               )}
 
-              <button
-                onClick={() => { /* comportamiento pendiente */ }}
-                className="ml-auto bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
-                Luchar
-              </button>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => { if (selected.length > 0) onLuchar?.(selected) }}
+                  disabled={selected.length === 0}
+                  className="bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                  Luchar
+                </button>
+                <button
+                  onClick={() => { setSelected([]); onLimpiar?.() }}
+                  className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                  Limpiar
+                </button>
+              </div>
             </div>
           </div>
         </>
@@ -502,7 +510,7 @@ function Snow({ count = 60 }) {
   )
 }
 
-export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null }) {
+export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
   const { user }    = useAuth()
@@ -535,7 +543,29 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight } = usePartidaPresence(id, userInfo)
+
+  // Expone el estado de lucha al padre (TrainerPartida oculta iconos de no-seleccionados)
+  useEffect(() => { onFight?.(fight) }, [fight, onFight])
+
+  // Datos de la party (para mostrar al rival en modo lucha)
+  const [fightChars, setFightChars] = useState([])
+  useEffect(() => {
+    if (!fight.active) { setFightChars([]); return }
+    apiFetch(`/personaje/party?id_partida=${id}`)
+      .then(r => r.json())
+      .then(d => setFightChars(Array.isArray(d) ? d : []))
+      .catch(() => setFightChars([]))
+  }, [fight.active, fight.at, id])
+
+  // Mensaje central de lucha durante 10s (solo trainer/espectador)
+  const [fightMsg, setFightMsg] = useState(false)
+  useEffect(() => {
+    if (!fight.active) { setFightMsg(false); return }
+    setFightMsg(true)
+    const t = setTimeout(() => setFightMsg(false), 10000)
+    return () => clearTimeout(t)
+  }, [fight.active, fight.at])
 
   const eventKey = !background ? null
     : background.includes('/evento0/fire') ? 'fire'
@@ -690,7 +720,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       {/* Contadores del evento (fire/frost) — centrados (solo trainer/espectador) */}
       {!isMaster && counterCfg && (
         <div className="pointer-events-none fixed inset-0 z-[16] flex items-center justify-center">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 scale-[0.7]">
             {['up', 'down'].map(k => {
               const cfg = counterCfg[k]; const t = TONE[cfg.tone]
               return (
@@ -719,6 +749,33 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           En evento
         </div>
       )}
+
+      {/* Modo lucha — mensaje central 10s (solo trainer/espectador) */}
+      {!isMaster && fight.active && fightMsg && (
+        <div className="pointer-events-none fixed inset-0 z-[42] flex items-center justify-center p-6">
+          <p className="max-w-2xl text-center text-2xl md:text-3xl font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] animate-event-pop">
+            Los jugadores ({fight.players.map(p => p.nombre).join(', ')}) deberán pelear a muerte para la diversión de los Masters de Masters
+          </p>
+        </div>
+      )}
+
+      {/* Modo lucha — panel del rival arriba centrado (solo al seleccionado) */}
+      {(() => {
+        if (isMaster || !fight.active || personajeId == null) return null
+        const imSelected = fight.players.some(p => String(p.id_personaje) === String(personajeId))
+        if (!imSelected) return null
+        const rival = fight.players.find(p => String(p.id_personaje) !== String(personajeId))
+        if (!rival) return null
+        const rivalChar = fightChars.find(c => String(c.id_personaje) === String(rival.id_personaje))
+        if (!rivalChar) return null
+        const rivalPres = presentes.find(u => String(u.user_id) === String(rival.user_id))
+        const rivalInv = invocados[String(rival.id_personaje)]
+        return (
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[20]">
+            <PlayerCard char={rivalChar} pres={rivalPres} invId={rivalInv} hideHp={false} />
+          </div>
+        )
+      })()}
 
       {/* Main layout */}
       <div className="relative flex flex-1 overflow-hidden">
@@ -752,7 +809,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onToggleHidden={handleToggleHidden}
               />
               <EventosPanel onBackground={sendBackground} partidaId={id} onUnlock={startEvent}
-                counterCfg={counterCfg} counters={counters} onCounter={changeCounter} />
+                counterCfg={counterCfg} counters={counters} onCounter={changeCounter}
+                onLuchar={(players) => sendFight(players.map(p => ({ id_personaje: p.id_personaje, nombre: p.nombre_personaje || 'Sin nombre', user_id: p.user_id })))}
+                onLimpiar={clearFight} />
             </>
           )}
 
