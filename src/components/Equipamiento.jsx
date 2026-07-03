@@ -15,6 +15,7 @@ export default function Equipamiento({ personajeId, onClose }) {
   const [weapons, setWeapons] = useState([])
   const [armors, setArmors]   = useState([])
   const [propMap, setPropMap] = useState({})
+  const [propDetail, setPropDetail] = useState(null) // propiedad seleccionada (tooltip)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -26,7 +27,7 @@ export default function Equipamiento({ personajeId, onClose }) {
       setWeapons((Array.isArray(w) ? w : []).filter(x => x.personaje_weapon_in_use))
       setArmors((Array.isArray(a) ? a : []).filter(x => x.personaje_armor_in_use))
       const map = {}
-      for (const pr of (p.data || [])) map[pr.weapon_property_id] = pr.weapon_property_name
+      for (const pr of (p.data || [])) map[pr.weapon_property_id] = { name: pr.weapon_property_name, description: pr.weapon_property_description }
       setPropMap(map)
     }).catch(() => {}).finally(() => setLoading(false))
   }, [personajeId])
@@ -34,7 +35,7 @@ export default function Equipamiento({ personajeId, onClose }) {
   const weaponProps = (w) => [
     w.weapon_type_property_1, w.weapon_type_property_2, w.weapon_type_property_3,
     w.weapon_type_property_4, w.weapon_type_property_5, w.weapon_type_property_6,
-  ].filter(Boolean).map(id => propMap[id] || id)
+  ].filter(Boolean).map(id => propMap[id] || { name: String(id), description: '' })
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -76,7 +77,11 @@ export default function Equipamiento({ personajeId, onClose }) {
                         <Bono label="Rango" value={w.weapon_type_range} />
                         <Bono label="Uso" value={w.weapon_type_hand_use} />
                         {weaponProps(w).map((p, i) => (
-                          <span key={i} className="text-[10px] font-bold text-gray-600 bg-gray-200 rounded px-1.5 py-0.5">{p}</span>
+                          <button key={i} onClick={() => setPropDetail(p)}
+                            className="text-[10px] font-bold text-gray-600 bg-gray-200 rounded px-1.5 py-0.5 hover:bg-gray-300 transition-colors"
+                            title="Ver descripción">
+                            {p.name}
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -121,6 +126,22 @@ export default function Equipamiento({ personajeId, onClose }) {
           </div>
         )}
       </div>
+
+      {/* Tooltip: descripción de la propiedad del arma */}
+      {propDetail && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={e => { if (e.target === e.currentTarget) setPropDetail(null) }}>
+          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-2">
+              <h4 className="font-bold text-gray-900 text-sm">{propDetail.name}</h4>
+              <button onClick={() => setPropDetail(null)} className="text-gray-400 hover:text-gray-700 shrink-0"><X size={16} /></button>
+            </div>
+            <div className="px-4 py-3">
+              <p className="text-xs text-gray-600 leading-relaxed">{propDetail.description || 'Sin descripción.'}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

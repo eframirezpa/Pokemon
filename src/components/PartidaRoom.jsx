@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   LogOut, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
@@ -219,11 +219,11 @@ function MasterPokemonCard({ pokemon, onHp, onHpSet, onRemove, onCast, onToggleH
 function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onHpSet, onRemove, onCast, onToggleHidden }) {
   const full = pokemons.length >= max
   return (
-    <div className="shrink-0 px-4 pt-3">
+    <div className="flex-1 min-h-0 flex flex-col px-4 pt-3">
       <button
         onClick={onAdd}
         disabled={full}
-        className="w-full flex items-center justify-center gap-1.5 py-2 bg-gray-800 hover:bg-gray-700
+        className="shrink-0 w-full flex items-center justify-center gap-1.5 py-2 bg-gray-800 hover:bg-gray-700
                    disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800
                    border border-gray-700 text-gray-200 text-xs font-semibold rounded-xl transition-colors"
       >
@@ -231,7 +231,7 @@ function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onHpSet, onRemove,
       </button>
 
       {pokemons.length > 0 && (
-        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 max-h-[45vh] overflow-y-auto">
+        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 flex-1 min-h-0 overflow-y-auto content-start">
           {pokemons.map(p => (
             <MasterPokemonCard
               key={p.uid}
@@ -245,30 +245,6 @@ function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onHpSet, onRemove,
           ))}
         </div>
       )}
-    </div>
-  )
-}
-
-/* Banner superior del master — visible para trainer y espectador */
-function MasterBanner({ nombre, message }) {
-  return (
-    <div className="shrink-0 px-4 pt-4">
-      <div className="flex items-center gap-3 bg-gradient-to-r from-slate-800 via-gray-800 to-slate-900
-                      border border-gray-700 rounded-2xl p-3 shadow-lg">
-        <img
-          src="/avatars/chuckface.png"
-          alt="Master"
-          className="w-14 h-14 rounded-full border-2 border-amber-500/60 object-cover shrink-0 bg-gray-700"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-1 truncate">
-            Campaña: {nombre}
-          </p>
-          <div className="relative bg-gray-700/70 rounded-xl rounded-tl-sm px-3 py-2">
-            <p className="text-sm text-gray-100 leading-snug">{message}</p>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
@@ -311,17 +287,23 @@ function MasterSendMessage({ onSend }) {
   )
 }
 
-export default function PartidaRoom({ children, roleLabel, personajeId = null, apiRef = null, pokemonInvocado = null }) {
+export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
-  const location    = useLocation()
   const { user }    = useAuth()
   const logEndRef   = useRef(null)
 
-  const nombre = location.state?.nombre || `Partida #${id}`
   const [showParty, setShowParty]   = useState(false)
   const [logOpen, setLogOpen]       = useState(true)
   const [showPokedex, setShowPokedex] = useState(false)
+  // Celular (no tablet): la dimensión menor de la pantalla es pequeña
+  const [isPhone, setIsPhone] = useState(() => typeof window !== 'undefined' && Math.min(window.innerWidth, window.innerHeight) < 500)
+
+  useEffect(() => {
+    const onResize = () => setIsPhone(Math.min(window.innerWidth, window.innerHeight) < 500)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   const isMaster = user?.role === 'master'
 
@@ -437,9 +419,11 @@ export default function PartidaRoom({ children, roleLabel, personajeId = null, a
 
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 bg-gray-800 border-b border-gray-700 shrink-0">
-        <div>
-          <p className="text-white font-semibold text-sm">{nombre}</p>
-          <p className="text-[10px] text-gray-400 uppercase tracking-wide">{roleLabel}</p>
+        {/* Mensaje del master */}
+        <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
+          <img src="/avatars/chuckface.png" alt="Master"
+            className="w-8 h-8 rounded-full border-2 border-amber-500/60 object-cover shrink-0 bg-gray-700" />
+          <p className="text-sm text-gray-100 leading-snug truncate">{masterMessage}</p>
         </div>
         <button
           onClick={() => navigate(ROLE_DASHBOARD[user?.role] ?? '/')}
@@ -456,7 +440,7 @@ export default function PartidaRoom({ children, roleLabel, personajeId = null, a
         {/* Botón flotante — abre la ventana Party */}
         <button
           onClick={() => setShowParty(true)}
-          className="fixed left-3 top-1/2 -translate-y-[calc(100%+6px)] z-30 flex items-center justify-center w-10 h-10
+          className="fixed left-3 top-16 z-30 flex items-center justify-center w-10 h-10
                      rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
                      border border-gray-600 transition-all"
           title="Party"
@@ -467,8 +451,8 @@ export default function PartidaRoom({ children, roleLabel, personajeId = null, a
         {/* Center — master panel + content + activity log */}
         <div className="flex flex-col flex-1 overflow-hidden">
 
-          {/* Panel del master arriba */}
-          {isMaster ? (
+          {/* Panel del master arriba (solo master) */}
+          {isMaster && (
             <>
               <MasterSendMessage onSend={sendMasterMessage} />
               <MasterPokemonPanel
@@ -482,15 +466,13 @@ export default function PartidaRoom({ children, roleLabel, personajeId = null, a
                 onToggleHidden={handleToggleHidden}
               />
             </>
-          ) : (
-            <MasterBanner nombre={nombre} message={masterMessage} />
           )}
 
           {/* Role-specific content area */}
-          <div className="relative flex-1 overflow-auto p-6">
+          <div className={`relative overflow-auto p-6 ${isMaster ? 'shrink-0' : 'flex-1'}`}>
             {/* Tarjetas de vida de los Pokémon — parte superior derecha (trainer/espectador) */}
             {!isMaster && activePokemons.length > 0 && (
-              <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+              <div className={`absolute top-4 right-4 z-10 flex flex-col gap-2 ${isPhone ? 'scale-50 origin-top-right' : ''}`}>
                 {activePokemons.map(p => <PokemonHpCard key={p.uid} p={p} />)}
               </div>
             )}

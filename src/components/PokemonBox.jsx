@@ -272,7 +272,7 @@ function Detail({ personajeId, idpp, onBack, actionLabel, onAction, onInvoke }) 
   )
 }
 
-export default function PokemonBox({ personajeId, mode, onClose, onInvoke }) {
+export default function PokemonBox({ personajeId, mode, onClose, onInvoke, onMoved }) {
   const isBelt = mode === 'belt'
   const title    = isBelt ? 'Cinturón' : 'Femputadora'
   const subtitle = isBelt ? 'Pokémones en tu equipo' : 'Pokémones almacenados'
@@ -302,6 +302,7 @@ export default function PokemonBox({ personajeId, mode, onClose, onInvoke }) {
         const j = await res.json().catch(() => ({}))
         return j.error || 'No se pudo actualizar el Pokémon'
       }
+      onMoved?.(idpp)   // notifica al padre qué Pokémon se movió
       onClose()   // cierra la ventana completamente
       return null
     } catch {

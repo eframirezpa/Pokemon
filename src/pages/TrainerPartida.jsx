@@ -210,103 +210,68 @@ export default function TrainerPartida() {
     notifyParty()
   }
 
+  const sideBtn = 'shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg border border-gray-600 transition-all'
+
   return (
     <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado}>
-      <div className="relative flex items-end justify-center h-full pb-8">
+      <div className="absolute inset-0">
         {/* Zona inferior: sprite del jugador + sprite del Pokémon invocado */}
-        <div className="flex items-end justify-center gap-10">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-end justify-center gap-10">
           {user?.avatar_face_url && (
             <button onClick={openTrainerControl} className="transition-transform hover:scale-105" title="Controlar jugador">
               <img src={user.avatar_face_url} alt="Jugador"
-                className="w-28 h-28 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
+                className="w-11 h-11 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
             </button>
           )}
           {pokemonInvocado && invocadoSprite && (
             <button onClick={openPokemonControl} className="transition-transform hover:scale-105" title="Controlar Pokémon">
               <img src={invocadoSprite} alt="Pokémon invocado"
-                className="w-28 h-28 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
+                className="w-11 h-11 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
             </button>
           )}
         </div>
 
-        {/* Botón de celular — abre la Pokédex */}
-        <button
-          onClick={() => setShowPokedex(true)}
-          className="fixed left-3 top-1/2 translate-y-[6px] z-30 flex items-center justify-center
-                     w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                     border border-gray-600 transition-all"
-          title="Abrir Pokédex"
-        >
-          <Smartphone size={18} />
-        </button>
+        {/* Botones laterales — columna centrada y scrolleable (para pantallas bajas) */}
+        <div className="fixed left-3 top-28 bottom-3 z-30 overflow-y-auto">
+          <div className="min-h-full flex flex-col justify-center gap-2 py-1">
+            <button onClick={() => setShowPokedex(true)} className={sideBtn} title="Abrir Pokédex">
+              <Smartphone size={18} />
+            </button>
 
-        {/* Botón de usuario — muestra la información del personaje */}
-        {personajeId && (
-          <button
-            onClick={() => setShowChar(true)}
-            className="fixed left-3 top-1/2 translate-y-[calc(100%+12px)] z-30 flex items-center justify-center
-                       w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                       border border-gray-600 transition-all"
-            title="Ver mi personaje"
-          >
-            <User size={18} />
-          </button>
-        )}
+            {personajeId && (
+              <button onClick={() => setShowChar(true)} className={sideBtn} title="Ver mi personaje">
+                <User size={18} />
+              </button>
+            )}
 
-        {/* Botón de mochila — items del personaje */}
-        {personajeId && (
-          <button
-            onClick={() => setShowMochila(true)}
-            className="fixed left-3 top-1/2 translate-y-[calc(200%+18px)] z-30 flex items-center justify-center
-                       w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                       border border-gray-600 transition-all"
-            title="Mochila"
-          >
-            <Backpack size={18} />
-          </button>
-        )}
+            {personajeId && (
+              <button onClick={() => setShowMochila(true)} className={sideBtn} title="Mochila">
+                <Backpack size={18} />
+              </button>
+            )}
 
-        {/* Botón de equipamiento — armas y armaduras equipadas */}
-        {personajeId && (
-          <button
-            onClick={() => setShowEquip(true)}
-            className="fixed left-3 top-1/2 translate-y-[calc(300%+24px)] z-30 flex items-center justify-center
-                       w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                       border border-gray-600 transition-all"
-            title="Equipamiento"
-          >
-            <span className="relative inline-flex items-center justify-center">
-              <Shield size={18} />
-              <Sword size={11} className="absolute -bottom-1 -right-1.5" />
-            </span>
-          </button>
-        )}
+            {personajeId && (
+              <button onClick={() => setShowEquip(true)} className={sideBtn} title="Equipamiento">
+                <span className="relative inline-flex items-center justify-center">
+                  <Shield size={18} />
+                  <Sword size={11} className="absolute -bottom-1 -right-1.5" />
+                </span>
+              </button>
+            )}
 
-        {/* Botón de cinturón — Pokémon en el equipo */}
-        {personajeId && (
-          <button
-            onClick={() => setShowBelt(true)}
-            className="fixed left-3 top-1/2 translate-y-[calc(400%+30px)] z-30 flex items-center justify-center
-                       w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                       border border-gray-600 transition-all"
-            title="Cinturón"
-          >
-            <PokeballsIcon size={18} />
-          </button>
-        )}
+            {personajeId && (
+              <button onClick={() => setShowBelt(true)} className={sideBtn} title="Cinturón">
+                <PokeballsIcon size={18} />
+              </button>
+            )}
 
-        {/* Botón de computadora — Pokémon almacenados */}
-        {personajeId && (
-          <button
-            onClick={() => setShowPC(true)}
-            className="fixed left-3 top-1/2 translate-y-[calc(500%+36px)] z-30 flex items-center justify-center
-                       w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                       border border-gray-600 transition-all"
-            title="Femputadora"
-          >
-            <Monitor size={18} />
-          </button>
-        )}
+            {personajeId && (
+              <button onClick={() => setShowPC(true)} className={sideBtn} title="Femputadora">
+                <Monitor size={18} />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Modal Pokédex */}
@@ -355,6 +320,13 @@ export default function TrainerPartida() {
             setPokemonInvocado(idpp)
             setInvocadoSprite(sprite)
             setShowBelt(false)
+          }}
+          onMoved={(idpp) => {
+            // Si se envió al computador el Pokémon invocado, se limpia el invocado
+            if (String(idpp) === String(pokemonInvocado)) {
+              setPokemonInvocado(null)
+              setInvocadoSprite(null)
+            }
           }}
         />
       )}
