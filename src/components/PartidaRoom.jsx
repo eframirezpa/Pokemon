@@ -306,7 +306,7 @@ const TONE = {
   gray:  { box: 'bg-gray-200 border-gray-400',   text: 'text-gray-700',  btn: 'bg-gray-500 hover:bg-gray-600' },
 }
 
-function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters, onCounter, onLuchar, onLimpiar, presentes = [], onPremiar, timer = {}, onTimer, onPausa }) {
+function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters, onCounter, onLuchar, onLimpiar, presentes = [], onPremiar, onHit }) {
   const [open, setOpen] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
   const [asking, setAsking] = useState(false)
@@ -466,20 +466,12 @@ function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters,
               </div>
             </div>
 
-            {/* Timer / Pausa del círculo */}
+            {/* Hit — resta 1 HP a los que están en combate */}
             <div className="mt-2 flex items-center gap-2">
               <button
-                onClick={() => onTimer?.()}
-                className={`text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-                  timer.running ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-700 hover:bg-gray-600'}`}>
-                Timer
-              </button>
-              <button
-                onClick={() => onPausa?.()}
-                disabled={!timer.running}
-                className={`text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                  timer.paused ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-700 hover:bg-gray-600'}`}>
-                {timer.paused ? 'Reanudar' : 'Pausa'}
+                onClick={() => onHit?.()}
+                className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                Hit
               </button>
             </div>
           </div>
@@ -590,32 +582,6 @@ function Snow({ count = 60 }) {
   )
 }
 
-const TIMER_DURATION = 120000 // 2 minutos
-
-// Círculo amarillo que se desvanece en sentido horario según el estado del temporizador
-function TimerCircle({ timer, size = '6rem' }) {
-  const [progress, setProgress] = useState(0)
-  useEffect(() => {
-    if (!timer.running) { setProgress(0); return }
-    let raf
-    const tick = () => {
-      const elapsed = timer.paused ? timer.elapsedAtPause : timer.elapsedAtPause + (Date.now() - timer.startedAt)
-      setProgress(Math.max(0, Math.min(1, elapsed / TIMER_DURATION)))
-      if (!timer.paused) raf = requestAnimationFrame(tick)
-    }
-    tick()
-    return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [timer.running, timer.paused, timer.startedAt, timer.elapsedAtPause])
-
-  if (!timer.running) return null
-  const deg = progress * 360
-  return (
-    <div style={{ flex: 'none', width: size, height: size, borderRadius: '9999px',
-      background: `conic-gradient(#0000 ${deg}deg, #fbbf24 0)` }}
-      className="shadow-2xl border-2 border-yellow-500/50" />
-  )
-}
-
 export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
@@ -649,7 +615,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro, timer, sendTimer } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro } = usePartidaPresence(id, userInfo)
 
   // Expone el estado de lucha al padre (TrainerPartida oculta iconos de no-seleccionados)
   useEffect(() => { onFight?.(fight) }, [fight, onFight])
@@ -688,15 +654,13 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const fireActive = eventKey === 'fire'
   const counterCfg = COUNTER_EVENTS[eventKey] || null
 
-  // ── Temporizador (círculo) — el master es la autoridad ──
-  const timerTimeoutRef = useRef(null)
+  // ── Botón Hit — resta 1 HP a personajes y pokémon en combate ──
   const fightPlayersRef = useRef([])
   const invocadosRef = useRef({})
   useEffect(() => { fightPlayersRef.current = fight.players }, [fight.players])
   useEffect(() => { invocadosRef.current = invocados }, [invocados])
 
-  // Al completar el ciclo (2 min): resta 1 HP a personajes y pokémon en combate, luego reinicia
-  const onTimerComplete = useCallback(async () => {
+  const onHit = useCallback(async () => {
     try {
       const party = await apiFetch(`/personaje/party?id_partida=${id}`).then(r => r.json())
       const chars = Array.isArray(party) ? party : []
@@ -720,45 +684,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       }))
       sendPartyUpdate()
     } catch { /* noop */ }
-    // Reinicia el ciclo: repinta el círculo completo y vuelve a desvanecerse
-    sendTimer({ running: true, paused: false, startedAt: Date.now(), elapsedAtPause: 0 })
-    if (timerTimeoutRef.current) clearTimeout(timerTimeoutRef.current)
-    timerTimeoutRef.current = setTimeout(onTimerComplete, TIMER_DURATION)
-  }, [id, sendPartyUpdate, sendTimer])
-
-  // Botón Timer: solo actúa con fire/frost activo; inicia (o reinicia) el círculo
-  const onTimerClick = () => {
-    if (!counterCfg) return // forest o sin evento → sin acciones
-    sendTimer({ running: true, paused: false, startedAt: Date.now(), elapsedAtPause: 0 })
-    if (timerTimeoutRef.current) clearTimeout(timerTimeoutRef.current)
-    timerTimeoutRef.current = setTimeout(onTimerComplete, TIMER_DURATION)
-  }
-
-  // Botón Pausa: pausa si va andando, reanuda si está pausado
-  const onPausaClick = () => {
-    if (!timer.running) return
-    if (timer.paused) {
-      const elapsed = timer.elapsedAtPause
-      sendTimer({ running: true, paused: false, startedAt: Date.now(), elapsedAtPause: elapsed })
-      if (timerTimeoutRef.current) clearTimeout(timerTimeoutRef.current)
-      timerTimeoutRef.current = setTimeout(onTimerComplete, Math.max(0, TIMER_DURATION - elapsed))
-    } else {
-      const elapsed = timer.elapsedAtPause + (Date.now() - timer.startedAt)
-      sendTimer({ running: true, paused: true, startedAt: timer.startedAt, elapsedAtPause: elapsed })
-      if (timerTimeoutRef.current) clearTimeout(timerTimeoutRef.current)
-    }
-  }
-
-  // Detiene el temporizador si el evento deja de ser fire/frost
-  useEffect(() => {
-    if (isMaster && !counterCfg && timer.running) {
-      if (timerTimeoutRef.current) clearTimeout(timerTimeoutRef.current)
-      sendTimer({ running: false, paused: false, startedAt: 0, elapsedAtPause: 0 })
-    }
-  }, [isMaster, counterCfg, timer.running, sendTimer])
-
-  // Limpia el timeout al desmontar
-  useEffect(() => () => { if (timerTimeoutRef.current) clearTimeout(timerTimeoutRef.current) }, [])
+  }, [id, sendPartyUpdate])
 
   // Al desbloquear el evento: mensaje, avatar del master y avatar central 5s
   const startEvent = () => {
@@ -931,16 +857,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 </div>
               )
             })}
-            {/* Círculo temporizador a la derecha del contador Down */}
-            <TimerCircle timer={timer} />
           </div>
-        </div>
-      )}
-
-      {/* Círculo temporizador centrado (feedback para el master) */}
-      {isMaster && timer.running && (
-        <div className="pointer-events-none fixed inset-0 z-[16] flex items-center justify-center">
-          <div className="scale-[0.7]"><TimerCircle timer={timer} /></div>
         </div>
       )}
 
@@ -1076,7 +993,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                     sendPrize(char.id_personaje)
                   } catch { /* noop */ }
                 }}
-                timer={timer} onTimer={onTimerClick} onPausa={onPausaClick} />
+                onHit={onHit} />
             </>
           )}
 

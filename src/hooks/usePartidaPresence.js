@@ -18,7 +18,6 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [fight, setFight] = useState({ active: false, players: [], at: 0 }) // modo lucha
   const [prize, setPrize] = useState({ personaje_id: null, at: 0 }) // premio entregado a un personaje
   const [eventIntroAt, setEventIntroAt] = useState(0) // secuencia de textos al iniciar el evento
-  const [timer, setTimer] = useState({ running: false, paused: false, startedAt: 0, elapsedAtPause: 0 }) // círculo temporizador
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
@@ -28,7 +27,6 @@ export function usePartidaPresence(partidaId, userInfo) {
   const eventActiveRef = useRef(false)
   const countersRef = useRef({ up: 0, down: 0 })
   const fightRef = useRef({ active: false, players: [] })
-  const timerRef = useRef({ running: false, paused: false, startedAt: 0, elapsedAtPause: 0 })
   const subscribedRef = useRef(false)
 
   userInfoRef.current = userInfo
@@ -86,7 +84,6 @@ export function usePartidaPresence(partidaId, userInfo) {
           channel.send({ type: 'broadcast', event: 'event_state', payload: { active: eventActiveRef.current } })
           channel.send({ type: 'broadcast', event: 'counters_update', payload: countersRef.current })
           channel.send({ type: 'broadcast', event: 'fight_update', payload: fightRef.current })
-          channel.send({ type: 'broadcast', event: 'timer_update', payload: timerRef.current })
         }
         // Re-emito mi Pokémon invocado para los que recién entran
         const u = userInfoRef.current
@@ -148,16 +145,6 @@ export function usePartidaPresence(partidaId, userInfo) {
       })
       .on('broadcast', { event: 'event_intro' }, () => {
         setEventIntroAt(Date.now())
-      })
-      .on('broadcast', { event: 'timer_update' }, ({ payload }) => {
-        const t = {
-          running: !!payload?.running,
-          paused: !!payload?.paused,
-          startedAt: Number(payload?.startedAt) || 0,
-          elapsedAtPause: Number(payload?.elapsedAtPause) || 0,
-        }
-        timerRef.current = t
-        setTimer(t)
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -270,18 +257,5 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'event_intro', payload: {} })
   }, [])
 
-  // Actualiza y difunde el estado del temporizador (círculo)
-  const sendTimer = useCallback((t) => {
-    const nt = {
-      running: !!t.running,
-      paused: !!t.paused,
-      startedAt: Number(t.startedAt) || 0,
-      elapsedAtPause: Number(t.elapsedAtPause) || 0,
-    }
-    timerRef.current = nt
-    setTimer(nt)
-    channelRef.current?.send({ type: 'broadcast', event: 'timer_update', payload: nt })
-  }, [])
-
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro, timer, sendTimer }
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro }
 }
