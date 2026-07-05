@@ -318,6 +318,24 @@ function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters,
   const [prizeChar, setPrizeChar] = useState(null)     // personaje a premiar (uno)
   const [prizePickerOpen, setPrizePickerOpen] = useState(false)
 
+  // Sonido de ambiente del evento (solo en el dispositivo del master, en loop)
+  const audioRef = useRef(null)
+  const stopSound = () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null } }
+  const playLoop = (src) => {
+    stopSound()
+    const a = new Audio(src)
+    a.loop = true
+    a.play().catch(() => {})
+    audioRef.current = a
+  }
+  useEffect(() => () => stopSound(), [])
+  const handleEvento = (ev) => {
+    onBackground(ev.url)
+    if (ev.label === 'Fire') playLoop('/evento0/fuego.mp3')
+    else if (ev.label === 'Frost') playLoop('/evento0/nieve.mp3')
+    else if (ev.label === 'Forest') stopSound()
+  }
+
   const toggle = () => {
     if (open) { setOpen(false); return }
     if (unlocked) { setOpen(true); return }
@@ -343,9 +361,9 @@ function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters,
     setPickerOpen(false)
   }
   const removeChar = (id) => setSelected(prev => prev.filter(c => c.id_personaje !== id))
-  const disponibles = chars.filter(c => !selected.some(s => s.id_personaje === c.id_personaje))
-  // Personajes activos y conectados a la partida (para premiar)
+  // Personajes activos y conectados a la partida (para luchar y premiar)
   const conectados = chars.filter(c => presentes.some(p => String(p.personaje_id) === String(c.id_personaje)))
+  const disponibles = conectados.filter(c => !selected.some(s => s.id_personaje === c.id_personaje))
 
   return (
     <div className="shrink-0 px-4 pt-3">
@@ -375,7 +393,7 @@ function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters,
         <>
           <div className="mt-2 grid grid-cols-3 gap-2">
             {EVENTOS.map(ev => (
-              <button key={ev.url} onClick={() => onBackground(ev.url)}
+              <button key={ev.url} onClick={() => handleEvento(ev)}
                 className="py-2 bg-gray-700 hover:bg-red-600 border border-gray-600 text-gray-200 text-xs font-semibold rounded-xl transition-colors">
                 {ev.label}
               </button>
@@ -588,7 +606,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro } = usePartidaPresence(id, userInfo)
 
   // Expone el estado de lucha al padre (TrainerPartida oculta iconos de no-seleccionados)
   useEffect(() => { onFight?.(fight) }, [fight, onFight])
@@ -632,7 +650,20 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     sendMasterMessage('¡ Llegó el master de masters ! RAVE.')
     sendEventState(true)
     sendEventFlash()
+    sendEventIntro()
   }
+
+  // Secuencia de textos al iniciar el evento (solo trainers):
+  // 1) "¡Ha llegado el Master de Masters Rave!" 5s → espera 2s → 2) "Ha iniciado el evento Hielo y Fuego" 10s
+  const [introPhase, setIntroPhase] = useState(0) // 0 nada, 1 primer texto, 2 segundo texto
+  useEffect(() => {
+    if (!eventIntroAt || isMaster) return
+    setIntroPhase(1)
+    const t1 = setTimeout(() => setIntroPhase(0), 5000)   // oculta el 1° a los 5s
+    const t2 = setTimeout(() => setIntroPhase(2), 7000)   // tras 2s de espera, muestra el 2°
+    const t3 = setTimeout(() => setIntroPhase(0), 17000)  // oculta el 2° a los 10s
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+  }, [eventIntroAt, isMaster])
 
   // Avatar central del evento durante 5s (solo trainers)
   const [eventFlash, setEventFlash] = useState(false)
@@ -803,6 +834,24 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           <Snowflake size={14} className="text-cyan-200" />
           <span>Hielo y Fuego</span>
           <Flame size={14} className="text-orange-300" />
+        </div>
+      )}
+
+      {/* Secuencia de inicio del evento (solo trainers) */}
+      {!isMaster && introPhase === 1 && (
+        <div className="pointer-events-none fixed inset-0 z-[47] flex items-center justify-center p-6">
+          <p className="max-w-2xl text-center text-3xl md:text-4xl font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] animate-event-pop">
+            ¡Ha llegado el Master de Masters Rave!
+          </p>
+        </div>
+      )}
+      {!isMaster && introPhase === 2 && (
+        <div className="pointer-events-none fixed inset-0 z-[47] flex items-center justify-center p-6">
+          <p className="flex items-center justify-center gap-3 max-w-2xl text-center text-3xl md:text-4xl font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] animate-event-pop">
+            <Snowflake size={36} className="text-cyan-200 shrink-0" />
+            <span>Ha iniciado el evento Hielo y Fuego</span>
+            <Flame size={36} className="text-orange-300 shrink-0" />
+          </p>
         </div>
       )}
 
