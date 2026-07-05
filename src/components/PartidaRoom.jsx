@@ -306,7 +306,7 @@ const TONE = {
   gray:  { box: 'bg-gray-200 border-gray-400',   text: 'text-gray-700',  btn: 'bg-gray-500 hover:bg-gray-600' },
 }
 
-function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters, onCounter, onLuchar, onLimpiar, presentes = [], onPremiar, onHit }) {
+function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters, onCounter, onLuchar, onLimpiar, presentes = [], onPremiar, onHit, onHeal }) {
   const [open, setOpen] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
   const [asking, setAsking] = useState(false)
@@ -466,12 +466,17 @@ function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, counters,
               </div>
             </div>
 
-            {/* Hit — resta 1 HP a los que están en combate */}
+            {/* Hit / Heal — resta / suma 1 HP a los que están en combate */}
             <div className="mt-2 flex items-center gap-2">
               <button
                 onClick={() => onHit?.()}
                 className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
                 Hit
+              </button>
+              <button
+                onClick={() => onHeal?.()}
+                className="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                Heal
               </button>
             </div>
           </div>
@@ -615,7 +620,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro, hitAt, sendHitFlash } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash } = usePartidaPresence(id, userInfo)
 
   // Expone el estado de lucha al padre (TrainerPartida oculta iconos de no-seleccionados)
   useEffect(() => { onFight?.(fight) }, [fight, onFight])
@@ -647,6 +652,15 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     const t = setTimeout(() => setShowHit(false), 5000)
     return () => clearTimeout(t)
   }, [hitAt, isMaster])
+
+  // Aviso "Rave otorgó 1 HP" durante 5s (solo trainers)
+  const [showHeal, setShowHeal] = useState(false)
+  useEffect(() => {
+    if (!healAt || isMaster) return
+    setShowHeal(true)
+    const t = setTimeout(() => setShowHeal(false), 5000)
+    return () => clearTimeout(t)
+  }, [healAt, isMaster])
 
   // Aviso de premio (Yoyo Nordico) durante 5s, solo para el personaje premiado
   const [showPrize, setShowPrize] = useState(false)
@@ -700,6 +714,40 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       sendPartyUpdate()
     } catch { /* noop */ }
   }, [id, sendPartyUpdate, sendHitFlash])
+
+  const onHeal = useCallback(async () => {
+    sendHealFlash() // aviso en pantalla de los trainers (5s)
+    try {
+      const party = await apiFetch(`/personaje/party?id_partida=${id}`).then(r => r.json())
+      const chars = Array.isArray(party) ? party : []
+      const players = fightPlayersRef.current || []
+      const inv = invocadosRef.current || {}
+      await Promise.all(players.flatMap(p => {
+        const c = chars.find(x => String(x.id_personaje) === String(p.id_personaje))
+        if (!c) return []
+        const calls = []
+        // Suma 1 HP sin exceder el máximo
+        const curHp = c.personaje_current_hp ?? c.personaje_hp ?? 0
+        const maxHp = c.personaje_hp ?? curHp
+        if (curHp < maxHp) {
+          calls.push(apiFetch(`/personaje/${c.id_personaje}/combate`, { method: 'PATCH', body: JSON.stringify({ current_hp: curHp + 1 }) }))
+        }
+        const invId = String(p.id_personaje) in inv ? inv[String(p.id_personaje)] : null
+        if (invId != null) {
+          const pk = (c.pokemons || []).find(x => String(x.id_personaje_pokemon) === String(invId))
+          if (pk) {
+            const curPHp = pk.pokemon_current_hp ?? pk.pokemon_hp ?? 0
+            const maxPHp = pk.pokemon_hp ?? curPHp
+            if (curPHp < maxPHp) {
+              calls.push(apiFetch(`/personaje/${c.id_personaje}/pokemon/${invId}/combate`, { method: 'PATCH', body: JSON.stringify({ current_hp: curPHp + 1 }) }))
+            }
+          }
+        }
+        return calls
+      }))
+      sendPartyUpdate()
+    } catch { /* noop */ }
+  }, [id, sendPartyUpdate, sendHealFlash])
 
   // Al desbloquear el evento: mensaje, avatar del master y avatar central 5s
   const startEvent = () => {
@@ -920,6 +968,15 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         </div>
       )}
 
+      {/* Aviso "Rave otorgó 1 HP" durante 5s (solo trainers) */}
+      {!isMaster && showHeal && (
+        <div className="pointer-events-none fixed inset-0 z-[46] flex items-center justify-center p-6">
+          <p className="max-w-2xl text-center text-2xl md:text-3xl font-black text-green-300 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] animate-event-pop">
+            Rave ha otorgado 1HP a los luchadores ¡En hora buena!
+          </p>
+        </div>
+      )}
+
       {/* Aviso de premio (Yoyo Nordico) durante 5s, solo para el personaje premiado */}
       {!isMaster && showPrize && (
         <div className="pointer-events-none fixed inset-0 z-[46] flex flex-col items-center justify-center gap-4 p-6">
@@ -1017,7 +1074,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                     sendPrize(char.id_personaje)
                   } catch { /* noop */ }
                 }}
-                onHit={onHit} />
+                onHit={onHit} onHeal={onHeal} />
             </>
           )}
 

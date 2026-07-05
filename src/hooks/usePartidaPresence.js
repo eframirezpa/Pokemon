@@ -19,6 +19,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [prize, setPrize] = useState({ personaje_id: null, at: 0 }) // premio entregado a un personaje
   const [eventIntroAt, setEventIntroAt] = useState(0) // secuencia de textos al iniciar el evento
   const [hitAt, setHitAt] = useState(0) // aviso de "Rave reclamó 1 HP"
+  const [healAt, setHealAt] = useState(0) // aviso de "Rave otorgó 1 HP"
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
@@ -150,6 +151,9 @@ export function usePartidaPresence(partidaId, userInfo) {
       .on('broadcast', { event: 'hit_flash' }, () => {
         setHitAt(Date.now())
       })
+      .on('broadcast', { event: 'heal_flash' }, () => {
+        setHealAt(Date.now())
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           subscribedRef.current = true
@@ -267,5 +271,11 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'hit_flash', payload: {} })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro, hitAt, sendHitFlash }
+  // Dispara el aviso de "Rave otorgó 1 HP" en los trainers
+  const sendHealFlash = useCallback(() => {
+    setHealAt(Date.now())
+    channelRef.current?.send({ type: 'broadcast', event: 'heal_flash', payload: {} })
+  }, [])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash }
 }
