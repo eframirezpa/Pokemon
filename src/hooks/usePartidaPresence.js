@@ -18,6 +18,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [fight, setFight] = useState({ active: false, players: [], at: 0 }) // modo lucha
   const [prize, setPrize] = useState({ personaje_id: null, at: 0 }) // premio entregado a un personaje
   const [eventIntroAt, setEventIntroAt] = useState(0) // secuencia de textos al iniciar el evento
+  const [hitAt, setHitAt] = useState(0) // aviso de "Rave reclamó 1 HP"
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
@@ -146,6 +147,9 @@ export function usePartidaPresence(partidaId, userInfo) {
       .on('broadcast', { event: 'event_intro' }, () => {
         setEventIntroAt(Date.now())
       })
+      .on('broadcast', { event: 'hit_flash' }, () => {
+        setHitAt(Date.now())
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           subscribedRef.current = true
@@ -257,5 +261,11 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'event_intro', payload: {} })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro }
+  // Dispara el aviso de "Rave reclamó 1 HP" en los trainers
+  const sendHitFlash = useCallback(() => {
+    setHitAt(Date.now())
+    channelRef.current?.send({ type: 'broadcast', event: 'hit_flash', payload: {} })
+  }, [])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro, hitAt, sendHitFlash }
 }
