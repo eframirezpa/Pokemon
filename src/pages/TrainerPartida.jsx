@@ -47,10 +47,103 @@ const MOVE_TYPE_COLORS = {
   Dark:'#705848', Steel:'#B8B8D0', Fairy:'#EE99AC', Typeless:'#9CA3AF',
 }
 
+// Popup con la información detallada de un movimiento (para decidir qué lanzar)
+const hasVal = x => (x ?? '') !== ''
+
+function Fact({ label, value }) {
+  if (!hasVal(value)) return null
+  return (
+    <div className="bg-gray-700/50 rounded-lg px-2 py-1.5 min-w-0">
+      <p className="text-[9px] font-black text-gray-400 uppercase tracking-wide">{label}</p>
+      <p className="text-xs font-semibold text-white leading-snug">{value}</p>
+    </div>
+  )
+}
+
+function MoveInfoModal({ m, onClose }) {
+  const has = hasVal
+  const powers = [m.move_power_1, m.move_power_2, m.move_power_3].filter(has).join(' / ')
+  const damages = [['Nv 1', m.move_damage_level_1], ['Nv 5', m.move_damage_level_5],
+    ['Nv 10', m.move_damage_level_10], ['Nv 17', m.move_damage_level_17]].filter(([, v]) => has(v))
+  const save = [m.move_save_attribute, has(m.move_save_dc) ? `DC ${m.move_save_dc}` : null].filter(Boolean).join(' · ')
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className="text-white font-bold text-sm truncate">{m.move_name}</h3>
+            <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
+              style={{ backgroundColor: MOVE_TYPE_COLORS[m.move_type] || '#9CA3AF' }}>{m.move_type}</span>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white shrink-0 ml-2"><X size={18} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {/* Datos clave */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <Fact label="Tiempo"   value={m.move_time} />
+            <Fact label="PP"       value={Number(m.move_pp) === 0 ? '∞' : m.move_pp} />
+            <Fact label="Rango"    value={m.move_range} />
+            <Fact label="Duración" value={m.move_duration} />
+            <Fact label="Alcance"  value={m.move_attack_scope} />
+            <Fact label="Poder"    value={powers} />
+            <Fact label="Salvación" value={save} />
+            {Number(m.move_is_concentration) === 1 && <Fact label="Concentración" value="Sí" />}
+          </div>
+
+          {/* Daño por nivel */}
+          {Number(m.move_has_damage) === 1 && damages.length > 0 && (
+            <div className="bg-gray-700/50 rounded-lg px-2 py-1.5">
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-wide mb-1">
+                Daño{has(m.move_damage_type) ? ` (${m.move_damage_type})` : ''}{has(m.move_damage_modifier) ? ` · ${m.move_damage_modifier}` : ''}
+              </p>
+              <div className="grid grid-cols-4 gap-1">
+                {damages.map(([lvl, val]) => (
+                  <div key={lvl} className="text-center">
+                    <p className="text-[9px] font-bold text-gray-400">{lvl}</p>
+                    <p className="text-xs font-bold text-white">{val}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Descripción */}
+          {has(m.move_description) && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Descripción</p>
+              <p className="text-xs text-gray-200 leading-relaxed whitespace-pre-line">{m.move_description}</p>
+            </div>
+          )}
+
+          {/* A niveles superiores */}
+          {has(m.move_higher_levels) && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">A niveles superiores</p>
+              <p className="text-xs text-gray-200 leading-relaxed whitespace-pre-line">{m.move_higher_levels}</p>
+            </div>
+          )}
+
+          {/* Reglas opcionales */}
+          {has(m.move_optional_rules) && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Reglas opcionales</p>
+              <p className="text-xs text-gray-200 leading-relaxed whitespace-pre-line">{m.move_optional_rules}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
 function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onReturn, onClose }) {
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
+  const [moveInfo, setMoveInfo] = useState(null) // movimiento cuyo detalle se muestra
 
   // Cooldown de 3s tras lanzar un movimiento (deshabilita el botón Lanzar)
   const [cooldown, setCooldown] = useState(false)
@@ -78,7 +171,7 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl p-4 w-72 shadow-2xl">
+      <div className={`bg-gray-800 border border-gray-700 rounded-2xl p-4 shadow-2xl ${moves && moves.length > 0 ? 'w-[26rem] max-w-[95vw]' : 'w-72'}`}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-white font-bold text-sm truncate">{title}</h3>
           <div className="flex items-center gap-2 shrink-0">
@@ -134,7 +227,10 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
                 return (
                   <div key={i} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-white text-xs font-medium truncate">{m.move_name}</span>
+                      <button onClick={() => setMoveInfo(m)} title="Ver detalle del movimiento"
+                        className="text-white text-xs font-medium truncate underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-amber-300 transition-colors">
+                        {m.move_name}
+                      </button>
                       <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
                         style={{ backgroundColor: MOVE_TYPE_COLORS[m.move_type] || '#9CA3AF' }}>{m.move_type}</span>
                     </div>
@@ -144,6 +240,11 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
                         className="text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
                         Lanzar
                       </button>
+                      {/* Rango y duración del movimiento */}
+                      <div className="w-24 text-left leading-tight">
+                        <p className="text-[9px] text-gray-400 truncate" title={m.move_range || ''}>{m.move_range || '—'}</p>
+                        <p className="text-[9px] text-gray-400 truncate" title={m.move_duration || ''}>{m.move_duration || '—'}</p>
+                      </div>
                     </div>
                   </div>
                 )
@@ -152,6 +253,9 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
           </div>
         )}
       </div>
+
+      {/* Detalle del movimiento seleccionado */}
+      {moveInfo && <MoveInfoModal m={moveInfo} onClose={() => setMoveInfo(null)} />}
     </div>
   )
 }
