@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  LogOut, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff,
+  LogOut, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff, Info,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
   Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star,
 } from 'lucide-react'
@@ -10,6 +10,9 @@ import { apiFetch } from '../api'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import PokemonList from '../pages/PokemonList'
 import PartyPanel, { PlayerCard } from './PartyPanel'
+import CharacterSheet from './CharacterSheet'
+import { PokemonDetailView } from './PokemonBox'
+import PartidaInfoPanel from './PartidaInfoPanel'
 
 const ROLE_DASHBOARD = {
   master:     '/dashboard/master',
@@ -596,6 +599,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [showParty, setShowParty]   = useState(false)
   const [logOpen, setLogOpen]       = useState(true)
   const [showPokedex, setShowPokedex] = useState(false)
+  const [showInfo, setShowInfo]     = useState(false)   // personajes registrados (solo master)
+  const [inspectCharId, setInspectCharId] = useState(null) // ficha de personaje abierta desde el party (master)
+  const [inspectPoke, setInspectPoke]     = useState(null) // { personajeId, idpp } detalle de pokémon (master)
   // Detecta celular (no tablet) y su orientación
   const detectDevice = () => {
     if (typeof window === 'undefined') return { phone: false, phoneLandscape: false }
@@ -1046,6 +1052,19 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           <Users size={18} />
         </button>
 
+        {/* Botón flotante — personajes registrados en la partida (solo master) */}
+        {isMaster && (
+          <button
+            onClick={() => setShowInfo(true)}
+            className="fixed left-3 top-28 z-30 flex items-center justify-center w-10 h-10
+                       rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                       border border-gray-600 transition-all"
+            title="Personajes registrados"
+          >
+            <Info size={18} />
+          </button>
+        )}
+
         {/* Center — master panel + content + activity log */}
         <div className="flex flex-col flex-1 overflow-hidden">
 
@@ -1153,7 +1172,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
       </div>
 
-      {/* Ventana Party — jugadores conectados (solo lectura) */}
+      {/* Ventana Party — jugadores conectados (el master puede abrir fichas) */}
       {showParty && (
         <PartyPanel
           partidaId={id}
@@ -1163,7 +1182,35 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           hideHp={!isMaster}
           invocados={invocados}
           onClose={() => setShowParty(false)}
+          onCharClick={isMaster ? (c => setInspectCharId(c.id_personaje)) : undefined}
+          onPokemonClick={isMaster ? ((c, p) => setInspectPoke({ personajeId: c.id_personaje, idpp: p.id_personaje_pokemon })) : undefined}
         />
+      )}
+
+      {/* Ventana de personajes registrados (solo master) */}
+      {showInfo && isMaster && (
+        <PartidaInfoPanel partidaId={id} onClose={() => setShowInfo(false)} />
+      )}
+
+      {/* Ficha completa del personaje abierta desde el party (master) */}
+      {inspectCharId != null && (
+        <CharacterSheet id={inspectCharId} onClose={() => setInspectCharId(null)} />
+      )}
+
+      {/* Detalle completo del Pokémon abierto desde el party (master) */}
+      {inspectPoke && (
+        <div className="fixed inset-0 z-[75] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget) setInspectPoke(null) }}>
+          <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-3xl h-[85vh] flex flex-col shadow-2xl">
+            <button onClick={() => setInspectPoke(null)}
+              className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
+              <X size={18} />
+            </button>
+            <PokemonDetailView personajeId={inspectPoke.personajeId} idpp={inspectPoke.idpp}
+              onBack={() => setInspectPoke(null)} />
+          </div>
+        </div>
       )}
 
       {/* Modal Pokédex — selección del master */}

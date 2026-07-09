@@ -44,7 +44,8 @@ function MoveRow({ m }) {
 }
 
 // ── Detalle de un Pokémon del personaje (tipo pokédex, datos persistidos) ──
-function Detail({ personajeId, idpp, onBack, actionLabel, onAction, onInvoke }) {
+// Exportado para reutilizarlo fuera del cinturón/computador (p. ej. party del master).
+export function PokemonDetailView({ personajeId, idpp, onBack, actionLabel, onAction, onInvoke }) {
   const [d, setD] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -128,18 +129,22 @@ function Detail({ personajeId, idpp, onBack, actionLabel, onAction, onInvoke }) 
               </div>
             )}
             {/* Acción */}
-            <div className="flex items-center gap-2 mt-2">
-              <button onClick={doAction} disabled={busy}
-                className="text-xs px-3 py-1 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-semibold transition-colors">
-                {busy ? 'Guardando…' : actionLabel}
-              </button>
-              {onInvoke && (
-                <button onClick={() => onInvoke(idpp, mainImg)}
-                  className="text-xs px-3 py-1 rounded-full bg-gray-800 hover:bg-gray-900 text-white font-semibold transition-colors">
-                  Invocar
-                </button>
-              )}
-            </div>
+            {(onAction || onInvoke) && (
+              <div className="flex items-center gap-2 mt-2">
+                {onAction && (
+                  <button onClick={doAction} disabled={busy}
+                    className="text-xs px-3 py-1 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-semibold transition-colors">
+                    {busy ? 'Guardando…' : actionLabel}
+                  </button>
+                )}
+                {onInvoke && (
+                  <button onClick={() => onInvoke(idpp, mainImg)}
+                    className="text-xs px-3 py-1 rounded-full bg-gray-800 hover:bg-gray-900 text-white font-semibold transition-colors">
+                    Invocar
+                  </button>
+                )}
+              </div>
+            )}
             {error && <span className="text-xs text-red-600 font-medium mt-1">{error}</span>}
           </div>
 
@@ -321,7 +326,7 @@ export default function PokemonBox({ personajeId, mode, onClose, onInvoke, onMov
         </button>
 
         {selected ? (
-          <Detail personajeId={personajeId} idpp={selected} onBack={() => setSelected(null)}
+          <PokemonDetailView personajeId={personajeId} idpp={selected} onBack={() => setSelected(null)}
             actionLabel={actionLabel} onAction={handleAction} onInvoke={onInvoke} />
         ) : (
           <>

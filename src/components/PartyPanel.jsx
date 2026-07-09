@@ -39,13 +39,15 @@ function HpBar({ cur, max }) {
 }
 
 /* Tarjeta de un Pokémon del cinturón (estilo del Pokémon que invoca el master) */
-function PartyPokemon({ p, hideHp }) {
+function PartyPokemon({ p, hideHp, onClick }) {
   const pct    = hpPct(p.pokemon_current_hp, p.pokemon_hp)
   const sprite = (p.pokemon_is_shiny && p.pokemon_media_sprite_shiny)
     ? p.pokemon_media_sprite_shiny
     : (p.pokemon_media_sprite || p.pokemon_media_main)
   return (
-    <div className={`flex items-center gap-2 border-2 border-gray-700 rounded-xl p-2 shrink-0 w-60 ${bleedClass(pct)}`}>
+    <div onClick={onClick} title={onClick ? 'Ver detalle del Pokémon' : undefined}
+      className={`flex items-center gap-2 border-2 border-gray-700 rounded-xl p-2 shrink-0 w-60 ${bleedClass(pct)}
+        ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
       <img src={sprite} alt={p.pokemon_apodo}
         className="w-12 h-12 object-contain bg-white rounded-lg shrink-0 border border-gray-300"
         onError={e => { e.target.style.opacity = '0.2' }} />
@@ -63,7 +65,7 @@ function PartyPokemon({ p, hideHp }) {
 }
 
 /* Tarjeta de un jugador + su Pokémon invocado (estilo party, reutilizable) */
-export function PlayerCard({ char: c, pres, invId, hideHp }) {
+export function PlayerCard({ char: c, pres, invId, hideHp, onCharClick, onPokemonClick }) {
   const pct = hpPct(c.personaje_current_hp, c.personaje_hp)
   const initials = (pres?.user_name ?? '?').slice(0, 2).toUpperCase()
   const pokemon = invId != null
@@ -72,7 +74,10 @@ export function PlayerCard({ char: c, pres, invId, hideHp }) {
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-3">
       <div className="flex items-stretch gap-2 overflow-x-auto">
-        <div className={`flex items-center gap-2 rounded-xl p-2 border-2 border-gray-700 shrink-0 w-60 ${bleedClass(pct)}`}>
+        <div onClick={onCharClick ? () => onCharClick(c) : undefined}
+          title={onCharClick ? 'Ver ficha del personaje' : undefined}
+          className={`flex items-center gap-2 rounded-xl p-2 border-2 border-gray-700 shrink-0 w-60 ${bleedClass(pct)}
+            ${onCharClick ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
           <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-300 bg-gray-200 shrink-0 flex items-center justify-center">
             {pres?.avatar_face_url
               ? <img src={pres.avatar_face_url} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
@@ -88,13 +93,14 @@ export function PlayerCard({ char: c, pres, invId, hideHp }) {
             <MiniStat label="DSTF" value={c.personaje_dstf} tone="red" />
           </div>
         </div>
-        {pokemon && <PartyPokemon p={pokemon} hideHp={hideHp} />}
+        {pokemon && <PartyPokemon p={pokemon} hideHp={hideHp}
+          onClick={onPokemonClick ? () => onPokemonClick(c, pokemon) : undefined} />}
       </div>
     </div>
   )
 }
 
-export default function PartyPanel({ partidaId, presentes, selfUserId, partyVersion, hideHp, invocados = {}, onClose }) {
+export default function PartyPanel({ partidaId, presentes, selfUserId, partyVersion, hideHp, invocados = {}, onClose, onCharClick, onPokemonClick }) {
   const [chars, setChars] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -139,7 +145,8 @@ export default function PartyPanel({ partidaId, presentes, selfUserId, partyVers
           ) : visibles.map(({ char: c, pres }) => {
             const key = String(c.id_personaje)
             const invId = key in invocados ? invocados[key] : pres.pokemon_invocado
-            return <PlayerCard key={c.id_personaje} char={c} pres={pres} invId={invId} hideHp={hideHp} />
+            return <PlayerCard key={c.id_personaje} char={c} pres={pres} invId={invId} hideHp={hideHp}
+              onCharClick={onCharClick} onPokemonClick={onPokemonClick} />
           })}
         </div>
       </div>
