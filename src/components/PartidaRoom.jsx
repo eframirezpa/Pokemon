@@ -13,6 +13,7 @@ import PartyPanel, { PlayerCard } from './PartyPanel'
 import CharacterSheet from './CharacterSheet'
 import { PokemonDetailView } from './PokemonBox'
 import PartidaInfoPanel from './PartidaInfoPanel'
+import EdicionJugadoresPanel from './EdicionJugadoresPanel'
 
 const ROLE_DASHBOARD = {
   master:     '/dashboard/master',
@@ -590,7 +591,7 @@ function Snow({ count = 60 }) {
   )
 }
 
-export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null }) {
+export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null, onPartyVersion = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
   const { user }    = useAuth()
@@ -630,6 +631,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
   // Expone el estado de lucha al padre (TrainerPartida oculta iconos de no-seleccionados)
   useEffect(() => { onFight?.(fight) }, [fight, onFight])
+
+  // Notifica al padre cuando cambia la party (para que el trainer re-consulte su flag editable)
+  useEffect(() => { onPartyVersion?.(partyUpdatedAt) }, [partyUpdatedAt, onPartyVersion])
 
   // Datos de la party (para mostrar al rival en modo lucha); se re-consulta en vivo con party_update
   const [fightChars, setFightChars] = useState([])
@@ -1082,6 +1086,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onCast={handleCast}
                 onToggleHidden={handleToggleHidden}
               />
+              <EdicionJugadoresPanel partidaId={id} presentes={presentes} partyVersion={partyUpdatedAt} onAfterChange={sendPartyUpdate} />
               <EventosPanel onBackground={sendBackground} partidaId={id} onUnlock={startEvent}
                 counterCfg={counterCfg} counters={counters} onCounter={changeCounter}
                 onLuchar={(players) => sendFight(players.map(p => ({ id_personaje: p.id_personaje, nombre: p.nombre_personaje || 'Sin nombre', user_id: p.user_id })))}

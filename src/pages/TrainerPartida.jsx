@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
-import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown } from 'lucide-react'
+import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff } from 'lucide-react'
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
 import CharacterSheet from '../components/CharacterSheet'
 import Mochila from '../components/Mochila'
 import Equipamiento from '../components/Equipamiento'
 import PokemonBox from '../components/PokemonBox'
+import MoveInfoModal from '../components/MoveInfoModal'
+import EditarPersonajeModal from '../components/EditarPersonajeModal'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 
@@ -45,98 +47,6 @@ const MOVE_TYPE_COLORS = {
   Ice:'#98D8D8', Fighting:'#C03028', Poison:'#A040A0', Ground:'#E0C068', Flying:'#A890F0',
   Psychic:'#F85888', Bug:'#A8B820', Rock:'#B8A038', Ghost:'#705898', Dragon:'#7038F8',
   Dark:'#705848', Steel:'#B8B8D0', Fairy:'#EE99AC', Typeless:'#9CA3AF',
-}
-
-// Popup con la información detallada de un movimiento (para decidir qué lanzar)
-const hasVal = x => (x ?? '') !== ''
-
-function Fact({ label, value }) {
-  if (!hasVal(value)) return null
-  return (
-    <div className="bg-gray-700/50 rounded-lg px-2 py-1.5 min-w-0">
-      <p className="text-[9px] font-black text-gray-400 uppercase tracking-wide">{label}</p>
-      <p className="text-xs font-semibold text-white leading-snug">{value}</p>
-    </div>
-  )
-}
-
-function MoveInfoModal({ m, onClose }) {
-  const has = hasVal
-  const powers = [m.move_power_1, m.move_power_2, m.move_power_3].filter(has).join(' / ')
-  const damages = [['Nv 1', m.move_damage_level_1], ['Nv 5', m.move_damage_level_5],
-    ['Nv 10', m.move_damage_level_10], ['Nv 17', m.move_damage_level_17]].filter(([, v]) => has(v))
-  const save = [m.move_save_attribute, has(m.move_save_dc) ? `DC ${m.move_save_dc}` : null].filter(Boolean).join(' · ')
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <h3 className="text-white font-bold text-sm truncate">{m.move_name}</h3>
-            <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
-              style={{ backgroundColor: MOVE_TYPE_COLORS[m.move_type] || '#9CA3AF' }}>{m.move_type}</span>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white shrink-0 ml-2"><X size={18} /></button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {/* Datos clave */}
-          <div className="grid grid-cols-2 gap-1.5">
-            <Fact label="Tiempo"   value={m.move_time} />
-            <Fact label="PP"       value={Number(m.move_pp) === 0 ? '∞' : m.move_pp} />
-            <Fact label="Rango"    value={m.move_range} />
-            <Fact label="Duración" value={m.move_duration} />
-            <Fact label="Alcance"  value={m.move_attack_scope} />
-            <Fact label="Poder"    value={powers} />
-            <Fact label="Salvación" value={save} />
-            {Number(m.move_is_concentration) === 1 && <Fact label="Concentración" value="Sí" />}
-          </div>
-
-          {/* Daño por nivel */}
-          {Number(m.move_has_damage) === 1 && damages.length > 0 && (
-            <div className="bg-gray-700/50 rounded-lg px-2 py-1.5">
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-wide mb-1">
-                Daño{has(m.move_damage_type) ? ` (${m.move_damage_type})` : ''}{has(m.move_damage_modifier) ? ` · ${m.move_damage_modifier}` : ''}
-              </p>
-              <div className="grid grid-cols-4 gap-1">
-                {damages.map(([lvl, val]) => (
-                  <div key={lvl} className="text-center">
-                    <p className="text-[9px] font-bold text-gray-400">{lvl}</p>
-                    <p className="text-xs font-bold text-white">{val}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Descripción */}
-          {has(m.move_description) && (
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Descripción</p>
-              <p className="text-xs text-gray-200 leading-relaxed whitespace-pre-line">{m.move_description}</p>
-            </div>
-          )}
-
-          {/* A niveles superiores */}
-          {has(m.move_higher_levels) && (
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">A niveles superiores</p>
-              <p className="text-xs text-gray-200 leading-relaxed whitespace-pre-line">{m.move_higher_levels}</p>
-            </div>
-          )}
-
-          {/* Reglas opcionales */}
-          {has(m.move_optional_rules) && (
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Reglas opcionales</p>
-              <p className="text-xs text-gray-200 leading-relaxed whitespace-pre-line">{m.move_optional_rules}</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
 }
 
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
@@ -273,6 +183,9 @@ export default function TrainerPartida() {
   const [showEquip, setShowEquip]     = useState(false)
   const [showBelt, setShowBelt]       = useState(false)
   const [showPC, setShowPC]           = useState(false)
+  const [showEdit, setShowEdit]       = useState(false)
+  const [isEditable, setIsEditable]   = useState(false) // personaje_is_editable (lo controla el master)
+  const [partyVersion, setPartyVersion] = useState(0)   // cambia cuando el master actualiza la party
   const [pokemonInvocado, setPokemonInvocado] = useState(null) // id_personaje_pokemon
   const [invocadoSprite, setInvocadoSprite]   = useState(null)
   const [openControl, setOpenControl] = useState(null) // 'trainer' | 'pokemon' | null (solo uno a la vez)
@@ -292,6 +205,15 @@ export default function TrainerPartida() {
 
   // Al cambiar el Pokémon invocado (nuevo o regresado), reinicia los PP de sesión
   useEffect(() => { setMovePP({}) }, [pokemonInvocado])
+
+  // Lee si el personaje es editable (lo activa el master). Se re-consulta al recibir party_update.
+  useEffect(() => {
+    if (!personajeId) return
+    apiFetch(`/personaje/${personajeId}`)
+      .then(r => r.json())
+      .then(d => setIsEditable(!!d?.personaje_is_editable))
+      .catch(() => {})
+  }, [personajeId, partyVersion])
 
   // Recupera el personaje del usuario: state → localStorage → backend (para recargas)
   useEffect(() => {
@@ -407,7 +329,7 @@ export default function TrainerPartida() {
   const hideBottomIcons = fight.active && !fight.players.some(p => String(p.id_personaje) === String(personajeId))
 
   return (
-    <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight}>
+    <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion}>
       <div className="absolute inset-0">
         {/* Zona inferior: sprite del jugador + sprite del Pokémon invocado */}
         {!hideBottomIcons && (
@@ -466,6 +388,17 @@ export default function TrainerPartida() {
                 <Monitor size={18} />
               </button>
             )}
+
+            {personajeId && (
+              <button
+                onClick={() => { if (isEditable) setShowEdit(true) }}
+                disabled={!isEditable}
+                className={`${sideBtn} ${isEditable ? '' : 'opacity-40 cursor-not-allowed hover:bg-gray-700'}`}
+                title={isEditable ? 'Editar jugador' : 'Editar jugador (deshabilitado por el master)'}
+              >
+                {isEditable ? <Pencil size={18} /> : <PencilOff size={18} />}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -486,7 +419,7 @@ export default function TrainerPartida() {
             >
               <X size={18} />
             </button>
-            <PokemonList title="Pokédex" />
+            <PokemonList title="Pokédex" moveDetail />
           </div>
         </div>
       )}
@@ -530,6 +463,15 @@ export default function TrainerPartida() {
       {/* Femputadora — Pokémon almacenados */}
       {showPC && personajeId && (
         <PokemonBox personajeId={personajeId} mode="pc" onClose={() => setShowPC(false)} />
+      )}
+
+      {/* Editar jugador (solo si el master lo habilitó) */}
+      {showEdit && personajeId && isEditable && (
+        <EditarPersonajeModal
+          personajeId={personajeId}
+          onClose={() => setShowEdit(false)}
+          onChanged={() => partidaApiRef.current?.sendPartyUpdate?.()}
+        />
       )}
 
       {/* Control del jugador */}

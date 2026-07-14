@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, Loader2, Check, ChevronDown } from 'lucide-react'
 import { apiFetch } from '../api'
+import FeatInfoModal from './FeatInfoModal'
 
 /* Checkbox de solo lectura (estilo de la imagen) */
 function ReadCheck({ checked }) {
@@ -39,11 +40,26 @@ function Row({ label, value }) {
   )
 }
 
+/* Fila de rasgo (feat) clickeable → abre el detalle */
+function FeatRow({ label, feat, onClick }) {
+  if (!feat) return null
+  return (
+    <div className="flex justify-between gap-3 py-1 border-b border-gray-100">
+      <span className="text-xs font-semibold text-red-700 uppercase tracking-wide shrink-0">{label}</span>
+      <button onClick={onClick} title="Ver detalle del rasgo"
+        className="text-sm text-right text-gray-700 underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-red-700 transition-colors">
+        {feat.feat_name}
+      </button>
+    </div>
+  )
+}
+
 export default function CharacterSheet({ id, onClose }) {
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
   const [showDetalles, setShowDetalles] = useState(false)
   const [showMochila, setShowMochila]   = useState(false)
+  const [featInfo, setFeatInfo]         = useState(null) // rasgo cuyo detalle se muestra
 
   useEffect(() => {
     apiFetch(`/personaje/${id}/full`)
@@ -138,6 +154,11 @@ export default function CharacterSheet({ id, onClose }) {
             <div>
               <Row label="Origen"     value={data.origin_name} />
               <Row label="Background" value={data.background_name} />
+              <FeatRow label="Rasgo origen"     feat={data.origin_feat}     onClick={() => setFeatInfo(data.origin_feat)} />
+              <FeatRow label="Rasgo background" feat={data.background_feat} onClick={() => setFeatInfo(data.background_feat)} />
+              {(data.extra_feats || []).map((f, i) => (
+                <FeatRow key={f.personaje_feat_id} label={`Rasgo extra ${i + 1}`} feat={f} onClick={() => setFeatInfo(f)} />
+              ))}
               {data.background_tool_proficiencies_values && (
                 <Row label="Herramientas" value={data.background_tool_proficiencies_values} />
               )}
@@ -264,6 +285,9 @@ export default function CharacterSheet({ id, onClose }) {
           </div>
         )}
       </div>
+
+      {/* Detalle del rasgo (feat) */}
+      {featInfo && <FeatInfoModal feat={featInfo} theme="light" onClose={() => setFeatInfo(null)} />}
     </div>
   )
 }
