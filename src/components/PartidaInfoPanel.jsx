@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, Info, ChevronDown, Loader2 } from 'lucide-react'
 import { apiFetch } from '../api'
+import FeatInfoModal from './FeatInfoModal'
 
 const has = x => (x ?? '') !== ''
 
@@ -29,8 +30,26 @@ function InfoCard({ title, description, values }) {
 
 const joinVals = (...vals) => vals.filter(has).join(', ')
 
+/* Rasgo (feat) clickeable — si hay detalle completo abre el popup; si no, muestra el nombre */
+function FeatChip({ feat, fallbackName, onClick }) {
+  if (!feat && !has(fallbackName)) return null
+  return (
+    <div className="bg-gray-700/50 rounded-lg p-2">
+      <p className="text-xs font-bold text-white mb-0.5">Rasgo</p>
+      {feat ? (
+        <button onClick={() => onClick(feat)} title="Ver detalle del rasgo"
+          className="text-[11px] text-gray-200 underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-amber-300 transition-colors">
+          {feat.feat_name}
+        </button>
+      ) : (
+        <p className="text-[11px] text-gray-200">{fallbackName}</p>
+      )}
+    </div>
+  )
+}
+
 /* Ficha completa del origen */
-function OriginCard({ o }) {
+function OriginCard({ o, feat, onFeatClick }) {
   if (!o) return null
   return (
     <div className="space-y-1.5">
@@ -43,7 +62,7 @@ function OriginCard({ o }) {
           values={joinVals(o.origin_ability_scores_value_1, o.origin_ability_scores_value_2)} />
         <InfoCard title={o.origin_skill_proficiencies_name} description={o.origin_skill_proficiencies_description}
           values={o.origin_skill_proficiencies_value_1} />
-        {has(o.origin_feat_name) && <InfoCard title="Rasgo" values={o.origin_feat_name} />}
+        <FeatChip feat={feat} fallbackName={o.origin_feat_name} onClick={onFeatClick} />
       </div>
       {has(o.origin_notes) && (
         <p className="text-[11px] text-gray-400"><span className="font-bold text-gray-300">Notas: </span>{o.origin_notes}</p>
@@ -53,7 +72,7 @@ function OriginCard({ o }) {
 }
 
 /* Ficha completa del background */
-function BackgroundCard({ b }) {
+function BackgroundCard({ b, feat, onFeatClick }) {
   if (!b) return null
   return (
     <div className="space-y-1.5">
@@ -72,7 +91,7 @@ function BackgroundCard({ b }) {
           values={joinVals(b.background_armor_proficiencies_value_1, b.background_armor_proficiencies_value_2,
             b.background_armor_proficiencies_value_3, b.background_armor_proficiencies_value_4)} />
         <InfoCard title={b.background_weapon_proficiencies_name} description={b.background_weapon_proficiencies_description} />
-        {has(b.background_feat_name) && <InfoCard title="Rasgo" description={b.background_feat_description} values={b.background_feat_name} />}
+        <FeatChip feat={feat} fallbackName={b.background_feat_name} onClick={onFeatClick} />
       </div>
       {has(b.background_notes) && (
         <p className="text-[11px] text-gray-400"><span className="font-bold text-gray-300">Notas: </span>{b.background_notes}</p>
@@ -89,6 +108,7 @@ export default function PartidaInfoPanel({ partidaId, onClose }) {
   const [openId, setOpenId]   = useState(null)
   const [info, setInfo]       = useState({})      // id_personaje → { full, origin, background }
   const [loadingId, setLoadingId] = useState(null)
+  const [featInfo, setFeatInfo]   = useState(null) // rasgo cuyo detalle se muestra
 
   useEffect(() => {
     apiFetch(`/personaje/party?id_partida=${partidaId}`)
@@ -167,8 +187,8 @@ export default function PartidaInfoPanel({ partidaId, onClose }) {
                           ))}
                         </div>
 
-                        <OriginCard o={d.origin} />
-                        <BackgroundCard b={d.background} />
+                        <OriginCard o={d.origin} feat={full.origin_feat} onFeatClick={setFeatInfo} />
+                        <BackgroundCard b={d.background} feat={full.background_feat} onFeatClick={setFeatInfo} />
                       </div>
                     )}
                   </div>
@@ -178,6 +198,9 @@ export default function PartidaInfoPanel({ partidaId, onClose }) {
           })}
         </div>
       </div>
+
+      {/* Detalle del rasgo (feat) */}
+      {featInfo && <FeatInfoModal feat={featInfo} theme="dark" onClose={() => setFeatInfo(null)} />}
     </div>
   )
 }
