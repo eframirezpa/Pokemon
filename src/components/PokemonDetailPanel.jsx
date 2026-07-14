@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { X, Sparkles, ChevronRight, ChevronLeft, ExternalLink, Check } from 'lucide-react'
 import { apiFetch } from '../api'
+import MoveInfoModal from './MoveInfoModal'
 
 /* ── helpers (mismos que PokemonDetail) ── */
 const TYPE_COLORS = {
@@ -57,7 +58,7 @@ function TypeRow({ label, types }) {
   )
 }
 
-function MovesSection({ title, moveNames, movesMap }) {
+function MovesSection({ title, moveNames, movesMap, onMoveClick }) {
   const [open, setOpen] = useState(false)
   if (!moveNames?.length) return null
   const moves = moveNames.map(n => movesMap[n.toLowerCase()]).filter(Boolean)
@@ -85,7 +86,14 @@ function MovesSection({ title, moveNames, movesMap }) {
                 const c = typeBg(m.move_type)
                 return (
                   <tr key={m.move_id} className="border-b border-gray-100 hover:bg-amber-50/50">
-                    <td className="py-1 px-2 font-medium text-gray-800">{m.move_name}</td>
+                    <td className="py-1 px-2 font-medium text-gray-800">
+                      {onMoveClick ? (
+                        <button onClick={() => onMoveClick(m)} title="Ver detalle del movimiento"
+                          className="text-left underline decoration-dotted decoration-[#7A200D]/50 underline-offset-2 hover:text-[#7A200D] transition-colors">
+                          {m.move_name}
+                        </button>
+                      ) : m.move_name}
+                    </td>
                     <td className="py-1 px-2">
                       <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
                         style={{ backgroundColor: c.bg, color: c.dark ? '#374151' : '#fff' }}>
@@ -152,7 +160,7 @@ function TmSection({ tmNumbers, tmsMap }) {
 }
 
 /* ── main component ── */
-export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose }) {
+export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose, moveDetail = false }) {
   const navigate  = useNavigate()
   const [pk,       setPk]      = useState(null)
   const [evols,    setEvols]   = useState([])
@@ -161,6 +169,16 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose }
   const [tmsMap,   setTms]     = useState({})
   const [shiny,    setShiny]   = useState(false)
   const [loading,  setLoading] = useState(true)
+  const [moveInfo, setMoveInfo] = useState(null)   // detalle del movimiento (popup pokédex)
+
+  // Abre el popup con los datos del listado y completa con el detalle del backend
+  const openMoveInfo = useCallback((m) => {
+    setMoveInfo(m)
+    apiFetch(`/moves/${m.move_id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(full => { if (full) setMoveInfo(cur => (cur && cur.move_id === full.move_id) ? full : cur) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!id) return
@@ -448,17 +466,20 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose }
           {/* Moves */}
           <div>
             <h3 className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Movimientos</h3>
-            <MovesSection title="Inicio"   moveNames={splitList(pk.pokemon_moves_start)}   movesMap={movesMap} />
-            <MovesSection title="Nivel 2"  moveNames={splitList(pk.pokemon_moves_level2)}  movesMap={movesMap} />
-            <MovesSection title="Nivel 6"  moveNames={splitList(pk.pokemon_moves_level6)}  movesMap={movesMap} />
-            <MovesSection title="Nivel 10" moveNames={splitList(pk.pokemon_moves_level10)} movesMap={movesMap} />
-            <MovesSection title="Nivel 14" moveNames={splitList(pk.pokemon_moves_level14)} movesMap={movesMap} />
-            <MovesSection title="Nivel 18" moveNames={splitList(pk.pokemon_moves_level18)} movesMap={movesMap} />
-            <MovesSection title="Huevo"    moveNames={splitList(pk.pokemon_moves_egg)}     movesMap={movesMap} />
+            <MovesSection title="Inicio"   moveNames={splitList(pk.pokemon_moves_start)}   movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
+            <MovesSection title="Nivel 2"  moveNames={splitList(pk.pokemon_moves_level2)}  movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
+            <MovesSection title="Nivel 6"  moveNames={splitList(pk.pokemon_moves_level6)}  movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
+            <MovesSection title="Nivel 10" moveNames={splitList(pk.pokemon_moves_level10)} movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
+            <MovesSection title="Nivel 14" moveNames={splitList(pk.pokemon_moves_level14)} movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
+            <MovesSection title="Nivel 18" moveNames={splitList(pk.pokemon_moves_level18)} movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
+            <MovesSection title="Huevo"    moveNames={splitList(pk.pokemon_moves_egg)}     movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
             <TmSection tmNumbers={tmNumbers} tmsMap={tmsMap} />
           </div>
         </div>
       </div>
+
+      {/* Detalle del movimiento (estilo pokédex) */}
+      {moveInfo && <MoveInfoModal m={moveInfo} theme="pokedex" onClose={() => setMoveInfo(null)} />}
     </div>
   )
 }
