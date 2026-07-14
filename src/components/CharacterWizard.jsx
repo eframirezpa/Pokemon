@@ -991,7 +991,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
     try {
       const baseStats   = Object.fromEntries(STAT_FIELDS.map(f => [f.key, stats[f.key] || 0]))
       const bonusStats  = Object.fromEntries(STAT_FIELDS.map(f => [f.key, bonus[f.key] || 0]))
-      const hitPoints   = 6 + (modifiers.personaje_con ?? 0) + hpBonus
+      const hitPoints   = 6 + (displayModifiers.personaje_con ?? 0) + hpBonus
       const pokedollars = pokedollarsRoll === '' ? 0 : 1000 + 100 * Number(pokedollarsRoll)
       const equipo = [
         { id_item: 1,  cantidad: 5 },
@@ -1109,7 +1109,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
           {step === 3 && <StatsStep mode={statsMode} setMode={setStatsMode} stats={stats} setStats={setStats} modifiers={modifiers} />}
           {step === 4 && (
             <IniciativesStep
-              conMod={modifiers.personaje_con ?? 0}
+              conMod={displayModifiers.personaje_con ?? 0}
               hpBonus={hpBonus}
               skills={skillsList}
               iniSkills={iniSkills}
@@ -1277,7 +1277,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
 
       {/* Ventana de verificación antes de crear */}
       {showVerify && (() => {
-        const hitPoints   = 6 + (modifiers.personaje_con ?? 0) + hpBonus
+        const hitPoints   = 6 + (displayModifiers.personaje_con ?? 0) + hpBonus
         const pokedollars = pokedollarsRoll === '' ? 0 : 1000 + 100 * Number(pokedollarsRoll)
         const VRow = ({ label, value }) => (
           <div className="flex justify-between gap-3 py-1 border-b border-gray-100">
