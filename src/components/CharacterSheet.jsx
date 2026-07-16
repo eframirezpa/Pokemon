@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Loader2, Check, ChevronDown } from 'lucide-react'
 import { apiFetch } from '../api'
 import FeatInfoModal from './FeatInfoModal'
+import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
 
 /* Checkbox de solo lectura (estilo de la imagen) */
 function ReadCheck({ checked }) {
@@ -71,11 +72,42 @@ export default function CharacterSheet({ id, onClose }) {
 
   const stats = data?.stats
 
-  // Modificador del ability: FLOOR((base + bonus - 10) / 2)
+  // Efectos de los feats extra (personaje_feat_bonus), aplicados SOLO al visualizar (no se persisten).
+  // Se omiten los feats cuyos prerequisitos no se cumplen (regla todo-o-nada, re-evaluada al mostrar).
+  const featFx = (() => {
+    const statAdd = {}, savingProf = new Set(), skillProf = new Set(), skillExpert = new Set(), armorList = []
+    let hp = 0
+    const ctx = buildPrereqContext(data)
+    for (const ef of (data?.extra_feats || [])) {
+      if (!featPrereqStatus(ef.prereqs, ctx).met) continue
+      for (const b of (ef.bonos || [])) {
+        const type  = (b.type || '').toLowerCase()
+        const llave = (b.llave || '').toLowerCase()
+        if (type === 'stat') statAdd[llave] = (statAdd[llave] || 0) + (Number(b.value) || 0)
+        else if (type === 'skill') { const v = (b.value || '').toLowerCase(); if (v === 'expert') skillExpert.add(llave); else if (v === 'prof') skillProf.add(llave) }
+        else if (type === 'saving') savingProf.add(llave)
+        else if (type === 'healing') hp += Number(b.value) || 0
+      }
+      for (const a of (ef.armor_profs || [])) armorList.push(a)
+    }
+    return { statAdd, savingProf, skillProf, skillExpert, hp, armorList }
+  })()
+
+  // Modificador del ability: FLOOR((base + bonus + feat - 10) / 2)
   const abilMod = (key) => {
     if (!stats) return 0
-    const final = (stats[`personaje_${key}`] || 0) + (stats[`personaje_${key}_bonus`] || 0)
+    const final = (stats[`personaje_${key}`] || 0) + (stats[`personaje_${key}_bonus`] || 0) + (featFx.statAdd[key] || 0)
     return Math.floor((final - 10) / 2)
+  }
+
+  // Proficiencia/expertise de una skill, aplicando los feats extra (regla prof/expert)
+  const skillFlags = (s) => {
+    const name = (s.skill_name || '').toLowerCase()
+    let pref = !!s.personaje_skill_pref
+    let expert = !!s.personaje_skill_expert
+    if (featFx.skillProf.has(name)) pref = true
+    if (featFx.skillExpert.has(name)) { if (pref) expert = true; else pref = true }
+    return { pref, expert }
   }
 
   return (
@@ -101,8 +133,8 @@ export default function CharacterSheet({ id, onClose }) {
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
             {/* HP (barra de solo lectura) + AC + Prof */}
             {(() => {
-              const max = data.personaje_hp || 0
-              const cur = data.personaje_current_hp ?? max
+              const max = (data.personaje_hp || 0) + featFx.hp
+              const cur = (data.personaje_current_hp ?? (data.personaje_hp || 0)) + featFx.hp
               const pct = max > 0 ? Math.max(0, Math.min(100, Math.round((cur / max) * 100))) : 0
               const color = pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444'
               return (
@@ -140,29 +172,13 @@ export default function CharacterSheet({ id, onClose }) {
                     <InfoBox label="Poke lvs"      value={data.personaje_pokelvls} />
                   </div>
 
-                  {/* Saving Throw + armadura + arma */}
-                  <Row label="Saving Throw" value={data.saving_throw_prof} />
-                  {data.armor && <Row label="Armadura" value={data.armor.armor_type_name} />}
-                  {(data.weapons || []).length > 0 && (
-                    <Row label="Arma" value={data.weapons.map(w => w.weapon_type_name).join(', ')} />
+                  {/* Armor Prof (personaje_armor_prof de feats con prereq cumplido, separadas por coma) */}
+                  {featFx.armorList.length > 0 && (
+                    <Row label="Armor Prof" value={featFx.armorList.join(', ')} />
                   )}
                 </div>
               )
             })()}
-
-            {/* General */}
-            <div>
-              <Row label="Origen"     value={data.origin_name} />
-              <Row label="Background" value={data.background_name} />
-              <FeatRow label="Rasgo origen"     feat={data.origin_feat}     onClick={() => setFeatInfo(data.origin_feat)} />
-              <FeatRow label="Rasgo background" feat={data.background_feat} onClick={() => setFeatInfo(data.background_feat)} />
-              {(data.extra_feats || []).map((f, i) => (
-                <FeatRow key={f.personaje_feat_id} label={`Rasgo extra ${i + 1}`} feat={f} onClick={() => setFeatInfo(f)} />
-              ))}
-              {data.background_tool_proficiencies_values && (
-                <Row label="Herramientas" value={data.background_tool_proficiencies_values} />
-              )}
-            </div>
 
             {/* Atributos — todos en una sola línea */}
             {stats && (
@@ -171,10 +187,10 @@ export default function CharacterSheet({ id, onClose }) {
                 <div className="grid grid-cols-3 gap-x-4 gap-y-3">
                   {STATS.map(([label, key]) => {
                     const base  = stats[`personaje_${key}`] || 0
-                    const bonus = stats[`personaje_${key}_bonus`] || 0
+                    const bonus = (stats[`personaje_${key}_bonus`] || 0) + (featFx.statAdd[key] || 0)
                     const final = base + bonus
                     const mod   = Math.floor((final - 10) / 2)
-                    const prof  = stats[`personaje_stats_${key}_prof`]
+                    const prof  = stats[`personaje_stats_${key}_prof`] || featFx.savingProf.has(key)
                     return (
                       <div key={key} className="relative border-2 border-gray-800 rounded-xl bg-white px-3 pt-2 pb-1.5">
                         <div className="flex items-start justify-between">
@@ -201,9 +217,10 @@ export default function CharacterSheet({ id, onClose }) {
               const abilityValue = (s) => {
                 const key = (s.skill_related_ability || '').toLowerCase()
                 if (!stats || stats[`personaje_${key}`] === undefined) return null
+                const { pref, expert } = skillFlags(s)
                 let v = abilMod(key)                      // modificador del ability
-                if (s.personaje_skill_pref)   v += prof   // proficiente
-                if (s.personaje_skill_expert) v += prof   // experto (suma prof otra vez)
+                if (pref)   v += prof                     // proficiente
+                if (expert) v += prof                     // experto (suma prof otra vez)
                 return v
               }
               const half = Math.ceil(data.skills.length / 2)
@@ -221,10 +238,11 @@ export default function CharacterSheet({ id, onClose }) {
                         <div className="space-y-1.5">
                           {col.map((s, i) => {
                             const v = abilityValue(s)
+                            const { pref, expert } = skillFlags(s)
                             return (
                               <div key={i} className="flex items-center gap-1.5">
-                                <ReadCheck checked={!!s.personaje_skill_expert} />
-                                <ReadCheck checked={!!s.personaje_skill_pref} />
+                                <ReadCheck checked={expert} />
+                                <ReadCheck checked={pref} />
                                 <span className={`w-7 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
                                   v != null && v < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                                   {v == null ? '' : fmtMod(v)}
@@ -280,6 +298,25 @@ export default function CharacterSheet({ id, onClose }) {
                     <Row key={i} label={d.nombre_personaje_detail} value={d.descripcion_personaje_detail} />
                   ))}
                 </div>
+              )}
+            </div>
+
+            {/* Info general al final: saving, equipo, origen/background, rasgos y herramientas */}
+            <div className="pt-1 border-t border-gray-100">
+              <Row label="Saving Throw" value={data.saving_throw_prof} />
+              {data.armor && <Row label="Armadura" value={data.armor.armor_type_name} />}
+              {(data.weapons || []).length > 0 && (
+                <Row label="Arma" value={data.weapons.map(w => w.weapon_type_name).join(', ')} />
+              )}
+              <Row label="Origen"     value={data.origin_name} />
+              <Row label="Background" value={data.background_name} />
+              <FeatRow label="Rasgo origen"     feat={data.origin_feat}     onClick={() => setFeatInfo(data.origin_feat)} />
+              <FeatRow label="Rasgo background" feat={data.background_feat} onClick={() => setFeatInfo(data.background_feat)} />
+              {(data.extra_feats || []).map((f, i) => (
+                <FeatRow key={f.personaje_feat_id} label={`Rasgo extra ${i + 1}`} feat={f} onClick={() => setFeatInfo(f)} />
+              ))}
+              {data.background_tool_proficiencies_values && (
+                <Row label="Herramientas" value={data.background_tool_proficiencies_values} />
               )}
             </div>
           </div>

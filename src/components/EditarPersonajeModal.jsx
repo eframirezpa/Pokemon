@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { X, Loader2, Plus, Minus, Search, Info, AlertTriangle, Trash2 } from 'lucide-react'
 import { apiFetch } from '../api'
 import FeatInfoModal from './FeatInfoModal'
+import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
 
 const lower = s => (s ?? '').toLowerCase()
-const isSkillProf = b => lower(b.type) === 'skill' && lower(b.valor) === 'prof'
 
 const STAT_KEYS = ['dex', 'str', 'con', 'int', 'wis', 'cha']
 const statLabel = k => k.toUpperCase()
@@ -36,12 +36,29 @@ const matchesPattern = (values, patterns) => {
   const chosen = values.filter(v => v > 0).sort((a, c) => c - a)
   return patterns.some(p => p.length === chosen.length && p.every((v, i) => v === chosen[i]))
 }
-// ¿La elección de un bono (índice i) está completa y es válida?
+// ¿La elección de un bono stat (índice i) está completa y es válida?
 const bonusResolved = (st, picks) => {
   if (!st || st.mode === 'fixed') return true
   const list = picks || []
   if (st.mode === 'single') return list.length === 1 && st.options.includes(list[0].llave) && list[0].value === st.value
   return matchesPattern(list.map(p => p.value), st.patterns)
+}
+
+// Analiza un feat_bonus de tipo 'skill' (misma lógica que el backend)
+function analyzeSkillBonus(b) {
+  if (lower(b.type) !== 'skill') return null
+  const kind = lower(b.valor)
+  if (kind !== 'prof' && kind !== 'expert') return null
+  return { mode: lower(b.llave).trim() === 'any' ? 'choose' : 'fixed', kind }
+}
+
+// Analiza un feat_bonus de tipo 'armor prof' (misma lógica que el backend)
+function analyzeArmorProfBonus(b) {
+  if (lower(b.type).trim() !== 'armor prof') return null
+  const llave = (b.llave || '').trim()
+  if (/\s+or\s+/i.test(llave))  return { mode: 'or',  options: llave.split(/\s+or\s+/i).map(s => s.trim()).filter(Boolean) }
+  if (/\s+and\s+/i.test(llave)) return { mode: 'and', items:   llave.split(/\s+and\s+/i).map(s => s.trim()).filter(Boolean) }
+  return { mode: 'direct', items: [llave] }
 }
 
 /* Badge de un feat_bonus (mismo criterio que el wizard de creación) */
@@ -60,10 +77,30 @@ function BonusBadge({ b }) {
     else text = `stat: ${b.llave}`
     return <span className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1 shrink-0">{text}</span>
   }
-  if (isSkillProf(b)) {
-    return <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 shrink-0">prof: {lower(b.llave) === 'any' ? 'a elección' : b.llave}</span>
+  const sk = analyzeSkillBonus(b)
+  if (sk) {
+    const isExpert = sk.kind === 'expert'
+    const text = sk.mode === 'choose'
+      ? `${isExpert ? 'expert' : 'prof'} a elección`
+      : `${isExpert ? 'expert' : 'prof'} en: ${b.llave}`
+    const cls = isExpert ? 'text-blue-800 bg-blue-100 border-blue-300' : 'text-green-800 bg-green-100 border-green-300'
+    return <span className={`text-[9px] font-bold rounded px-1 shrink-0 border ${cls}`}>{text}</span>
+  }
+  const ap = analyzeArmorProfBonus(b)
+  if (ap) {
+    const text = ap.mode === 'or' ? `armadura: ${ap.options.join(' o ')}`
+      : ap.mode === 'and' ? `armadura: ${ap.items.join(', ')}`
+      : `armadura: ${ap.items[0]}`
+    return <span className="text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded px-1 shrink-0">{text}</span>
   }
   return <span className="text-[9px] font-bold text-gray-600 bg-gray-100 border border-gray-200 rounded px-1 shrink-0">{b.type}{b.llave ? `: ${b.llave}` : ''}</span>
+}
+
+/* Badges de proficiencias de armadura resueltas (personaje_armor_prof) */
+function ArmorProfBadges({ profs }) {
+  return (profs || []).map((a, i) => (
+    <span key={i} className="text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded px-1 shrink-0">armadura: {a}</span>
+  ))
 }
 
 /* Badges de todos los bonos de un feat */
@@ -71,13 +108,21 @@ function FeatBonusBadges({ bonuses }) {
   return (bonuses || []).map((b, i) => <BonusBadge key={i} b={b} />)
 }
 
-/* Badges de los bonos resueltos (personaje_feat_bonus): "LLAVE +valor" en verde */
+/* Badges de los bonos resueltos (personaje_feat_bonus).
+   skill → prof (verde) / expert (azul); stat/healing → "LLAVE +valor" verde */
 function ResolvedBonusBadges({ bonos }) {
-  return (bonos || []).map((b, i) => (
-    <span key={i} className="text-[9px] font-bold text-green-700 bg-green-50 border border-green-200 rounded px-1 shrink-0">
-      {(b.llave || '').toUpperCase()} +{b.value}
-    </span>
-  ))
+  return (bonos || []).map((b, i) => {
+    if (lower(b.type) === 'skill') {
+      const isExpert = lower(b.value) === 'expert'
+      const cls = isExpert ? 'text-blue-800 bg-blue-100 border-blue-300' : 'text-green-800 bg-green-100 border-green-300'
+      return <span key={i} className={`text-[9px] font-bold rounded px-1 shrink-0 border ${cls}`}>{isExpert ? 'expert' : 'prof'}: {b.llave}</span>
+    }
+    return (
+      <span key={i} className="text-[9px] font-bold text-green-700 bg-green-50 border border-green-200 rounded px-1 shrink-0">
+        {(b.llave || '').toUpperCase()} +{b.value}
+      </span>
+    )
+  })
 }
 
 /* Selector de un stat (elige 1 entre options) */
@@ -125,25 +170,92 @@ function StatDistribute({ options, total, maxPer, dist, setDist, disabled }) {
   )
 }
 
-/* Confirmación de agregado (irreversible) + selección de stats para bonos que lo requieran */
-function ConfirmAddFeat({ feat, busy, error, onCancel, onConfirm }) {
+/* Selector de skills (elige N distintas de una sola lista). Resalta las proficientes; colorea según prof/expert. */
+function SkillPickMany({ skills, proficientNames, kind, count, chosen, onToggle, disabled }) {
+  const full = chosen.length >= count
+  return (
+    <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto">
+      {skills.map(s => {
+        const owned = proficientNames.has(lower(s.skill_name))
+        const sel   = chosen.includes(s.skill_name)
+        let cls
+        if (sel) cls = (kind === 'expert' && owned) ? 'bg-blue-700 text-white border-blue-700' : 'bg-green-600 text-white border-green-600'
+        else if (owned) cls = 'bg-green-50 border-green-300 text-green-700'
+        else cls = 'border-gray-200 text-gray-700 hover:bg-gray-50'
+        return (
+          <button key={s.skill_id} onClick={() => onToggle(s.skill_name)} disabled={disabled || (!sel && full)}
+            className={`text-left text-xs px-2 py-1.5 rounded-lg border transition-colors disabled:opacity-40 ${cls}`}>
+            <span className="font-semibold">{s.skill_name}</span>
+            <span className={sel ? 'text-white/70' : 'text-gray-400'}> ({s.skill_related_ability})</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* Selector OR de armadura (elige 1 entre las opciones separadas por 'or') */
+function ArmorOrSelect({ options, selected, onPick, disabled }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {options.map(opt => {
+        const sel = selected === opt
+        return (
+          <button key={opt} onClick={() => onPick(sel ? null : opt)} disabled={disabled}
+            className={`text-left text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+              sel ? 'border-slate-500 bg-slate-100 text-slate-800 ring-1 ring-slate-400' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+            {opt}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* Confirmación de agregado (irreversible) + selección de stats/skills/armadura para bonos que lo requieran */
+function ConfirmAddFeat({ feat, allSkills, proficientNames, busy, error, onCancel, onConfirm }) {
   const bonuses = feat.feat_bonuses || []
   // Análisis de cada bono (por índice)
-  const analyzed = bonuses.map(analyzeStatBonus)
-  const [single, setSingle] = useState({}) // { i: llave }
-  const [dist, setDist]     = useState({}) // { i: {key: pts} }
+  const stats  = bonuses.map(analyzeStatBonus)
+  const skillsB = bonuses.map(analyzeSkillBonus)
+  const armors = bonuses.map(analyzeArmorProfBonus)
+  const [single, setSingle] = useState({})     // stat single: { i: llave }
+  const [dist, setDist]     = useState({})     // stat distribute: { i: {key: pts} }
+  const [skillSel, setSkillSel] = useState({}) // skill choose por tipo: { kind: [skillNames] }
+  const [armorSel, setArmorSel] = useState({}) // armor or: { i: option }
 
-  // Construye las choices por índice para el backend
-  const picksFor = (i, st) => {
+  // Agrupa los bonos skill/choose por tipo → un solo selector por tipo (N habilidades)
+  const skillGroups = {} // kind → [bonusIndex,...]
+  skillsB.forEach((sk, i) => { if (sk && sk.mode === 'choose') (skillGroups[sk.kind] = skillGroups[sk.kind] || []).push(i) })
+
+  const statPicks = (i) => {
+    const st = stats[i]
     if (!st) return []
     if (st.mode === 'single') return single[i] ? [{ llave: single[i], value: st.value }] : []
     if (st.mode === 'distribute') return Object.entries(dist[i] || {}).filter(([, v]) => v > 0).map(([llave, value]) => ({ llave, value }))
     return []
   }
-  const choices = {}
-  analyzed.forEach((st, i) => { if (st && st.mode !== 'fixed') choices[i] = picksFor(i, st) })
 
-  const allResolved = analyzed.every((st, i) => bonusResolved(st, picksFor(i, st)))
+  // choices por índice para el backend
+  const choices = {}
+  stats.forEach((st, i) => { if (st && st.mode !== 'fixed') choices[i] = statPicks(i) })
+  Object.entries(skillGroups).forEach(([kind, idxs]) => {
+    const picks = skillSel[kind] || []
+    idxs.forEach((bi, j) => { choices[bi] = picks[j] ? [{ llave: picks[j] }] : [] })
+  })
+  armors.forEach((ap, i) => { if (ap && ap.mode === 'or') choices[i] = armorSel[i] ? [{ llave: armorSel[i] }] : [] })
+
+  const toggleSkill = (kind, name, count) => setSkillSel(s => {
+    const cur = s[kind] || []
+    if (cur.includes(name)) return { ...s, [kind]: cur.filter(x => x !== name) }
+    if (cur.length >= count) return s
+    return { ...s, [kind]: [...cur, name] }
+  })
+
+  const statsResolved  = stats.every((st, i) => bonusResolved(st, statPicks(i)))
+  const skillsResolved = Object.entries(skillGroups).every(([kind, idxs]) => (skillSel[kind] || []).length === idxs.length)
+  const armorsResolved = armors.every((ap, i) => !ap || ap.mode !== 'or' || !!armorSel[i])
+  const allResolved    = statsResolved && skillsResolved && armorsResolved
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -162,10 +274,10 @@ function ConfirmAddFeat({ feat, busy, error, onCancel, onConfirm }) {
           </div>
 
           {/* Selección de stats para cada bono que lo requiera */}
-          {analyzed.map((st, i) => {
+          {stats.map((st, i) => {
             if (!st || st.mode === 'fixed') return null
             return (
-              <div key={i} className="border border-gray-200 rounded-xl px-3 py-2.5">
+              <div key={`stat-${i}`} className="border border-gray-200 rounded-xl px-3 py-2.5">
                 {st.mode === 'single' ? (
                   <>
                     <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
@@ -183,6 +295,39 @@ function ConfirmAddFeat({ feat, busy, error, onCancel, onConfirm }) {
                       dist={dist[i] || {}} setDist={d => setDist(s => ({ ...s, [i]: d }))} disabled={busy} />
                   </>
                 )}
+              </div>
+            )
+          })}
+
+          {/* Selección de skills: un solo selector por tipo (N habilidades) */}
+          {Object.entries(skillGroups).map(([kind, idxs]) => {
+            const count = idxs.length
+            const chosen = skillSel[kind] || []
+            return (
+              <div key={`skill-${kind}`} className="border border-gray-200 rounded-xl px-3 py-2.5">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-black uppercase tracking-widest text-gray-500">
+                    {count === 1 ? 'Elige una habilidad' : `Elige ${count} habilidades`} <span className={`normal-case font-semibold ${kind === 'expert' ? 'text-blue-700' : 'text-green-700'}`}>({kind === 'expert' ? 'expertise' : 'proficiencia'})</span>
+                  </p>
+                  <span className="text-[11px] text-gray-500">{chosen.length}/{count}</span>
+                </div>
+                <p className="text-[11px] text-gray-400 mb-2">Las que ya tienes aparecen en verde; puedes elegirlas igual.</p>
+                <SkillPickMany skills={allSkills} proficientNames={proficientNames} kind={kind} count={count}
+                  chosen={chosen} onToggle={name => toggleSkill(kind, name, count)} disabled={busy} />
+              </div>
+            )
+          })}
+
+          {/* Selección de armadura para cada bono armor prof con 'or' */}
+          {armors.map((ap, i) => {
+            if (!ap || ap.mode !== 'or') return null
+            return (
+              <div key={`armor-${i}`} className="border border-gray-200 rounded-xl px-3 py-2.5">
+                <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
+                  Elige una proficiencia de armadura
+                </p>
+                <ArmorOrSelect options={ap.options} selected={armorSel[i]} disabled={busy}
+                  onPick={opt => setArmorSel(s => ({ ...s, [i]: opt }))} />
               </div>
             )
           })}
@@ -255,6 +400,7 @@ function ConfirmDeleteFeat({ feat, busy, error, onCancel, onConfirm }) {
 export default function EditarPersonajeModal({ personajeId, nombre, onClose, onChanged }) {
   const [full, setFull]       = useState(null)   // personaje completo (feats asignados)
   const [catalog, setCatalog] = useState([])     // catálogo de feats (General + Origin) con feat_bonuses
+  const [allSkills, setAllSkills] = useState([]) // catálogo de skills
   const [loading, setLoading] = useState(true)
   const [search, setSearch]   = useState('')
   const [busy, setBusy]       = useState(false)   // guardando (confirmación)
@@ -279,8 +425,17 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
       loadFull(),
       apiFetch('/feats?type=General,Origin&limit=300').then(r => r.json())
         .then(d => setCatalog(d.data ?? [])).catch(() => setCatalog([])),
+      apiFetch('/skills').then(r => r.json())
+        .then(d => setAllSkills(Array.isArray(d) ? d : [])).catch(() => setAllSkills([])),
     ]).finally(() => setLoading(false))
   }, [loadFull])
+
+  // Skills proficientes del personaje (base personaje_skill + las otorgadas por feats)
+  const proficientNames = new Set()
+  for (const s of (full?.skills || [])) if (s.personaje_skill_pref || s.personaje_skill_expert) proficientNames.add(lower(s.skill_name))
+  for (const ef of (full?.extra_feats || [])) for (const bo of (ef.bonos || [])) {
+    if (lower(bo.type) === 'skill') proficientNames.add(lower(bo.llave))
+  }
 
   // Feats ya asignados (origen + background + extra); los no repetibles se ocultan del selector
   const assigned = new Set([
@@ -294,6 +449,13 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
     .filter(f => !search || f.feat_name?.toLowerCase().includes(search.toLowerCase()))
 
   const extraFeats = full?.extra_feats || []
+
+  // Prerequisitos: contexto del personaje + estado por feat (para deshabilitar "Agregar")
+  const prereqCtx = buildPrereqContext(full)
+  const featStatus = (f) => featPrereqStatus(
+    (f.feat_bonuses || []).filter(b => b.prereq).map(b => ({ prereq: b.prereq, valor: b.prereqValor })),
+    prereqCtx
+  )
 
   const doAdd = async (feat, choices) => {
     setBusy(true); setError('')
@@ -367,6 +529,41 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+            {/* Agregar un rasgo (feats General / Origin) */}
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Agregar rasgo</p>
+              <div className="relative mb-2">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar rasgo..."
+                  className="w-full pl-8 pr-7 py-1.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"><X size={13} /></button>}
+              </div>
+              {error && !confirm && <p className="text-xs text-red-600 font-medium mb-2">{error}</p>}
+              <div className="border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                {available.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic px-3 py-3">Sin rasgos disponibles.</p>
+                ) : available.map(f => {
+                  const status = featStatus(f)
+                  return (
+                  <div key={f.feat_id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50">
+                    <button onClick={() => setFeatInfo(f)} title="Ver detalle"
+                      className="text-left min-w-0 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm font-medium text-gray-800 truncate underline decoration-dotted decoration-gray-300 underline-offset-2 hover:text-red-700">{f.feat_name}</span>
+                      {Number(f.feat_is_repeatable) === 1 && <span className="text-[9px] font-bold text-green-700 bg-green-50 border border-green-200 rounded px-1 shrink-0">repetible</span>}
+                      <FeatBonusBadges bonuses={f.feat_bonuses} />
+                      {!status.met && <span className="text-[9px] font-bold text-red-700 bg-red-50 border border-red-200 rounded px-1 shrink-0">{status.reason}</span>}
+                    </button>
+                    <button onClick={() => openConfirm(f)} disabled={busy || !status.met}
+                      title={status.met ? undefined : status.reason}
+                      className="shrink-0 flex items-center gap-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
+                      <Plus size={13} /> Agregar
+                    </button>
+                  </div>
+                  )
+                })}
+              </div>
+            </div>
+
             {/* Rasgos extra ya agregados */}
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Rasgos extra</p>
@@ -381,6 +578,7 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
                           <span className="text-gray-400 font-normal mr-1.5">Rasgo extra {i + 1}:</span>{f.feat_name}
                         </span>
                         <ResolvedBonusBadges bonos={f.bonos} />
+                        <ArmorProfBadges profs={f.armor_profs} />
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <button onClick={() => setFeatInfo(f)} title="Ver detalle" className="text-gray-400 hover:text-red-600">
@@ -395,36 +593,6 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
                 </div>
               )}
             </div>
-
-            {/* Agregar un rasgo (feats General / Origin) */}
-            <div>
-              <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Agregar rasgo</p>
-              <div className="relative mb-2">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar rasgo..."
-                  className="w-full pl-8 pr-7 py-1.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
-                {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"><X size={13} /></button>}
-              </div>
-              {error && !confirm && <p className="text-xs text-red-600 font-medium mb-2">{error}</p>}
-              <div className="border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-64 overflow-y-auto">
-                {available.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic px-3 py-3">Sin rasgos disponibles.</p>
-                ) : available.map(f => (
-                  <div key={f.feat_id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50">
-                    <button onClick={() => setFeatInfo(f)} title="Ver detalle"
-                      className="text-left min-w-0 flex items-center gap-1.5 flex-wrap">
-                      <span className="text-sm font-medium text-gray-800 truncate underline decoration-dotted decoration-gray-300 underline-offset-2 hover:text-red-700">{f.feat_name}</span>
-                      {Number(f.feat_is_repeatable) === 1 && <span className="text-[9px] font-bold text-green-700 bg-green-50 border border-green-200 rounded px-1 shrink-0">repetible</span>}
-                      <FeatBonusBadges bonuses={f.feat_bonuses} />
-                    </button>
-                    <button onClick={() => openConfirm(f)} disabled={busy}
-                      className="shrink-0 flex items-center gap-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
-                      <Plus size={13} /> Agregar
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
       </div>
@@ -433,6 +601,8 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
       {confirm && (
         <ConfirmAddFeat
           feat={confirm}
+          allSkills={allSkills}
+          proficientNames={proficientNames}
           busy={busy}
           error={error}
           onCancel={() => { if (!busy) { setConfirm(null); setError('') } }}
