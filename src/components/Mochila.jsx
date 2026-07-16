@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Plus, Minus, Loader2, Search, PackagePlus, Check } from 'lucide-react'
+import { X, Plus, Minus, Loader2, Search, PackagePlus, Check, Wallet, CreditCard, Coins, Banknote, DollarSign } from 'lucide-react'
 import { apiFetch } from '../api'
 import ItemsList from '../pages/ItemsList'
 import ItemDetailPanel from './ItemDetailPanel'
@@ -27,6 +27,18 @@ export default function Mochila({ personajeId, onClose }) {
   const [showPicker, setPicker] = useState(false)
   const [pickItem, setPickItem] = useState(null)
   const [pickQty, setPickQty]   = useState('1')
+
+  // ── Compra (pokédollars) ──
+  const [pokedollars, setPokedollars] = useState(0)
+  const [showBuy, setShowBuy]   = useState(false)
+  const [buyAmount, setBuyAmount] = useState('')
+  const [buying, setBuying]     = useState(false)
+  const [buyMsg, setBuyMsg]     = useState('')
+
+  // ── Billetera (agregar pokédollars) ──
+  const [addAmount, setAddAmount] = useState('')
+  const [adding, setAdding]       = useState(false)
+  const [addMsg, setAddMsg]       = useState('')
 
   // ── Armaduras ──
   const [armor, setArmor]         = useState([])
@@ -72,7 +84,11 @@ export default function Mochila({ personajeId, onClose }) {
     apiFetch(`/personaje/${personajeId}/weapon`).then(r => r.json())
       .then(d => setWeapons(Array.isArray(d) ? d : [])).catch(() => setWeapons([])).finally(() => setLW(false))
   }
-  useEffect(() => { loadItems() }, [personajeId])
+  const loadCharacter = () => {
+    apiFetch(`/personaje/${personajeId}`).then(r => r.json())
+      .then(d => setPokedollars(Number(d?.pokedollars_personaje) || 0)).catch(() => {})
+  }
+  useEffect(() => { loadItems(); loadCharacter() }, [personajeId])
   useEffect(() => {
     if (tab === 'armaduras') {
       loadArmor()
@@ -96,12 +112,47 @@ export default function Mochila({ personajeId, onClose }) {
     setItems(prev => prev.map(it => it.id_personaje_equipo === idEq ? { ...it, cantidad: c } : it))
     apiFetch(`/personaje/${personajeId}/equipo/${idEq}`, { method: 'PATCH', body: JSON.stringify({ cantidad: c }) }).catch(() => {})
   }
-  const confirmAdd = async () => {
-    const cantidad = Math.max(1, Number(pickQty) || 1)
+  // Paso 1: tras elegir la cantidad, abre el popup de compra (pokédollars a gastar)
+  const proceedToBuy = () => { setBuyMsg(''); setBuyAmount(''); setShowBuy(true) }
+
+  // Paso 2: valida el saldo, descuenta los pokédollars y agrega el item a la mochila
+  const handleBuy = async () => {
+    const amount = Math.floor(Number(buyAmount))
+    if (!Number.isFinite(amount) || amount < 0) { setBuyMsg('Ingresa un número válido'); return }
+    if (pokedollars < amount) { setBuyMsg('No tienes suficientes pokédollars'); return }
+    setBuying(true); setBuyMsg('')
     try {
+      const res = await apiFetch(`/personaje/${personajeId}/pokedollars`, { method: 'PATCH', body: JSON.stringify({ cantidad: amount }) })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        if (j.pokedollars != null) setPokedollars(j.pokedollars)
+        setBuyMsg(j.error || 'No se pudo completar la compra')
+        return
+      }
+      const j = await res.json()
+      setPokedollars(Number(j.pokedollars) || 0)
+      const cantidad = Math.max(1, Number(pickQty) || 1)
       await apiFetch(`/personaje/${personajeId}/equipo`, { method: 'POST', body: JSON.stringify({ id_item: pickItem.item_id, cantidad }) })
-      setPickItem(null); setPicker(false); setPickQty('1'); loadItems()
-    } catch { /* noop */ }
+      setShowBuy(false); setPickItem(null); setPicker(false); setPickQty('1'); setBuyAmount(''); loadItems()
+    } catch {
+      setBuyMsg('No se pudo completar la compra')
+    } finally {
+      setBuying(false)
+    }
+  }
+
+  // Billetera: suma pokédollars al personaje
+  const handleAddPokedollars = async () => {
+    const amount = Math.floor(Number(addAmount))
+    if (!Number.isFinite(amount) || amount <= 0) { setAddMsg('Ingresa una cantidad válida'); return }
+    setAdding(true); setAddMsg('')
+    try {
+      const res = await apiFetch(`/personaje/${personajeId}/pokedollars/add`, { method: 'PATCH', body: JSON.stringify({ cantidad: amount }) })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setAddMsg(j.error || 'No se pudo agregar'); return }
+      const j = await res.json()
+      setPokedollars(Number(j.pokedollars) || 0)
+      setAddAmount('')
+    } catch { setAddMsg('No se pudo agregar') } finally { setAdding(false) }
   }
 
   // ── Acciones armaduras ──
@@ -179,6 +230,7 @@ export default function Mochila({ personajeId, onClose }) {
               <TabBtn id="equipo"    label="Equipo" />
               <TabBtn id="armaduras" label="Armaduras" />
               <TabBtn id="armas"     label="Armas" />
+              <TabBtn id="billetera" label="Billetera" />
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 shrink-0"><X size={18} /></button>
@@ -337,6 +389,57 @@ export default function Mochila({ personajeId, onClose }) {
             )}
           </>
         )}
+
+        {/* ── BILLETERA ── */}
+        {tab === 'billetera' && (
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {/* Tarjeta con el saldo + decorativos */}
+            <div className="relative overflow-hidden rounded-2xl p-5 text-white shadow-lg"
+              style={{ background: 'linear-gradient(135deg, #ef4444 0%, #991b1b 60%, #450a0a 100%)' }}>
+              <Coins size={130} className="absolute -right-5 -bottom-6 opacity-15" />
+              <DollarSign size={90} className="absolute right-16 -top-6 opacity-10" />
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-widest opacity-80">Billetera</span>
+                  <Wallet size={20} className="opacity-90" />
+                </div>
+                {/* chip de tarjeta */}
+                <div className="w-11 h-8 rounded-md mt-4 mb-3 bg-gradient-to-br from-yellow-200 to-yellow-400 shadow-inner" />
+                <p className="text-[11px] font-semibold uppercase tracking-widest opacity-70">Pokédollars disponibles</p>
+                <p className="text-4xl font-black tabular-nums leading-tight mt-0.5">{pokedollars.toLocaleString()} <span className="text-xl">₽</span></p>
+                <div className="flex items-center justify-between mt-4 text-[11px] opacity-80">
+                  <span className="tracking-widest">•••• •••• •••• {String(personajeId ?? 0).padStart(4, '0').slice(-4)}</span>
+                  <CreditCard size={18} />
+                </div>
+              </div>
+            </div>
+
+            {/* Agregar pokédollars */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Pokédollars a agregar</label>
+              <div className="flex gap-2">
+                <input type="number" min="1" step="1" value={addAmount}
+                  onChange={e => { setAddAmount(e.target.value); setAddMsg('') }}
+                  onKeyDown={e => { if (e.key === 'Enter' && !adding) handleAddPokedollars() }}
+                  placeholder="Cantidad"
+                  className="flex-1 px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                <button onClick={handleAddPokedollars} disabled={adding}
+                  className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shrink-0">
+                  {adding ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} Agregar
+                </button>
+              </div>
+              {addMsg && <p className="text-xs text-red-600 font-medium mt-2">{addMsg}</p>}
+            </div>
+
+            {/* Decorativos */}
+            <div className="flex items-center justify-center gap-5 text-gray-300 pt-3">
+              <Coins size={30} />
+              <Banknote size={30} />
+              <CreditCard size={30} />
+              <DollarSign size={30} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detalle de un item del inventario */}
@@ -361,7 +464,7 @@ export default function Mochila({ personajeId, onClose }) {
       )}
 
       {/* Cantidad del item elegido */}
-      {pickItem && (
+      {pickItem && !showBuy && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-200">
@@ -371,12 +474,43 @@ export default function Mochila({ personajeId, onClose }) {
             <div className="px-5 py-4">
               <label className="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
               <input type="number" min="1" value={pickQty} onChange={e => setPickQty(e.target.value)} autoFocus
-                onKeyDown={e => { if (e.key === 'Enter') confirmAdd() }}
+                onKeyDown={e => { if (e.key === 'Enter') proceedToBuy() }}
                 className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
             </div>
             <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between">
               <button onClick={() => setPickItem(null)} className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg">Cancelar</button>
-              <button onClick={confirmAdd} className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">Agregar</button>
+              <button onClick={proceedToBuy} className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">Continuar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Compra: pokédollars a gastar */}
+      {pickItem && showBuy && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200">
+              <h4 className="font-bold text-gray-900 text-sm">Pokédollars a gastar</h4>
+              <p className="text-xs text-gray-500 mt-0.5">{pickItem.item_name} · x{Math.max(1, Number(pickQty) || 1)}</p>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-xs font-semibold text-gray-600 mb-1">
+                Disponibles: <span className="text-green-700 font-bold">{pokedollars.toLocaleString()} ₽</span>
+              </p>
+              <input type="number" min="0" step="1" value={buyAmount} autoFocus
+                onChange={e => { setBuyAmount(e.target.value); setBuyMsg('') }}
+                onKeyDown={e => { if (e.key === 'Enter' && !buying) handleBuy() }}
+                placeholder="Cantidad a gastar"
+                className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+              {buyMsg && <p className="text-xs text-red-600 font-medium mt-2">{buyMsg}</p>}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between">
+              <button onClick={() => { setShowBuy(false); setBuyMsg('') }} disabled={buying}
+                className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg disabled:opacity-40">Volver</button>
+              <button onClick={handleBuy} disabled={buying}
+                className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
+                {buying && <Loader2 size={14} className="animate-spin" />} Comprar
+              </button>
             </div>
           </div>
         </div>
