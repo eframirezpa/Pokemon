@@ -1,4 +1,5 @@
 import { X } from 'lucide-react'
+import { ResolvedBonusBadges, ArmorProfBadges } from './featBonoBadges'
 
 /* Estilos por tema: 'light' (hoja del personaje) y 'dark' (panel del master) */
 const THEMES = {
@@ -53,6 +54,16 @@ export default function FeatInfoModal({ feat, onClose, theme = 'light' }) {
             <div>
               <p className={`font-bold uppercase tracking-widest mb-1 ${t.sectionLabel}`}>Beneficios</p>
               <p className={`leading-relaxed whitespace-pre-line ${t.text}`}>{feat.feat_benefits}</p>
+            </div>
+          )}
+          {/* Bonos ya entrenados (personaje_feat_bonus + armaduras) — bajo los beneficios */}
+          {((feat.bonos || []).length > 0 || (feat.armor_profs || []).length > 0) && (
+            <div>
+              <p className={`font-bold uppercase tracking-widest mb-1 ${t.sectionLabel}`}>Bonos</p>
+              <div className="flex flex-wrap gap-1">
+                <ResolvedBonusBadges bonos={feat.bonos} />
+                <ArmorProfBadges profs={feat.armor_profs} />
+              </div>
             </div>
           )}
           {has(feat.feat_ability_score_increase) && (

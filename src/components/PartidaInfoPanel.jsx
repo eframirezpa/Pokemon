@@ -189,6 +189,21 @@ export default function PartidaInfoPanel({ partidaId, onClose }) {
 
                         <OriginCard o={d.origin} feat={full.origin_feat} onFeatClick={setFeatInfo} />
                         <BackgroundCard b={d.background} feat={full.background_feat} onFeatClick={setFeatInfo} />
+
+                        {/* Rasgos extra (clic → detalle con sus bonos) */}
+                        {(full.extra_feats || []).length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Rasgos extra</p>
+                            <div className="space-y-1">
+                              {full.extra_feats.map((ef, i) => (
+                                <button key={ef.personaje_feat_id} onClick={() => setFeatInfo(ef)}
+                                  className="block w-full text-left text-xs text-gray-200 hover:text-amber-300 underline decoration-dotted decoration-gray-500 underline-offset-2 transition-colors">
+                                  Rasgo extra {i + 1}: {ef.feat_name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

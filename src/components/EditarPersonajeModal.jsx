@@ -3,6 +3,7 @@ import { X, Loader2, Plus, Minus, Search, Info, AlertTriangle, Trash2 } from 'lu
 import { apiFetch } from '../api'
 import FeatInfoModal from './FeatInfoModal'
 import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
+import { ResolvedBonusBadges, ArmorProfBadges } from './featBonoBadges'
 
 const lower = s => (s ?? '').toLowerCase()
 
@@ -61,8 +62,6 @@ function analyzeArmorProfBonus(b) {
   return { mode: 'direct', items: [llave] }
 }
 
-// Separador para los textos capturados (Unit Separator, igual que el backend)
-const TEXT_SEP = String.fromCharCode(31)
 // Analiza un feat_bonus de tipo 'text'. valor = cantidad de cajas a capturar.
 function analyzeTextBonus(b) {
   if (lower(b.type).trim() !== 'text') return null
@@ -107,43 +106,9 @@ function BonusBadge({ b }) {
   return <span className="text-[9px] font-bold text-gray-600 bg-gray-100 border border-gray-200 rounded px-1 shrink-0">{b.type}{b.llave ? `: ${b.llave}` : ''}</span>
 }
 
-/* Badges de proficiencias de armadura resueltas (personaje_armor_prof) */
-function ArmorProfBadges({ profs }) {
-  return (profs || []).map((a, i) => (
-    <span key={i} className="text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded px-1 shrink-0">armadura: {a}</span>
-  ))
-}
-
-/* Badges de todos los bonos de un feat */
+/* Badges de todos los bonos de un feat (definición, en el listado de disponibles) */
 function FeatBonusBadges({ bonuses }) {
   return (bonuses || []).map((b, i) => <BonusBadge key={i} b={b} />)
-}
-
-/* Badges de los bonos resueltos (personaje_feat_bonus).
-   skill → prof (verde) / expert (azul); stat/healing → "LLAVE +valor" verde */
-function ResolvedBonusBadges({ bonos }) {
-  return (bonos || []).map((b, i) => {
-    if (lower(b.type) === 'skill') {
-      const isExpert = lower(b.value) === 'expert'
-      const cls = isExpert ? 'text-blue-800 bg-blue-100 border-blue-300' : 'text-green-800 bg-green-100 border-green-300'
-      return <span key={i} className={`text-[9px] font-bold rounded px-1 shrink-0 border ${cls}`}>{isExpert ? 'expert' : 'prof'}: {b.llave}</span>
-    }
-    if (lower(b.type) === 'text') {
-      const vals = (b.value ?? '').split(TEXT_SEP)
-      const txt = vals.length > 1
-        ? `${b.llave} ${vals.map((v, k) => `${k + 1}. ${v}`).join(' ')}`
-        : `${b.llave} : ${vals[0] ?? ''}`
-      return <span key={i} className="text-[9px] font-bold text-indigo-800 bg-indigo-100 border border-indigo-300 rounded px-1 shrink-0">{txt}</span>
-    }
-    // Bonos sin llave (carriers de prerequisito) → no se muestran (evita el badge "+")
-    const llave = (b.llave || '').trim()
-    if (!llave) return null
-    return (
-      <span key={i} className="text-[9px] font-bold text-green-700 bg-green-50 border border-green-200 rounded px-1 shrink-0">
-        {llave.toUpperCase()} +{b.value}
-      </span>
-    )
-  })
 }
 
 /* Selector de un stat (elige 1 entre options) */
