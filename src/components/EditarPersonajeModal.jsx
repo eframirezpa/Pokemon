@@ -61,6 +61,14 @@ function analyzeArmorProfBonus(b) {
   return { mode: 'direct', items: [llave] }
 }
 
+// Separador para los textos capturados (Unit Separator, igual que el backend)
+const TEXT_SEP = String.fromCharCode(31)
+// Analiza un feat_bonus de tipo 'text'. valor = cantidad de cajas a capturar.
+function analyzeTextBonus(b) {
+  if (lower(b.type).trim() !== 'text') return null
+  return { count: Math.max(1, parseInt(b.valor, 10) || 1), llave: b.llave || '' }
+}
+
 /* Badge de un feat_bonus (mismo criterio que el wizard de creación) */
 function BonusBadge({ b }) {
   const type = lower(b.type)
@@ -93,6 +101,9 @@ function BonusBadge({ b }) {
       : `armadura: ${ap.items[0]}`
     return <span className="text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded px-1 shrink-0">{text}</span>
   }
+  if (analyzeTextBonus(b)) {
+    return <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1 shrink-0">{b.llave} X {b.valor}</span>
+  }
   return <span className="text-[9px] font-bold text-gray-600 bg-gray-100 border border-gray-200 rounded px-1 shrink-0">{b.type}{b.llave ? `: ${b.llave}` : ''}</span>
 }
 
@@ -117,9 +128,19 @@ function ResolvedBonusBadges({ bonos }) {
       const cls = isExpert ? 'text-blue-800 bg-blue-100 border-blue-300' : 'text-green-800 bg-green-100 border-green-300'
       return <span key={i} className={`text-[9px] font-bold rounded px-1 shrink-0 border ${cls}`}>{isExpert ? 'expert' : 'prof'}: {b.llave}</span>
     }
+    if (lower(b.type) === 'text') {
+      const vals = (b.value ?? '').split(TEXT_SEP)
+      const txt = vals.length > 1
+        ? `${b.llave} ${vals.map((v, k) => `${k + 1}. ${v}`).join(' ')}`
+        : `${b.llave} : ${vals[0] ?? ''}`
+      return <span key={i} className="text-[9px] font-bold text-indigo-800 bg-indigo-100 border border-indigo-300 rounded px-1 shrink-0">{txt}</span>
+    }
+    // Bonos sin llave (carriers de prerequisito) → no se muestran (evita el badge "+")
+    const llave = (b.llave || '').trim()
+    if (!llave) return null
     return (
       <span key={i} className="text-[9px] font-bold text-green-700 bg-green-50 border border-green-200 rounded px-1 shrink-0">
-        {(b.llave || '').toUpperCase()} +{b.value}
+        {llave.toUpperCase()} +{b.value}
       </span>
     )
   })
@@ -213,7 +234,7 @@ function ArmorOrSelect({ options, selected, onPick, disabled }) {
 }
 
 /* Confirmación de agregado (irreversible) + selección de stats/skills/armadura para bonos que lo requieran */
-function ConfirmAddFeat({ feat, allSkills, proficientNames, busy, error, onCancel, onConfirm }) {
+function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, busy, error, onCancel, onConfirm }) {
   const bonuses = feat.feat_bonuses || []
   // Análisis de cada bono (por índice)
   const stats  = bonuses.map(analyzeStatBonus)
@@ -244,6 +265,8 @@ function ConfirmAddFeat({ feat, allSkills, proficientNames, busy, error, onCance
     idxs.forEach((bi, j) => { choices[bi] = picks[j] ? [{ llave: picks[j] }] : [] })
   })
   armors.forEach((ap, i) => { if (ap && ap.mode === 'or') choices[i] = armorSel[i] ? [{ llave: armorSel[i] }] : [] })
+  // Textos capturados antes de la confirmación (bonos tipo 'text')
+  Object.entries(textChoices).forEach(([bi, arr]) => { choices[bi] = arr })
 
   const toggleSkill = (kind, name, count) => setSkillSel(s => {
     const cur = s[kind] || []
@@ -395,6 +418,130 @@ function ConfirmDeleteFeat({ feat, busy, error, onCancel, onConfirm }) {
   )
 }
 
+/* Captura secuencial de textos (bonos tipo 'text'): una caja a la vez, título = llave + número */
+function CaptureTextModal({ steps, onCancel, onDone }) {
+  const [idx, setIdx]   = useState(0)
+  const [vals, setVals] = useState(() => steps.map(() => ''))
+  const step = steps[idx]
+  const cur  = vals[idx]
+  const setCur = (v) => setVals(a => a.map((x, i) => (i === idx ? v : x)))
+  const canNext = cur.trim() !== ''
+  const isLast  = idx === steps.length - 1
+  const next = () => { if (!canNext) return; if (isLast) onDone(vals.map(v => v.trim())); else setIdx(i => i + 1) }
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+      <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h4 className="font-bold text-gray-900 text-sm">{step.llave} {step.num}</h4>
+            {steps.length > 1 && <p className="text-[11px] text-gray-400 mt-0.5">{idx + 1} de {steps.length}</p>}
+          </div>
+          <button onClick={onCancel} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+        </div>
+        <div className="px-5 py-4">
+          <input value={cur} onChange={e => setCur(e.target.value)} autoFocus
+            onKeyDown={e => { if (e.key === 'Enter') next() }} placeholder="Escribe aquí..."
+            className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+        </div>
+        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between">
+          <button onClick={idx === 0 ? onCancel : () => setIdx(i => i - 1)}
+            className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg">{idx === 0 ? 'Cancelar' : 'Atrás'}</button>
+          <button onClick={next} disabled={!canNext}
+            className="bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
+            {isLast ? 'Listo' : 'Siguiente'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* Manejo especial del feat Skilled (id 10): exactamente 3 entre proficiencias de skill y textos de 'Tool Prof' */
+function SkilledModal({ allSkills, proficientNames, busy, error, onCancel, onConfirm }) {
+  const TOTAL = 3
+  const [skills, setSkills] = useState([]) // skill names
+  const [texts, setTexts]   = useState([]) // strings de Tool Prof
+  const used = skills.length + texts.length
+
+  const toggleSkill = (name) => setSkills(s => {
+    if (s.includes(name)) return s.filter(x => x !== name)
+    if (s.length + texts.length >= TOTAL) return s
+    return [...s, name]
+  })
+  const addText = () => setTexts(t => (t.length + skills.length < TOTAL ? [...t, ''] : t))
+  const setText = (i, v) => setTexts(t => t.map((x, k) => (k === i ? v : x)))
+  const removeText = (i) => setTexts(t => t.filter((_, k) => k !== i))
+  const canConfirm = used === TOTAL && texts.every(t => t.trim() !== '') && !busy
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      onClick={e => { if (e.target === e.currentTarget && !busy) onCancel() }}>
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+          <h3 className="font-bold text-gray-900 truncate">Skilled</h3>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="text-xs font-bold text-gray-500">{used}/{TOTAL}</span>
+            <button onClick={onCancel} disabled={busy} className="text-gray-400 hover:text-gray-700 disabled:opacity-40"><X size={18} /></button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          <p className="text-[11px] text-gray-500">Elige 3 en total entre proficiencias de habilidad y textos de Tool Prof.</p>
+
+          {/* Skills (proficiencia) */}
+          <div className="border border-gray-200 rounded-xl px-3 py-2.5">
+            <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
+              Habilidades <span className="text-green-700 normal-case font-semibold">(proficiencia)</span>
+            </p>
+            <p className="text-[11px] text-gray-400 mb-2">Las que ya tienes aparecen en verde; puedes elegirlas igual.</p>
+            <SkillPickMany skills={allSkills} proficientNames={proficientNames} kind="prof" count={TOTAL - texts.length}
+              chosen={skills} onToggle={toggleSkill} disabled={busy} />
+          </div>
+
+          {/* Tool Prof (textos) */}
+          <div className="border border-gray-200 rounded-xl px-3 py-2.5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-black uppercase tracking-widest text-gray-500">Tool Prof</p>
+              <button onClick={addText} disabled={busy || used >= TOTAL}
+                className="flex items-center gap-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 rounded-md transition-colors">
+                <Plus size={13} /> Texto
+              </button>
+            </div>
+            {texts.length === 0 ? (
+              <p className="text-[11px] text-gray-400 italic">Sin textos de Tool Prof.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {texts.map((t, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input value={t} onChange={e => setText(i, e.target.value)} placeholder="Escribe aquí..." disabled={busy}
+                      className="flex-1 px-2.5 py-1.5 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                    <button onClick={() => removeText(i)} disabled={busy} className="text-gray-400 hover:text-red-600 shrink-0"><Trash2 size={15} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800">Esta acción <span className="font-bold">no se puede deshacer</span>.</p>
+          </div>
+          {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+        </div>
+
+        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
+          <button onClick={onCancel} disabled={busy} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
+          <button onClick={() => onConfirm({ skills, texts: texts.map(t => t.trim()).filter(Boolean) })} disabled={!canConfirm}
+            className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
+            {busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* Ventana de edición del jugador. Por ahora solo permite agregar feats (tipo General u Origin).
    onChanged: se llama tras agregar un feat (para refrescar la ficha / party). */
 export default function EditarPersonajeModal({ personajeId, nombre, onClose, onChanged }) {
@@ -407,6 +554,9 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
   const [error, setError]     = useState('')
   const [featInfo, setFeatInfo] = useState(null)  // detalle de un feat
   const [confirm, setConfirm]   = useState(null)  // feat pendiente de confirmar (agregar)
+  const [skilled, setSkilled]   = useState(null)  // feat Skilled (manejo especial)
+  const [capture, setCapture]   = useState(null)  // { feat, steps } captura de texto en curso
+  const [textChoices, setTextChoices] = useState({}) // { bonusIndex: [{text}] }
   const [confirmDel, setConfirmDel] = useState(null) // feat extra pendiente de eliminar
   const [busyDel, setBusyDel]   = useState(false)
   const [errorDel, setErrorDel] = useState('')
@@ -470,7 +620,7 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
       }
       await loadFull()
       onChanged?.()
-      setConfirm(null)
+      setConfirm(null); setSkilled(null)
     } catch {
       setError('No se pudo agregar el rasgo')
     } finally {
@@ -478,7 +628,28 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
     }
   }
 
-  const openConfirm = (feat) => { setError(''); setConfirm(feat) }
+  const openConfirm = (feat) => {
+    setError(''); setTextChoices({})
+    // Feat Skilled (id 10): modal combinado especial
+    if (Number(feat.feat_id) === 10) { setSkilled(feat); return }
+    // Si el feat tiene bonos de tipo 'text', primero se capturan (popups secuenciales)
+    const steps = []
+    ;(feat.feat_bonuses || []).forEach((b, bi) => {
+      const tx = analyzeTextBonus(b)
+      if (tx) for (let n = 1; n <= tx.count; n++) steps.push({ bi, llave: tx.llave, num: n })
+    })
+    if (steps.length > 0) setCapture({ feat, steps })
+    else setConfirm(feat)
+  }
+
+  // Al terminar la captura de texto, agrupa por bono y pasa a la confirmación
+  const finishCapture = (vals) => {
+    const tc = {}
+    capture.steps.forEach((s, i) => { (tc[s.bi] = tc[s.bi] || []).push({ text: vals[i] }) })
+    setTextChoices(tc)
+    setConfirm(capture.feat)
+    setCapture(null)
+  }
 
   const doDelete = async (f) => {
     setBusyDel(true); setErrorDel('')
@@ -597,12 +768,34 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
         )}
       </div>
 
+      {/* Skilled (feat 10): modal combinado especial */}
+      {skilled && (
+        <SkilledModal
+          allSkills={allSkills}
+          proficientNames={proficientNames}
+          busy={busy}
+          error={error}
+          onCancel={() => { if (!busy) { setSkilled(null); setError('') } }}
+          onConfirm={(payload) => doAdd(skilled, { skilled: payload })}
+        />
+      )}
+
+      {/* Captura de textos (bonos tipo 'text') antes de confirmar */}
+      {capture && (
+        <CaptureTextModal
+          steps={capture.steps}
+          onCancel={() => setCapture(null)}
+          onDone={finishCapture}
+        />
+      )}
+
       {/* Confirmación de agregado */}
       {confirm && (
         <ConfirmAddFeat
           feat={confirm}
           allSkills={allSkills}
           proficientNames={proficientNames}
+          textChoices={textChoices}
           busy={busy}
           error={error}
           onCancel={() => { if (!busy) { setConfirm(null); setError('') } }}
