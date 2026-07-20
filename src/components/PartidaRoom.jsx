@@ -1199,7 +1199,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
       {/* Ficha completa del personaje abierta desde el party (master) */}
       {inspectCharId != null && (
-        <CharacterSheet id={inspectCharId} onClose={() => setInspectCharId(null)} />
+        <CharacterSheet id={inspectCharId} onClose={() => setInspectCharId(null)}
+          partyVersion={partyUpdatedAt} onChanged={sendPartyUpdate} />
       )}
 
       {/* Detalle completo del Pokémon abierto desde el party (master) */}

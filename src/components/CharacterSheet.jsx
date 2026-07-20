@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Loader2, Check, ChevronDown } from 'lucide-react'
+import { X, Loader2, Check, ChevronDown, Clock } from 'lucide-react'
 import { apiFetch } from '../api'
 import FeatInfoModal from './FeatInfoModal'
 import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
@@ -55,31 +55,52 @@ function FeatRow({ label, feat, onClick }) {
   )
 }
 
-export default function CharacterSheet({ id, onClose }) {
+export default function CharacterSheet({ id, onClose, partyVersion = 0, onChanged }) {
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
   const [showDetalles, setShowDetalles] = useState(false)
   const [showMochila, setShowMochila]   = useState(false)
   const [featInfo, setFeatInfo]         = useState(null) // rasgo cuyo detalle se muestra
 
+  // Carga inicial + re-carga cuando cambia la party (para reflejar cambios en vivo del otro panel)
   useEffect(() => {
     apiFetch(`/personaje/${id}/full`)
       .then(r => r.json())
       .then(setData)
-      .catch(() => setData(null))
+      .catch(() => setData(prev => prev || null))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, partyVersion])
+
+  // Alterna la disponibilidad de un rasgo extra (optimista + persiste + difunde a la party)
+  const toggleFeat = async (feat) => {
+    const next = !feat.personaje_feat_is_available
+    const apply = (val) => setData(d => d && ({
+      ...d,
+      extra_feats: (d.extra_feats || []).map(f => f.personaje_feat_id === feat.personaje_feat_id ? { ...f, personaje_feat_is_available: val } : f),
+    }))
+    apply(next)
+    try {
+      const res = await apiFetch(`/personaje/${id}/feats/${feat.personaje_feat_id}/available`, { method: 'PATCH', body: JSON.stringify({ is_available: next }) })
+      if (!res.ok) throw new Error()
+      onChanged?.()
+    } catch {
+      apply(!next) // revierte si falla
+    }
+  }
 
   const stats = data?.stats
+
+  // ¿El feat extra cumple sus prerequisitos? (para omitir sus bonos y marcarlo como deshabilitado)
+  const prereqCtx = data ? buildPrereqContext(data) : null
+  const featMet = (f) => !prereqCtx || featPrereqStatus(f.prereqs, prereqCtx).met
 
   // Efectos de los feats extra (personaje_feat_bonus), aplicados SOLO al visualizar (no se persisten).
   // Se omiten los feats cuyos prerequisitos no se cumplen (regla todo-o-nada, re-evaluada al mostrar).
   const featFx = (() => {
     const statAdd = {}, savingProf = new Set(), skillProf = new Set(), skillExpert = new Set(), armorList = []
     let hp = 0
-    const ctx = buildPrereqContext(data)
     for (const ef of (data?.extra_feats || [])) {
-      if (!featPrereqStatus(ef.prereqs, ctx).met) continue
+      if (!featMet(ef)) continue
       for (const b of (ef.bonos || [])) {
         const type  = (b.type || '').toLowerCase()
         const llave = (b.llave || '').toLowerCase()
@@ -137,6 +158,18 @@ export default function CharacterSheet({ id, onClose }) {
               const cur = (data.personaje_current_hp ?? (data.personaje_hp || 0)) + featFx.hp
               const pct = max > 0 ? Math.max(0, Math.min(100, Math.round((cur / max) * 100))) : 0
               const color = pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444'
+              // AC recalculado: armadura + modificador de DEX (con los bonos de feats). Sin armadura → AC guardado.
+              const ac = (() => {
+                const a = data.armor
+                if (!a) return data.personaje_ac
+                let v = a.armor_type_base_ac || 0
+                if (a.armor_type_uses_dex_modifier === 1) {
+                  const dexMod = abilMod('dex')
+                  v += (a.armor_type_max_dex_modifier != null) ? Math.min(dexMod, a.armor_type_max_dex_modifier) : dexMod
+                }
+                if (a.armor_type_ac_bonus != null) v += a.armor_type_ac_bonus
+                return v
+              })()
               return (
                 <div className="space-y-3">
                   {/* Barra de vida + AC / Prof / Init */}
@@ -150,7 +183,7 @@ export default function CharacterSheet({ id, onClose }) {
                         <div className="h-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: color }} />
                       </div>
                     </div>
-                    <InfoBox label="AC"   value={data.personaje_ac} />
+                    <InfoBox label="AC"   value={ac} />
                     <InfoBox label="Prof"
                       value={data.personaje_prof != null ? fmtMod(data.personaje_prof) : '—'}
                       danger={(data.personaje_prof ?? 0) < 0} />
@@ -312,9 +345,34 @@ export default function CharacterSheet({ id, onClose }) {
               <Row label="Background" value={data.background_name} />
               <FeatRow label="Rasgo origen"     feat={data.origin_feat}     onClick={() => setFeatInfo(data.origin_feat)} />
               <FeatRow label="Rasgo background" feat={data.background_feat} onClick={() => setFeatInfo(data.background_feat)} />
-              {(data.extra_feats || []).map((f, i) => (
-                <FeatRow key={f.personaje_feat_id} label={`Rasgo extra ${i + 1}`} feat={f} onClick={() => setFeatInfo(f)} />
-              ))}
+              {(data.extra_feats || []).map((f, i) => {
+                const met = featMet(f)
+                return (
+                <div key={f.personaje_feat_id} className={`flex items-center justify-between gap-3 py-1 border-b border-gray-100 ${met ? '' : 'opacity-60'}`}>
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                    <span className={`text-xs font-semibold uppercase tracking-wide shrink-0 ${met ? 'text-red-700' : 'text-gray-400'}`}>Rasgo extra {i + 1}</span>
+                    {!met && <span className="text-[10px] font-bold text-amber-800 bg-yellow-100 border border-yellow-300 rounded px-1.5 py-0.5">No cumple prerequisitos</span>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <button onClick={() => setFeatInfo(f)} title="Ver detalle del rasgo"
+                      className={`text-sm text-right underline decoration-dotted decoration-gray-400 underline-offset-2 transition-colors ${met ? 'text-gray-700 hover:text-red-700' : 'text-gray-400 hover:text-gray-600'}`}>
+                      {f.feat_name}
+                    </button>
+                    <button onClick={() => toggleFeat(f)}
+                      className={`w-4 h-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        f.personaje_feat_is_available ? 'bg-green-600 border-green-600' : 'border-gray-300 bg-white hover:border-green-400'}`}
+                      title={f.personaje_feat_is_available ? 'Marcar como no disponible' : 'Marcar como disponible'}>
+                      {f.personaje_feat_is_available && <Check size={11} className="text-white" strokeWidth={3} />}
+                    </button>
+                    {f.personaje_feat_is_available ? (
+                      <span className="text-[10px] font-bold text-green-700 bg-green-100 border border-green-300 rounded px-1.5 py-0.5">Activado</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-red-600 bg-yellow-100 border border-yellow-300 rounded px-1.5 py-0.5 inline-flex items-center gap-1">No disponible <Clock size={11} /></span>
+                    )}
+                  </div>
+                </div>
+                )
+              })}
               {data.background_tool_proficiencies_values && (
                 <Row label="Herramientas" value={data.background_tool_proficiencies_values} />
               )}

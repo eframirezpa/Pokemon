@@ -426,7 +426,9 @@ export default function TrainerPartida() {
 
       {/* Hoja del personaje */}
       {showChar && personajeId && (
-        <CharacterSheet id={personajeId} onClose={() => setShowChar(false)} />
+        <CharacterSheet id={personajeId} onClose={() => setShowChar(false)}
+          partyVersion={partyVersion}
+          onChanged={() => partidaApiRef.current?.sendPartyUpdate?.()} />
       )}
 
       {/* Mochila */}

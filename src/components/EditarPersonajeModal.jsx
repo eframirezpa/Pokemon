@@ -422,6 +422,83 @@ function CaptureTextModal({ steps, onCancel, onDone }) {
   )
 }
 
+// Feats que usan selector de armas en vez de cajas de texto → feat_id: ¿solo armas Martial?
+const WEAPON_FEATS = { 32: true, 48: false } // 32 Martial Weapon Training (solo Martial), 48 Weapon Master (todas)
+
+/* Selector de armas (weapon_types): elige N armas. Si martialOnly, solo las de categoría "Martial".
+   Los nombres elegidos se guardan igual que los textos (bono tipo 'text'). */
+function WeaponPickModal({ llave, count, martialOnly = false, onCancel, onDone }) {
+  const [weapons, setWeapons] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch]   = useState('')
+  const [chosen, setChosen]   = useState([])
+
+  useEffect(() => {
+    apiFetch('/weapon-types?limit=500').then(r => r.json())
+      .then(d => {
+        const all = Array.isArray(d.data) ? d.data : []
+        setWeapons(martialOnly ? all.filter(w => /martial/i.test(w.weapon_type_dnd_category || '')) : all)
+      })
+      .catch(() => setWeapons([]))
+      .finally(() => setLoading(false))
+  }, [martialOnly])
+
+  const isFull = chosen.length >= count
+  const toggle = (name) => setChosen(c => c.includes(name) ? c.filter(x => x !== name) : (c.length < count ? [...c, name] : c))
+  const list = weapons.filter(w => !search || w.weapon_type_name?.toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      onClick={e => { if (e.target === e.currentTarget) onCancel() }}>
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+          <div>
+            <h4 className="font-bold text-gray-900 text-sm">{llave}</h4>
+            <p className="text-[11px] text-gray-500 mt-0.5">Elige {count} {count === 1 ? 'arma' : 'armas'} · {chosen.length}/{count}</p>
+          </div>
+          <button onClick={onCancel} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+        </div>
+
+        <div className="px-4 pt-3 pb-2 shrink-0">
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar arma..."
+              className="w-full pl-8 pr-3 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16 text-gray-400"><Loader2 className="animate-spin mr-2" size={18} /> Cargando...</div>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-4 pb-3">
+            <div className="grid grid-cols-2 gap-1.5">
+              {list.map(w => {
+                const sel = chosen.includes(w.weapon_type_name)
+                return (
+                  <button key={w.weapon_type_id} onClick={() => toggle(w.weapon_type_name)} disabled={!sel && isFull}
+                    className={`text-left text-xs px-2 py-1.5 rounded-lg border transition-colors disabled:opacity-40 ${
+                      sel ? 'bg-green-600 text-white border-green-600' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                    <span className="font-semibold">{w.weapon_type_name}</span>
+                    <span className={sel ? 'text-white/70' : 'text-gray-400'}> ({w.weapon_type_dnd_category?.replace(/ Weapons$/i, '')})</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between shrink-0">
+          <button onClick={onCancel} className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg">Cancelar</button>
+          <button onClick={() => onDone(chosen)} disabled={chosen.length !== count}
+            className="bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
+            Listo
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* Manejo especial del feat Skilled (id 10): exactamente 3 entre proficiencias de skill y textos de 'Tool Prof' */
 function SkilledModal({ allSkills, proficientNames, busy, error, onCancel, onConfirm }) {
   const TOTAL = 3
@@ -521,6 +598,7 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
   const [confirm, setConfirm]   = useState(null)  // feat pendiente de confirmar (agregar)
   const [skilled, setSkilled]   = useState(null)  // feat Skilled (manejo especial)
   const [capture, setCapture]   = useState(null)  // { feat, steps } captura de texto en curso
+  const [weaponPick, setWeaponPick] = useState(null) // { feat, bi, llave, count } selector de armas Martial
   const [textChoices, setTextChoices] = useState({}) // { bonusIndex: [{text}] }
   const [confirmDel, setConfirmDel] = useState(null) // feat extra pendiente de eliminar
   const [busyDel, setBusyDel]   = useState(false)
@@ -597,6 +675,16 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
     setError(''); setTextChoices({})
     // Feat Skilled (id 10): modal combinado especial
     if (Number(feat.feat_id) === 10) { setSkilled(feat); return }
+    // Feats de armas (Martial Weapon Training / Weapon Master): selector de armas en vez de cajas de texto
+    const martialOnly = WEAPON_FEATS[Number(feat.feat_id)]
+    if (martialOnly !== undefined) {
+      const bi = (feat.feat_bonuses || []).findIndex(b => analyzeTextBonus(b))
+      if (bi >= 0) {
+        const tx = analyzeTextBonus(feat.feat_bonuses[bi])
+        setWeaponPick({ feat, bi, llave: tx.llave, count: tx.count, martialOnly })
+        return
+      }
+    }
     // Si el feat tiene bonos de tipo 'text', primero se capturan (popups secuenciales)
     const steps = []
     ;(feat.feat_bonuses || []).forEach((b, bi) => {
@@ -742,6 +830,21 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
           error={error}
           onCancel={() => { if (!busy) { setSkilled(null); setError('') } }}
           onConfirm={(payload) => doAdd(skilled, { skilled: payload })}
+        />
+      )}
+
+      {/* Selector de armas Martial (feat Martial Weapon Training) */}
+      {weaponPick && (
+        <WeaponPickModal
+          llave={weaponPick.llave}
+          count={weaponPick.count}
+          martialOnly={weaponPick.martialOnly}
+          onCancel={() => setWeaponPick(null)}
+          onDone={(names) => {
+            setTextChoices({ [weaponPick.bi]: names.map(n => ({ text: n })) })
+            setConfirm(weaponPick.feat)
+            setWeaponPick(null)
+          }}
         />
       )}
 
