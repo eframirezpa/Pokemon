@@ -24,6 +24,7 @@ const STATS = [
   ['INT', 'int'], ['WIS', 'wis'], ['CHA', 'cha'],
 ]
 const fmtMod = m => (m >= 0 ? `+${m}` : `${m}`)
+const FEAT_MEDIUM_ARMOR_MASTER = 33 // sube a +3 el tope del modificador de DEX en la armadura
 
 function InfoBox({ label, value, danger = false, green = false, red = false }) {
   const box = green ? 'border-green-600 bg-green-100' : red ? 'border-red-600 bg-red-100' : 'border-gray-800 bg-white'
@@ -104,9 +105,11 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
   // Se omiten los feats cuyos prerequisitos no se cumplen (regla todo-o-nada, re-evaluada al mostrar).
   const featFx = (() => {
     const statAdd = {}, savingProf = new Set(), skillProf = new Set(), skillExpert = new Set(), armorList = []
-    let hp = 0
+    let hp = 0, maxDexCap = null
     for (const ef of (data?.extra_feats || [])) {
       if (!featMet(ef)) continue
+      // Medium Armor Master: el tope del modificador de DEX de la armadura sube de +2 a +3
+      if (Number(ef.feat_id) === FEAT_MEDIUM_ARMOR_MASTER) maxDexCap = 3
       for (const b of (ef.bonos || [])) {
         const type  = (b.type || '').toLowerCase()
         const llave = (b.llave || '').toLowerCase()
@@ -117,7 +120,7 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
       }
       for (const a of (ef.armor_profs || [])) armorList.push(a)
     }
-    return { statAdd, savingProf, skillProf, skillExpert, hp, armorList }
+    return { statAdd, savingProf, skillProf, skillExpert, hp, armorList, maxDexCap }
   })()
 
   // Efectos de las especialidades (personaje_specializations_bonus), también solo al visualizar.
@@ -189,7 +192,15 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                 let v = a.armor_type_base_ac || 0
                 if (a.armor_type_uses_dex_modifier === 1) {
                   const dexMod = abilMod('dex')
-                  v += (a.armor_type_max_dex_modifier != null) ? Math.min(dexMod, a.armor_type_max_dex_modifier) : dexMod
+                  if (a.armor_type_max_dex_modifier != null) {
+                    // Medium Armor Master eleva el tope de la armadura (de +2 a +3)
+                    const cap = featFx.maxDexCap != null
+                      ? Math.max(a.armor_type_max_dex_modifier, featFx.maxDexCap)
+                      : a.armor_type_max_dex_modifier
+                    v += Math.min(dexMod, cap)
+                  } else {
+                    v += dexMod
+                  }
                 }
                 if (a.armor_type_ac_bonus != null) v += a.armor_type_ac_bonus
                 return v

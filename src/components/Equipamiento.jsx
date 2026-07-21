@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { X, Loader2, Sword, Shield } from 'lucide-react'
 import { apiFetch } from '../api'
+import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
+
+const FEAT_MEDIUM_ARMOR_MASTER = 33 // sube a +3 el tope del modificador de DEX en la armadura
 
 function Bono({ label, value }) {
   if (value === null || value === undefined || value === '') return null
@@ -16,6 +19,7 @@ export default function Equipamiento({ personajeId, onClose }) {
   const [armors, setArmors]   = useState([])
   const [propMap, setPropMap] = useState({})
   const [propDetail, setPropDetail] = useState(null) // propiedad seleccionada (tooltip)
+  const [dexCapFeat, setDexCapFeat] = useState(false) // tiene Medium Armor Master (tope de DEX +3)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -23,6 +27,12 @@ export default function Equipamiento({ personajeId, onClose }) {
       apiFetch(`/personaje/${personajeId}/weapon`).then(r => r.json()),
       apiFetch(`/personaje/${personajeId}/armor`).then(r => r.json()),
       apiFetch('/weapon-properties?limit=200').then(r => r.json()),
+      // Medium Armor Master eleva el tope del modificador de DEX (solo si cumple prerequisitos)
+      apiFetch(`/personaje/${personajeId}/full`).then(r => r.json()).then(full => {
+        const ctx = buildPrereqContext(full)
+        setDexCapFeat((full?.extra_feats || []).some(f =>
+          Number(f.feat_id) === FEAT_MEDIUM_ARMOR_MASTER && (!ctx || featPrereqStatus(f.prereqs, ctx).met)))
+      }).catch(() => {}),
     ]).then(([w, a, p]) => {
       setWeapons((Array.isArray(w) ? w : []).filter(x => x.personaje_weapon_in_use))
       setArmors((Array.isArray(a) ? a : []).filter(x => x.personaje_armor_in_use))
@@ -111,11 +121,19 @@ export default function Equipamiento({ personajeId, onClose }) {
                       )}
                       <div className="flex flex-wrap gap-1 mt-2">
                         <Bono label="AC base" value={a.armor_type_base_ac} />
-                        {a.armor_type_uses_dex_modifier === 1 && (
-                          <span className="text-[10px] font-bold text-green-700 bg-green-100 rounded px-1.5 py-0.5">
-                            + DEX{a.armor_type_max_dex_modifier != null ? ` (máx +${a.armor_type_max_dex_modifier})` : ''}
-                          </span>
-                        )}
+                        {a.armor_type_uses_dex_modifier === 1 && (() => {
+                          const base = a.armor_type_max_dex_modifier
+                          // Medium Armor Master sube el tope de la armadura (de +2 a +3)
+                          const cap  = base != null && dexCapFeat ? Math.max(base, 3) : base
+                          const up   = cap !== base
+                          return (
+                            <span className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${
+                              up ? 'text-blue-800 bg-blue-100 border border-blue-300' : 'text-green-700 bg-green-100'}`}
+                              title={up ? 'Medium Armor Master: el tope del modificador de DEX sube de +2 a +3' : undefined}>
+                              + DEX{cap != null ? ` (máx +${cap})` : ''}{up ? ' · Medium Armor Master' : ''}
+                            </span>
+                          )
+                        })()}
                         <Bono label="Bono AC" value={a.armor_type_ac_bonus} />
                       </div>
                     </div>
