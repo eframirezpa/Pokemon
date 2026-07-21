@@ -7,11 +7,14 @@ import { ResolvedBonusBadges } from './featBonoBadges'
 import SpecializationInfoModal from './SpecializationInfoModal'
 
 /* Checkbox de solo lectura (estilo de la imagen) */
-function ReadCheck({ checked }) {
+function ReadCheck({ pref, expert }) {
+  // Vacío si no tiene nada; verde si es proficiente; azul si es experto
+  const fill = expert ? 'bg-blue-700 border-blue-700'
+    : pref ? 'bg-green-600 border-green-600'
+    : 'border-gray-400 bg-white'
   return (
-    <span className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 ${
-      checked ? 'bg-red-600 border-red-600' : 'border-red-400 bg-white'}`}>
-      {checked && <Check size={10} className="text-white" strokeWidth={3} />}
+    <span className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 ${fill}`}>
+      {(pref || expert) && <Check size={10} className="text-white" strokeWidth={3} />}
     </span>
   )
 }
@@ -281,27 +284,26 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
               const cols = [data.skills.slice(0, half), data.skills.slice(half)]
               return (
                 <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Habilidades</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">
+                  <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                    <p className="text-xs font-black uppercase tracking-widest text-gray-500">Habilidades</p>
+                    <span className="text-[9px] font-bold text-white bg-green-600 rounded px-1.5 py-0.5">Proficient</span>
+                    <span className="text-[9px] font-bold text-white bg-blue-700 rounded px-1.5 py-0.5">Expert</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 sm:gap-x-5 gap-y-3">
                     {cols.map((col, ci) => (
                       <div key={ci}>
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span className="w-3.5 text-center text-[9px] font-bold text-gray-500">E</span>
-                          <span className="w-3.5 text-center text-[9px] font-bold text-gray-500">P</span>
-                        </div>
                         <div className="space-y-1.5">
                           {col.map((s, i) => {
                             const v = abilityValue(s)
                             const { pref, expert } = skillFlags(s)
                             return (
-                              <div key={i} className="flex items-center gap-1.5">
-                                <ReadCheck checked={expert} />
-                                <ReadCheck checked={pref} />
-                                <span className={`w-7 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
+                              <div key={i} className="flex items-center gap-1.5 min-w-0">
+                                <ReadCheck pref={pref} expert={expert} />
+                                <span className={`w-7 shrink-0 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
                                   v != null && v < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                                   {v == null ? '' : fmtMod(v)}
                                 </span>
-                                <span className="text-[11px] leading-tight truncate">
+                                <span className="text-[11px] leading-tight truncate min-w-0">
                                   <span className="font-semibold text-gray-800">{s.skill_name}</span>
                                   <span className="text-gray-400"> ({s.skill_related_ability})</span>
                                 </span>
@@ -315,6 +317,62 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                 </div>
               )
             })()}
+
+            {/* Info general al final: saving, equipo, origen/background, rasgos y herramientas */}
+            <div className="pt-1 border-t border-gray-100">
+              <Row label="Saving Throw" value={data.saving_throw_prof} />
+              {data.armor && <Row label="Armadura" value={data.armor.armor_type_name} />}
+              {(data.weapons || []).length > 0 && (
+                <Row label="Arma" value={data.weapons.map(w => w.weapon_type_name).join(', ')} />
+              )}
+              <Row label="Origen"     value={data.origin_name} />
+              <Row label="Background" value={data.background_name} />
+              <FeatRow label="Rasgo origen"     feat={data.origin_feat}     onClick={() => setFeatInfo(data.origin_feat)} />
+              <FeatRow label="Rasgo background" feat={data.background_feat} onClick={() => setFeatInfo(data.background_feat)} />
+              {(data.extra_feats || []).map((f, i) => {
+                const met = featMet(f)
+                return (
+                <div key={f.personaje_feat_id} className={`flex items-center justify-between gap-3 py-1 border-b border-gray-100 ${met ? '' : 'opacity-60'}`}>
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                    <span className={`text-xs font-semibold uppercase tracking-wide shrink-0 ${met ? 'text-red-700' : 'text-gray-400'}`}>Rasgo {i + 1}</span>
+                    {!met && <span className="text-[10px] font-bold text-amber-800 bg-yellow-100 border border-yellow-300 rounded px-1.5 py-0.5">No cumple prerequisitos</span>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <button onClick={() => setFeatInfo(f)} title="Ver detalle del rasgo"
+                      className={`text-sm text-right underline decoration-dotted decoration-gray-400 underline-offset-2 transition-colors ${met ? 'text-gray-700 hover:text-red-700' : 'text-gray-400 hover:text-gray-600'}`}>
+                      {f.feat_name}
+                    </button>
+                    <button onClick={() => toggleFeat(f)}
+                      className={`w-4 h-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        f.personaje_feat_is_available ? 'bg-green-600 border-green-600' : 'border-gray-300 bg-white hover:border-green-400'}`}
+                      title={f.personaje_feat_is_available ? 'Marcar como no disponible' : 'Marcar como disponible'}>
+                      {f.personaje_feat_is_available && <Check size={11} className="text-white" strokeWidth={3} />}
+                    </button>
+                    {f.personaje_feat_is_available ? (
+                      <span className="text-[10px] font-bold text-green-700 bg-green-100 border border-green-300 rounded px-1.5 py-0.5">Activado</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-red-600 bg-yellow-100 border border-yellow-300 rounded px-1.5 py-0.5 inline-flex items-center gap-1">No disponible <Clock size={11} /></span>
+                    )}
+                  </div>
+                </div>
+                )
+              })}
+              {(data.specializations || []).map((s, i) => (
+                <div key={s.specialization_id} className="flex items-center justify-between gap-3 py-1 border-b border-gray-100">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-red-700 shrink-0">Especialidad {i + 1}</span>
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <ResolvedBonusBadges bonos={s.bonos} />
+                    <button onClick={() => setSpecInfo(s)} title="Ver detalle de la especialidad"
+                      className="text-sm text-right text-gray-700 underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-red-700 transition-colors">
+                      {s.specialization_name}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {data.background_tool_proficiencies_values && (
+                <Row label="Herramientas" value={data.background_tool_proficiencies_values} />
+              )}
+            </div>
 
             {/* Equipo */}
             <div>
@@ -352,62 +410,6 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                     <Row key={i} label={d.nombre_personaje_detail} value={d.descripcion_personaje_detail} />
                   ))}
                 </div>
-              )}
-            </div>
-
-            {/* Info general al final: saving, equipo, origen/background, rasgos y herramientas */}
-            <div className="pt-1 border-t border-gray-100">
-              <Row label="Saving Throw" value={data.saving_throw_prof} />
-              {data.armor && <Row label="Armadura" value={data.armor.armor_type_name} />}
-              {(data.weapons || []).length > 0 && (
-                <Row label="Arma" value={data.weapons.map(w => w.weapon_type_name).join(', ')} />
-              )}
-              <Row label="Origen"     value={data.origin_name} />
-              <Row label="Background" value={data.background_name} />
-              <FeatRow label="Rasgo origen"     feat={data.origin_feat}     onClick={() => setFeatInfo(data.origin_feat)} />
-              <FeatRow label="Rasgo background" feat={data.background_feat} onClick={() => setFeatInfo(data.background_feat)} />
-              {(data.extra_feats || []).map((f, i) => {
-                const met = featMet(f)
-                return (
-                <div key={f.personaje_feat_id} className={`flex items-center justify-between gap-3 py-1 border-b border-gray-100 ${met ? '' : 'opacity-60'}`}>
-                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                    <span className={`text-xs font-semibold uppercase tracking-wide shrink-0 ${met ? 'text-red-700' : 'text-gray-400'}`}>Rasgo extra {i + 1}</span>
-                    {!met && <span className="text-[10px] font-bold text-amber-800 bg-yellow-100 border border-yellow-300 rounded px-1.5 py-0.5">No cumple prerequisitos</span>}
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap justify-end">
-                    <button onClick={() => setFeatInfo(f)} title="Ver detalle del rasgo"
-                      className={`text-sm text-right underline decoration-dotted decoration-gray-400 underline-offset-2 transition-colors ${met ? 'text-gray-700 hover:text-red-700' : 'text-gray-400 hover:text-gray-600'}`}>
-                      {f.feat_name}
-                    </button>
-                    <button onClick={() => toggleFeat(f)}
-                      className={`w-4 h-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-colors ${
-                        f.personaje_feat_is_available ? 'bg-green-600 border-green-600' : 'border-gray-300 bg-white hover:border-green-400'}`}
-                      title={f.personaje_feat_is_available ? 'Marcar como no disponible' : 'Marcar como disponible'}>
-                      {f.personaje_feat_is_available && <Check size={11} className="text-white" strokeWidth={3} />}
-                    </button>
-                    {f.personaje_feat_is_available ? (
-                      <span className="text-[10px] font-bold text-green-700 bg-green-100 border border-green-300 rounded px-1.5 py-0.5">Activado</span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-red-600 bg-yellow-100 border border-yellow-300 rounded px-1.5 py-0.5 inline-flex items-center gap-1">No disponible <Clock size={11} /></span>
-                    )}
-                  </div>
-                </div>
-                )
-              })}
-              {(data.specializations || []).map((s, i) => (
-                <div key={s.specialization_id} className="flex items-center justify-between gap-3 py-1 border-b border-gray-100">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-red-700 shrink-0">Especialidad {i + 1}</span>
-                  <div className="flex items-center gap-2 flex-wrap justify-end">
-                    <ResolvedBonusBadges bonos={s.bonos} />
-                    <button onClick={() => setSpecInfo(s)} title="Ver detalle de la especialidad"
-                      className="text-sm text-right text-gray-700 underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-red-700 transition-colors">
-                      {s.specialization_name}
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {data.background_tool_proficiencies_values && (
-                <Row label="Herramientas" value={data.background_tool_proficiencies_values} />
               )}
             </div>
           </div>
