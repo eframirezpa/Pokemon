@@ -237,33 +237,38 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
               )
             })()}
 
-            {/* Atributos — todos en una sola línea */}
+            {/* Atributos — tres columnas de 2, con el mismo formato que habilidades */}
             {stats && (
               <div>
-                <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Atributos</p>
-                <div className="grid grid-cols-3 gap-x-4 gap-y-3">
-                  {STATS.map(([label, key]) => {
-                    const base  = stats[`personaje_${key}`] || 0
-                    const bonus = (stats[`personaje_${key}_bonus`] || 0) + (featFx.statAdd[key] || 0) + (specFx.statAdd[key] || 0)
-                    const final = base + bonus
-                    const mod   = Math.floor((final - 10) / 2)
-                    const prof  = stats[`personaje_stats_${key}_prof`] || featFx.savingProf.has(key)
-                    return (
-                      <div key={key} className="relative border-2 border-gray-800 rounded-xl bg-white px-3 pt-2 pb-1.5">
-                        <div className="flex items-start justify-between">
-                          <div className="border-2 border-gray-800 rounded-lg px-2 py-0.5 min-w-[2.3rem] text-center">
-                            <span className={`text-lg font-black leading-none ${mod < 0 ? 'text-red-600' : 'text-gray-900'}`}>{fmtMod(mod)}</span>
+                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                  <p className="text-xs font-black uppercase tracking-widest text-gray-500">Atributos</p>
+                  <span className="text-[9px] font-bold text-white bg-green-600 rounded px-1.5 py-0.5">Proficient</span>
+                </div>
+                <div className="grid grid-cols-3 gap-x-2 sm:gap-x-4 gap-y-3">
+                  {[STATS.slice(0, 2), STATS.slice(2, 4), STATS.slice(4)].map((col, ci) => (
+                    <div key={ci} className="space-y-1.5">
+                      {col.map(([label, key]) => {
+                        const base  = stats[`personaje_${key}`] || 0
+                        const bonus = (stats[`personaje_${key}_bonus`] || 0) + (featFx.statAdd[key] || 0) + (specFx.statAdd[key] || 0)
+                        const final = base + bonus
+                        const mod   = Math.floor((final - 10) / 2)
+                        const prof  = stats[`personaje_stats_${key}_prof`] || featFx.savingProf.has(key)
+                        return (
+                          <div key={key} className="flex items-center gap-1.5 min-w-0">
+                            <ReadCheck pref={prof} />
+                            <span className={`w-7 shrink-0 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
+                              mod < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                              {fmtMod(mod)}
+                            </span>
+                            <span className="text-[11px] leading-tight truncate min-w-0">
+                              <span className="font-semibold text-gray-800">{label}</span>
+                              <span className="text-gray-400"> ({final})</span>
+                            </span>
                           </div>
-                          <span className="text-base font-bold text-gray-500 mt-0.5">{final}</span>
-                        </div>
-                        <p className="text-center text-xs font-black text-gray-800 uppercase tracking-wide mt-1">{label}</p>
-                        <span className={`absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full border-2 bg-white flex items-center justify-center ${
-                          prof ? 'border-gray-800' : 'border-gray-300'}`}>
-                          {prof && <Check size={12} className="text-gray-900" strokeWidth={3} />}
-                        </span>
-                      </div>
-                    )
-                  })}
+                        )
+                      })}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
