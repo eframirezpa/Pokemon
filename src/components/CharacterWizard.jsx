@@ -522,10 +522,11 @@ function IniRow({ label, value }) {
   )
 }
 
-function IniciativesStep({ conMod, hpBonus = 0, skills, iniSkills, setIniSkills, onMount }) {
+function IniciativesStep({ hpBonus = 0, skills, iniSkills, setIniSkills, onMount }) {
   useEffect(() => { onMount() }, []) // al entrar: agrega Animal Handling al prof in
 
-  const hp = 6 + conMod + hpBonus
+  // HP base que se persiste: 6 + bonos de healing. El modificador de CON se suma al mostrar la ficha.
+  const hp = 6 + hpBonus
   const opciones = skills.filter(s => s.skill_name !== 'Animal Handling')
   const toggle = (name) => setIniSkills(cur =>
     cur.includes(name) ? cur.filter(x => x !== name) : (cur.length < 2 ? [...cur, name] : cur)
@@ -991,7 +992,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
     try {
       const baseStats   = Object.fromEntries(STAT_FIELDS.map(f => [f.key, stats[f.key] || 0]))
       const bonusStats  = Object.fromEntries(STAT_FIELDS.map(f => [f.key, bonus[f.key] || 0]))
-      const hitPoints   = 6 + (displayModifiers.personaje_con ?? 0) + hpBonus
+      const hitPoints   = 6 + hpBonus
       const pokedollars = pokedollarsRoll === '' ? 0 : 1000 + 100 * Number(pokedollarsRoll)
       const equipo = [
         { id_item: 1,  cantidad: 5 },
@@ -1109,7 +1110,6 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
           {step === 3 && <StatsStep mode={statsMode} setMode={setStatsMode} stats={stats} setStats={setStats} modifiers={modifiers} />}
           {step === 4 && (
             <IniciativesStep
-              conMod={displayModifiers.personaje_con ?? 0}
               hpBonus={hpBonus}
               skills={skillsList}
               iniSkills={iniSkills}
@@ -1277,7 +1277,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
 
       {/* Ventana de verificación antes de crear */}
       {showVerify && (() => {
-        const hitPoints   = 6 + (displayModifiers.personaje_con ?? 0) + hpBonus
+        const hitPoints   = 6 + hpBonus
         const pokedollars = pokedollarsRoll === '' ? 0 : 1000 + 100 * Number(pokedollarsRoll)
         const VRow = ({ label, value }) => (
           <div className="flex justify-between gap-3 py-1 border-b border-gray-100">

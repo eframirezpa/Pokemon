@@ -127,15 +127,17 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
   // Se aplican DESPUÉS de los feats (importa para la regla prof → expert).
   const specFx = (() => {
     const statAdd = {}, skillProf = new Set(), skillExpert = new Set()
+    let hp = 0
     for (const sp of (data?.specializations || [])) {
       for (const b of (sp.bonos || [])) {
         const type  = (b.type || '').toLowerCase()
         const llave = (b.llave || '').toLowerCase()
         if (type === 'stat') statAdd[llave] = (statAdd[llave] || 0) + (Number(b.value) || 0)
         else if (type === 'skill') { const v = (b.value || '').toLowerCase(); if (v === 'expert' || v === 'exp') skillExpert.add(llave); else if (v === 'prof') skillProf.add(llave) }
+        else if (type === 'healing') hp += Number(b.value) || 0
       }
     }
-    return { statAdd, skillProf, skillExpert }
+    return { statAdd, skillProf, skillExpert, hp }
   })()
 
   // Modificador del ability: FLOOR((base + bonus + feat + especialidad - 10) / 2)
@@ -181,8 +183,11 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
             {/* HP (barra de solo lectura) + AC + Prof */}
             {(() => {
-              const max = (data.personaje_hp || 0) + featFx.hp
-              const cur = (data.personaje_current_hp ?? (data.personaje_hp || 0)) + featFx.hp
+              // HP = base guardada (6 + healing de origen/background) + modificador de CON
+              // (ya trae los bonos de feats y especialidades) + healing de feats/especialidades
+              const extraHp = abilMod('con') + featFx.hp + specFx.hp
+              const max = (data.personaje_hp || 0) + extraHp
+              const cur = (data.personaje_current_hp ?? (data.personaje_hp || 0)) + extraHp
               const pct = max > 0 ? Math.max(0, Math.min(100, Math.round((cur / max) * 100))) : 0
               const color = pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444'
               // AC recalculado: armadura + modificador de DEX (con los bonos de feats). Sin armadura → AC guardado.
