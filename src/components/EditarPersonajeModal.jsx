@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { X, Loader2, Plus, Minus, Search, Info, AlertTriangle, Trash2 } from 'lucide-react'
 import { apiFetch } from '../api'
 import FeatInfoModal from './FeatInfoModal'
+import SpecializationInfoModal from './SpecializationInfoModal'
 import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
 import { ResolvedBonusBadges, ArmorProfBadges } from './featBonoBadges'
 
@@ -383,6 +384,66 @@ function ConfirmDeleteFeat({ feat, busy, error, onCancel, onConfirm }) {
   )
 }
 
+/* Bonos que otorgará una especialización del catálogo (aún no agregada) */
+function specPreviewBonos(s) {
+  const bonos = []
+  if (s.specialization_ability_score_increase) {
+    bonos.push({ type: 'stat', llave: s.specialization_ability_score_increase, value: String(s.specialization_ability_score_increase_value ?? 1) })
+  }
+  if (s.specialization_skill_proficiency) {
+    bonos.push({ type: 'skill', llave: s.specialization_skill_proficiency, value: 'exp' })
+  }
+  return bonos
+}
+
+/* Confirmación de agregado / eliminación de una especialización */
+function ConfirmSpec({ spec, mode, busy, error, onCancel, onConfirm }) {
+  const del = mode === 'delete'
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      onClick={e => { if (e.target === e.currentTarget && !busy) onCancel() }}>
+      <div className="bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+          <h3 className="font-bold text-gray-900 truncate">{del ? 'Eliminar especialidad' : 'Agregar especialidad'}</h3>
+          <button onClick={onCancel} disabled={busy} className="text-gray-400 hover:text-gray-700 shrink-0 ml-2 disabled:opacity-40"><X size={18} /></button>
+        </div>
+
+        <div className="px-5 py-4 space-y-3">
+          <p className="text-sm text-gray-700">
+            {del ? '¿Eliminar la especialidad ' : '¿Agregar la especialidad '}
+            <span className="font-bold text-gray-900">{spec.specialization_name}</span>
+            {del ? ' del personaje?' : ' al personaje?'}
+          </p>
+          {spec.specialization_description && (
+            <p className="text-xs text-gray-600 leading-relaxed">{spec.specialization_description}</p>
+          )}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <ResolvedBonusBadges bonos={del ? spec.bonos : specPreviewBonos(spec)} />
+          </div>
+          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800">Esta acción <span className="font-bold">no se puede deshacer</span>.</p>
+          </div>
+          {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+        </div>
+
+        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
+          <button onClick={onCancel} disabled={busy}
+            className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">
+            Cancelar
+          </button>
+          <button onClick={onConfirm} disabled={busy}
+            className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
+            {busy ? <Loader2 size={15} className="animate-spin" />
+              : del ? <Trash2 size={15} /> : <Plus size={15} />}
+            {del ? 'Eliminar' : 'Agregar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* Captura secuencial de textos (bonos tipo 'text'): una caja a la vez, título = llave + número */
 function CaptureTextModal({ steps, onCancel, onDone }) {
   const [idx, setIdx]   = useState(0)
@@ -601,6 +662,14 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
   const [weaponPick, setWeaponPick] = useState(null) // { feat, bi, llave, count } selector de armas Martial
   const [textChoices, setTextChoices] = useState({}) // { bonusIndex: [{text}] }
   const [confirmDel, setConfirmDel] = useState(null) // feat extra pendiente de eliminar
+  // ── Especialidades ──
+  const [specCatalog, setSpecCatalog] = useState([]) // catálogo de juego.specializations
+  const [specSearch, setSpecSearch]   = useState('')
+  const [specInfo, setSpecInfo]       = useState(null)    // detalle de una especialidad
+  const [confirmSpec, setConfirmSpec] = useState(null)    // especialización a agregar
+  const [confirmSpecDel, setConfirmSpecDel] = useState(null) // especialización a eliminar
+  const [busySpec, setBusySpec]       = useState(false)
+  const [errorSpec, setErrorSpec]     = useState('')
   const [busyDel, setBusyDel]   = useState(false)
   const [errorDel, setErrorDel] = useState('')
   const [tab, setTab]         = useState('feats') // pestaña activa
@@ -620,6 +689,8 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
         .then(d => setCatalog(d.data ?? [])).catch(() => setCatalog([])),
       apiFetch('/skills').then(r => r.json())
         .then(d => setAllSkills(Array.isArray(d) ? d : [])).catch(() => setAllSkills([])),
+      apiFetch('/specializations?limit=200').then(r => r.json())
+        .then(d => setSpecCatalog(d.data ?? [])).catch(() => setSpecCatalog([])),
     ]).finally(() => setLoading(false))
   }, [loadFull])
 
@@ -723,6 +794,59 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
     }
   }
 
+  // ── Especialidades: catálogo disponible (sin las ya agregadas) y acciones ──
+  const specs = full?.specializations || []
+  const specAssigned = new Set(specs.map(s => s.specialization_id))
+  const specAvailable = specCatalog
+    .filter(s => !specAssigned.has(s.specialization_id))
+    .filter(s => !specSearch || s.specialization_name?.toLowerCase().includes(specSearch.toLowerCase()))
+
+  // Máximo de especialidades por nivel: 1..6 → 1, 7..17 → 2, 18+ → sin tope
+  const charLevel = Number(full?.personaje_level ?? 1)
+  const specMax   = charLevel <= 6 ? 1 : charLevel <= 17 ? 2 : Infinity
+  const specLimit = specs.length >= specMax
+  const specLimitMsg = charLevel <= 6 ? 'Nivel 7 requerido' : 'Nivel 18 requerido'
+
+  const doAddSpec = async (spec) => {
+    setBusySpec(true); setErrorSpec('')
+    try {
+      const res = await apiFetch(`/personaje/${personajeId}/specializations`, {
+        method: 'POST', body: JSON.stringify({ id_specialization: spec.specialization_id }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        setErrorSpec(j.error || 'No se pudo agregar la especialidad')
+        return
+      }
+      await loadFull()
+      onChanged?.()
+      setConfirmSpec(null)
+    } catch {
+      setErrorSpec('No se pudo agregar la especialidad')
+    } finally {
+      setBusySpec(false)
+    }
+  }
+
+  const doDeleteSpec = async (spec) => {
+    setBusySpec(true); setErrorSpec('')
+    try {
+      const res = await apiFetch(`/personaje/${personajeId}/specializations/${spec.specialization_id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        setErrorSpec(j.error || 'No se pudo eliminar la especialidad')
+        return
+      }
+      await loadFull()
+      onChanged?.()
+      setConfirmSpecDel(null)
+    } catch {
+      setErrorSpec('No se pudo eliminar la especialidad')
+    } finally {
+      setBusySpec(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -744,9 +868,81 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
         </div>
 
         {tab === 'especialidades' ? (
-          <div className="flex-1 flex items-center justify-center px-5 py-16 text-gray-400 text-sm">
-            Próximamente.
-          </div>
+          loading ? (
+            <div className="flex items-center justify-center py-20 text-gray-400">
+              <Loader2 className="animate-spin mr-2" size={18} /> Cargando...
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+              {/* Agregar una especialidad */}
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Agregar especialidad</p>
+                <div className="relative mb-2">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={specSearch} onChange={e => setSpecSearch(e.target.value)} placeholder="Buscar especialidad..."
+                    className="w-full pl-8 pr-7 py-1.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                  {specSearch && <button onClick={() => setSpecSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"><X size={13} /></button>}
+                </div>
+                {errorSpec && !confirmSpec && !confirmSpecDel && <p className="text-xs text-red-600 font-medium mb-2">{errorSpec}</p>}
+                <div className="border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                  {specAvailable.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic px-3 py-3">Sin especialidades disponibles.</p>
+                  ) : specAvailable.map(s => (
+                    <div key={s.specialization_id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50">
+                      <div className="text-left min-w-0 flex items-center gap-1.5 flex-wrap">
+                        <button onClick={() => setSpecInfo(s)} title="Ver detalle"
+                          className="text-sm font-medium text-gray-800 truncate underline decoration-dotted decoration-gray-300 underline-offset-2 hover:text-red-700">
+                          {s.specialization_name}
+                        </button>
+                        {s.specialization_pokemon_type_name &&<span className="text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded px-1 shrink-0">{s.specialization_pokemon_type_name}</span>}
+                        <ResolvedBonusBadges bonos={specPreviewBonos(s)} />
+                      </div>
+                      <button onClick={() => { setErrorSpec(''); setConfirmSpec(s) }} disabled={busySpec || specLimit}
+                        title={specLimit ? specLimitMsg : undefined}
+                        className="shrink-0 flex items-center gap-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
+                        <Plus size={13} /> Agregar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {specLimit && (
+                  <div className="mt-2 flex items-center gap-2 bg-yellow-50 border border-yellow-300 rounded-lg px-3 py-2">
+                    <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                    <p className="text-xs font-bold text-amber-800">{specLimitMsg}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Especialidades ya agregadas */}
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Especialidades</p>
+                {specs.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">Aún no hay especialidades.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {specs.map((s, i) => (
+                      <div key={s.specialization_id} className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                          <span className="text-sm font-semibold text-gray-800 truncate">
+                            <span className="text-gray-400 font-normal mr-1.5">Especialidad {i + 1}:</span>
+                            <button onClick={() => setSpecInfo(s)} title="Ver detalle"
+                              className="underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-red-700">
+                              {s.specialization_name}
+                            </button>
+                          </span>
+                          <ResolvedBonusBadges bonos={s.bonos} />
+                        </div>
+                        <button onClick={() => { setErrorSpec(''); setConfirmSpecDel(s) }} title="Eliminar especialidad"
+                          className="shrink-0 text-gray-400 hover:text-red-600">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
         ) : loading ? (
           <div className="flex items-center justify-center py-20 text-gray-400">
             <Loader2 className="animate-spin mr-2" size={18} /> Cargando...
@@ -820,6 +1016,25 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
           </div>
         )}
       </div>
+
+      {/* Detalle de la especialidad */}
+      {specInfo && (
+        <SpecializationInfoModal spec={specInfo}
+          bonos={specInfo.bonos ?? specPreviewBonos(specInfo)}
+          onClose={() => setSpecInfo(null)} />
+      )}
+
+      {/* Confirmaciones de especialidades */}
+      {confirmSpec && (
+        <ConfirmSpec spec={confirmSpec} mode="add" busy={busySpec} error={errorSpec}
+          onCancel={() => { if (!busySpec) { setConfirmSpec(null); setErrorSpec('') } }}
+          onConfirm={() => doAddSpec(confirmSpec)} />
+      )}
+      {confirmSpecDel && (
+        <ConfirmSpec spec={confirmSpecDel} mode="delete" busy={busySpec} error={errorSpec}
+          onCancel={() => { if (!busySpec) { setConfirmSpecDel(null); setErrorSpec('') } }}
+          onConfirm={() => doDeleteSpec(confirmSpecDel)} />
+      )}
 
       {/* Skilled (feat 10): modal combinado especial */}
       {skilled && (

@@ -1,0 +1,85 @@
+import { X } from 'lucide-react'
+import { ResolvedBonusBadges } from './featBonoBadges'
+
+/* Estilos por tema: 'light' (hoja del personaje) y 'dark' (panel del master) */
+const THEMES = {
+  light: {
+    panel:        'bg-white border border-gray-200',
+    header:       'border-b border-gray-200',
+    title:        'text-gray-900',
+    close:        'text-gray-400 hover:text-gray-700',
+    chip:         'bg-purple-100 text-purple-700',
+    sectionLabel: 'text-red-700',
+    text:         'text-gray-700',
+    good:         'text-green-700',
+  },
+  dark: {
+    panel:        'bg-gray-800 border border-gray-700',
+    header:       'border-b border-gray-700',
+    title:        'text-white',
+    close:        'text-gray-400 hover:text-white',
+    chip:         'bg-gray-700 text-gray-200',
+    sectionLabel: 'text-amber-400/90',
+    text:         'text-gray-200',
+    good:         'text-green-400',
+  },
+}
+
+const has = x => (x ?? '') !== '' && x !== null
+
+/* Popup con el detalle de una especialidad (juego.specializations) */
+export default function SpecializationInfoModal({ spec, bonos, onClose, theme = 'light' }) {
+  if (!spec) return null
+  const t = THEMES[theme] ?? THEMES.light
+
+  return (
+    <div className="fixed inset-0 z-[85] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className={`rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden ${t.panel}`}>
+        <div className={`px-4 py-3 flex items-center justify-between shrink-0 ${t.header}`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className={`font-bold text-sm truncate ${t.title}`}>{spec.specialization_name}</h3>
+            {has(spec.specialization_pokemon_type_name) && (
+              <span className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 shrink-0 ${t.chip}`}>{spec.specialization_pokemon_type_name}</span>
+            )}
+          </div>
+          <button onClick={onClose} className={`shrink-0 ml-2 ${t.close}`}><X size={18} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 text-xs">
+          {has(spec.specialization_description) && (
+            <div>
+              <p className={`font-bold uppercase tracking-widest mb-1 ${t.sectionLabel}`}>Descripción</p>
+              <p className={`leading-relaxed whitespace-pre-line ${t.text}`}>{spec.specialization_description}</p>
+            </div>
+          )}
+          {(bonos || []).length > 0 && (
+            <div>
+              <p className={`font-bold uppercase tracking-widest mb-1 ${t.sectionLabel}`}>Bonos</p>
+              <div className="flex flex-wrap gap-1">
+                <ResolvedBonusBadges bonos={bonos} />
+              </div>
+            </div>
+          )}
+          {has(spec.specialization_ability_score_increase) && (
+            <p className={t.text}>
+              <span className={`font-bold ${t.sectionLabel}`}>Aumento de atributo: </span>
+              {String(spec.specialization_ability_score_increase).toUpperCase()} +{spec.specialization_ability_score_increase_value ?? 1}
+            </p>
+          )}
+          {has(spec.specialization_skill_proficiency) && (
+            <p className={t.text}>
+              <span className={`font-bold ${t.sectionLabel}`}>Proficiencia: </span>{spec.specialization_skill_proficiency}
+            </p>
+          )}
+          {Number(spec.specialization_grants_expertise_if_proficient) === 1 && (
+            <p className={`font-medium ${t.good}`}>✓ Otorga expertise si ya es proficiente</p>
+          )}
+          {has(spec.specialization_notes) && (
+            <p className={t.text}><span className={`font-bold ${t.sectionLabel}`}>Notas: </span>{spec.specialization_notes}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

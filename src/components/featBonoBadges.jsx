@@ -8,7 +8,8 @@ export const TEXT_SEP = String.fromCharCode(31) // separador de textos (igual qu
 export function ResolvedBonusBadges({ bonos }) {
   return (bonos || []).map((b, i) => {
     if (lower(b.type) === 'skill') {
-      const isExpert = lower(b.value) === 'expert'
+      // 'exp' (especializaciones) tiene la misma semántica que 'expert' (feats)
+      const isExpert = ['expert', 'exp'].includes(lower(b.value))
       const cls = isExpert ? 'text-blue-800 bg-blue-100 border-blue-300' : 'text-green-800 bg-green-100 border-green-300'
       return <span key={i} className={`text-[9px] font-bold rounded px-1 shrink-0 border ${cls}`}>{isExpert ? 'expert' : 'prof'}: {b.llave}</span>
     }

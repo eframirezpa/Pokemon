@@ -3,6 +3,8 @@ import { X, Loader2, Check, ChevronDown, Clock } from 'lucide-react'
 import { apiFetch } from '../api'
 import FeatInfoModal from './FeatInfoModal'
 import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
+import { ResolvedBonusBadges } from './featBonoBadges'
+import SpecializationInfoModal from './SpecializationInfoModal'
 
 /* Checkbox de solo lectura (estilo de la imagen) */
 function ReadCheck({ checked }) {
@@ -61,6 +63,7 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
   const [showDetalles, setShowDetalles] = useState(false)
   const [showMochila, setShowMochila]   = useState(false)
   const [featInfo, setFeatInfo]         = useState(null) // rasgo cuyo detalle se muestra
+  const [specInfo, setSpecInfo]         = useState(null) // especialidad cuyo detalle se muestra
 
   // Carga inicial + re-carga cuando cambia la party (para reflejar cambios en vivo del otro panel)
   useEffect(() => {
@@ -114,20 +117,38 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
     return { statAdd, savingProf, skillProf, skillExpert, hp, armorList }
   })()
 
-  // Modificador del ability: FLOOR((base + bonus + feat - 10) / 2)
+  // Efectos de las especialidades (personaje_specializations_bonus), también solo al visualizar.
+  // Se aplican DESPUÉS de los feats (importa para la regla prof → expert).
+  const specFx = (() => {
+    const statAdd = {}, skillProf = new Set(), skillExpert = new Set()
+    for (const sp of (data?.specializations || [])) {
+      for (const b of (sp.bonos || [])) {
+        const type  = (b.type || '').toLowerCase()
+        const llave = (b.llave || '').toLowerCase()
+        if (type === 'stat') statAdd[llave] = (statAdd[llave] || 0) + (Number(b.value) || 0)
+        else if (type === 'skill') { const v = (b.value || '').toLowerCase(); if (v === 'expert' || v === 'exp') skillExpert.add(llave); else if (v === 'prof') skillProf.add(llave) }
+      }
+    }
+    return { statAdd, skillProf, skillExpert }
+  })()
+
+  // Modificador del ability: FLOOR((base + bonus + feat + especialidad - 10) / 2)
   const abilMod = (key) => {
     if (!stats) return 0
-    const final = (stats[`personaje_${key}`] || 0) + (stats[`personaje_${key}_bonus`] || 0) + (featFx.statAdd[key] || 0)
+    const final = (stats[`personaje_${key}`] || 0) + (stats[`personaje_${key}_bonus`] || 0)
+      + (featFx.statAdd[key] || 0) + (specFx.statAdd[key] || 0)
     return Math.floor((final - 10) / 2)
   }
 
-  // Proficiencia/expertise de una skill, aplicando los feats extra (regla prof/expert)
+  // Proficiencia/expertise de una skill: primero los feats extra, luego las especialidades
   const skillFlags = (s) => {
     const name = (s.skill_name || '').toLowerCase()
     let pref = !!s.personaje_skill_pref
     let expert = !!s.personaje_skill_expert
     if (featFx.skillProf.has(name)) pref = true
     if (featFx.skillExpert.has(name)) { if (pref) expert = true; else pref = true }
+    if (specFx.skillProf.has(name)) pref = true
+    if (specFx.skillExpert.has(name)) { if (pref) expert = true; else pref = true }
     return { pref, expert }
   }
 
@@ -220,7 +241,7 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                 <div className="grid grid-cols-3 gap-x-4 gap-y-3">
                   {STATS.map(([label, key]) => {
                     const base  = stats[`personaje_${key}`] || 0
-                    const bonus = (stats[`personaje_${key}_bonus`] || 0) + (featFx.statAdd[key] || 0)
+                    const bonus = (stats[`personaje_${key}_bonus`] || 0) + (featFx.statAdd[key] || 0) + (specFx.statAdd[key] || 0)
                     const final = base + bonus
                     const mod   = Math.floor((final - 10) / 2)
                     const prof  = stats[`personaje_stats_${key}_prof`] || featFx.savingProf.has(key)
@@ -373,6 +394,18 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                 </div>
                 )
               })}
+              {(data.specializations || []).map((s, i) => (
+                <div key={s.specialization_id} className="flex items-center justify-between gap-3 py-1 border-b border-gray-100">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-red-700 shrink-0">Especialidad {i + 1}</span>
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <ResolvedBonusBadges bonos={s.bonos} />
+                    <button onClick={() => setSpecInfo(s)} title="Ver detalle de la especialidad"
+                      className="text-sm text-right text-gray-700 underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-red-700 transition-colors">
+                      {s.specialization_name}
+                    </button>
+                  </div>
+                </div>
+              ))}
               {data.background_tool_proficiencies_values && (
                 <Row label="Herramientas" value={data.background_tool_proficiencies_values} />
               )}
@@ -383,6 +416,11 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
 
       {/* Detalle del rasgo (feat) */}
       {featInfo && <FeatInfoModal feat={featInfo} theme="light" onClose={() => setFeatInfo(null)} />}
+
+      {/* Detalle de la especialidad */}
+      {specInfo && (
+        <SpecializationInfoModal spec={specInfo} bonos={specInfo.bonos} theme="light" onClose={() => setSpecInfo(null)} />
+      )}
     </div>
   )
 }
