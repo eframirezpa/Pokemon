@@ -5,6 +5,7 @@ import FeatInfoModal from './FeatInfoModal'
 import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
 import { ResolvedBonusBadges } from './featBonoBadges'
 import SpecializationInfoModal from './SpecializationInfoModal'
+import { buildProfs } from '../lib/profs'
 
 /* Checkbox de solo lectura (estilo de la imagen) */
 function ReadCheck({ pref, expert }) {
@@ -38,10 +39,13 @@ function InfoBox({ label, value, danger = false, green = false, red = false }) {
   )
 }
 
-function Row({ label, value }) {
+function Row({ label, value, prof = false }) {
   return (
     <div className="flex justify-between gap-3 py-1 border-b border-gray-100">
-      <span className="text-xs font-semibold text-red-700 uppercase tracking-wide shrink-0">{label}</span>
+      <span className="flex items-center gap-1.5 shrink-0">
+        <span className="text-xs font-semibold text-red-700 uppercase tracking-wide">{label}</span>
+        {prof && <span className="text-[10px] font-bold text-white bg-green-600 rounded px-1.5 py-0.5">prof</span>}
+      </span>
       <span className="text-sm text-gray-700 text-right">{(value ?? '') === '' ? '—' : value}</span>
     </div>
   )
@@ -122,6 +126,9 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
     }
     return { statAdd, savingProf, skillProf, skillExpert, hp, armorList, maxDexCap }
   })()
+
+  // Proficiencias de arma (bonos 'text') y de tipo de armadura (feats + background)
+  const profs = buildProfs(data)
 
   // Efectos de las especialidades (personaje_specializations_bonus), también solo al visualizar.
   // Se aplican DESPUÉS de los feats (importa para la regla prof → expert).
@@ -342,9 +349,13 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
             {/* Info general al final: saving, equipo, origen/background, rasgos y herramientas */}
             <div className="pt-1 border-t border-gray-100">
               <Row label="Saving Throw" value={data.saving_throw_prof} />
-              {data.armor && <Row label="Armadura" value={data.armor.armor_type_name} />}
+              {data.armor && (
+                <Row label="Armadura" value={data.armor.armor_type_name}
+                  prof={profs.isArmorProf(data.armor.armor_type_category)} />
+              )}
               {(data.weapons || []).length > 0 && (
-                <Row label="Arma" value={data.weapons.map(w => w.weapon_type_name).join(', ')} />
+                <Row label="Arma" value={data.weapons.map(w => w.weapon_type_name).join(', ')}
+                  prof={data.weapons.every(w => profs.isWeaponProf(w.weapon_type_name))} />
               )}
               <Row label="Origen"     value={data.origin_name} />
               <Row label="Background" value={data.background_name} />
