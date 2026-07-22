@@ -350,7 +350,7 @@ export default function TrainerPartida() {
         )}
 
         {/* Botones laterales — columna centrada y scrolleable (para pantallas bajas) */}
-        <div className="fixed left-3 top-28 bottom-3 z-30 overflow-y-auto">
+        <div className="fixed left-3 top-40 bottom-3 z-30 overflow-y-auto">
           <div className="min-h-full flex flex-col justify-center gap-2 py-1">
             <button onClick={() => setShowPokedex(true)} className={sideBtn} title="Abrir Pokédex">
               <Smartphone size={18} />
