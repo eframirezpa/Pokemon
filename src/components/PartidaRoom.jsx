@@ -130,7 +130,7 @@ function PokemonHpCard({ p }) {
 }
 
 /* Card de un Pokémon del master — colapsable (toggle) */
-function MasterPokemonCard({ pokemon, onHp, onHpSet, onRemove, onCast, onToggleHidden }) {
+function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden }) {
   const [collapsed, setCollapsed] = useState(false)
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-lg self-start">
@@ -173,15 +173,11 @@ function MasterPokemonCard({ pokemon, onHp, onHpSet, onRemove, onCast, onToggleH
               <Minus size={15} />
             </button>
             <div className="flex-1">
-              <input
-                type="range"
-                min={0}
-                max={pokemon.hp_max}
-                value={pokemon.hp_current}
-                onChange={e => onHpSet(pokemon.uid, Number(e.target.value))}
-                className="w-full h-2.5 cursor-pointer"
-                style={{ accentColor: hpColor(hpPct(pokemon)) }}
-              />
+              {/* Barra de solo lectura: la vida solo se mueve de a un punto con los botones */}
+              <div className="w-full h-2.5 rounded-full bg-gray-700 overflow-hidden">
+                <div className="h-full rounded-full transition-all"
+                  style={{ width: `${hpPct(pokemon)}%`, backgroundColor: hpColor(hpPct(pokemon)) }} />
+              </div>
               <p className="text-center text-[11px] font-bold text-white mt-1">
                 HP {pokemon.hp_current}/{pokemon.hp_max}
               </p>
@@ -221,7 +217,7 @@ function MasterPokemonCard({ pokemon, onHp, onHpSet, onRemove, onCast, onToggleH
 }
 
 /* Panel de Pokémon del master — botón + grid de Pokémon (máx. según `max`) */
-function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onHpSet, onRemove, onCast, onToggleHidden }) {
+function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden }) {
   const full = pokemons.length >= max
   return (
     <div className="shrink-0 flex flex-col px-4 pt-3">
@@ -242,7 +238,6 @@ function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onHpSet, onRemove,
               key={p.uid}
               pokemon={p}
               onHp={onHp}
-              onHpSet={onHpSet}
               onRemove={onRemove}
               onCast={onCast}
               onToggleHidden={onToggleHidden}
@@ -865,12 +860,6 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     updatePokemon(uid, { hp_current: Math.max(0, Math.min(p.hp_max, p.hp_current + delta)) })
   }
 
-  const handleHpSet = (uid, value) => {
-    const p = activePokemons.find(x => x.uid === uid)
-    if (!p) return
-    updatePokemon(uid, { hp_current: Math.max(0, Math.min(p.hp_max, value)) })
-  }
-
   const handleToggleHidden = (uid) => {
     const p = activePokemons.find(x => x.uid === uid)
     if (!p) return
@@ -1096,7 +1085,6 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 max={MAX_POKEMON}
                 onAdd={() => setShowPokedex(true)}
                 onHp={handleHpChange}
-                onHpSet={handleHpSet}
                 onRemove={handleRemove}
                 onCast={handleCast}
                 onToggleHidden={handleToggleHidden}

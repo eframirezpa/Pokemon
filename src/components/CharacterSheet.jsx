@@ -190,11 +190,11 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
             {/* HP (barra de solo lectura) + AC + Prof */}
             {(() => {
-              // HP = base guardada (6 + healing de origen/background) + modificador de CON
-              // (ya trae los bonos de feats y especialidades) + healing de feats/especialidades
-              const extraHp = abilMod('con') + featFx.hp + specFx.hp
-              const max = (data.personaje_hp || 0) + extraHp
-              const cur = (data.personaje_current_hp ?? (data.personaje_hp || 0)) + extraHp
+              // Máximo = base guardada (6 + healing de origen/background) + modificador de CON
+              // (ya trae los bonos de feats y especialidades) + healing de feats/especialidades.
+              // El HP actual es un valor absoluto de combate, no se le suman los bonos.
+              const max = (data.personaje_hp || 0) + abilMod('con') + featFx.hp + specFx.hp
+              const cur = data.personaje_current_hp ?? max
               const pct = max > 0 ? Math.max(0, Math.min(100, Math.round((cur / max) * 100))) : 0
               const color = pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444'
               // AC recalculado: armadura + modificador de DEX (con los bonos de feats). Sin armadura → AC guardado.

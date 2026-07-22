@@ -11,6 +11,7 @@ import MoveInfoModal from '../components/MoveInfoModal'
 import EditarPersonajeModal from '../components/EditarPersonajeModal'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
+import { hpValues } from '../lib/hp'
 
 // Ícono de 3 pokébolas (para el cinturón)
 function PokeballsIcon({ size = 18 }) {
@@ -99,9 +100,11 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
           <button onClick={() => setHp(v.hp - 1)}
             className="w-8 h-8 shrink-0 rounded-lg bg-gray-700 hover:bg-red-600 flex items-center justify-center text-white transition-colors"><Minus size={15} /></button>
           <div className="flex-1">
-            <input type="range" min={0} max={v.hpMax} value={v.hp}
-              onChange={e => setHp(Number(e.target.value))}
-              className="w-full h-2.5 cursor-pointer" style={{ accentColor: hpColorPct(pct) }} />
+            {/* Barra de solo lectura: la vida solo se mueve de a un punto con los botones */}
+            <div className="w-full h-2.5 rounded-full bg-gray-700 overflow-hidden">
+              <div className="h-full rounded-full transition-all"
+                style={{ width: `${pct}%`, backgroundColor: hpColorPct(pct) }} />
+            </div>
             <p className="text-center text-[11px] font-bold text-white mt-1">HP {v.hp}/{v.hpMax}</p>
           </div>
           <button onClick={() => setHp(v.hp + 1)}
@@ -240,9 +243,11 @@ export default function TrainerPartida() {
     setPokeData(null)
     setOpenControl('trainer')
     try {
-      const d = await apiFetch(`/personaje/${personajeId}`).then(r => r.json())
+      // /full trae stats, feats y especialidades: el HP se calcula con sus bonos
+      const d = await apiFetch(`/personaje/${personajeId}/full`).then(r => r.json())
+      const { max, cur } = hpValues(d)
       setCharData({
-        hp: d.personaje_current_hp ?? d.personaje_hp ?? 0, hpMax: d.personaje_hp ?? 0,
+        hp: cur, hpMax: max,
         exhaust: d.personaje_exahust_lvl ?? 0, dsts: d.personaje_dsts ?? 0, dstf: d.personaje_dstf ?? 0,
       })
     } catch { /* noop */ }
