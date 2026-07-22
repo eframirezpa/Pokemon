@@ -353,10 +353,13 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                 <Row label="Armadura" value={data.armor.armor_type_name}
                   prof={profs.isArmorProf(data.armor.armor_type_category)} />
               )}
-              {(data.weapons || []).length > 0 && (
-                <Row label="Arma" value={data.weapons.map(w => w.weapon_type_name).join(', ')}
-                  prof={data.weapons.every(w => profs.isWeaponProf(w.weapon_type_name))} />
-              )}
+              {/* Una fila por arma equipada, cada una con su propia proficiencia */}
+              {(data.weapons || []).map((w, i, arr) => (
+                <Row key={w.id_personaje_weapon ?? i}
+                  label={arr.length > 1 ? `Arma ${i + 1}` : 'Arma'}
+                  value={w.weapon_type_name}
+                  prof={profs.isWeaponProf(w.weapon_type_name)} />
+              ))}
               <Row label="Origen"     value={data.origin_name} />
               <Row label="Background" value={data.background_name} />
               <FeatRow label="Rasgo origen"     feat={data.origin_feat}     onClick={() => setFeatInfo(data.origin_feat)} />
