@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Loader2, Search, Venus, Mars, Plus, Trash2, ChevronDown } from 'lucide-react'
+import { X, Loader2, Search, Venus, Mars, Plus, Trash2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import PokemonList from '../pages/PokemonList'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
@@ -31,22 +31,35 @@ const natureAdjOf = (n) => {
   return adj
 }
 
-/* Popup de búsqueda genérico (habilidades / movimientos) */
+/* Popup de búsqueda genérico (habilidades / movimientos), paginado */
+const PAGE_SIZE = 20
 function SearchModal({ title, endpoint, render, onPick, onClose }) {
   const [q, setQ] = useState('')
   const [items, setItems] = useState([])
+  const [total, setTotal] = useState(null)
+  const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(false)
+
+  // Al cambiar la búsqueda se vuelve a la primera página
+  useEffect(() => { setPage(0) }, [q])
+
   useEffect(() => {
     setLoading(true)
     const t = setTimeout(() => {
-      apiFetch(`${endpoint}?limit=50&search=${encodeURIComponent(q)}`)
+      apiFetch(`${endpoint}?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}&search=${encodeURIComponent(q)}`)
         .then(r => r.json())
-        .then(d => setItems(Array.isArray(d.data) ? d.data : (Array.isArray(d) ? d : [])))
-        .catch(() => setItems([]))
+        .then(d => {
+          setItems(Array.isArray(d.data) ? d.data : (Array.isArray(d) ? d : []))
+          setTotal(typeof d.total === 'number' ? d.total : null)
+        })
+        .catch(() => { setItems([]); setTotal(null) })
         .finally(() => setLoading(false))
     }, 250)
     return () => clearTimeout(t)
-  }, [q, endpoint])
+  }, [q, endpoint, page])
+
+  // Hay siguiente página si conocemos el total, o si la página vino llena
+  const hasNext = total != null ? (page + 1) * PAGE_SIZE < total : items.length === PAGE_SIZE
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -78,6 +91,18 @@ function SearchModal({ title, endpoint, render, onPick, onClose }) {
             </div>
           )}
         </div>
+        {/* Paginador */}
+        <div className="px-5 py-2.5 border-t border-gray-200 flex items-center justify-between shrink-0">
+          <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0 || loading}
+            className="flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed">
+            <ChevronLeft size={15} /> Anterior
+          </button>
+          <span className="text-xs text-gray-400">Página {page + 1}{total != null ? ` de ${Math.max(1, Math.ceil(total / PAGE_SIZE))}` : ''}</span>
+          <button onClick={() => setPage(p => p + 1)} disabled={!hasNext || loading}
+            className="flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed">
+            Siguiente <ChevronRight size={15} />
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -98,6 +123,8 @@ function TypeSelect({ types, value, onChange, allowEmpty }) {
 }
 
 const generoCode = (g) => g === 'Male' ? 'M' : g === 'Female' ? 'F' : 'N'
+// El score mostrado no supera 20, salvo nivel 20 que puede llegar a 22 (Peak Power)
+const capStat = (v, lvl) => Math.min(v, lvl >= 20 ? 22 : 20)
 
 export default function MasterPokemonWizard({ mode = 'create', sourceId = null, onClose, onCreated }) {
   const [pokemon, setPokemon] = useState(null)
@@ -106,7 +133,6 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
   const [types, setTypes]     = useState([])
   const [skillsList, setSkillsList] = useState([])
   const [natures, setNatures] = useState([])
-  const [movesMap, setMovesMap] = useState({})   // name → move
   const [struggle, setStruggle] = useState(null)
   // estado editable
   const [apodo, setApodo]     = useState('')
@@ -115,12 +141,22 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
   const [type1, setType1]     = useState(null)   // ids
   const [type2, setType2]     = useState(null)
   const [hp, setHp]           = useState(0)
-  const [stats, setStats]     = useState({ dex:0, str:0, con:0, int:0, wis:0, cha:0 })
+  const [stats, setStats]     = useState({ dex:0, str:0, con:0, int:0, wis:0, cha:0 })   // score mostrado (con naturaleza y tope)
+  const [rawStats, setRawStats] = useState({ dex:0, str:0, con:0, int:0, wis:0, cha:0 }) // score base sin naturaleza ni tope
   const [skills, setSkills]   = useState([])     // [{ id_skill, skill_name, related, pref, expert }]
   const [pasiva, setPasiva]   = useState(null)   // { ability_id, ability_name }
   const [moves, setMoves]     = useState([])     // movimientos aparte de struggle: [{ move_id, move_name, move_type }]
+  // nivel / proficiencia / experiencia (no editables en la confirmación)
+  const [level, setLevel]         = useState(1)
+  const [levelDiff, setLevelDiff] = useState(0)   // niveles por encima del mínimo (para el bono de HP)
+  const [proficiency, setProficiency] = useState(PROF)
+  const [experiencia, setExperiencia] = useState(0)
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
+  // selección de nivel (paso previo a la confirmación, solo al crear)
+  const [pendingPk, setPendingPk]   = useState(null)
+  const [levelInput, setLevelInput] = useState('')
+  const [levelBusy, setLevelBusy]   = useState(false)
   // popups
   const [abilityPicker, setAbilityPicker] = useState(false)
   const [movePicker, setMovePicker]       = useState(null) // { index } o { add: true }
@@ -130,11 +166,9 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
     apiFetch('/types').then(r => r.json()).then(d => setTypes(Array.isArray(d) ? d : [])).catch(() => {})
     apiFetch('/skills').then(r => r.json()).then(d => setSkillsList(Array.isArray(d) ? d : (d.data ?? []))).catch(() => {})
     apiFetch('/natures?limit=100').then(r => r.json()).then(d => setNatures(Array.isArray(d) ? d : (d.data ?? []))).catch(() => {})
-    apiFetch('/moves?limit=1000').then(r => r.json()).then(d => {
-      const list = Array.isArray(d.data) ? d.data : []
-      const map = {}; for (const m of list) map[m.move_name.toLowerCase()] = m
-      setMovesMap(map); setStruggle(list.find(m => m.move_id === STRUGGLE_ID) || null)
-    }).catch(() => {})
+    // Solo para conocer el nombre de Struggle (movimiento fijo)
+    apiFetch(`/moves/${STRUGGLE_ID}`).then(r => r.json())
+      .then(m => setStruggle(m && m.move_id ? m : null)).catch(() => {})
   }, [])
 
   // Editar / clonar: precargar el estado desde el detalle del Pokémon existente
@@ -154,8 +188,21 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
         nature_effect_decrease: d.nature_effect_decrease, nature_effect_decrease_value: d.nature_effect_decrease_value,
       } : null)
       setType1(d.personaje_pokemon_type_1 ?? null); setType2(d.personaje_pokemon_type_2 ?? null)
+      const lvl = Number(d.pokemon_level) || 1
+      setLevel(lvl)
+      setLevelDiff(Math.max(0, lvl - (Number(d.pokemon_min_level) || 1)))
+      setProficiency(Number(d.pokemon_proficient) || PROF)
+      setExperiencia(Number(d.pokemon_experiencia) || 0)
       setHp(Number(d.pokemon_hp) || 0)
-      setStats(Object.fromEntries(STAT_FIELDS.map(([k]) => [k, Number(d.stats?.[`pokemon_${k}`]) || 0])))
+      // Score total guardado (naturaleza horneada) → mostrado con tope; raw = total − naturaleza
+      const loadedNat = d.personaje_pokemon_nature ? {
+        nature_effect_increase: d.nature_effect_increase, nature_effect_increase_value: d.nature_effect_increase_value,
+        nature_effect_decrease: d.nature_effect_decrease, nature_effect_decrease_value: d.nature_effect_decrease_value,
+      } : null
+      const lAdj = natureAdjOf(loadedNat)
+      const total = Object.fromEntries(STAT_FIELDS.map(([k]) => [k, (Number(d.stats?.[`pokemon_${k}`]) || 0) + (Number(d.stats?.[`pokemon_${k}_bonus`]) || 0)]))
+      setRawStats(Object.fromEntries(STAT_FIELDS.map(([k]) => [k, (total[k] || 0) - (lAdj[k] || 0)])))
+      setStats(Object.fromEntries(STAT_FIELDS.map(([k]) => [k, capStat(total[k] || 0, lvl)])))
       setSkills((d.skills || []).map(s => ({
         id_skill: s.skill_id, skill_name: s.skill_name, related: s.skill_related_ability,
         pref: !!s.pokemon_skill_pref, expert: !!s.pokemon_skill_expert,
@@ -169,50 +216,97 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, sourceId])
 
-  // Al elegir el Pokémon: calcular todos los valores por defecto
-  const choose = (pk) => {
-    setPokemon(pk)
-    setApodo(pk.pokemon_name || '')
-    // género al azar entre los posibles de la especie
-    const [f, m] = (pk.pokemon_gender || '0:0').split(':').map(Number)
-    const opts = [...(f > 0 ? ['F'] : []), ...(m > 0 ? ['M'] : [])]
-    setGenero(opts.length ? pick(opts) : 'N')
-    // naturaleza al azar
-    setNature(natures.length ? pick(natures) : null)
-    // tipos por nombre → id
-    const tid = (name) => types.find(t => (t.pokemon_types_name || '').toLowerCase() === (name || '').toLowerCase())?.pokemon_types_id ?? null
-    setType1(tid(pk.pokemon_type_1)); setType2(tid(pk.pokemon_type_2))
-    // hp y stats de la pokédex
-    setHp(Number(pk.pokemon_hit_points) || 0)
-    setStats(Object.fromEntries(STAT_FIELDS.map(([k]) => [k, Number(pk[`pokemon_${k}`]) || 0])))
-    // skills con las proficiencias de la pokédex
-    const profSet = new Set(splitList(pk.pokemon_proficient_skills).map(s => s.toLowerCase()))
-    setSkills(skillsList.map(s => ({
-      id_skill: s.skill_id, skill_name: s.skill_name, related: s.skill_related_ability,
-      pref: profSet.has((s.skill_name || '').toLowerCase()), expert: false,
-    })))
-    // movimientos: hasta 4 al azar del pool inicial (sin struggle)
-    const pool = splitList(pk.pokemon_moves_start).map(n => movesMap[n.toLowerCase()])
-      .filter(mv => mv && mv.move_id !== STRUGGLE_ID)
-    const uniq = [...new Map(pool.map(mv => [mv.move_id, mv])).values()]
-    const chosen = uniq.length <= MAX_MOVES ? uniq : [...uniq].sort(() => Math.random() - 0.5).slice(0, MAX_MOVES)
-    setMoves(chosen)
-    // pasiva al azar (no oculta)
-    const abIds = nonHiddenAbilities(pk)
-    if (abIds.length) {
-      const aid = pick(abIds)
-      apiFetch(`/abilities/${aid}`).then(r => r.json())
-        .then(a => setPasiva(a && a.ability_id ? { ability_id: a.ability_id, ability_name: a.ability_name } : null))
-        .catch(() => setPasiva(null))
-    } else setPasiva(null)
+  // Paso 1: al elegir la especie se pide el nivel (por defecto el mínimo de la pokédex)
+  const pickSpecies = (pk) => {
+    setPendingPk(pk)
+    setLevelInput(String(Number(pk.pokemon_min_level) || 1))
   }
 
-  const natureAdj = natureAdjOf(nature)
-  const modOf = (k) => Math.floor(((Number(stats[k]) || 0) + (natureAdj[k] || 0) - 10) / 2)
-  // Modificador de la skill: mod de su atributo + competencia (prof, y otra vez si es experto)
-  const skillMod = (s) => modOf((s.related || '').toLowerCase()) + (s.pref ? PROF : 0) + (s.expert ? PROF : 0)
+  // Paso 2: con el nivel confirmado se consulta el preview y se calculan los valores
+  const acceptLevel = async () => {
+    const pk = pendingPk
+    const minLevel = Number(pk.pokemon_min_level) || 1
+    const lvl = Math.max(minLevel, Math.min(20, Number(levelInput) || minLevel))
+    setLevelBusy(true)
+    try {
+      const pv = await apiFetch(`/master/pokemon/level-preview?id_pokemon=${pk.pokemon_id}&level=${lvl}`).then(r => r.json())
+      // naturaleza al azar (editable después)
+      const nat = natures.length ? pick(natures) : null
+      // género al azar entre los posibles de la especie
+      const [f, m] = (pk.pokemon_gender || '0:0').split(':').map(Number)
+      const gOpt = [...(f > 0 ? ['F'] : []), ...(m > 0 ? ['M'] : [])]
+      const tid = (name) => types.find(t => (t.pokemon_types_name || '').toLowerCase() === (name || '').toLowerCase())?.pokemon_types_id ?? null
+      // Stats entrenados (raw) y el mostrado = raw + naturaleza, topado a 20 salvo nivel 20
+      const nAdj = natureAdjOf(nat)
+      const rawTrained = Object.fromEntries(STAT_FIELDS.map(([k]) => [k, Number(pv.stats?.[k]) || 0]))
+      const bakedStats = Object.fromEntries(STAT_FIELDS.map(([k]) => [k, capStat((rawTrained[k] || 0) + (nAdj[k] || 0), pv.level)]))
+      // HP = base + tiradas por nivel + (diferencia de niveles × mod de CON mostrado)
+      const conMod = Math.floor((bakedStats.con - 10) / 2)
+      const hpFinal = pv.hp_base + pv.hp_rolls + (pv.level - pv.min_level) * conMod
+      // skills con las proficiencias de la pokédex
+      const profSet = new Set(splitList(pk.pokemon_proficient_skills).map(s => s.toLowerCase()))
 
-  const setStat = (k, v) => setStats(s => ({ ...s, [k]: v === '' ? '' : Math.max(0, Number(v) || 0) }))
+      setApodo(pk.pokemon_name || '')
+      setGenero(gOpt.length ? pick(gOpt) : 'N')
+      setNature(nat)
+      setType1(tid(pk.pokemon_type_1)); setType2(tid(pk.pokemon_type_2))
+      setLevel(pv.level); setLevelDiff(pv.level - pv.min_level)
+      setProficiency(pv.proficiency); setExperiencia(pv.experiencia)
+      setRawStats(rawTrained)
+      setStats(bakedStats)
+      setHp(hpFinal)
+      setSkills(skillsList.map(s => ({
+        id_skill: s.skill_id, skill_name: s.skill_name, related: s.skill_related_ability,
+        pref: profSet.has((s.skill_name || '').toLowerCase()), expert: false,
+      })))
+      setMoves((pv.default_moves || []).map(m => ({ move_id: m.move_id, move_name: m.move_name, move_type: m.move_type })))
+      // pasiva al azar (no oculta)
+      const abIds = nonHiddenAbilities(pk)
+      if (abIds.length) {
+        const aid = pick(abIds)
+        apiFetch(`/abilities/${aid}`).then(r => r.json())
+          .then(a => setPasiva(a && a.ability_id ? { ability_id: a.ability_id, ability_name: a.ability_name } : null))
+          .catch(() => setPasiva(null))
+      } else setPasiva(null)
+
+      setPokemon(pk)
+      setPendingPk(null)
+    } catch {
+      setError('No se pudo calcular el nivel')
+    } finally { setLevelBusy(false) }
+  }
+
+  // Los stats ya tienen la naturaleza horneada → el modificador sale del score directo
+  const modOf = (k) => Math.floor(((Number(stats[k]) || 0) - 10) / 2)
+  // Modificador de la skill: mod de su atributo + competencia (según el nivel; doble si es experto)
+  const skillMod = (s) => modOf((s.related || '').toLowerCase()) + (s.pref ? proficiency : 0) + (s.expert ? proficiency : 0)
+
+  const conMod = (con) => Math.floor(((Number(con) || 0) - 10) / 2)
+  // Ajusta el HP por el cambio de modificador de CON (bono = diferencia de niveles × modCON)
+  const adjustHpForCon = (oldCon, newCon) => {
+    const d = conMod(newCon) - conMod(oldCon)
+    if (d) setHp(h => Math.max(0, (Number(h) || 0) + levelDiff * d))
+  }
+
+  // Cambiar la naturaleza: recalcula el score mostrado desde el raw + nuevo bono (con tope) y ajusta el HP
+  const changeNature = (newNat) => {
+    const newAdj = natureAdjOf(newNat)
+    const oldCon = Number(stats.con) || 0
+    const newCon = capStat((Number(rawStats.con) || 0) + (newAdj.con || 0), level)
+    adjustHpForCon(oldCon, newCon)
+    setStats(Object.fromEntries(STAT_FIELDS.map(([k]) => [k, capStat((Number(rawStats[k]) || 0) + (newAdj[k] || 0), level)])))
+    setNature(newNat)
+  }
+
+  // El usuario edita el score MOSTRADO (con tope). Guardamos el mostrado y el raw (sin naturaleza).
+  const setStat = (k, v) => {
+    if (v === '') { setStats(s => ({ ...s, [k]: '' })); return }
+    const shown = capStat(Math.max(0, Number(v) || 0), level)
+    if (k === 'con') adjustHpForCon(stats.con, shown)
+    const natVal = natureAdjOf(nature)[k] || 0
+    setStats(s => ({ ...s, [k]: shown }))
+    setRawStats(s => ({ ...s, [k]: shown - natVal }))
+  }
   const toggleSkill = (id, field) => setSkills(list => list.map(s => {
     if (s.id_skill !== id) return s
     if (field === 'pref')   return { ...s, pref: !s.pref, expert: !s.pref ? s.expert : false }
@@ -249,6 +343,7 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
         skills: skills.map(s => ({ id_skill: s.id_skill, pref: s.pref, expert: s.expert })),
         move_ids,
         id_abilitie: pasiva?.ability_id ?? null,
+        level, proficiency, experiencia,
       }
       // Editar = PATCH sobre el existente. Crear y clonar = POST (nuevo Pokémon).
       const res = mode === 'edit'
@@ -272,6 +367,40 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
     )
   }
 
+  // ── Paso previo: elegir el nivel del Pokémon ──
+  if (pendingPk) {
+    const minLevel = Number(pendingPk.pokemon_min_level) || 1
+    const val = Number(levelInput)
+    const invalid = !Number.isInteger(val) || val < minLevel || val > 20
+    return (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+        onClick={e => { if (e.target === e.currentTarget && !levelBusy) { setPendingPk(null) } }}>
+        <div className="bg-white rounded-2xl w-full max-w-xs flex flex-col shadow-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="font-bold text-gray-900">Nivel del Pokémon</h3>
+            <button onClick={() => { if (!levelBusy) setPendingPk(null) }} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+          </div>
+          <div className="px-5 py-4 space-y-2">
+            <p className="text-xs text-gray-500">{pendingPk.pokemon_name} · nivel mínimo {minLevel}</p>
+            <input type="number" min={minLevel} max={20} value={levelInput} autoFocus
+              onChange={e => setLevelInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !invalid && !levelBusy) acceptLevel() }}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+            {invalid && <p className="text-xs text-red-600">El nivel debe estar entre {minLevel} y 20.</p>}
+          </div>
+          <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+            <button onClick={() => { if (!levelBusy) setPendingPk(null) }} disabled={levelBusy}
+              className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
+            <button onClick={acceptLevel} disabled={invalid || levelBusy}
+              className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+              {levelBusy && <Loader2 size={15} className="animate-spin" />} Aceptar
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // ── Paso 1: elegir Pokémon (solo al crear; todos, sin filtro inicial) ──
   if (!pokemon) {
     return (
@@ -281,7 +410,7 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
           <button onClick={onClose} className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
             <X size={18} />
           </button>
-          <PokemonList title="Elige un Pokémon" onChoose={choose} />
+          <PokemonList title="Elige un Pokémon" onChoose={pickSpecies} />
         </div>
       </div>
     )
@@ -304,6 +433,13 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          {/* Nivel, proficiencia y experiencia (no editables) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1">Nivel {level}</span>
+            <span className="text-[11px] font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1">Proficiencia {fmtMod(proficiency)}</span>
+            <span className="text-[11px] font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1">Experiencia {experiencia.toLocaleString()}</span>
+          </div>
+
           {/* Nombre */}
           <div>
             <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Nombre</label>
@@ -349,15 +485,22 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
             </div>
           </div>
 
-          {/* Naturaleza (solo lectura) */}
-          {nature && (
-            <p className="text-xs text-gray-500">
-              Naturaleza: <span className="font-semibold text-gray-700">{nature.nature_name}</span>
-              {nature.nature_effect_increase && nature.nature_effect_increase !== '-' &&
-                <> · <span className="text-green-600 font-semibold">{nature.nature_effect_increase} +{nature.nature_effect_increase_value}</span>
-                   <span className="text-red-600 font-semibold ml-1">{nature.nature_effect_decrease} {nature.nature_effect_decrease_value}</span></>}
-            </p>
-          )}
+          {/* Naturaleza (editable; al cambiar actualiza los bonos de stats) */}
+          <div>
+            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Naturaleza</label>
+            <div className="relative">
+              <select value={nature?.nature_id ?? ''} onChange={e => changeNature(natures.find(n => String(n.nature_id) === e.target.value) || null)}
+                className="appearance-none w-full pl-3 pr-8 py-2 text-sm border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-400">
+                {natures.map(n => (
+                  <option key={n.nature_id} value={n.nature_id}>
+                    {n.nature_name}{n.nature_effect_increase && n.nature_effect_increase !== '-'
+                      ? ` (${n.nature_effect_increase} +${n.nature_effect_increase_value} / ${n.nature_effect_decrease} ${n.nature_effect_decrease_value})` : ''}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
 
           {/* Stats */}
           <div>
