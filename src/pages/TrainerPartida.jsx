@@ -12,6 +12,7 @@ import EditarPersonajeModal from '../components/EditarPersonajeModal'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 import { hpValues } from '../lib/hp'
+import TypeEffectivenessView from '../components/TypeEffectivenessView'
 
 // Ícono de 3 pokébolas (para el cinturón)
 function PokeballsIcon({ size = 18 }) {
@@ -165,6 +166,13 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
             </div>
           </div>
         )}
+
+        {/* Efectividad de tipo (solo para el Pokémon) */}
+        {v.typeId1 != null && (
+          <div className="mt-3 border-t border-gray-700 pt-3">
+            <TypeEffectivenessView typeId1={v.typeId1} typeId2={v.typeId2} dark />
+          </div>
+        )}
       </div>
 
       {/* Detalle del movimiento seleccionado */}
@@ -238,6 +246,30 @@ export default function TrainerPartida() {
       .catch(() => {})
   }, [id, stateId])
 
+  // Restaura el Pokémon invocado tras una recarga: se persiste en personaje_pokemon_is_in_game
+  useEffect(() => {
+    if (!personajeId) return
+    apiFetch(`/personaje/${personajeId}/pokemon?en_equipo=1`)
+      .then(r => r.json())
+      .then(list => {
+        const inGame = Array.isArray(list) && list.find(p => p.personaje_pokemon_is_in_game)
+        if (inGame) {
+          const sprite = (inGame.pokemon_is_shiny && inGame.pokemon_media_main_shiny)
+            ? inGame.pokemon_media_main_shiny
+            : (inGame.pokemon_media_main || inGame.pokemon_media_sprite)
+          setPokemonInvocado(inGame.id_personaje_pokemon)
+          setInvocadoSprite(sprite)
+        }
+      })
+      .catch(() => {})
+  }, [personajeId])
+
+  // Persiste el estado "en juego" del Pokémon invocado (no bloquea la UI)
+  const persistEnJuego = (idpp, enJuego) =>
+    apiFetch(`/personaje/${personajeId}/pokemon/${idpp}/en-juego`, {
+      method: 'PATCH', body: JSON.stringify({ en_juego: enJuego }),
+    }).catch(() => {})
+
   // Abrir control del jugador (personaje) — carga HP/exhaust/dsts/dstf
   const openTrainerControl = async () => {
     setPokeData(null)
@@ -266,6 +298,7 @@ export default function TrainerPartida() {
         exhaust: d.personaje_pokemon_exahust_lvl ?? 0, dsts: d.personaje_pokemon_dsts ?? 0, dstf: d.personaje_pokemon_dstf ?? 0,
         moves,
         name: d.pokemon_apodo || 'Pokémon',
+        typeId1: d.personaje_pokemon_type_1, typeId2: d.personaje_pokemon_type_2,
       })
       // Inicializa los PP con move_pp (solo los que aún no están en sesión → se conservan al reabrir)
       setMovePP(prev => {
@@ -323,6 +356,7 @@ export default function TrainerPartida() {
   }
 
   const returnPokemon = () => {
+    if (pokemonInvocado != null) persistEnJuego(pokemonInvocado, false)
     setPokemonInvocado(null); setInvocadoSprite(null)
     setOpenControl(null); setPokeData(null)
     notifyParty()
@@ -453,6 +487,7 @@ export default function TrainerPartida() {
           mode="belt"
           onClose={() => setShowBelt(false)}
           onInvoke={(idpp, sprite) => {
+            persistEnJuego(idpp, true)
             setPokemonInvocado(idpp)
             setInvocadoSprite(sprite)
             setShowBelt(false)
@@ -460,6 +495,7 @@ export default function TrainerPartida() {
           onMoved={(idpp) => {
             // Si se envió al computador el Pokémon invocado, se limpia el invocado
             if (String(idpp) === String(pokemonInvocado)) {
+              persistEnJuego(idpp, false)
               setPokemonInvocado(null)
               setInvocadoSprite(null)
             }
@@ -494,7 +530,7 @@ export default function TrainerPartida() {
       {/* Control del Pokémon invocado */}
       {openControl === 'pokemon' && pokeData && (
         <CombatePanel
-          title="Pokémon"
+          title={pokeData.name || 'Pokémon'}
           initial={pokeData}
           moves={pokeData.moves}
           movePP={movePP}

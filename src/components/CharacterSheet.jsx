@@ -6,6 +6,7 @@ import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
 import { ResolvedBonusBadges } from './featBonoBadges'
 import SpecializationInfoModal from './SpecializationInfoModal'
 import { buildProfs } from '../lib/profs'
+import { hpValues } from '../lib/hp'
 
 /* Checkbox de solo lectura (estilo de la imagen) */
 function ReadCheck({ pref, expert }) {
@@ -191,10 +192,9 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
             {/* HP (barra de solo lectura) + AC + Prof */}
             {(() => {
               // Máximo = base guardada (6 + healing de origen/background) + modificador de CON
-              // (ya trae los bonos de feats y especialidades) + healing de feats/especialidades.
+              // + healing de feats/especialidades (mismo cálculo que el control de combate).
               // El HP actual es un valor absoluto de combate, no se le suman los bonos.
-              const max = (data.personaje_hp || 0) + abilMod('con') + featFx.hp + specFx.hp
-              const cur = data.personaje_current_hp ?? max
+              const { max, cur } = hpValues(data)
               const pct = max > 0 ? Math.max(0, Math.min(100, Math.round((cur / max) * 100))) : 0
               const color = pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444'
               // AC recalculado: armadura + modificador de DEX (con los bonos de feats). Sin armadura → AC guardado.

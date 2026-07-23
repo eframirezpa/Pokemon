@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, ChevronLeft, ChevronDown, Venus, Mars, Check, Sparkles } from 'lucide-react'
 import PokemonList from '../pages/PokemonList'
 import { apiFetch } from '../api'
+import TypeEffectivenessView from './TypeEffectivenessView'
 
 const STEPS = ['Básicos', 'Stats', 'Iniciales', 'Movimientos', 'Pasivas', 'Confirmación']
 // Habilidades pasivas visibles (no ocultas) del Pokémon
@@ -527,6 +528,9 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
                     )}
                   </div>
                 </div>
+
+                {/* Efectividad de tipo */}
+                <TypeEffectivenessView typeName1={pokemon.pokemon_type_1} typeName2={pokemon.pokemon_type_2} />
 
                 {/* Habilidades */}
                 {skillsList.length > 0 && (() => {

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Pencil, Power, Users, LogIn } from 'lucide-react'
+import { Plus, Pencil, Power, Users, LogIn, Cat } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch, API_BASE_URL } from '../api'
 import PartidaForm from '../components/PartidaForm'
 import PartidaUsuariosPanel from '../components/PartidaUsuariosPanel'
 import PartidaPresentacion from '../components/PartidaPresentacion'
+import MasterPokemonPanel from '../components/MasterPokemonPanel'
 
 function SpriteImg({ src }) {
   if (!src) return <div className="w-16 h-16 bg-gray-100 rounded-lg" />
@@ -90,6 +91,7 @@ export default function DashboardMaster() {
   const [formPartida, setFormPartida]     = useState(null)
   const [usersPartida, setUsersPartida]   = useState(null)
   const [presentacion, setPresentacion]   = useState(null)
+  const [showPokemon, setShowPokemon]     = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -139,13 +141,22 @@ export default function DashboardMaster() {
           <h1 className="text-2xl font-bold text-gray-900">Mis Partidas</h1>
           <p className="text-sm text-gray-500 mt-0.5">Bienvenido, <span className="font-medium text-gray-700">{user?.user_name}</span></p>
         </div>
-        <button
-          onClick={() => setFormPartida(false)}
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white
-                     px-4 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm"
-        >
-          <Plus size={16} /> Nueva partida
-        </button>
+        <div className="flex flex-col items-end gap-1.5">
+          <button
+            onClick={() => setFormPartida(false)}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white
+                       px-4 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm"
+          >
+            <Plus size={16} /> Nueva partida
+          </button>
+          <button
+            onClick={() => setShowPokemon(true)}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white
+                       px-4 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm"
+          >
+            <Cat size={16} /> Pokémones
+          </button>
+        </div>
       </div>
 
       {/* Grid */}
@@ -199,6 +210,9 @@ export default function DashboardMaster() {
           partida={usersPartida}
           onClose={() => setUsersPartida(null)}
         />
+      )}
+      {showPokemon && (
+        <MasterPokemonPanel onClose={() => setShowPokemon(false)} />
       )}
     </div>
   )

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, ChevronLeft, Venus, Mars, Check } from 'lucide-react'
 import { apiFetch } from '../api'
+import TypeEffectivenessView from './TypeEffectivenessView'
 
 const TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -19,11 +20,14 @@ function TypeBadge({ type }) {
   )
 }
 
-function ReadCheck({ checked }) {
+function ReadCheck({ pref, expert }) {
+  // Vacío si no tiene nada; verde si es proficiente; azul si es experto
+  const fill = expert ? 'bg-blue-700 border-blue-700'
+    : pref ? 'bg-green-600 border-green-600'
+    : 'border-gray-400 bg-white'
   return (
-    <span className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 ${
-      checked ? 'bg-red-600 border-red-600' : 'border-red-400 bg-white'}`}>
-      {checked && <Check size={10} className="text-white" strokeWidth={3} />}
+    <span className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 ${fill}`}>
+      {(pref || expert) && <Check size={10} className="text-white" strokeWidth={3} />}
     </span>
   )
 }
@@ -211,29 +215,31 @@ export function PokemonDetailView({ personajeId, idpp, onBack, actionLabel, onAc
             </div>
           </div>
 
+          {/* Efectividad de tipo */}
+          <TypeEffectivenessView typeId1={d.personaje_pokemon_type_1} typeId2={d.personaje_pokemon_type_2} />
+
           {/* Habilidades */}
           {skills.length > 0 && (
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-1.5">Habilidades</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">
+              <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                <p className="text-xs font-black uppercase tracking-widest text-gray-600">Habilidades</p>
+                <span className="text-[9px] font-bold text-white bg-green-600 rounded px-1.5 py-0.5">Proficient</span>
+                <span className="text-[9px] font-bold text-white bg-blue-700 rounded px-1.5 py-0.5">Expert</span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-3 sm:gap-x-5 gap-y-3">
                 {skillCols.map((col, ci) => (
                   <div key={ci}>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="w-3.5 text-center text-[9px] font-bold text-gray-500">E</span>
-                      <span className="w-3.5 text-center text-[9px] font-bold text-gray-500">P</span>
-                    </div>
                     <div className="space-y-1.5">
                       {col.map((s, i) => {
                         const v = skillValue(s)
                         return (
-                          <div key={i} className="flex items-center gap-1.5">
-                            <ReadCheck checked={!!s.pokemon_skill_expert} />
-                            <ReadCheck checked={!!s.pokemon_skill_pref} />
-                            <span className={`w-7 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
+                          <div key={i} className="flex items-center gap-1.5 min-w-0">
+                            <ReadCheck pref={!!s.pokemon_skill_pref} expert={!!s.pokemon_skill_expert} />
+                            <span className={`w-7 shrink-0 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
                               v < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                               {fmtMod(v)}
                             </span>
-                            <span className="text-[11px] leading-tight truncate">
+                            <span className="text-[11px] leading-tight truncate min-w-0">
                               <span className="font-semibold text-gray-800">{s.skill_name}</span>
                               <span className="text-gray-400"> ({s.skill_related_ability})</span>
                             </span>

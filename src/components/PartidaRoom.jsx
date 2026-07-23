@@ -8,13 +8,13 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
-import PokemonList from '../pages/PokemonList'
 import PartyPanel, { PlayerCard } from './PartyPanel'
 import CharacterSheet from './CharacterSheet'
 import { PokemonDetailView } from './PokemonBox'
 import PartidaInfoPanel from './PartidaInfoPanel'
 import EdicionJugadoresPanel from './EdicionJugadoresPanel'
 import MapaModal from './MapaModal'
+import MasterFieldPicker from './MasterFieldPicker'
 
 const ROLE_DASHBOARD = {
   master:     '/dashboard/master',
@@ -59,19 +59,6 @@ function TypeBadge({ type }) {
 
 const hpPct   = p => Math.max(0, Math.min(100, Math.round((p.hp_current / p.hp_max) * 100)))
 const hpColor = pct => pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444'
-
-const splitList = s => s ? s.split(',').map(x => x.trim()).filter(Boolean) : []
-
-// Devuelve los nombres de movimientos que el Pokémon conoce según su nivel
-const levelMoves = (d, level) => {
-  const names = [...splitList(d.pokemon_moves_start)]
-  if (level >= 2)  names.push(...splitList(d.pokemon_moves_level2))
-  if (level >= 6)  names.push(...splitList(d.pokemon_moves_level6))
-  if (level >= 10) names.push(...splitList(d.pokemon_moves_level10))
-  if (level >= 14) names.push(...splitList(d.pokemon_moves_level14))
-  if (level >= 18) names.push(...splitList(d.pokemon_moves_level18))
-  return [...new Set(names)]
-}
 
 /* Signo de interrogación estilo Pokémon (amarillo con contorno azul) */
 function MysteryMark({ size = 'text-4xl' }) {
@@ -795,7 +782,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     if (personajeId != null) sendInvocado(personajeId, pokemonInvocado)
   }, [personajeId, pokemonInvocado, sendInvocado])
 
-  const MAX_POKEMON = 4
+  const MAX_POKEMON = 6
 
   const [attackFx, setAttackFx] = useState(null)
 
@@ -811,34 +798,24 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     return () => clearTimeout(t)
   }, [lastAttack])
 
-  // El master elige un Pokémon de la Pokédex → se carga su info completa
-  const handlePickPokemon = async (pk) => {
+  // El master elige uno de SUS Pokémon → se carga su detalle y se pone en el campo
+  const handlePickPokemon = async (mp) => {
     setShowPokedex(false)
+    if (activePokemons.length >= MAX_POKEMON) return
     try {
-      const [pRes, mRes] = await Promise.all([
-        apiFetch(`/pokemon/${pk.pokemon_id}`),
-        apiFetch('/moves?limit=1000'),
-      ])
-      const d     = await pRes.json()
-      const mData = await mRes.json()
-
-      const moveType = {}
-      for (const m of (mData.data ?? [])) moveType[m.move_name.toLowerCase()] = m.move_type
-
-      if (activePokemons.length >= MAX_POKEMON) return
-
-      const level = d.pokemon_min_level || 1
-      const moves = levelMoves(d, level).map(n => ({ name: n, type: moveType[n.toLowerCase()] || null }))
+      const d = await apiFetch(`/master/pokemon/${mp.id_master_pokemon}`).then(r => r.json())
+      const moves = (d.moves || []).map(m => ({ name: m.move_name, type: m.move_type || null }))
 
       const nuevo = {
         uid:         `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        pokemon_id:  d.pokemon_id,
-        name:        d.pokemon_name,
-        type1:       d.pokemon_type_1,
-        type2:       d.pokemon_type_2,
-        level,
-        hp_max:      d.pokemon_hit_points,
-        hp_current:  d.pokemon_hit_points,
+        master_pokemon_id: mp.id_master_pokemon,
+        pokemon_id:  d.id_pokemon,
+        name:        d.pokemon_apodo || d.pokemon_name,
+        type1:       mp.type_1_name || null,
+        type2:       mp.type_2_name || null,
+        level:       d.pokemon_level || 1,
+        hp_max:      d.pokemon_hp,
+        hp_current:  d.pokemon_current_hp ?? d.pokemon_hp,
         sprite:      d.pokemon_media_sprite || d.pokemon_media_main,
         moves,
         hidden:      true,
@@ -1227,23 +1204,12 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
       {/* Modal Pokédex — selección del master */}
       {showPokedex && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
-          onClick={e => { if (e.target === e.currentTarget) setShowPokedex(false) }}
-        >
-          <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl">
-            <button
-              onClick={() => setShowPokedex(false)}
-              className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center
-                         rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
-              title="Cerrar"
-            >
-              <X size={18} />
-            </button>
-            <PokemonList title="Pokédex" onPick={handlePickPokemon} />
-          </div>
-        </div>
+        <MasterFieldPicker
+          disabled={activePokemons.length >= MAX_POKEMON}
+          usedIds={activePokemons.map(p => p.master_pokemon_id).filter(v => v != null)}
+          onPick={handlePickPokemon}
+          onClose={() => setShowPokedex(false)}
+        />
       )}
     </div>
   )
