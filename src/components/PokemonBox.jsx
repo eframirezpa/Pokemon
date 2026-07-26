@@ -158,6 +158,8 @@ export function PokemonDetailView({ personajeId, idpp, onBack, actionLabel, onAc
             <div className="px-4 py-1.5 space-y-0.5 text-xs text-gray-800">
               <p><span className="font-bold text-[#7A200D]">Clase de Armadura</span> {d.personaje_pokemon_ac}</p>
               <p><span className="font-bold text-[#7A200D]">Puntos de Golpe</span> {d.pokemon_current_hp}/{d.pokemon_hp} ({d.pokemon_hit_dice})</p>
+              <p><span className="font-bold text-[#7A200D]">Experiencia</span> {(d.pokemon_experiencia ?? 0).toLocaleString()}
+                {d.exp_next != null ? `/${d.exp_next.toLocaleString()}` : ' · Máx'}</p>
               {speeds && <p><span className="font-bold text-[#7A200D]">Velocidad</span> {speeds}</p>}
             </div>
             <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />

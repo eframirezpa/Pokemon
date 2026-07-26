@@ -43,6 +43,8 @@ function PokeballIcon({ size = 18 }) {
 }
 
 const hpColorPct = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
+// Experiencia: rojo ≤20%, amarillo 21-80%, verde ≥81%
+const expColorPct = pct => (pct >= 81 ? '#22c55e' : pct >= 21 ? '#eab308' : '#ef4444')
 
 const MOVE_TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -111,6 +113,23 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
           <button onClick={() => setHp(v.hp + 1)}
             className="w-8 h-8 shrink-0 rounded-lg bg-gray-700 hover:bg-green-600 flex items-center justify-center text-white transition-colors"><Plus size={15} /></button>
         </div>
+
+        {/* Experiencia (solo Pokémon) — barra debajo del HP */}
+        {v.exp !== undefined && (() => {
+          const next = v.expNext
+          const pctExp = next ? Math.max(0, Math.min(100, Math.round((v.exp / next) * 100))) : 100
+          return (
+            <div className="mt-2 px-10">
+              <div className="w-full h-2 rounded-full bg-gray-700 overflow-hidden">
+                <div className="h-full rounded-full transition-all"
+                  style={{ width: `${pctExp}%`, backgroundColor: expColorPct(pctExp) }} />
+              </div>
+              <p className="text-center text-[10px] font-bold text-gray-300 mt-1">
+                EXP {v.exp.toLocaleString()}{next != null ? ` / ${next.toLocaleString()}` : ' · Máx'}
+              </p>
+            </div>
+          )
+        })()}
 
         {/* EXH / DSTS / DSTF: valor con subir/bajar a los lados */}
         <div className="mt-3 border-t border-gray-700 pt-3 space-y-2">
@@ -299,6 +318,7 @@ export default function TrainerPartida() {
         moves,
         name: d.pokemon_apodo || 'Pokémon',
         typeId1: d.personaje_pokemon_type_1, typeId2: d.personaje_pokemon_type_2,
+        exp: d.pokemon_experiencia ?? 0, expNext: d.exp_next ?? null,
       })
       // Inicializa los PP con move_pp (solo los que aún no están en sesión → se conservan al reabrir)
       setMovePP(prev => {
