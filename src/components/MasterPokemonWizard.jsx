@@ -3,6 +3,7 @@ import { X, Loader2, Search, Venus, Mars, Plus, Trash2, ChevronDown, ChevronLeft
 import PokemonList from '../pages/PokemonList'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
+import MasterPokemonFeats from './MasterPokemonFeats'
 
 const STRUGGLE_ID = 705
 const MAX_MOVES = 4          // movimientos aparte de Struggle
@@ -146,6 +147,7 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
   const [skills, setSkills]   = useState([])     // [{ id_skill, skill_name, related, pref, expert }]
   const [pasiva, setPasiva]   = useState(null)   // { ability_id, ability_name }
   const [moves, setMoves]     = useState([])     // movimientos aparte de struggle: [{ move_id, move_name, move_type }]
+  const [feats, setFeats]     = useState([])     // feats agregados: [{ key, feat_id, feat_name, bonos }]
   // nivel / proficiencia / experiencia (no editables en la confirmación)
   const [level, setLevel]         = useState(1)
   const [levelDiff, setLevelDiff] = useState(0)   // niveles por encima del mínimo (para el bono de HP)
@@ -211,6 +213,11 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
       setPasiva(p0 ? { ability_id: p0.ability_id, ability_name: p0.ability_name } : null)
       setMoves((d.moves || []).filter(m => m.move_id !== STRUGGLE_ID)
         .map(m => ({ move_id: m.move_id, move_name: m.move_name, move_type: m.move_type })))
+      // Feats existentes (para editar/clonar; se recalcula el display con ellos)
+      setFeats((d.feats || []).map((f, i) => ({
+        key: `${f.feat_id}-${i}`, feat_id: f.feat_id, feat_name: f.feat_name,
+        bonos: (f.bonos || []).map(b => ({ type: b.type, llave: b.llave, value: b.value })),
+      })))
       setLoading(false)
     }).catch(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -276,10 +283,40 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
     } finally { setLevelBusy(false) }
   }
 
-  // Los stats ya tienen la naturaleza horneada → el modificador sale del score directo
-  const modOf = (k) => Math.floor(((Number(stats[k]) || 0) - 10) / 2)
-  // Modificador de la skill: mod de su atributo + competencia (según el nivel; doble si es experto)
-  const skillMod = (s) => modOf((s.related || '').toLowerCase()) + (s.pref ? proficiency : 0) + (s.expert ? proficiency : 0)
+  // Overlay de los feats agregados: se muestra en las estadísticas asociadas (display-only)
+  const featFx = (() => {
+    const statAdd = { dex: 0, str: 0, con: 0, int: 0, wis: 0, cha: 0 }
+    const skillProf = new Set(), skillExpert = new Set()
+    let healing = 0
+    for (const f of (feats || [])) {
+      for (const b of (f.bonos || [])) {
+        const t = (b.type || '').toLowerCase(), llave = (b.llave || '').toLowerCase()
+        if (t === 'stat' && statAdd[llave] !== undefined) statAdd[llave] += Number(b.value) || 0
+        else if (t === 'skill') { const v = (b.value || '').toLowerCase(); if (v === 'expert') skillExpert.add(llave); else if (v === 'prof') skillProf.add(llave) }
+        else if (t === 'healing') { const m = /(\d+)\s*per\s*l/i.exec(b.value || ''); healing += m ? Number(m[1]) * level : (Number(b.value) || 0) }
+      }
+    }
+    return { statAdd, skillProf, skillExpert, healing }
+  })()
+
+  // Score mostrado = base (con naturaleza) + overlay de feats, topado a 20 (o 22 a nivel 20)
+  const statShown = (k) => stats[k] === '' ? '' : capStat((Number(stats[k]) || 0) + (featFx.statAdd[k] || 0), level)
+  const statModEff = (k) => Math.floor((capStat((Number(stats[k]) || 0) + (featFx.statAdd[k] || 0), level) - 10) / 2)
+  // HP mostrado = base + healing de feats
+  const hpShown = hp === '' ? '' : (Number(hp) || 0) + featFx.healing
+  // Proficiencia/expertise efectiva de una skill (base + feats)
+  const skillFlagsEff = (s) => {
+    const name = (s.skill_name || '').toLowerCase()
+    let pref = !!s.pref, expert = !!s.expert
+    if (featFx.skillProf.has(name)) pref = true
+    if (featFx.skillExpert.has(name)) { if (pref) expert = true; else pref = true }
+    return { pref, expert }
+  }
+  // Modificador de la skill: mod del atributo (con feats) + competencia (doble si experto)
+  const skillMod = (s) => {
+    const { pref, expert } = skillFlagsEff(s)
+    return statModEff((s.related || '').toLowerCase()) + (pref ? proficiency : 0) + (expert ? proficiency : 0)
+  }
 
   const conMod = (con) => Math.floor(((Number(con) || 0) - 10) / 2)
   // Ajusta el HP por el cambio de modificador de CON (bono = diferencia de niveles × modCON)
@@ -344,6 +381,7 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
         move_ids,
         id_abilitie: pasiva?.ability_id ?? null,
         level, proficiency, experiencia,
+        feats: feats.map(f => ({ feat_id: f.feat_id, bonos: f.bonos })),
       }
       // Editar = PATCH sobre el existente. Crear y clonar = POST (nuevo Pokémon).
       const res = mode === 'edit'
@@ -480,8 +518,12 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
             </div>
             <div>
               <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Hit Points</label>
-              <input type="number" min={0} value={hp} onChange={e => setHp(e.target.value === '' ? '' : Math.max(0, Number(e.target.value) || 0))}
+              <input type="number" min={0} value={hpShown}
+                onChange={e => setHp(e.target.value === '' ? '' : Math.max(0, (Number(e.target.value) || 0) - featFx.healing))}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+              {featFx.healing > 0 && (
+                <p className="text-[10px] font-semibold text-green-600 mt-0.5">incluye +{featFx.healing} por feats</p>
+              )}
             </div>
           </div>
 
@@ -507,14 +549,20 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
             <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Stats</label>
             <div className="grid grid-cols-3 gap-2">
               {STAT_FIELDS.map(([k, lbl]) => {
-                const mod = modOf(k)
+                const mod = statModEff(k)
                 return (
                   <div key={k} className="border border-gray-200 rounded-xl px-2.5 py-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black text-gray-700">{lbl}</span>
                       <span className={`text-[11px] font-bold ${mod < 0 ? 'text-red-600' : 'text-green-600'}`}>{fmtMod(mod)}</span>
                     </div>
-                    <input type="number" min={0} value={stats[k]} onChange={e => setStat(k, e.target.value)}
+                    <input type="number" min={0} value={statShown(k)}
+                      onChange={e => {
+                        if (e.target.value === '') { setStat(k, ''); return }
+                        // Si el valor no cambió respecto al mostrado (topado), no toques la base
+                        if (Number(e.target.value) === statShown(k)) return
+                        setStat(k, String((Number(e.target.value) || 0) - (featFx.statAdd[k] || 0)))
+                      }}
                       className="w-full mt-0.5 px-1 py-1 text-sm font-bold text-center border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
                   </div>
                 )
@@ -530,16 +578,19 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
               <span className="text-[9px] font-bold text-white bg-blue-700 rounded px-1.5 py-0.5">Expert</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-              {skills.map(s => (
+              {skills.map(s => {
+                const eff = skillFlagsEff(s)
+                return (
                 <div key={s.id_skill} className="flex items-center gap-2 py-0.5 min-w-0">
                   <button onClick={() => toggleSkill(s.id_skill, 'pref')} title="Proficiente"
-                    className={`w-4 h-4 rounded-[3px] border-2 shrink-0 ${s.pref && !s.expert ? 'bg-green-600 border-green-600' : s.expert ? 'bg-green-600 border-green-600 opacity-50' : 'border-gray-300 bg-white'}`} />
+                    className={`w-4 h-4 rounded-[3px] border-2 shrink-0 ${eff.pref && !eff.expert ? 'bg-green-600 border-green-600' : eff.expert ? 'bg-green-600 border-green-600 opacity-50' : 'border-gray-300 bg-white'}`} />
                   <button onClick={() => toggleSkill(s.id_skill, 'expert')} title="Experto"
-                    className={`w-4 h-4 rounded-[3px] border-2 shrink-0 ${s.expert ? 'bg-blue-700 border-blue-700' : 'border-gray-300 bg-white'}`} />
+                    className={`w-4 h-4 rounded-[3px] border-2 shrink-0 ${eff.expert ? 'bg-blue-700 border-blue-700' : 'border-gray-300 bg-white'}`} />
                   <span className={`w-7 shrink-0 text-center text-[11px] font-bold ${skillMod(s) < 0 ? 'text-red-600' : 'text-gray-900'}`}>{fmtMod(skillMod(s))}</span>
                   <span className="text-[12px] text-gray-800 truncate min-w-0">{s.skill_name} <span className="text-gray-400">({s.related})</span></span>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
@@ -579,6 +630,9 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
               )}
             </div>
           </div>
+
+          {/* Feats */}
+          <MasterPokemonFeats feats={feats} setFeats={setFeats} level={level} stats={stats} skills={skills} skillsList={skillsList} />
 
           {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
         </div>

@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { X, ChevronLeft, Venus, Mars, Check } from 'lucide-react'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
+import { ResolvedBonusBadges } from './featBonoBadges'
+import MoveInfoModal from './MoveInfoModal'
+import FeatInfoModal from './FeatInfoModal'
 
 const TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -32,9 +35,12 @@ function ReadCheck({ pref, expert }) {
   )
 }
 
-function MoveRow({ m }) {
+function MoveRow({ m, onClick }) {
+  const Tag = onClick ? 'button' : 'div'
   return (
-    <div className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border bg-green-100 border-green-300">
+    <Tag onClick={onClick}
+      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border bg-green-100 border-green-300 text-left ${
+        onClick ? 'hover:border-green-500 transition-colors' : ''}`}>
       <div className="flex items-center gap-2 min-w-0">
         <span className="font-semibold text-sm text-gray-800 truncate">{m.move_name}</span>
         <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
@@ -43,31 +49,63 @@ function MoveRow({ m }) {
       <span className="text-[10px] text-gray-500 shrink-0 text-right">
         PP {m.move_pp} · {m.move_time} · {m.move_range}
       </span>
-    </div>
+    </Tag>
   )
 }
 
-// ── Detalle de un Pokémon del personaje (tipo pokédex, datos persistidos) ──
+// ── Detalle de un Pokémon (tipo pokédex, datos persistidos) ──
 // Exportado para reutilizarlo fuera del cinturón/computador (p. ej. party del master).
-export function PokemonDetailView({ personajeId, idpp, onBack, actionLabel, onAction, onInvoke }) {
+// `endpoint` permite apuntar a otra fuente (p. ej. /master/pokemon/:idmp).
+export function PokemonDetailView({ personajeId, idpp, endpoint, master = false, onBack, actionLabel, onAction, onInvoke }) {
   const [d, setD] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [moveInfo, setMoveInfo] = useState(null) // movimiento cuyo detalle se muestra
+  const [featInfo, setFeatInfo] = useState(null) // feat cuyo detalle se muestra
+  const url = endpoint || `/personaje/${personajeId}/pokemon/${idpp}`
 
   useEffect(() => {
     setD(null)
-    apiFetch(`/personaje/${personajeId}/pokemon/${idpp}`)
+    apiFetch(url)
       .then(r => r.json())
       .then(setD)
       .catch(() => {})
-  }, [personajeId, idpp])
+  }, [url])
 
   if (!d) return <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Cargando…</div>
 
   const stats = d.stats || {}
-  const statVal = k => (Number(stats[`pokemon_${k}`]) || 0) + (Number(stats[`pokemon_${k}_bonus`]) || 0)
+  const level = Number(d.pokemon_level) || 1
+  const capStat = v => Math.min(v, level >= 20 ? 22 : 20)
+  // Overlay de feats (solo master): suma stat/skill/healing como en el creador
+  const featFx = (() => {
+    const statAdd = { dex: 0, str: 0, con: 0, int: 0, wis: 0, cha: 0 }
+    const skillProf = new Set(), skillExpert = new Set()
+    let healing = 0
+    if (master) for (const f of (d.feats || [])) for (const b of (f.bonos || [])) {
+      const t = (b.type || '').toLowerCase(), llave = (b.llave || '').toLowerCase()
+      if (t === 'stat' && statAdd[llave] !== undefined) statAdd[llave] += Number(b.value) || 0
+      else if (t === 'skill') { const v = (b.value || '').toLowerCase(); if (v === 'expert') skillExpert.add(llave); else if (v === 'prof') skillProf.add(llave) }
+      else if (t === 'healing') { const m = /(\d+)\s*per\s*l/i.exec(b.value || ''); healing += m ? Number(m[1]) * level : (Number(b.value) || 0) }
+    }
+    return { statAdd, skillProf, skillExpert, healing }
+  })()
+  const statVal = k => {
+    const v = (Number(stats[`pokemon_${k}`]) || 0) + (Number(stats[`pokemon_${k}_bonus`]) || 0) + (featFx.statAdd[k] || 0)
+    return master ? capStat(v) : v
+  }
   const modOf = k => Math.floor((statVal(k) - 10) / 2)
   const prof = Number(d.pokemon_proficient) || 2
+  // Proficiencia/expertise efectiva de una skill (base + feats en master)
+  const skillFlags = s => {
+    const name = (s.skill_name || '').toLowerCase()
+    let pref = !!s.pokemon_skill_pref, expert = !!s.pokemon_skill_expert
+    if (master) {
+      if (featFx.skillProf.has(name)) pref = true
+      if (featFx.skillExpert.has(name)) { if (pref) expert = true; else pref = true }
+    }
+    return { pref, expert }
+  }
   const stab = d.personaje_pokemon_stab != null ? d.personaje_pokemon_stab : 2
   const nature = d.nature_name ? {
     nature_name: d.nature_name,
@@ -86,7 +124,8 @@ export function PokemonDetailView({ personajeId, idpp, onBack, actionLabel, onAc
   const skillCols = [skills.slice(0, half), skills.slice(half)]
   const skillValue = s => {
     const m = modOf((s.skill_related_ability || '').toLowerCase())
-    return m + (s.pokemon_skill_pref ? prof : 0) + (s.pokemon_skill_expert ? prof : 0)
+    const { pref, expert } = skillFlags(s)
+    return m + (pref ? prof : 0) + (expert ? prof : 0)
   }
 
   const doAction = async () => {
@@ -156,8 +195,9 @@ export function PokemonDetailView({ personajeId, idpp, onBack, actionLabel, onAc
           <div className="rounded-lg overflow-hidden"
             style={{ borderTop: '5px solid #9C6E1B', borderBottom: '5px solid #9C6E1B', backgroundColor: '#FDF1DC' }}>
             <div className="px-4 py-1.5 space-y-0.5 text-xs text-gray-800">
+              {master && <p><span className="font-bold text-[#7A200D]">Nivel</span> {level}</p>}
               <p><span className="font-bold text-[#7A200D]">Clase de Armadura</span> {d.personaje_pokemon_ac}</p>
-              <p><span className="font-bold text-[#7A200D]">Puntos de Golpe</span> {d.pokemon_current_hp}/{d.pokemon_hp} ({d.pokemon_hit_dice})</p>
+              <p><span className="font-bold text-[#7A200D]">Puntos de Golpe</span> {(d.pokemon_current_hp ?? 0) + featFx.healing}/{(d.pokemon_hp ?? 0) + featFx.healing} ({d.pokemon_hit_dice})</p>
               <p><span className="font-bold text-[#7A200D]">Experiencia</span> {(d.pokemon_experiencia ?? 0).toLocaleString()}
                 {d.exp_next != null ? `/${d.exp_next.toLocaleString()}` : ' · Máx'}</p>
               {speeds && <p><span className="font-bold text-[#7A200D]">Velocidad</span> {speeds}</p>}
@@ -234,9 +274,10 @@ export function PokemonDetailView({ personajeId, idpp, onBack, actionLabel, onAc
                     <div className="space-y-1.5">
                       {col.map((s, i) => {
                         const v = skillValue(s)
+                        const sf = skillFlags(s)
                         return (
                           <div key={i} className="flex items-center gap-1.5 min-w-0">
-                            <ReadCheck pref={!!s.pokemon_skill_pref} expert={!!s.pokemon_skill_expert} />
+                            <ReadCheck pref={sf.pref} expert={sf.expert} />
                             <span className={`w-7 shrink-0 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
                               v < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                               {fmtMod(v)}
@@ -275,12 +316,41 @@ export function PokemonDetailView({ personajeId, idpp, onBack, actionLabel, onAc
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Movimientos</p>
               <div className="space-y-1.5">
-                {d.moves.map(m => <MoveRow key={m.move_id} m={m} />)}
+                {d.moves.map(m => <MoveRow key={m.move_id} m={m} onClick={master ? () => setMoveInfo(m) : undefined} />)}
+              </div>
+            </div>
+          )}
+
+          {/* Feats (solo master) */}
+          {master && (d.feats || []).length > 0 && (
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Feats</p>
+              <div className="space-y-1.5">
+                {d.feats.map((f, i) => {
+                  const shownBonos = (f.bonos || []).map(b => {
+                    if ((b.type || '').toLowerCase() === 'healing') { const n = /(\d+)\s*per\s*l/i.exec(b.value || ''); if (n) return { ...b, value: String(Number(n[1]) * level) } }
+                    return b
+                  })
+                  return (
+                  <button key={f.master_pokemon_feat_id ?? i} onClick={() => setFeatInfo({ ...f, bonos: shownBonos })}
+                    className="w-full text-left flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 hover:border-red-300 transition-colors">
+                    <span className="text-sm font-semibold text-gray-800 truncate">
+                      <span className="text-gray-400 font-normal mr-1.5">Rasgo {i + 1}:</span>{f.feat_name}
+                    </span>
+                    <div className="flex items-center gap-1 flex-wrap justify-end">
+                      <ResolvedBonusBadges bonos={shownBonos} />
+                    </div>
+                  </button>
+                  )
+                })}
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {moveInfo && <MoveInfoModal m={moveInfo} theme="light" onClose={() => setMoveInfo(null)} />}
+      {featInfo && <FeatInfoModal feat={featInfo} theme="light" onClose={() => setFeatInfo(null)} />}
     </div>
   )
 }

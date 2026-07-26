@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  LogOut, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff, Info,
+  LogOut, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff, Info, Search,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
   Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star, Globe,
 } from 'lucide-react'
@@ -117,7 +117,7 @@ function PokemonHpCard({ p }) {
 }
 
 /* Card de un Pokémon del master — colapsable (toggle) */
-function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden }) {
+function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, onInspect }) {
   const [collapsed, setCollapsed] = useState(false)
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-lg self-start">
@@ -138,6 +138,15 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden }) 
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {pokemon.master_pokemon_id != null && (
+            <button
+              onClick={e => { e.stopPropagation(); onInspect(pokemon.master_pokemon_id) }}
+              className="text-gray-500 hover:text-white transition-colors"
+              title="Ver información del Pokémon"
+            >
+              <Search size={16} />
+            </button>
+          )}
           <button
             onClick={e => { e.stopPropagation(); onToggleHidden(pokemon.uid) }}
             className={`transition-colors ${pokemon.hidden ? 'text-amber-400 hover:text-amber-300' : 'text-gray-500 hover:text-white'}`}
@@ -204,7 +213,7 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden }) 
 }
 
 /* Panel de Pokémon del master — botón + grid de Pokémon (máx. según `max`) */
-function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden }) {
+function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden, onInspect }) {
   const full = pokemons.length >= max
   return (
     <div className="shrink-0 flex flex-col px-4 pt-3">
@@ -228,6 +237,7 @@ function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, 
               onRemove={onRemove}
               onCast={onCast}
               onToggleHidden={onToggleHidden}
+              onInspect={onInspect}
             />
           ))}
         </div>
@@ -586,6 +596,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [showPokedex, setShowPokedex] = useState(false)
   const [showInfo, setShowInfo]     = useState(false)   // personajes registrados (solo master)
   const [inspectCharId, setInspectCharId] = useState(null) // ficha de personaje abierta desde el party (master)
+  const [inspectMasterPoke, setInspectMasterPoke] = useState(null) // detalle de un Pokémon del master en el campo
   const [inspectPoke, setInspectPoke]     = useState(null) // { personajeId, idpp } detalle de pokémon (master)
   // Detecta celular (no tablet) y su orientación
   const detectDevice = () => {
@@ -806,6 +817,15 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       const d = await apiFetch(`/master/pokemon/${mp.id_master_pokemon}`).then(r => r.json())
       const moves = (d.moves || []).map(m => ({ name: m.move_name, type: m.move_type || null }))
 
+      // Healing de feats (ej. Tough 'N per lvl') sumado a la vida
+      const lvl = d.pokemon_level || 1
+      let healing = 0
+      for (const f of (d.feats || [])) for (const b of (f.bonos || [])) {
+        if ((b.type || '').toLowerCase() !== 'healing') continue
+        const m = /(\d+)\s*per\s*l/i.exec(b.value || '')
+        healing += m ? Number(m[1]) * lvl : (Number(b.value) || 0)
+      }
+
       const nuevo = {
         uid:         `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         master_pokemon_id: mp.id_master_pokemon,
@@ -813,9 +833,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         name:        d.pokemon_apodo || d.pokemon_name,
         type1:       mp.type_1_name || null,
         type2:       mp.type_2_name || null,
-        level:       d.pokemon_level || 1,
-        hp_max:      d.pokemon_hp,
-        hp_current:  d.pokemon_current_hp ?? d.pokemon_hp,
+        level:       lvl,
+        hp_max:      (d.pokemon_hp ?? 0) + healing,
+        hp_current:  (d.pokemon_current_hp ?? d.pokemon_hp ?? 0) + healing,
         sprite:      d.pokemon_media_sprite || d.pokemon_media_main,
         moves,
         hidden:      true,
@@ -1065,6 +1085,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onRemove={handleRemove}
                 onCast={handleCast}
                 onToggleHidden={handleToggleHidden}
+                onInspect={setInspectMasterPoke}
               />
               <EdicionJugadoresPanel partidaId={id} presentes={presentes} partyVersion={partyUpdatedAt} onAfterChange={sendPartyUpdate} />
               <EventosPanel onBackground={sendBackground} partidaId={id} onUnlock={startEvent}
@@ -1198,6 +1219,21 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             </button>
             <PokemonDetailView personajeId={inspectPoke.personajeId} idpp={inspectPoke.idpp}
               onBack={() => setInspectPoke(null)} />
+          </div>
+        </div>
+      )}
+
+      {/* Detalle completo de un Pokémon del master (lupa en la tarjeta del campo) */}
+      {inspectMasterPoke != null && (
+        <div className="fixed inset-0 z-[75] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget) setInspectMasterPoke(null) }}>
+          <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-3xl h-[85vh] flex flex-col shadow-2xl">
+            <button onClick={() => setInspectMasterPoke(null)}
+              className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
+              <X size={18} />
+            </button>
+            <PokemonDetailView endpoint={`/master/pokemon/${inspectMasterPoke}`} master onBack={() => setInspectMasterPoke(null)} />
           </div>
         </div>
       )}
