@@ -116,29 +116,31 @@ export default function NotasModal({ personajeId, onClose }) {
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
           <h3 className="font-bold text-gray-900">Notas</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => { setError(''); setForm({}) }} title="Nueva nota"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors">
+              <Plus size={17} />
+            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+          </div>
         </div>
 
-        {/* Filtro por tipo + botón agregar */}
-        <div className="px-5 pt-3 flex items-center justify-between gap-2 shrink-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Filtro por tipo (una sola línea, scroll horizontal en móvil) */}
+        <div className="px-5 pt-3 shrink-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
             <button onClick={() => setFiltro(null)}
-              className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
+              className={`shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
                 filtro === null ? 'bg-red-600 border-red-600 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
               Todas
             </button>
             {TIPOS.map(t => (
               <button key={t} onClick={() => setFiltro(t)}
-                className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
+                className={`shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
                   filtro === t ? 'bg-red-600 border-red-600 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                 {t}
               </button>
             ))}
           </div>
-          <button onClick={() => { setError(''); setForm({}) }} title="Nueva nota"
-            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors">
-            <Plus size={17} />
-          </button>
         </div>
 
         {/* Lista */}

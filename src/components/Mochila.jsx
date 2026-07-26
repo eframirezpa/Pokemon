@@ -14,6 +14,7 @@ const ITEM_TYPES = [
 ]
 const typeBg = t => ITEM_TYPES.find(x => x.value === t)?.bg || '#9CA3AF'
 const typeLabel = t => ITEM_TYPES.find(x => x.value === t)?.label || t
+const MAX_POKEDOLLARS = 500000000 // máximo a agregar de una vez
 
 export default function Mochila({ personajeId, onClose }) {
   const [tab, setTab] = useState('equipo') // equipo | armaduras | armas
@@ -39,6 +40,10 @@ export default function Mochila({ personajeId, onClose }) {
   const [addAmount, setAddAmount] = useState('')
   const [adding, setAdding]       = useState(false)
   const [addMsg, setAddMsg]       = useState('')
+  const [removeAmount, setRemoveAmount] = useState('')
+  const [removing, setRemoving]   = useState(false)
+  const [removeMsg, setRemoveMsg] = useState('')
+  const [noMoney, setNoMoney]     = useState(false) // popup "necesitas dinero"
 
   // ── Armaduras ──
   const [armor, setArmor]         = useState([])
@@ -141,10 +146,11 @@ export default function Mochila({ personajeId, onClose }) {
     }
   }
 
-  // Billetera: suma pokédollars al personaje
+  // Billetera: suma pokédollars al personaje (máximo 500.000.000 por operación)
   const handleAddPokedollars = async () => {
     const amount = Math.floor(Number(addAmount))
     if (!Number.isFinite(amount) || amount <= 0) { setAddMsg('Ingresa una cantidad válida'); return }
+    if (amount > MAX_POKEDOLLARS) { setAddMsg(`El máximo a agregar es ${MAX_POKEDOLLARS.toLocaleString()} ₽`); return }
     setAdding(true); setAddMsg('')
     try {
       const res = await apiFetch(`/personaje/${personajeId}/pokedollars/add`, { method: 'PATCH', body: JSON.stringify({ cantidad: amount }) })
@@ -153,6 +159,25 @@ export default function Mochila({ personajeId, onClose }) {
       setPokedollars(Number(j.pokedollars) || 0)
       setAddAmount('')
     } catch { setAddMsg('No se pudo agregar') } finally { setAdding(false) }
+  }
+
+  // Billetera: quita pokédollars (no se puede quitar más de lo que se tiene)
+  const handleRemovePokedollars = async () => {
+    const amount = Math.floor(Number(removeAmount))
+    if (!Number.isFinite(amount) || amount <= 0) { setRemoveMsg('Ingresa una cantidad válida'); return }
+    if (amount > pokedollars) { setNoMoney(true); return }
+    setRemoving(true); setRemoveMsg('')
+    try {
+      const res = await apiFetch(`/personaje/${personajeId}/pokedollars`, { method: 'PATCH', body: JSON.stringify({ cantidad: amount }) })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        if (j.pokedollars != null) setPokedollars(j.pokedollars)
+        setNoMoney(true); return
+      }
+      const j = await res.json()
+      setPokedollars(Number(j.pokedollars) || 0)
+      setRemoveAmount('')
+    } catch { setRemoveMsg('No se pudo quitar') } finally { setRemoving(false) }
   }
 
   // ── Acciones armaduras ──
@@ -211,7 +236,7 @@ export default function Mochila({ personajeId, onClose }) {
 
   const TabBtn = ({ id, label }) => (
     <button onClick={() => setTab(id)}
-      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+      className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
         tab === id ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
       {label}
     </button>
@@ -222,18 +247,18 @@ export default function Mochila({ personajeId, onClose }) {
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
 
-        {/* Header con título + pestañas */}
-        <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <h3 className="font-bold text-gray-900 shrink-0">🎒 Mochila</h3>
-            <div className="flex gap-1">
-              <TabBtn id="equipo"    label="Equipo" />
-              <TabBtn id="armaduras" label="Armaduras" />
-              <TabBtn id="armas"     label="Armas" />
-              <TabBtn id="billetera" label="Billetera" />
-            </div>
+        {/* Header con título y, debajo, las pestañas */}
+        <div className="px-5 py-3 border-b border-gray-200 shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-bold text-gray-900">🎒 Mochila</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 shrink-0"><X size={18} /></button>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 shrink-0"><X size={18} /></button>
+          <div className="flex gap-1 mt-2 overflow-x-auto">
+            <TabBtn id="equipo"    label="Equipo" />
+            <TabBtn id="armaduras" label="Armaduras" />
+            <TabBtn id="armas"     label="Armas" />
+            <TabBtn id="billetera" label="Billetera" />
+          </div>
         </div>
 
         {/* ── EQUIPO ── */}
@@ -431,6 +456,23 @@ export default function Mochila({ personajeId, onClose }) {
               {addMsg && <p className="text-xs text-red-600 font-medium mt-2">{addMsg}</p>}
             </div>
 
+            {/* Quitar pokédollars */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Pokédollars a quitar</label>
+              <div className="flex gap-2">
+                <input type="number" min="1" step="1" value={removeAmount}
+                  onChange={e => { setRemoveAmount(e.target.value); setRemoveMsg('') }}
+                  onKeyDown={e => { if (e.key === 'Enter' && !removing) handleRemovePokedollars() }}
+                  placeholder="Cantidad"
+                  className="flex-1 px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                <button onClick={handleRemovePokedollars} disabled={removing}
+                  className="flex items-center gap-1.5 bg-gray-700 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shrink-0">
+                  {removing ? <Loader2 size={15} className="animate-spin" /> : <Minus size={15} />} Quitar
+                </button>
+              </div>
+              {removeMsg && <p className="text-xs text-red-600 font-medium mt-2">{removeMsg}</p>}
+            </div>
+
             {/* Decorativos */}
             <div className="flex items-center justify-center gap-5 text-gray-300 pt-3">
               <Coins size={30} />
@@ -441,6 +483,25 @@ export default function Mochila({ personajeId, onClose }) {
           </div>
         )}
       </div>
+
+      {/* Sin dinero suficiente */}
+      {noMoney && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget) setNoMoney(false) }}>
+          <div className="bg-white rounded-2xl w-full max-w-xs flex flex-col shadow-2xl overflow-hidden">
+            <div className="px-5 py-6 text-center space-y-2">
+              <div className="text-5xl">😈</div>
+              <p className="text-sm font-semibold text-gray-800">Necesitas dinero, habla con Rave</p>
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 flex justify-center">
+              <button onClick={() => setNoMoney(false)}
+                className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 px-5 py-1.5 rounded-lg transition-colors">
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detalle de un item del inventario */}
       {detailId && (
