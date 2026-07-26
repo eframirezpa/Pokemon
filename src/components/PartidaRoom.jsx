@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   LogOut, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff, Info, Search,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
-  Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star, Globe,
+  Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star, Globe, NotebookPen,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
@@ -14,6 +14,7 @@ import { PokemonDetailView } from './PokemonBox'
 import PartidaInfoPanel from './PartidaInfoPanel'
 import EdicionJugadoresPanel from './EdicionJugadoresPanel'
 import MapaModal from './MapaModal'
+import NotasModal from './NotasModal'
 import MasterFieldPicker from './MasterFieldPicker'
 
 const ROLE_DASHBOARD = {
@@ -592,6 +593,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
   const [showParty, setShowParty]   = useState(false)
   const [showMapa, setShowMapa]     = useState(false)
+  const [showNotas, setShowNotas]   = useState(false)
   const [logOpen, setLogOpen]       = useState(true)
   const [showPokedex, setShowPokedex] = useState(false)
   const [showInfo, setShowInfo]     = useState(false)   // personajes registrados (solo master)
@@ -1057,6 +1059,19 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           </button>
         )}
 
+        {/* Botón flotante — notas (jugador con personaje) */}
+        {!isMaster && personajeId != null && (
+          <button
+            onClick={() => setShowNotas(true)}
+            className="fixed left-3 top-40 z-40 flex items-center justify-center w-10 h-10
+                       rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                       border border-gray-600 transition-all"
+            title="Notas"
+          >
+            <NotebookPen size={18} />
+          </button>
+        )}
+
         {/* Botón flotante — personajes registrados en la partida (solo master) */}
         {isMaster && (
           <button
@@ -1195,6 +1210,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
       {/* Mapa de la región */}
       {showMapa && <MapaModal onClose={() => setShowMapa(false)} />}
+
+      {/* Notas del jugador */}
+      {showNotas && personajeId != null && <NotasModal personajeId={personajeId} onClose={() => setShowNotas(false)} />}
 
       {/* Ventana de personajes registrados (solo master) */}
       {showInfo && isMaster && (
