@@ -26,3 +26,5 @@ src/assets/pokemon/
 *.njsproj
 *.sln
 *.sw?
+
+public.zip
