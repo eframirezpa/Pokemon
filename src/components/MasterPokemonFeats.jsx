@@ -179,7 +179,7 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, onCancel, onCon
 }
 
 /* Sección de feats (tipo Pokemon) del creador/editor de Pokémon del master */
-export default function MasterPokemonFeats({ feats, setFeats, level, stats, skills, skillsList }) {
+export default function MasterPokemonFeats({ feats, setFeats, level, stats, skills, skillsList, maxFeats = Infinity }) {
   const [catalog, setCatalog] = useState([])
   const [search, setSearch]   = useState('')
   const [confirm, setConfirm] = useState(null)
@@ -241,8 +241,9 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
         </div>
       )}
 
-      {/* Panel para agregar */}
-      <div className="relative mb-2">
+      {/* Panel para agregar (oculto al alcanzar el máximo de feats) */}
+      {feats.length < maxFeats && (
+      <><div className="relative mb-2">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar feat..."
           className="w-full pl-8 pr-7 py-1.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
@@ -269,7 +270,8 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
             </div>
           )
         })}
-      </div>
+      </div></>
+      )}
 
       {confirm && (
         <ConfirmFeat feat={confirm} skillsList={skillsList} proficientNames={proficientNames} level={level}

@@ -7,6 +7,7 @@ import CharacterSheet from '../components/CharacterSheet'
 import Mochila from '../components/Mochila'
 import Equipamiento from '../components/Equipamiento'
 import PokemonBox from '../components/PokemonBox'
+import PendingImprovementModal from '../components/PendingImprovementModal'
 import MoveInfoModal from '../components/MoveInfoModal'
 import EditarPersonajeModal from '../components/EditarPersonajeModal'
 import { useAuth } from '../context/AuthContext'
@@ -215,6 +216,7 @@ export default function TrainerPartida() {
   const [showPC, setShowPC]           = useState(false)
   const [showEdit, setShowEdit]       = useState(false)
   const [isEditable, setIsEditable]   = useState(false) // personaje_is_editable (lo controla el master)
+  const [pending, setPending]         = useState([])    // mejoras de nivel por confirmar (secuencial)
   const [partyVersion, setPartyVersion] = useState(0)   // cambia cuando el master actualiza la party
   const [pokemonInvocado, setPokemonInvocado] = useState(null) // id_personaje_pokemon
   const [invocadoSprite, setInvocadoSprite]   = useState(null)
@@ -244,6 +246,16 @@ export default function TrainerPartida() {
       .then(d => setIsEditable(!!d?.personaje_is_editable))
       .catch(() => {})
   }, [personajeId, partyVersion])
+
+  // Mejoras pendientes por subida de nivel: se muestran al entrar y tras subir experiencia
+  const refreshPending = () => {
+    if (!personajeId) return
+    apiFetch(`/personaje/${personajeId}/pending-improvements`)
+      .then(r => r.json())
+      .then(d => setPending(Array.isArray(d) ? d : []))
+      .catch(() => {})
+  }
+  useEffect(() => { refreshPending() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId])
 
   // Recupera el personaje del usuario: state → localStorage → backend (para recargas)
   useEffect(() => {
@@ -317,6 +329,7 @@ export default function TrainerPartida() {
         exhaust: d.personaje_pokemon_exahust_lvl ?? 0, dsts: d.personaje_pokemon_dsts ?? 0, dstf: d.personaje_pokemon_dstf ?? 0,
         moves,
         name: d.pokemon_apodo || 'Pokémon',
+        level: d.pokemon_level,
         typeId1: d.personaje_pokemon_type_1, typeId2: d.personaje_pokemon_type_2,
         exp: d.pokemon_experiencia ?? 0, expNext: d.exp_next ?? null,
       })
@@ -389,6 +402,10 @@ export default function TrainerPartida() {
 
   return (
     <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion}>
+      {/* Mejora obligatoria por subida de nivel (una a la vez, no se puede cerrar) */}
+      {pending.length > 0 && personajeId && (
+        <PendingImprovementModal personajeId={personajeId} pending={pending[0]} onConfirmed={refreshPending} />
+      )}
       <div className="absolute inset-0">
         {/* Zona inferior: sprite del jugador + sprite del Pokémon invocado */}
         {!hideBottomIcons && (
@@ -505,6 +522,8 @@ export default function TrainerPartida() {
         <PokemonBox
           personajeId={personajeId}
           mode="belt"
+          editable={isEditable}
+          onExpAdded={refreshPending}
           onClose={() => setShowBelt(false)}
           onInvoke={(idpp, sprite) => {
             persistEnJuego(idpp, true)
@@ -525,7 +544,7 @@ export default function TrainerPartida() {
 
       {/* Femputadora — Pokémon almacenados */}
       {showPC && personajeId && (
-        <PokemonBox personajeId={personajeId} mode="pc" onClose={() => setShowPC(false)} />
+        <PokemonBox personajeId={personajeId} mode="pc" editable={isEditable} onExpAdded={refreshPending} onClose={() => setShowPC(false)} />
       )}
 
       {/* Editar jugador (solo si el master lo habilitó) */}
@@ -550,7 +569,7 @@ export default function TrainerPartida() {
       {/* Control del Pokémon invocado */}
       {openControl === 'pokemon' && pokeData && (
         <CombatePanel
-          title={pokeData.name || 'Pokémon'}
+          title={`${pokeData.name || 'Pokémon'}${pokeData.level != null ? ` (Nv ${pokeData.level})` : ''}`}
           initial={pokeData}
           moves={pokeData.moves}
           movePP={movePP}

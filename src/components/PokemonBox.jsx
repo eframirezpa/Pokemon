@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, Venus, Mars, Check } from 'lucide-react'
+import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, Loader2, Sparkles } from 'lucide-react'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
 import { ResolvedBonusBadges } from './featBonoBadges'
@@ -77,12 +77,14 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
   const stats = d.stats || {}
   const level = Number(d.pokemon_level) || 1
   const capStat = v => Math.min(v, level >= 20 ? 22 : 20)
-  // Overlay de feats (solo master): suma stat/skill/healing como en el creador
+  // Aplica el overlay de feats cuando el Pokémon tiene feats (master o entrenador)
+  const applyFeats = (d.feats || []).length > 0
+  // Overlay de feats: suma stat/skill/healing como en el creador
   const featFx = (() => {
     const statAdd = { dex: 0, str: 0, con: 0, int: 0, wis: 0, cha: 0 }
     const skillProf = new Set(), skillExpert = new Set()
     let healing = 0
-    if (master) for (const f of (d.feats || [])) for (const b of (f.bonos || [])) {
+    if (applyFeats) for (const f of (d.feats || [])) for (const b of (f.bonos || [])) {
       const t = (b.type || '').toLowerCase(), llave = (b.llave || '').toLowerCase()
       if (t === 'stat' && statAdd[llave] !== undefined) statAdd[llave] += Number(b.value) || 0
       else if (t === 'skill') { const v = (b.value || '').toLowerCase(); if (v === 'expert') skillExpert.add(llave); else if (v === 'prof') skillProf.add(llave) }
@@ -92,7 +94,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
   })()
   const statVal = k => {
     const v = (Number(stats[`pokemon_${k}`]) || 0) + (Number(stats[`pokemon_${k}_bonus`]) || 0) + (featFx.statAdd[k] || 0)
-    return master ? capStat(v) : v
+    return applyFeats ? capStat(v) : v
   }
   const modOf = k => Math.floor((statVal(k) - 10) / 2)
   const prof = Number(d.pokemon_proficient) || 2
@@ -100,7 +102,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
   const skillFlags = s => {
     const name = (s.skill_name || '').toLowerCase()
     let pref = !!s.pokemon_skill_pref, expert = !!s.pokemon_skill_expert
-    if (master) {
+    if (applyFeats) {
       if (featFx.skillProf.has(name)) pref = true
       if (featFx.skillExpert.has(name)) { if (pref) expert = true; else pref = true }
     }
@@ -160,6 +162,11 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
               <span className="text-lg font-black text-gray-900">{d.pokemon_apodo}</span>
               {genero === 'Female' && <Venus size={18} className="text-pink-500" strokeWidth={2.5} />}
               {genero === 'Male' && <Mars size={18} className="text-blue-500" strokeWidth={2.5} />}
+              {d.pokemon_is_shiny && (
+                <span title="Shiny" className="flex items-center gap-0.5 text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-300 rounded-md px-1.5 py-0.5">
+                  <Sparkles size={11} strokeWidth={2.5} /> Shiny
+                </span>
+              )}
             </div>
             <span className="text-xs text-gray-400">{d.pokemon_name}</span>
             <div className="flex gap-1 mt-1">
@@ -321,8 +328,8 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
             </div>
           )}
 
-          {/* Feats (solo master) */}
-          {master && (d.feats || []).length > 0 && (
+          {/* Feats (master o entrenador) */}
+          {(d.feats || []).length > 0 && (
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Feats</p>
               <div className="space-y-1.5">
@@ -332,7 +339,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                     return b
                   })
                   return (
-                  <button key={f.master_pokemon_feat_id ?? i} onClick={() => setFeatInfo({ ...f, bonos: shownBonos })}
+                  <button key={f.master_pokemon_feat_id ?? f.personaje_pokemon_feat_id ?? i} onClick={() => setFeatInfo({ ...f, bonos: shownBonos })}
                     className="w-full text-left flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 hover:border-red-300 transition-colors">
                     <span className="text-sm font-semibold text-gray-800 truncate">
                       <span className="text-gray-400 font-normal mr-1.5">Rasgo {i + 1}:</span>{f.feat_name}
@@ -355,7 +362,72 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
   )
 }
 
-export default function PokemonBox({ personajeId, mode, onClose, onInvoke, onMoved }) {
+/* Popup para subir experiencia a un Pokémon del entrenador */
+function AddExpModal({ personajeId, pokemon, onClose, onDone }) {
+  const [thresholds, setThresholds] = useState(null) // Map nivel → exp requerida
+  const [amount, setAmount] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    apiFetch('/pokemon-experience-levels').then(r => r.json())
+      .then(d => setThresholds(new Map((Array.isArray(d) ? d : []).map(r => [Number(r.pokemon_level), Number(r.pokemon_experience_needed)]))))
+      .catch(() => setThresholds(new Map()))
+  }, [])
+
+  const level = Number(pokemon.pokemon_level) || 1
+  const curExp = Number(pokemon.pokemon_experiencia) || 0
+  // Tope: 1 menos del umbral de 2 niveles arriba (topado a 20)
+  const capLevel = Math.min(level + 2, 20)
+  const capT = thresholds ? thresholds.get(capLevel) : null
+  const maxAdd = capT != null ? Math.max(0, capT - curExp - 1) : null
+  const nextT = thresholds ? thresholds.get(level + 1) : null
+
+  const submit = async () => {
+    const n = Math.floor(Number(amount))
+    if (!Number.isFinite(n) || n < 1) { setError('Ingresa una cantidad válida (mínimo 1)'); return }
+    if (maxAdd != null && n > maxAdd) { setError(`El máximo a agregar es ${maxAdd.toLocaleString()}`); return }
+    setBusy(true); setError('')
+    try {
+      const res = await apiFetch(`/personaje/${personajeId}/pokemon/${pokemon.id_personaje_pokemon}/experiencia`,
+        { method: 'PATCH', body: JSON.stringify({ cantidad: n }) })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error || 'No se pudo agregar'); return }
+      onDone()
+    } catch { setError('No se pudo agregar') } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      onClick={e => { if (e.target === e.currentTarget && !busy) onClose() }}>
+      <div className="bg-white rounded-2xl w-full max-w-xs flex flex-col shadow-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="font-bold text-gray-900">Agregar experiencia</h3>
+          <button onClick={onClose} disabled={busy} className="text-gray-400 hover:text-gray-700 disabled:opacity-40"><X size={18} /></button>
+        </div>
+        <div className="px-5 py-4 space-y-2">
+          <p className="text-xs text-gray-500">{pokemon.pokemon_apodo} · Nv {level} · EXP actual {curExp.toLocaleString()}
+            {nextT != null && <> · falta {(Math.max(0, nextT - curExp)).toLocaleString()} para subir</>}</p>
+          <input type="number" min={1} max={maxAdd ?? undefined} value={amount} autoFocus
+            onChange={e => { setAmount(e.target.value); setError('') }}
+            onKeyDown={e => { if (e.key === 'Enter' && !busy) submit() }}
+            placeholder="Cantidad de experiencia"
+            className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+          <p className="text-[10px] text-gray-400">Máximo a agregar: {maxAdd != null ? maxAdd.toLocaleString() : '…'}</p>
+          {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+        </div>
+        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+          <button onClick={onClose} disabled={busy} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
+          <button onClick={submit} disabled={busy || !amount}
+            className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+            {busy ? <Loader2 size={15} className="animate-spin" /> : <ArrowUp size={15} />} Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function PokemonBox({ personajeId, mode, editable = false, onClose, onInvoke, onMoved, onExpAdded }) {
   const isBelt = mode === 'belt'
   const title    = isBelt ? 'Cinturón' : 'Femputadora'
   const subtitle = isBelt ? 'Pokémones en tu equipo' : 'Pokémones almacenados'
@@ -365,15 +437,17 @@ export default function PokemonBox({ personajeId, mode, onClose, onInvoke, onMov
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
+  const [expFor, setExpFor] = useState(null) // Pokémon al que se le agrega experiencia
 
-  useEffect(() => {
+  const load = () => {
     setLoading(true)
     apiFetch(`/personaje/${personajeId}/pokemon?en_equipo=${isBelt ? 'true' : 'false'}`)
       .then(r => r.json())
       .then(d => setList(Array.isArray(d) ? d : []))
       .catch(() => setList([]))
       .finally(() => setLoading(false))
-  }, [personajeId, isBelt])
+  }
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId, isBelt])
 
   const handleAction = async (idpp) => {
     try {
@@ -403,6 +477,12 @@ export default function PokemonBox({ personajeId, mode, onClose, onInvoke, onMov
           <X size={18} />
         </button>
 
+        {expFor && (
+          <AddExpModal personajeId={personajeId} pokemon={expFor}
+            onClose={() => setExpFor(null)}
+            onDone={() => { setExpFor(null); load(); onExpAdded?.() }} />
+        )}
+
         {selected ? (
           <PokemonDetailView personajeId={personajeId} idpp={selected} onBack={() => setSelected(null)}
             actionLabel={actionLabel} onAction={handleAction} onInvoke={onInvoke} />
@@ -422,14 +502,25 @@ export default function PokemonBox({ personajeId, mode, onClose, onInvoke, onMov
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {list.map(p => (
-                    <button key={p.id_personaje_pokemon} onClick={() => setSelected(p.id_personaje_pokemon)}
-                      className="flex flex-col items-center gap-1 p-3 rounded-xl border border-gray-200 hover:border-red-400 hover:shadow transition-all bg-white">
+                    <div key={p.id_personaje_pokemon} onClick={() => setSelected(p.id_personaje_pokemon)}
+                      className="relative flex flex-col items-center gap-1 p-3 rounded-xl border border-gray-200 hover:border-red-400 hover:shadow transition-all bg-white cursor-pointer">
+                      {p.pokemon_is_shiny && (
+                        <span title="Shiny" className="absolute top-1.5 left-1.5 flex items-center gap-0.5 text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-300 rounded-md px-1 py-0.5">
+                          <Sparkles size={10} strokeWidth={2.5} /> Shiny
+                        </span>
+                      )}
+                      {editable && Number(p.pokemon_level) < 20 && (
+                        <button onClick={e => { e.stopPropagation(); setExpFor(p) }} title="Subir experiencia"
+                          className="absolute top-1.5 right-1.5 flex items-center gap-0.5 text-[9px] font-black text-white bg-red-600 hover:bg-red-700 rounded-md px-1.5 py-0.5 shadow transition-colors">
+                          EXP <ArrowUp size={11} strokeWidth={3} />
+                        </button>
+                      )}
                       <img src={(p.pokemon_is_shiny && p.pokemon_media_sprite_shiny) ? p.pokemon_media_sprite_shiny : (p.pokemon_media_sprite || p.pokemon_media_main)}
                         alt={p.pokemon_apodo}
                         className="w-16 h-16 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
                       <span className="text-sm font-semibold text-gray-800 truncate max-w-full">{p.pokemon_apodo}</span>
                       <span className="text-[11px] text-gray-400 truncate max-w-full">{p.pokemon_name} · Nv {p.pokemon_level}</span>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
