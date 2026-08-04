@@ -3,6 +3,7 @@ import { X, Loader2, Sword, Shield, FlaskConical } from 'lucide-react'
 import { apiFetch } from '../api'
 import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
 import { buildProfs, titleCase } from '../lib/profs'
+import ItemDetailPanel from './ItemDetailPanel'
 
 const FEAT_MEDIUM_ARMOR_MASTER = 33 // sube a +3 el tope del modificador de DEX en la armadura
 
@@ -32,6 +33,12 @@ export default function Equipamiento({ personajeId, onClose }) {
   const [profs, setProfs] = useState(() => buildProfs(null)) // proficiencias de armas / armaduras
   const [tab, setTab] = useState('equipo')
   const [loading, setLoading] = useState(true)
+  // Detalle emergente desde los nombres de la pestaña de proficiencias
+  const [weaponInfo, setWeaponInfo] = useState(null)   // fila de personaje_weapon
+  const [armorCatInfo, setArmorCatInfo] = useState(null) // categoría de armadura
+  const [itemInfoId, setItemInfoId] = useState(null)   // id de item para ItemDetailPanel
+  const [armorCatalog, setArmorCatalog] = useState([]) // armor_types completo
+  const [toolItemIds, setToolItemIds] = useState({})   // nombre de herramienta → item_id
 
   useEffect(() => {
     Promise.all([
@@ -56,6 +63,30 @@ export default function Equipamiento({ personajeId, onClose }) {
     }).catch(() => {}).finally(() => setLoading(false))
   }, [personajeId])
 
+  // Catálogo de armaduras: para detallar qué armaduras cubre cada categoría proficiente
+  useEffect(() => {
+    apiFetch('/armor-types?limit=200').then(r => r.json())
+      .then(d => setArmorCatalog(Array.isArray(d) ? d : (d.data ?? [])))
+      .catch(() => setArmorCatalog([]))
+  }, [])
+
+  // Resuelve cada herramienta contra la tabla items. Solo las que existen
+  // llevan link; el resto son texto plano (p. ej. un instrumento que no está
+  // catalogado como ítem).
+  useEffect(() => {
+    const nombres = profs.tools.map(t => t.name)
+    if (nombres.length === 0) return
+    Promise.all(nombres.map(n =>
+      apiFetch(`/items?search=${encodeURIComponent(n)}&limit=10`).then(r => r.json())
+        .then(d => {
+          const lista = Array.isArray(d) ? d : (d.data ?? [])
+          const exacto = lista.find(i => (i.item_name || '').toLowerCase().trim() === n.toLowerCase().trim())
+          return [n, exacto ? exacto.item_id : null]
+        })
+        .catch(() => [n, null])
+    )).then(pares => setToolItemIds(Object.fromEntries(pares)))
+  }, [profs])
+
   const weaponProps = (w) => [
     w.weapon_type_property_1, w.weapon_type_property_2, w.weapon_type_property_3,
     w.weapon_type_property_4, w.weapon_type_property_5, w.weapon_type_property_6,
@@ -73,14 +104,14 @@ export default function Equipamiento({ personajeId, onClose }) {
         {/* Pestañas */}
         {/* Dos pestañas se llaman "Proficiencias": los iconos de la derecha las
             distinguen — armas/armaduras en una, herramientas en la otra. */}
-        <div className="flex items-center gap-1 px-3 pt-3 border-b border-gray-200 shrink-0">
+        <div className="flex items-center gap-0.5 px-3 pt-3 border-b border-gray-200 shrink-0">
           {[
-            ['equipo', 'Equipamiento', null],
+            ['equipo', 'Equipo', null],
             ['profs',  'Proficiencias', <><Sword size={14} /><Shield size={14} /></>],
             ['tools',  'Proficiencias', <FlaskConical size={14} />],
           ].map(([key, label, icons]) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 -mb-px transition-colors ${
+              className={`flex items-center gap-1.5 px-2 py-2 text-sm font-semibold rounded-t-lg border-b-2 -mb-px transition-colors ${
                 tab === key ? 'border-red-600 text-red-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               {label}
               {icons && <span className="flex items-center gap-0.5 shrink-0">{icons}</span>}
@@ -102,15 +133,25 @@ export default function Equipamiento({ personajeId, onClose }) {
               <p className="text-sm text-gray-400 italic">Sin proficiencias de herramienta.</p>
             ) : (
               <div className="space-y-1.5">
-                {profs.tools.map(t => (
-                  <div key={t.name} className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="font-bold text-gray-800 text-sm truncate">{t.name}</p>
-                      {t.source && <p className="text-[11px] text-gray-500 truncate">{t.source}</p>}
+                {profs.tools.map(t => {
+                  const itemId = toolItemIds[t.name] // null si no está catalogada como ítem
+                  return (
+                    <div key={t.name} className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                      <div className="min-w-0">
+                        {itemId ? (
+                          <button onClick={() => setItemInfoId(itemId)}
+                            className="font-bold text-red-700 hover:text-red-800 hover:underline text-sm truncate text-left max-w-full">
+                            {t.name}
+                          </button>
+                        ) : (
+                          <p className="font-bold text-gray-800 text-sm truncate">{t.name}</p>
+                        )}
+                        {t.source && <p className="text-[11px] text-gray-500 truncate">{t.source}</p>}
+                      </div>
+                      <ProfTag prof />
                     </div>
-                    <ProfTag prof />
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -137,7 +178,10 @@ export default function Equipamiento({ personajeId, onClose }) {
                       .sort((a, b) => (a.weapon_type_name || '').localeCompare(b.weapon_type_name || ''))
                       .map(w => (
                         <div key={w.id_personaje_weapon} className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-                          <span className="font-bold text-gray-800 text-sm truncate">{w.weapon_type_name}</span>
+                          <button onClick={() => setWeaponInfo(w)}
+                            className="font-bold text-red-700 hover:text-red-800 hover:underline text-sm truncate text-left min-w-0">
+                            {w.weapon_type_name}
+                          </button>
                           <ProfTag prof />
                         </div>
                       ))}
@@ -158,7 +202,10 @@ export default function Equipamiento({ personajeId, onClose }) {
                 <div className="space-y-1.5">
                   {[...profs.armors].sort().map(a => (
                     <div key={a} className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-                      <span className="font-bold text-gray-800 text-sm truncate">{titleCase(a)}</span>
+                      <button onClick={() => setArmorCatInfo(a)}
+                        className="font-bold text-red-700 hover:text-red-800 hover:underline text-sm truncate text-left min-w-0">
+                        {titleCase(a)}
+                      </button>
                       <ProfTag prof />
                     </div>
                   ))}
@@ -269,6 +316,87 @@ export default function Equipamiento({ personajeId, onClose }) {
             <div className="px-4 py-3">
               <p className="text-xs text-gray-600 leading-relaxed">{propDetail.description || 'Sin descripción.'}</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detalle del arma (los datos ya vienen en la fila, no hace falta consultar) */}
+      {weaponInfo && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget) setWeaponInfo(null) }}>
+          <div className="bg-white rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-2 shrink-0">
+              <h4 className="font-bold text-gray-900 text-sm truncate">{weaponInfo.weapon_type_name}</h4>
+              <button onClick={() => setWeaponInfo(null)} className="text-gray-400 hover:text-gray-700 shrink-0"><X size={16} /></button>
+            </div>
+            <div className="px-4 py-3 overflow-y-auto space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                <Bono label="Daño"  value={[weaponInfo.weapon_type_damage_dice, weaponInfo.weapon_type_damage_type].filter(Boolean).join(' ')} />
+                <Bono label="Rango" value={weaponInfo.weapon_type_range} />
+                <Bono label="Manos" value={weaponInfo.weapon_type_hand_use} />
+                <Bono label="Peso"  value={weaponInfo.weapon_type_weight_lb} />
+              </div>
+              {weaponProps(weaponInfo).length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Propiedades</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {weaponProps(weaponInfo).map((p, i) => (
+                      <span key={i} className="text-[10px] font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5">{p.name}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {weaponInfo.weapon_type_description && (
+                <p className="text-xs text-gray-600 leading-relaxed">{weaponInfo.weapon_type_description}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detalle de una categoría de armadura: qué armaduras cubre y sus valores */}
+      {armorCatInfo && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget) setArmorCatInfo(null) }}>
+          <div className="bg-white rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-2 shrink-0">
+              <h4 className="font-bold text-gray-900 text-sm truncate">{titleCase(armorCatInfo)}</h4>
+              <button onClick={() => setArmorCatInfo(null)} className="text-gray-400 hover:text-gray-700 shrink-0"><X size={16} /></button>
+            </div>
+            <div className="px-4 py-3 overflow-y-auto space-y-2">
+              {(() => {
+                const lista = armorCatalog.filter(a =>
+                  (a.armor_type_category || '').toLowerCase().trim() === String(armorCatInfo).toLowerCase().trim())
+                if (lista.length === 0) {
+                  return <p className="text-xs text-gray-400 italic">Sin armaduras de esta categoría.</p>
+                }
+                return lista.map(a => (
+                  <div key={a.armor_type_id} className="border border-gray-200 rounded-xl p-2.5">
+                    <p className="font-bold text-gray-800 text-sm">{a.armor_type_name}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      <Bono label="AC base" value={a.armor_type_base_ac} />
+                      {a.armor_type_uses_dex_modifier === 1 && (
+                        <Bono label="DEX" value={a.armor_type_max_dex_modifier != null ? `máx +${a.armor_type_max_dex_modifier}` : 'sí'} />
+                      )}
+                      <Bono label="Bono AC" value={a.armor_type_ac_bonus} />
+                    </div>
+                    {a.armor_type_description && (
+                      <p className="text-xs text-gray-500 leading-relaxed mt-1">{a.armor_type_description}</p>
+                    )}
+                  </div>
+                ))
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detalle del ítem de una herramienta catalogada */}
+      {itemInfoId && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget) setItemInfoId(null) }}>
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <ItemDetailPanel id={itemInfoId} onClose={() => setItemInfoId(null)} />
           </div>
         </div>
       )}
