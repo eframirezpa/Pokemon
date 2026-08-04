@@ -42,6 +42,26 @@ function AlertConfirm({ message, busy, onCancel, onConfirm }) {
   )
 }
 
+/* Tirada del dado de golpe del nivel: se suma a la vida máxima y actual del Pokémon */
+function HpRollField({ dice, max, value, onChange }) {
+  return (
+    <div className="rounded-xl bg-amber-50 border border-amber-300 px-4 py-3">
+      <label htmlFor="hp-roll" className="block text-[11px] font-black uppercase tracking-wider text-amber-800 mb-1.5">
+        Puntos de golpe ganados
+      </label>
+      <input
+        id="hp-roll" type="number" inputMode="numeric" min={1} max={max || undefined}
+        value={value} onChange={e => onChange(e.target.value)}
+        placeholder={`1 - ${max}`}
+        className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-lg font-black text-gray-900
+                   focus:outline-none focus:ring-2 focus:ring-amber-400" />
+      <p className="text-[11px] text-amber-800 mt-1.5">
+        Arroja un dado de <b>{dice || '—'}</b> e ingresa el resultado (1 a {max}).
+      </p>
+    </div>
+  )
+}
+
 /* Chip de movimiento con botón para moverlo a la otra columna */
 function MoveChip({ m, dir, disabled, onMove }) {
   return (
@@ -60,7 +80,7 @@ function MoveChip({ m, dir, disabled, onMove }) {
 }
 
 /* Flujo de movimientos: transferencia por clic (máx 4 aprendidos) */
-function MovesFlow({ personajeId, pending, onConfirmed }) {
+function MovesFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
   const byId = new Set((pending.learned_moves || []).map(m => m.move_id))
   const [learned, setLearned] = useState(() => pending.learned_moves || [])
   const [available, setAvailable] = useState(() => (pending.move_pool || []).filter(m => !byId.has(m.move_id)))
@@ -82,8 +102,12 @@ function MovesFlow({ personajeId, pending, onConfirmed }) {
     setBusy(true); setError('')
     try {
       const res = await apiFetch(`/personaje/${personajeId}/pokemon/${pending.id_personaje_pokemon}/improvement/moves`,
-        { method: 'POST', body: JSON.stringify({ move_ids: learned.map(m => m.move_id) }) })
-      if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error || 'No se pudo confirmar'); setBusy(false); return }
+        { method: 'POST', body: JSON.stringify({ move_ids: learned.map(m => m.move_id), hp_roll: hpRoll }) })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        setError(j.error === 'hproll' ? `La tirada debe estar entre 1 y ${j.max}` : (j.error || 'No se pudo confirmar'))
+        setBusy(false); return
+      }
       onConfirmed()
     } catch { setError('No se pudo confirmar'); setBusy(false) }
   }
@@ -112,8 +136,9 @@ function MovesFlow({ personajeId, pending, onConfirmed }) {
         </div>
         {error && <p className="text-xs text-red-600 font-medium mt-3">{error}</p>}
       </div>
-      <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end shrink-0">
-        <button onClick={() => setAlert(true)} disabled={learned.length > 4}
+      <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between shrink-0">
+        <span className="text-xs text-gray-500">{hpValid ? '' : 'Falta la tirada del dado'}</span>
+        <button onClick={() => setAlert(true)} disabled={learned.length > 4 || !hpValid}
           className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
           Confirmar
         </button>
@@ -128,7 +153,7 @@ function MovesFlow({ personajeId, pending, onConfirmed }) {
 }
 
 /* Flujo ASI: reparte puntos entre stats (+1 c/u) y un feat (2 puntos) */
-function AsiFlow({ personajeId, pending, onConfirmed }) {
+function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
   const st = pending.stats || {}
   const level = Number(pending.level) || 1
   const cap = level >= 20 ? 22 : 20
@@ -173,8 +198,15 @@ function AsiFlow({ personajeId, pending, onConfirmed }) {
     try {
       const feat = feats[0] ? { feat_id: feats[0].feat_id, bonos: feats[0].bonos } : null
       const res = await apiFetch(`/personaje/${personajeId}/pokemon/${pending.id_personaje_pokemon}/improvement/asi`,
-        { method: 'POST', body: JSON.stringify({ stats: adds, feat }) })
-      if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error === 'points' ? 'Debes gastar todos los puntos' : (j.error || 'No se pudo confirmar')); setBusy(false); return }
+        { method: 'POST', body: JSON.stringify({ stats: adds, feat, hp_roll: hpRoll }) })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        setError(j.error === 'points' ? 'Debes gastar todos los puntos'
+          : j.error === 'hproll' ? `La tirada debe estar entre 1 y ${j.max}`
+          : j.error === 'duplicate' ? 'Ese feat no es repetible y el Pokémon ya lo tiene'
+          : (j.error || 'No se pudo confirmar'))
+        setBusy(false); return
+      }
       onConfirmed()
     } catch { setError('No se pudo confirmar'); setBusy(false) }
   }
@@ -214,6 +246,7 @@ function AsiFlow({ personajeId, pending, onConfirmed }) {
         {/* Feat (máximo 1, cuesta 2 puntos) */}
         <MasterPokemonFeats feats={feats} setFeats={setFeats} level={level}
           stats={statCtx} skills={skillCtx} skillsList={skillsList}
+          ownedFeatIds={pending.owned_feat_ids || []}
           maxFeats={feats.length > 0 ? 1 : (remaining >= 2 ? 1 : 0)} />
         {feats.length === 0 && remaining < 2 && (
           <p className="text-[11px] text-gray-400 italic">Necesitas 2 puntos libres para entrenar un feat.</p>
@@ -222,8 +255,10 @@ function AsiFlow({ personajeId, pending, onConfirmed }) {
         {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
       </div>
       <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between shrink-0">
-        <span className="text-xs text-gray-500">{remaining === 0 ? 'Todo repartido' : `Faltan ${remaining} punto(s)`}</span>
-        <button onClick={() => setAlert(true)} disabled={remaining !== 0}
+        <span className="text-xs text-gray-500">
+          {!hpValid ? 'Falta la tirada del dado' : remaining === 0 ? 'Todo repartido' : `Faltan ${remaining} punto(s)`}
+        </span>
+        <button onClick={() => setAlert(true)} disabled={remaining !== 0 || !hpValid}
           className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
           Confirmar
         </button>
@@ -238,6 +273,12 @@ function AsiFlow({ personajeId, pending, onConfirmed }) {
 
 /* Ventana obligatoria de mejora por subida de nivel (no se puede cerrar sin confirmar) */
 export default function PendingImprovementModal({ personajeId, pending, onConfirmed }) {
+  // La tirada del dado se pide en todos los niveles y viaja con el confirmar del flujo
+  const diceMax = Number(pending.hit_dice_max) || 0
+  const [hpRoll, setHpRoll] = useState('')
+  const rollNum = Math.floor(Number(hpRoll))
+  const hpValid = Number.isFinite(rollNum) && hpRoll !== '' && rollNum >= 1 && (diceMax === 0 || rollNum <= diceMax)
+
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
       <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
@@ -248,14 +289,15 @@ export default function PendingImprovementModal({ personajeId, pending, onConfir
             <p className="text-xs text-gray-500 truncate">{pending.apodo} · {pending.name} · Nv {pending.level}</p>
           </div>
         </div>
-        <div className="px-5 pt-3 pb-2 shrink-0">
+        <div className="px-5 pt-3 pb-2 shrink-0 space-y-2">
+          <HpRollField dice={pending.hit_dice} max={diceMax} value={hpRoll} onChange={setHpRoll} />
           <div className="rounded-xl bg-green-100 border border-green-300 text-green-800 font-bold text-sm px-4 py-3 text-center">
             {greenText(pending.type)}
           </div>
         </div>
         {pending.is_asi
-          ? <AsiFlow personajeId={personajeId} pending={pending} onConfirmed={onConfirmed} />
-          : <MovesFlow personajeId={personajeId} pending={pending} onConfirmed={onConfirmed} />}
+          ? <AsiFlow personajeId={personajeId} pending={pending} onConfirmed={onConfirmed} hpRoll={rollNum} hpValid={hpValid} />
+          : <MovesFlow personajeId={personajeId} pending={pending} onConfirmed={onConfirmed} hpRoll={rollNum} hpValid={hpValid} />}
       </div>
     </div>
   )

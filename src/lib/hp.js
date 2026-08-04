@@ -48,3 +48,34 @@ export function hpValues(full) {
   const max = (Number(full?.personaje_hp) || 0) + hpExtra(full)
   return { max, cur: full?.personaje_current_hp ?? max }
 }
+
+/* ── HP de los Pokémon del entrenador (espejo de back/src/lib/hp.js) ──
+   pokemon_hp guarda la base del pokédex más las tiradas de dado acumuladas al
+   subir de nivel; el máximo mostrado le suma el modificador de CON por nivel.
+   El backend ya devuelve pokemon_hp con ese extra aplicado: estos helpers son
+   para las vistas que arman el valor desde los stats en crudo. */
+
+/* CON total: base + bonus de la tabla + bonos de stat de los feats */
+export function pokemonCon(stats, feats) {
+  let featAdd = 0
+  for (const f of (feats || [])) {
+    for (const b of (f.bonos || [])) {
+      if (norm(b.type) === 'stat' && norm(b.llave) === 'con') featAdd += Number(b.value) || 0
+    }
+  }
+  return (Number(stats?.pokemon_con) || 0) + (Number(stats?.pokemon_con_bonus) || 0) + featAdd
+}
+
+/* Suma en vivo al HP máximo: modificador de CON por cada nivel.
+   Un CON bajo (modificador negativo) no resta vida: el piso es 0. */
+export function pokemonHpExtra({ stats, feats, level }) {
+  const lvl = Math.max(1, Number(level) || 1)
+  const mod = Math.max(0, Math.floor((pokemonCon(stats, feats) - 10) / 2))
+  return mod * lvl
+}
+
+/* Tamaño del dado de golpe a partir del texto del pokédex: "d10" → 10 */
+export function hitDiceMax(s) {
+  const m = /(\d+)/.exec(s || '')
+  return m ? Number(m[1]) : 0
+}

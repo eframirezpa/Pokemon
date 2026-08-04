@@ -5,7 +5,7 @@ import FeatInfoModal from './FeatInfoModal'
 import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
 import { ResolvedBonusBadges } from './featBonoBadges'
 import SpecializationInfoModal from './SpecializationInfoModal'
-import { buildProfs } from '../lib/profs'
+import { buildProfs, titleCase } from '../lib/profs'
 import { hpValues } from '../lib/hp'
 
 /* Checkbox de solo lectura (estilo de la imagen) */
@@ -252,9 +252,10 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                     <InfoBox label="Poke lvs"      value={data.personaje_pokelvls} />
                   </div>
 
-                  {/* Armor Prof (personaje_armor_prof de feats con prereq cumplido, separadas por coma) */}
-                  {featFx.armorList.length > 0 && (
-                    <Row label="Armor Prof" value={featFx.armorList.join(', ')} />
+                  {/* Armor Prof: las de los feats (con prereq cumplido) más las que
+                      otorga el background. buildProfs ya combina ambas fuentes. */}
+                  {profs.armors.size > 0 && (
+                    <Row label="Armor Prof" value={[...profs.armors].sort().map(titleCase).join(', ')} />
                   )}
                 </div>
               )
@@ -353,12 +354,13 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                 <Row label="Armadura" value={data.armor.armor_type_name}
                   prof={profs.isArmorProf(data.armor.armor_type_category)} />
               )}
-              {/* Una fila por arma equipada, cada una con su propia proficiencia */}
+              {/* Una fila por arma equipada. La proficiencia viene de personaje_weapon:
+                  la otorgan la creación del personaje y los feats de "weapon prof". */}
               {(data.weapons || []).map((w, i, arr) => (
                 <Row key={w.id_personaje_weapon ?? i}
                   label={arr.length > 1 ? `Arma ${i + 1}` : 'Arma'}
                   value={w.weapon_type_name}
-                  prof={profs.isWeaponProf(w.weapon_type_name)} />
+                  prof={profs.isWeaponProf(w)} />
               ))}
               <Row label="Origen"     value={data.origin_name} />
               <Row label="Background" value={data.background_name} />
@@ -404,9 +406,14 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                   </div>
                 </div>
               ))}
-              {data.background_tool_proficiencies_values && (
-                <Row label="Herramientas" value={data.background_tool_proficiencies_values} />
-              )}
+              {/* Una fila por herramienta con proficiencia: la del background más
+                  las de los feats (Crafter, Musician, Skilled). */}
+              {profs.tools.map((t, i, arr) => (
+                <Row key={t.name}
+                  label={arr.length > 1 ? `Herramienta ${i + 1}` : 'Herramienta'}
+                  value={t.name}
+                  prof />
+              ))}
             </div>
 
             {/* Equipo */}

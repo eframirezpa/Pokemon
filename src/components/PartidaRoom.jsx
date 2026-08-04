@@ -4,6 +4,7 @@ import {
   LogOut, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff, Info, Search,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
   Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star, Globe, NotebookPen,
+  ArrowRightLeft, Loader2, AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
@@ -58,6 +59,8 @@ function TypeBadge({ type }) {
   )
 }
 
+// Sprite genérico de pokébola (mismo origen que los items de la mochila)
+const POKEBALL_SPRITE = 'https://raw.githubusercontent.com/Auroratide/poke5e/main/static/assets/items/poke-ball/sprite.png'
 const hpPct   = p => Math.max(0, Math.min(100, Math.round((p.hp_current / p.hp_max) * 100)))
 const hpColor = pct => pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444'
 
@@ -72,13 +75,39 @@ function MysteryMark({ size = 'text-4xl' }) {
 }
 
 /* Tarjeta de vida del Pokémon — vista de trainer/espectador (con imagen) */
-function PokemonHpCard({ p }) {
+function PokemonHpCard({ p, onPokeball = null, ballSprite = null }) {
   const pct    = hpPct(p)
   const hidden = !!p.hidden
+
+  // El master lo guardó en la pokébola: se ve la bola balanceándose con el
+  // nombre encima, y no se puede lanzar nada mientras esté dentro.
+  if (p.inBall) {
+    return (
+      <div className="flex flex-col items-center gap-1 w-64">
+        <span className="font-bold text-gray-900 text-sm truncate max-w-full bg-white border border-gray-300 rounded-lg px-2 py-0.5 shadow-sm">
+          {hidden ? '???' : p.name}
+        </span>
+        <img src={POKEBALL_SPRITE} alt={hidden ? 'Pokémon en la pokébola' : `${p.name} en la pokébola`}
+          className="w-16 h-16 object-contain animate-pokeball-wobble drop-shadow-lg"
+          onError={e => { e.target.style.opacity = '0.3' }} />
+      </div>
+    )
+  }
   // Efecto de sangrado: pulso de fondo según la vida (se mantiene aunque esté oculto)
   const bleedClass = pct <= 20 ? 'animate-bleed-red' : pct <= 50 ? 'animate-bleed-yellow' : 'bg-gray-100'
 
   return (
+    <div className="flex items-center gap-2">
+    {/* Pokébola para intentar atrapar — solo si el trainer tiene alguna */}
+    {onPokeball && (
+      <button onClick={() => onPokeball(p)} title={`Lanzar pokébola a ${hidden ? 'este Pokémon' : p.name}`}
+        data-throw-target={p.uid}
+        className="shrink-0 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-400 rounded-full">
+        <img src={ballSprite} alt="Lanzar pokébola"
+          className="w-9 h-9 object-contain animate-pokeball-idle drop-shadow-md"
+          onError={e => { e.target.style.opacity = '0.3' }} />
+      </button>
+    )}
     <div className={`flex items-center gap-3 border-2 border-gray-700 rounded-2xl shadow-xl p-2.5 w-64 ${bleedClass}`}>
       {/* Sprite */}
       {hidden ? (
@@ -114,11 +143,12 @@ function PokemonHpCard({ p }) {
         )}
       </div>
     </div>
+    </div>
   )
 }
 
 /* Card de un Pokémon del master — colapsable (toggle) */
-function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, onInspect }) {
+function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer }) {
   const [collapsed, setCollapsed] = useState(false)
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-lg self-start">
@@ -132,6 +162,25 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
             <ChevronDown size={14} className={`text-gray-400 shrink-0 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
             <span className="text-white font-bold text-sm truncate">{pokemon.name}</span>
             <span className="text-[10px] text-gray-400 shrink-0">Lv.{pokemon.level}</span>
+            {/* Guardar/soltar de la pokébola: dentro se ve un rayo para liberarlo */}
+            <button
+              onClick={e => { e.stopPropagation(); onToggleBall(pokemon.uid) }}
+              className={`shrink-0 transition-colors flex items-center justify-center ${pokemon.inBall ? 'text-amber-400 hover:text-amber-300' : 'text-gray-500 hover:text-white'}`}
+              title={pokemon.inBall ? 'Sacar de la pokébola' : 'Guardar en la pokébola'}
+            >
+              {pokemon.inBall
+                ? <Zap size={32} />
+                : <img src={POKEBALL_SPRITE} alt="" className="w-8 h-8 object-contain opacity-70 hover:opacity-100"
+                    onError={e => { e.target.style.opacity = '0.3' }} />}
+            </button>
+            {/* Transferir el Pokémon a un entrenador */}
+            <button
+              onClick={e => { e.stopPropagation(); onTransfer(pokemon) }}
+              className="shrink-0 text-gray-500 hover:text-white transition-colors"
+              title="Transferir a un entrenador"
+            >
+              <ArrowRightLeft size={18} />
+            </button>
           </div>
           <div className="flex gap-1 mt-1 pl-5">
             <TypeBadge type={pokemon.type1} />
@@ -214,22 +263,38 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
 }
 
 /* Panel de Pokémon del master — botón + grid de Pokémon (máx. según `max`) */
-function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden, onInspect }) {
+function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer }) {
   const full = pokemons.length >= max
+  const [collapsed, setCollapsed] = useState(false)
   return (
     <div className="shrink-0 flex flex-col px-4 pt-3">
-      <button
-        onClick={onAdd}
-        disabled={full}
-        className="shrink-0 w-full flex items-center justify-center gap-1.5 py-2 bg-gray-800 hover:bg-gray-700
-                   disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800
-                   border border-gray-700 text-gray-200 text-xs font-semibold rounded-xl transition-colors"
-      >
-        <Plus size={15} /> Pokémon <span className="text-gray-400">({pokemons.length}/{max})</span>
-      </button>
+      <div className="flex items-stretch gap-2">
+        <button
+          onClick={onAdd}
+          disabled={full}
+          className="shrink-0 flex-1 flex items-center justify-center gap-1.5 py-2 bg-gray-800 hover:bg-gray-700
+                     disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800
+                     border border-gray-700 text-gray-200 text-xs font-semibold rounded-xl transition-colors"
+        >
+          <Plus size={15} /> Pokémon <span className="text-gray-400">({pokemons.length}/{max})</span>
+        </button>
+        {/* Repliega la rejilla de invocados sin perderlos de la partida */}
+        <button
+          onClick={() => setCollapsed(c => !c)}
+          disabled={pokemons.length === 0}
+          title={collapsed ? 'Expandir Pokémon invocados' : 'Comprimir Pokémon invocados'}
+          className="shrink-0 w-10 flex items-center justify-center bg-gray-800 hover:bg-gray-700
+                     disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800
+                     border border-gray-700 text-gray-300 rounded-xl transition-colors"
+        >
+          <ChevronDown size={16} className={`transition-transform duration-300 ${collapsed ? '-rotate-90' : ''}`} />
+        </button>
+      </div>
 
-      {pokemons.length > 0 && (
-        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 overflow-auto resize-y content-start h-80 min-h-[8rem] max-h-[75vh]">
+      {/* Sin alto fijo: la rejilla crece con las tarjetas y solo hace scroll al
+          pasar de 75vh. Sigue siendo redimensionable con el borde inferior. */}
+      {!collapsed && pokemons.length > 0 && (
+        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 overflow-auto resize-y content-start max-h-[75vh]">
           {pokemons.map(p => (
             <MasterPokemonCard
               key={p.uid}
@@ -239,6 +304,8 @@ function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, 
               onCast={onCast}
               onToggleHidden={onToggleHidden}
               onInspect={onInspect}
+              onToggleBall={onToggleBall}
+              onTransfer={onTransfer}
             />
           ))}
         </div>
@@ -248,7 +315,8 @@ function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, 
 }
 
 /* Componente de envío de mensaje — visible solo para el master */
-function MasterSendMessage({ onSend }) {
+// compact: variante sin tarjeta ni título, para vivir dentro de la barra superior
+function MasterSendMessage({ onSend, compact = false }) {
   const [text, setText] = useState('')
   const submit = () => {
     const t = text.trim()
@@ -256,6 +324,32 @@ function MasterSendMessage({ onSend }) {
     onSend(t)
     setText('')
   }
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2 min-w-0">
+        <input
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') submit() }}
+          placeholder="Escribe un mensaje para los jugadores..."
+          className="flex-1 min-w-0 bg-gray-700 text-white text-sm rounded-full px-4 py-1.5
+                     placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/50"
+        />
+        <button
+          onClick={submit}
+          disabled={!text.trim()}
+          className="w-9 h-9 shrink-0 rounded-full bg-green-500 hover:bg-green-600
+                     disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center
+                     text-white transition-all shadow-md"
+          title="Enviar"
+        >
+          <Send size={16} />
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="shrink-0 px-4 pt-4">
       <div className="bg-gray-800 border border-gray-700 rounded-2xl p-3 shadow-lg">
@@ -624,7 +718,62 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash } = usePartidaPresence(id, userInfo)
+
+  // ── Atrapar Pokémon: pokébolas del trainer, panel de lanzamiento y animación ──
+  const [pokeballs, setPokeballs]   = useState([])   // items tipo pokeball con cantidad > 0
+  const [throwTarget, setThrowTarget] = useState(null) // Pokémon del master al que se apunta
+  const [throwFx, setThrowFx]       = useState(null) // animación en curso
+  const [throwing, setThrowing]     = useState(false)
+
+  const loadPokeballs = useCallback(() => {
+    if (isMaster || personajeId == null) return
+    apiFetch(`/personaje/${personajeId}/equipo`).then(r => r.json())
+      .then(d => setPokeballs((Array.isArray(d) ? d : [])
+        .filter(it => it.item_type === 'pokeball' && Number(it.cantidad) > 0)))
+      .catch(() => setPokeballs([]))
+  }, [isMaster, personajeId])
+  useEffect(() => { loadPokeballs() }, [loadPokeballs])
+
+  // Sin personaje o siendo master no hay captura, aunque queden datos de antes
+  const hasPokeballs = !isMaster && personajeId != null && pokeballs.length > 0
+
+  // Al abrir el panel se recarga la mochila: las cantidades pudieron cambiar
+  const openThrowPanel = (p) => { loadPokeballs(); setThrowTarget(p) }
+
+  // El panel se cierra solo si el master guarda al Pokémon o lo quita del campo
+  const liveThrowTarget = throwTarget && activePokemons.some(p => p.uid === throwTarget.uid && !p.inBall)
+    ? throwTarget : null
+  // Sprite del icono junto al Pokémon: el de la pokébola más común que lleve encima
+  const ballIcon = pokeballs[0]?.item_media_sprite || null
+
+  // Lanza la pokébola elegida: cierra el panel, descuenta 1 y dispara la animación
+  const throwBall = async (ball) => {
+    if (throwing || !throwTarget) return
+    setThrowing(true)
+    const target = throwTarget
+    setThrowTarget(null)
+
+    // Mide origen (icono del jugador) y destino (tarjeta del Pokémon) en pantalla
+    const origin = document.querySelector('[data-throw-origin]')?.getBoundingClientRect()
+    const dest   = document.querySelector(`[data-throw-target="${target.uid}"]`)?.getBoundingClientRect()
+    if (origin && dest) {
+      const from = { x: origin.left + origin.width / 2, y: origin.top + origin.height / 2 }
+      const to   = { x: dest.left + dest.width / 2,     y: dest.top + dest.height / 2 }
+      setThrowFx({ sprite: ball.item_media_sprite, from, dx: to.x - from.x, dy: to.y - from.y })
+      setTimeout(() => setThrowFx(null), 950)
+    }
+
+    // Descuenta una unidad del item lanzado
+    const restante = Math.max(0, Number(ball.cantidad) - 1)
+    setPokeballs(prev => prev.map(b => b.id_personaje_equipo === ball.id_personaje_equipo
+      ? { ...b, cantidad: restante } : b).filter(b => Number(b.cantidad) > 0))
+    try {
+      await apiFetch(`/personaje/${personajeId}/equipo/${ball.id_personaje_equipo}`,
+        { method: 'PATCH', body: JSON.stringify({ cantidad: restante }) })
+    } catch { loadPokeballs() }
+    setThrowing(false)
+  }
 
   // Expone el estado de lucha al padre (TrainerPartida oculta iconos de no-seleccionados)
   useEffect(() => { onFight?.(fight) }, [fight, onFight])
@@ -677,6 +826,17 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     const t = setTimeout(() => setShowPrize(false), 5000)
     return () => clearTimeout(t)
   }, [prize.at, prize.personaje_id, personajeId])
+
+  // Aviso de Pokémon atrapado durante 5s, para todos los de la partida.
+  // Se marca cuál ya expiró en vez de encender un flag: así el efecto solo
+  // toca el estado dentro del timeout y no de forma síncrona al renderizar.
+  const [capturaVistaAt, setCapturaVistaAt] = useState(0)
+  useEffect(() => {
+    if (!captura.at) return
+    const t = setTimeout(() => setCapturaVistaAt(captura.at), 5000)
+    return () => clearTimeout(t)
+  }, [captura.at])
+  const showCaptura = captura.at > 0 && capturaVistaAt !== captura.at
 
   const eventKey = !background ? null
     : background.includes('/evento0/fire') ? 'fire'
@@ -785,10 +945,12 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     return () => clearTimeout(t)
   }, [eventFlashAt])
 
-  // Expone acciones de la partida al componente padre (p. ej. TrainerPartida)
+  // Expone acciones de la partida al componente padre (p. ej. TrainerPartida).
+  // reloadPokeballs lo llama la mochila al cerrarse, para que el icono y el panel
+  // reflejen al instante las pokébolas que se acaban de agregar.
   useEffect(() => {
-    if (apiRef) apiRef.current = { sendPartyUpdate, sendAttack }
-  }, [apiRef, sendPartyUpdate, sendAttack])
+    if (apiRef) apiRef.current = { sendPartyUpdate, sendAttack, reloadPokeballs: loadPokeballs }
+  }, [apiRef, sendPartyUpdate, sendAttack, loadPokeballs])
 
   // Difunde el Pokémon invocado del jugador cuando cambia
   useEffect(() => {
@@ -872,6 +1034,66 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     }
   }
 
+  // ── Transferencia de un Pokémon del master a un entrenador ──
+  const [transferPoke, setTransferPoke]   = useState(null) // Pokémon elegido en el panel
+  const [transferDest, setTransferDest]   = useState(null) // trainer seleccionado
+  const [transferConfirm, setTransferConfirm] = useState(false)
+  const [transferBusy, setTransferBusy]   = useState(false)
+  const [transferError, setTransferError] = useState('')
+
+  // Entrenadores conectados que tienen personaje activo en la partida
+  const trainersConectados = useMemo(() => {
+    const vistos = new Set()
+    return (presentes || []).filter(p => {
+      if (p.role === 'master' || p.personaje_id == null) return false
+      if (vistos.has(p.personaje_id)) return false
+      vistos.add(p.personaje_id)
+      return true
+    })
+  }, [presentes])
+
+  const abrirTransferencia = (pokemon) => {
+    setTransferPoke(pokemon); setTransferDest(null)
+    setTransferConfirm(false); setTransferError('')
+  }
+  const cerrarTransferencia = () => {
+    setTransferPoke(null); setTransferDest(null)
+    setTransferConfirm(false); setTransferError('')
+  }
+
+  const confirmarTransferencia = async () => {
+    if (!transferPoke || !transferDest || transferBusy) return
+    setTransferBusy(true); setTransferError('')
+    try {
+      const res = await apiFetch(`/master/pokemon/${transferPoke.master_pokemon_id}/transfer`,
+        { method: 'POST', body: JSON.stringify({ id_personaje: transferDest.personaje_id }) })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        setTransferError(j.error || 'No se pudo transferir'); setTransferBusy(false); return
+      }
+      const j = await res.json()
+      // Desaparece del campo para el master y para todos los jugadores
+      sendPokemons(activePokemons.filter(p => p.uid !== transferPoke.uid))
+      const nombrePokemon = j.pokemon_apodo || j.pokemon_name || transferPoke.name
+      const texto = `Felicitaciones el trainer ${transferDest.user_name} ha atrapado al pokemon ${nombrePokemon}`
+      sendMasterMessage(texto)
+      sendActivity(texto)
+      sendCaptura(transferDest.user_name, nombrePokemon) // aviso central de 5s
+      sendPartyUpdate()
+      cerrarTransferencia()
+    } catch {
+      setTransferError('No se pudo transferir')
+    } finally { setTransferBusy(false) }
+  }
+
+  // Guarda o suelta al Pokémon de la pokébola. Se propaga por presencia, así que
+  // el trainer ve la bola balanceándose sin poder lanzarle nada mientras esté dentro.
+  const handleToggleBall = (uid) => {
+    const p = activePokemons.find(x => x.uid === uid)
+    if (!p) return
+    updatePokemon(uid, { inBall: !p.inBall })
+  }
+
   const handleRemove = (uid) => sendPokemons(activePokemons.filter(p => p.uid !== uid))
 
   const handleCast = (pokemon, moveName, moveType) => {
@@ -887,15 +1109,23 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 bg-gray-800 border-b border-gray-700 shrink-0">
-        {/* Mensaje del master */}
-        <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
-          <img src={eventActive ? '/evento0/avatar.png' : '/avatars/chuckface.png'} alt="Master"
-            className="w-8 h-8 rounded-full border-2 border-amber-500/60 object-cover shrink-0 bg-gray-700" />
-          <p className="text-sm text-gray-100 leading-snug truncate">{masterMessage}</p>
-        </div>
+        {/* Mensaje del master: solo lo ven los demás, el master ya sabe lo que envió */}
+        {!isMaster && (
+          <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
+            <img src={eventActive ? '/evento0/avatar.png' : '/avatars/chuckface.png'} alt="Master"
+              className="w-8 h-8 rounded-full border-2 border-amber-500/60 object-cover shrink-0 bg-gray-700" />
+            <p className="text-sm text-gray-100 leading-snug truncate">{masterMessage}</p>
+          </div>
+        )}
+        {/* Enviar mensaje: a la izquierda del botón de salir (solo master) */}
+        {isMaster && (
+          <div className="flex-1 min-w-0 mr-3">
+            <MasterSendMessage onSend={sendMasterMessage} compact />
+          </div>
+        )}
         <button
           onClick={() => navigate(ROLE_DASHBOARD[user?.role] ?? '/')}
-          className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300
+          className="ml-auto shrink-0 flex items-center gap-2 text-sm text-red-400 hover:text-red-300
                      hover:bg-red-900/30 px-3 py-1.5 rounded-lg transition-all"
         >
           <LogOut size={14} /> Salir
@@ -1088,10 +1318,11 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         {/* Center — master panel + content + activity log */}
         <div className="flex flex-col flex-1 overflow-hidden">
 
-          {/* Panel del master arriba (solo master) */}
+          {/* Panel del master: todo en un único contenedor con scroll. Antes esto
+              convivía con la zona de contenido de abajo, que para el master queda
+              vacía (todo lo suyo es !isMaster) y aun así se llevaba el alto sobrante. */}
           {isMaster && (
-            <>
-              <MasterSendMessage onSend={sendMasterMessage} />
+            <div className="flex-1 overflow-y-auto pb-3">
               <MasterPokemonPanel
                 pokemons={activePokemons}
                 max={MAX_POKEMON}
@@ -1100,6 +1331,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onRemove={handleRemove}
                 onCast={handleCast}
                 onToggleHidden={handleToggleHidden}
+                onToggleBall={handleToggleBall}
+                onTransfer={abrirTransferencia}
                 onInspect={setInspectMasterPoke}
               />
               <EdicionJugadoresPanel partidaId={id} presentes={presentes} partyVersion={partyUpdatedAt} onAfterChange={sendPartyUpdate} />
@@ -1115,10 +1348,11 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                   } catch { /* noop */ }
                 }}
                 onHit={onHit} onHeal={onHeal} />
-            </>
+            </div>
           )}
 
-          {/* Role-specific content area */}
+          {/* Zona de contenido por rol — el master no la usa */}
+          {!isMaster && (
           <div className="relative overflow-auto p-6 flex-1">
             {/* Fondo del evento con aparición suave (solo trainer/espectador) */}
             {!isMaster && background && (
@@ -1129,7 +1363,62 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             {/* Tarjetas de vida de los Pokémon — parte superior derecha (trainer/espectador) */}
             {!isMaster && activePokemons.length > 0 && (
               <div className={`absolute top-4 right-4 z-10 flex gap-2 origin-top-right ${isPhone ? 'scale-[0.65]' : 'scale-100'} ${isPhoneLandscape ? 'flex-row-reverse' : 'flex-col'}`}>
-                {activePokemons.map(p => <PokemonHpCard key={p.uid} p={p} />)}
+                {activePokemons.map(p => (
+                  <PokemonHpCard key={p.uid} p={p}
+                    onPokeball={hasPokeballs && !p.inBall ? openThrowPanel : null} ballSprite={ballIcon} />
+                ))}
+              </div>
+            )}
+
+            {/* Panel para elegir qué pokébola lanzar — arriba y centrado */}
+            {liveThrowTarget && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 w-72 max-w-[90vw]">
+                <div className="bg-white rounded-2xl border-2 border-gray-700 shadow-2xl overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-gray-200 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <h4 className="font-black text-gray-900 text-sm leading-tight">Lanzar pokébola</h4>
+                      <p className="text-[11px] text-gray-500 truncate">
+                        {liveThrowTarget.hidden ? '???' : liveThrowTarget.name}
+                      </p>
+                    </div>
+                    <button onClick={() => setThrowTarget(null)} title="Cerrar"
+                      className="shrink-0 text-gray-400 hover:text-gray-700"><X size={18} /></button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                    {pokeballs.map(b => (
+                      <div key={b.id_personaje_equipo} className="flex items-center gap-2 px-4 py-2">
+                        {b.item_media_sprite && (
+                          <img src={b.item_media_sprite} alt="" className="w-7 h-7 object-contain shrink-0"
+                            onError={e => { e.target.style.opacity = '0.3' }} />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-gray-900 truncate">{b.item_name}</p>
+                          <p className="text-[11px] text-gray-500">Disponibles: {b.cantidad}</p>
+                        </div>
+                        <button onClick={() => throwBall(b)} disabled={throwing}
+                          className="shrink-0 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-3 py-1.5 rounded-lg transition-colors">
+                          Lanzar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Pokébola en vuelo: del icono del jugador al Pokémon del master.
+                Va en coordenadas de viewport porque se miden con getBoundingClientRect. */}
+            {throwFx && (
+              <div className="fixed inset-0 z-[90] pointer-events-none">
+                <img src={throwFx.sprite} alt=""
+                  className="absolute w-10 h-10 object-contain animate-pokeball-throw drop-shadow-lg"
+                  style={{
+                    left: throwFx.from.x - 20,
+                    top:  throwFx.from.y - 20,
+                    '--dx': `${throwFx.dx}px`,
+                    '--dy': `${throwFx.dy}px`,
+                  }}
+                  onError={e => { e.target.style.opacity = '0' }} />
               </div>
             )}
 
@@ -1156,6 +1445,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
             {children}
           </div>
+          )}
 
           {/* Activity log */}
           <div className={`shrink-0 border-t border-gray-700 bg-gray-800/60 flex flex-col transition-all duration-300 ${logOpen ? 'h-40' : 'h-9'}`}>
@@ -1217,6 +1507,96 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       {/* Ventana de personajes registrados (solo master) */}
       {showInfo && isMaster && (
         <PartidaInfoPanel partidaId={id} onClose={() => setShowInfo(false)} />
+      )}
+
+      {/* Aviso de captura: 5 s centrado en pantalla, para toda la partida (master incluido) */}
+      {showCaptura && captura.trainer && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center pointer-events-none p-4">
+          <div className="animate-event-pop bg-white/95 border-4 border-amber-400 rounded-2xl shadow-2xl px-6 py-5 max-w-md text-center">
+            <img src={POKEBALL_SPRITE} alt="" className="w-12 h-12 object-contain mx-auto mb-2 animate-pokeball-wobble"
+              onError={e => { e.target.style.opacity = '0.3' }} />
+            <p className="text-lg font-black text-gray-900 leading-snug">
+              En hora buena, el trainer <span className="text-red-600">{captura.trainer}</span> ha atrapado a <span className="text-red-600">{captura.pokemon}</span>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Transferencia de un Pokémon del master a un entrenador (solo master) */}
+      {transferPoke && isMaster && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+          <div className="bg-white rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-2 shrink-0">
+              <div className="min-w-0">
+                <h3 className="font-black text-gray-900 text-base leading-tight">Transferencia de pokémon</h3>
+                <p className="text-xs text-gray-500 truncate">{transferPoke.name} · Nv {transferPoke.level}</p>
+              </div>
+              <button onClick={cerrarTransferencia} title="Cerrar" className="shrink-0 text-gray-400 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-3">
+              <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-2">Trainers conectados</p>
+              {trainersConectados.length === 0 ? (
+                <p className="text-sm text-gray-400 italic py-3">No hay trainers conectados con personaje en la partida.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {trainersConectados.map(t => {
+                    const sel = transferDest?.personaje_id === t.personaje_id
+                    return (
+                      <button key={t.personaje_id} onClick={() => setTransferDest(t)}
+                        className={`w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors
+                          ${sel ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
+                        {t.avatar_face_url && (
+                          <img src={t.avatar_face_url} alt="" className="w-8 h-8 object-contain rounded-full bg-gray-100 shrink-0"
+                            onError={e => { e.target.style.opacity = '0.2' }} />
+                        )}
+                        <span className="flex-1 min-w-0 text-sm font-bold text-gray-900 truncate">{t.user_name}</span>
+                        <span className={`shrink-0 w-4 h-4 rounded-full border-2 ${sel ? 'border-red-600 bg-red-600' : 'border-gray-300'}`} />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {transferError && <p className="text-xs text-red-600 font-medium mt-3">{transferError}</p>}
+            </div>
+
+            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
+              <button onClick={cerrarTransferencia} className="text-sm font-semibold text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg">
+                Cancelar
+              </button>
+              <button onClick={() => setTransferConfirm(true)} disabled={!transferDest}
+                className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmación de la transferencia */}
+      {transferConfirm && transferPoke && transferDest && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 flex items-start gap-3">
+              <AlertTriangle size={22} className="text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-gray-700">
+                ¿Está seguro de transferir el pokemon <b>{transferPoke.name}</b> al trainer <b>{transferDest.user_name}</b>?
+              </p>
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+              <button onClick={() => setTransferConfirm(false)} disabled={transferBusy}
+                className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">
+                Cancelar
+              </button>
+              <button onClick={confirmarTransferencia} disabled={transferBusy}
+                className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+                {transferBusy ? <Loader2 size={15} className="animate-spin" /> : null} Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Ficha completa del personaje abierta desde el party (master) */}

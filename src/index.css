@@ -87,3 +87,57 @@ body {
 .animate-bgfade {
   animation: bgfade 0.6s ease;
 }
+
+/* Pokébola en reposo junto al Pokémon del master: late una vez cada 10 s.
+   El ciclo dura 10 s y el latido ocupa solo el tramo final, así el resto
+   del tiempo queda quieta. */
+@keyframes pokeball-idle {
+  0%, 88%, 100% { transform: scale(1); }
+  92%           { transform: scale(1.18); }
+  96%           { transform: scale(0.94); }
+}
+.animate-pokeball-idle {
+  animation: pokeball-idle 10s ease-in-out infinite;
+}
+
+/* Lanzamiento: describe un arco desde el icono del jugador hasta el Pokémon.
+   --dx/--dy los calcula el componente midiendo ambos elementos en pantalla. */
+@keyframes pokeball-throw {
+  0% {
+    transform: translate(0, 0) scale(0.85) rotate(0deg);
+    opacity: 1;
+  }
+  70% {
+    transform: translate(calc(var(--dx) * 0.85), calc(var(--dy) * 0.85 - 70px)) scale(1.05) rotate(540deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(0.7) rotate(760deg);
+    opacity: 0;
+  }
+}
+.animate-pokeball-throw {
+  animation: pokeball-throw 0.9s cubic-bezier(0.35, 0, 0.5, 1) forwards;
+}
+
+/* Pokébola cerrada con el Pokémon dentro: el balanceo de la serie.
+   Pivota sobre la base y descansa entre tanda y tanda. */
+@keyframes pokeball-wobble {
+  0%, 62%, 100% { transform: rotate(0deg); }
+  8%            { transform: rotate(-15deg); }
+  18%           { transform: rotate(13deg); }
+  28%           { transform: rotate(-11deg); }
+  38%           { transform: rotate(9deg); }
+  48%           { transform: rotate(-5deg); }
+  55%           { transform: rotate(0deg); }
+}
+.animate-pokeball-wobble {
+  animation: pokeball-wobble 2.6s ease-in-out infinite;
+  transform-origin: 50% 88%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pokeball-idle { animation: none; }
+  .animate-pokeball-throw { animation-duration: 0.3s; }
+  .animate-pokeball-wobble { animation: none; }
+}

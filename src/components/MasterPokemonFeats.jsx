@@ -179,7 +179,7 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, onCancel, onCon
 }
 
 /* Sección de feats (tipo Pokemon) del creador/editor de Pokémon del master */
-export default function MasterPokemonFeats({ feats, setFeats, level, stats, skills, skillsList, maxFeats = Infinity }) {
+export default function MasterPokemonFeats({ feats, setFeats, level, stats, skills, skillsList, maxFeats = Infinity, ownedFeatIds = [] }) {
   const [catalog, setCatalog] = useState([])
   const [search, setSearch]   = useState('')
   const [confirm, setConfirm] = useState(null)
@@ -198,7 +198,8 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
   const featStatus = (f) => featPrereqStatus(
     (f.feat_bonuses || []).filter(b => b.prereq).map(b => ({ prereq: b.prereq, valor: b.prereqValor })), prereqCtx)
 
-  const added = new Set(feats.map(f => f.feat_id))
+  // Ya tomados: los elegidos en esta ventana más los que el Pokémon tiene guardados
+  const added = new Set([...feats.map(f => f.feat_id), ...ownedFeatIds])
   const available = catalog
     .filter(f => Number(f.feat_is_repeatable) === 1 || !added.has(f.feat_id))
     .filter(f => !search || f.feat_name?.toLowerCase().includes(search.toLowerCase()))
@@ -246,7 +247,7 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
       <><div className="relative mb-2">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar feat..."
-          className="w-full pl-8 pr-7 py-1.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+          className="w-full pl-8 pr-7 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
         {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"><X size={13} /></button>}
       </div>
       <div className="border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-48 overflow-y-auto">

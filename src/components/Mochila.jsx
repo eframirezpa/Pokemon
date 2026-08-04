@@ -12,9 +12,13 @@ const ITEM_TYPES = [
   { value: 'pokeball',     label: 'Pokéball',        bg: '#C03028' },
   { value: 'trainer gear', label: 'Equipo',          bg: '#F08030' },
 ]
+const clampQty = v => Math.min(MAX_ITEM_QTY, Math.max(MIN_ITEM_QTY, Math.floor(Number(v)) || MIN_ITEM_QTY))
 const typeBg = t => ITEM_TYPES.find(x => x.value === t)?.bg || '#9CA3AF'
 const typeLabel = t => ITEM_TYPES.find(x => x.value === t)?.label || t
-const MAX_POKEDOLLARS = 500000000 // máximo a agregar de una vez
+const MAX_POKEDOLLARS = 50000000        // máximo a agregar de una vez
+const MAX_POKEDOLLARS_TOTAL = 999999999 // máximo que se puede llegar a tener
+const MIN_ITEM_QTY = 1                  // mínimo por item al agregarlo
+const MAX_ITEM_QTY = 999                // máximo por item (tope del stack)
 
 export default function Mochila({ personajeId, onClose }) {
   const [tab, setTab] = useState('equipo') // equipo | armaduras | armas
@@ -113,7 +117,7 @@ export default function Mochila({ personajeId, onClose }) {
 
   // ── Acciones items ──
   const setCantidad = (idEq, nueva) => {
-    const c = Math.max(0, nueva)
+    const c = Math.min(MAX_ITEM_QTY, Math.max(0, nueva))
     setItems(prev => prev.map(it => it.id_personaje_equipo === idEq ? { ...it, cantidad: c } : it))
     apiFetch(`/personaje/${personajeId}/equipo/${idEq}`, { method: 'PATCH', body: JSON.stringify({ cantidad: c }) }).catch(() => {})
   }
@@ -136,7 +140,7 @@ export default function Mochila({ personajeId, onClose }) {
       }
       const j = await res.json()
       setPokedollars(Number(j.pokedollars) || 0)
-      const cantidad = Math.max(1, Number(pickQty) || 1)
+      const cantidad = clampQty(pickQty)
       await apiFetch(`/personaje/${personajeId}/equipo`, { method: 'POST', body: JSON.stringify({ id_item: pickItem.item_id, cantidad }) })
       setShowBuy(false); setPickItem(null); setPicker(false); setPickQty('1'); setBuyAmount(''); loadItems()
     } catch {
@@ -146,11 +150,15 @@ export default function Mochila({ personajeId, onClose }) {
     }
   }
 
-  // Billetera: suma pokédollars al personaje (máximo 500.000.000 por operación)
+  // Billetera: suma pokédollars al personaje. Tope por operación y tope de saldo total.
   const handleAddPokedollars = async () => {
     const amount = Math.floor(Number(addAmount))
     if (!Number.isFinite(amount) || amount <= 0) { setAddMsg('Ingresa una cantidad válida'); return }
     if (amount > MAX_POKEDOLLARS) { setAddMsg(`El máximo a agregar es ${MAX_POKEDOLLARS.toLocaleString()} ₽`); return }
+    if (pokedollars + amount > MAX_POKEDOLLARS_TOTAL) {
+      setAddMsg(`No puedes superar ${MAX_POKEDOLLARS_TOTAL.toLocaleString()} ₽ (puedes agregar ${(MAX_POKEDOLLARS_TOTAL - pokedollars).toLocaleString()} ₽)`)
+      return
+    }
     setAdding(true); setAddMsg('')
     try {
       const res = await apiFetch(`/personaje/${personajeId}/pokedollars/add`, { method: 'PATCH', body: JSON.stringify({ cantidad: amount }) })
@@ -315,8 +323,8 @@ export default function Mochila({ personajeId, onClose }) {
                           <button onClick={() => setCantidad(it.id_personaje_equipo, it.cantidad - 1)} disabled={it.cantidad <= 0}
                             className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors"><Minus size={15} /></button>
                           <span className="w-7 text-center font-bold text-gray-900 tabular-nums">{it.cantidad}</span>
-                          <button onClick={() => setCantidad(it.id_personaje_equipo, it.cantidad + 1)}
-                            className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200 flex items-center justify-center transition-colors"><Plus size={15} /></button>
+                          <button onClick={() => setCantidad(it.id_personaje_equipo, it.cantidad + 1)} disabled={it.cantidad >= MAX_ITEM_QTY}
+                            className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors"><Plus size={15} /></button>
                         </>
                       )}
                     </div>
@@ -443,7 +451,7 @@ export default function Mochila({ personajeId, onClose }) {
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Pokédollars a agregar</label>
               <div className="flex gap-2">
-                <input type="number" min="1" step="1" value={addAmount}
+                <input type="number" min="1" max={MAX_POKEDOLLARS} step="1" value={addAmount}
                   onChange={e => { setAddAmount(e.target.value); setAddMsg('') }}
                   onKeyDown={e => { if (e.key === 'Enter' && !adding) handleAddPokedollars() }}
                   placeholder="Cantidad"
@@ -534,9 +542,11 @@ export default function Mochila({ personajeId, onClose }) {
             </div>
             <div className="px-5 py-4">
               <label className="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
-              <input type="number" min="1" value={pickQty} onChange={e => setPickQty(e.target.value)} autoFocus
+              <input type="number" min={MIN_ITEM_QTY} max={MAX_ITEM_QTY} step="1" value={pickQty}
+                onChange={e => setPickQty(e.target.value)} autoFocus
                 onKeyDown={e => { if (e.key === 'Enter') proceedToBuy() }}
                 className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+              <p className="text-[11px] text-gray-500 mt-1">Entre {MIN_ITEM_QTY} y {MAX_ITEM_QTY}.</p>
             </div>
             <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between">
               <button onClick={() => setPickItem(null)} className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg">Cancelar</button>

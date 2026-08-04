@@ -8,15 +8,20 @@ import { apiFetch } from '../api'
 export default function EdicionJugadoresPanel({ partidaId, presentes = [], partyVersion, onAfterChange }) {
   const [open, setOpen] = useState(false)
   const [editable, setEditable] = useState({}) // personaje_id → bool
+  const [nombres, setNombres] = useState({})   // personaje_id → nombre del personaje
   const [saving, setSaving] = useState(null)    // personaje_id que se está guardando
 
   const reload = useCallback(() => {
     return apiFetch(`/personaje/party?id_partida=${partidaId}`)
       .then(r => r.json())
       .then(list => {
-        const map = {}
-        for (const c of (Array.isArray(list) ? list : [])) map[String(c.id_personaje)] = !!c.personaje_is_editable
+        const map = {}, nom = {}
+        for (const c of (Array.isArray(list) ? list : [])) {
+          map[String(c.id_personaje)] = !!c.personaje_is_editable
+          nom[String(c.id_personaje)] = c.nombre_personaje
+        }
         setEditable(map)
+        setNombres(nom)
       })
       .catch(() => {})
   }, [partidaId])
@@ -71,7 +76,11 @@ export default function EdicionJugadoresPanel({ partidaId, presentes = [], party
             const on = !!editable[key]
             return (
               <div key={key} className="flex items-center justify-between gap-2 px-3 py-2">
-                <span className="text-sm text-gray-100 truncate">{p.user_name || 'Jugador'}</span>
+                {/* Se muestra el nombre del personaje; el del usuario solo como
+                    respaldo mientras carga el listado de la partida. */}
+                <span className="text-sm text-gray-100 truncate">
+                  {nombres[key] || p.user_name || 'Jugador'}
+                </span>
                 <label className="flex items-center gap-1.5 shrink-0 cursor-pointer select-none">
                   <span className="text-[10px] font-bold text-gray-400 uppercase">Editable</span>
                   <button onClick={() => toggle(p.personaje_id)} disabled={saving === p.personaje_id}

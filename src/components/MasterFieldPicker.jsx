@@ -58,7 +58,7 @@ export default function MasterFieldPicker({ disabled = false, usedIds = [], onPi
           <div className="relative">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nombre o apodo..." autoFocus
-              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+              className="w-full pl-8 pr-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
           </div>
           {disabled && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mt-2">Ya alcanzaste el máximo de 6 Pokémon en el campo.</p>}
         </div>

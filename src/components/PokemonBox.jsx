@@ -146,6 +146,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
         </button>
         <div className="flex items-center gap-2 min-w-0">
           <span className="font-bold text-gray-900 truncate">{d.pokemon_apodo}</span>
+          <span className="font-bold text-gray-900 shrink-0">({level})</span>
           {d.pokemon_type_1 && <TypeBadge type={d.pokemon_type_1} />}
           {d.pokemon_type_2 && <TypeBadge type={d.pokemon_type_2} />}
         </div>
@@ -159,7 +160,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
             {mainImg && <img src={mainImg} alt={d.pokemon_apodo} className="w-[168px] h-[168px] object-contain"
               onError={e => { e.target.style.opacity = '0.2' }} />}
             <div className="flex items-center gap-2">
-              <span className="text-lg font-black text-gray-900">{d.pokemon_apodo}</span>
+              <span className="text-lg font-black text-gray-900">{d.pokemon_apodo} ({level})</span>
               {genero === 'Female' && <Venus size={18} className="text-pink-500" strokeWidth={2.5} />}
               {genero === 'Male' && <Mars size={18} className="text-blue-500" strokeWidth={2.5} />}
               {d.pokemon_is_shiny && (
@@ -377,10 +378,12 @@ function AddExpModal({ personajeId, pokemon, onClose, onDone }) {
 
   const level = Number(pokemon.pokemon_level) || 1
   const curExp = Number(pokemon.pokemon_experiencia) || 0
-  // Tope: 1 menos del umbral de 2 niveles arriba (topado a 20)
+  // Tope: 1 menos del umbral de 2 niveles arriba, para no subir 2 niveles de una vez.
+  // Desde nivel 19 ese umbral ya es el del 20 y no hay un 21 al que saltarse,
+  // así que se permite alcanzarlo exacto (espejo de back/src/services/personaje.service.js).
   const capLevel = Math.min(level + 2, 20)
   const capT = thresholds ? thresholds.get(capLevel) : null
-  const maxAdd = capT != null ? Math.max(0, capT - curExp - 1) : null
+  const maxAdd = capT != null ? Math.max(0, capT - curExp - (level + 2 > 20 ? 0 : 1)) : null
   const nextT = thresholds ? thresholds.get(level + 1) : null
 
   const submit = async () => {
@@ -518,8 +521,12 @@ export default function PokemonBox({ personajeId, mode, editable = false, onClos
                       <img src={(p.pokemon_is_shiny && p.pokemon_media_sprite_shiny) ? p.pokemon_media_sprite_shiny : (p.pokemon_media_sprite || p.pokemon_media_main)}
                         alt={p.pokemon_apodo}
                         className="w-16 h-16 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
-                      <span className="text-sm font-semibold text-gray-800 truncate max-w-full">{p.pokemon_apodo}</span>
-                      <span className="text-[11px] text-gray-400 truncate max-w-full">{p.pokemon_name} · Nv {p.pokemon_level}</span>
+                      {/* El nivel va junto al apodo; el apodo trunca pero el nivel siempre se ve */}
+                      <span className="flex items-baseline gap-1 max-w-full text-sm font-semibold text-gray-800">
+                        <span className="truncate">{p.pokemon_apodo}</span>
+                        <span className="shrink-0">({p.pokemon_level})</span>
+                      </span>
+                      <span className="text-[11px] text-gray-400 truncate max-w-full">{p.pokemon_name}</span>
                     </div>
                   ))}
                 </div>

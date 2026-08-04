@@ -880,7 +880,7 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
                 <div className="relative mb-2">
                   <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input value={specSearch} onChange={e => setSpecSearch(e.target.value)} placeholder="Buscar especialidad..."
-                    className="w-full pl-8 pr-7 py-1.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                    className="w-full pl-8 pr-7 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
                   {specSearch && <button onClick={() => setSpecSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"><X size={13} /></button>}
                 </div>
                 {errorSpec && !confirmSpec && !confirmSpecDel && <p className="text-xs text-red-600 font-medium mb-2">{errorSpec}</p>}
@@ -955,7 +955,7 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
               <div className="relative mb-2">
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar rasgo..."
-                  className="w-full pl-8 pr-7 py-1.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                  className="w-full pl-8 pr-7 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
                 {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"><X size={13} /></button>}
               </div>
               {error && !confirm && <p className="text-xs text-red-600 font-medium mb-2">{error}</p>}

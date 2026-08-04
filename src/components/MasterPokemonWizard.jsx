@@ -73,7 +73,7 @@ function SearchModal({ title, endpoint, render, onPick, onClose }) {
           <div className="relative">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..." autoFocus
-              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+              className="w-full pl-8 pr-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-3">

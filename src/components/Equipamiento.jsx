@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Loader2, Sword, Shield } from 'lucide-react'
+import { X, Loader2, Sword, Shield, FlaskConical } from 'lucide-react'
 import { apiFetch } from '../api'
 import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
 import { buildProfs, titleCase } from '../lib/profs'
@@ -23,7 +23,8 @@ function Bono({ label, value }) {
 }
 
 export default function Equipamiento({ personajeId, onClose }) {
-  const [weapons, setWeapons] = useState([])
+  const [weapons, setWeapons] = useState([])       // solo las equipadas (pestaña Equipamiento)
+  const [allWeapons, setAllWeapons] = useState([]) // todas las del personaje (pestaña Proficiencias)
   const [armors, setArmors]   = useState([])
   const [propMap, setPropMap] = useState({})
   const [propDetail, setPropDetail] = useState(null) // propiedad seleccionada (tooltip)
@@ -45,7 +46,9 @@ export default function Equipamiento({ personajeId, onClose }) {
         setProfs(buildProfs(full))
       }).catch(() => {}),
     ]).then(([w, a, p]) => {
-      setWeapons((Array.isArray(w) ? w : []).filter(x => x.personaje_weapon_in_use))
+      const listaArmas = Array.isArray(w) ? w : []
+      setAllWeapons(listaArmas)
+      setWeapons(listaArmas.filter(x => x.personaje_weapon_in_use))
       setArmors((Array.isArray(a) ? a : []).filter(x => x.personaje_armor_in_use))
       const map = {}
       for (const pr of (p.data || [])) map[pr.weapon_property_id] = { name: pr.weapon_property_name, description: pr.weapon_property_description }
@@ -68,12 +71,19 @@ export default function Equipamiento({ personajeId, onClose }) {
         </div>
 
         {/* Pestañas */}
+        {/* Dos pestañas se llaman "Proficiencias": los iconos de la derecha las
+            distinguen — armas/armaduras en una, herramientas en la otra. */}
         <div className="flex items-center gap-1 px-3 pt-3 border-b border-gray-200 shrink-0">
-          {[['equipo', 'Equipamiento'], ['profs', 'Proficiencias']].map(([key, label]) => (
+          {[
+            ['equipo', 'Equipamiento', null],
+            ['profs',  'Proficiencias', <><Sword size={14} /><Shield size={14} /></>],
+            ['tools',  'Proficiencias', <FlaskConical size={14} />],
+          ].map(([key, label, icons]) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 -mb-px transition-colors ${
+              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 -mb-px transition-colors ${
                 tab === key ? 'border-red-600 text-red-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               {label}
+              {icons && <span className="flex items-center gap-0.5 shrink-0">{icons}</span>}
             </button>
           ))}
         </div>
@@ -81,6 +91,28 @@ export default function Equipamiento({ personajeId, onClose }) {
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-400">
             <Loader2 className="animate-spin mr-2" size={18} /> Cargando...
+          </div>
+        ) : tab === 'tools' ? (
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FlaskConical size={16} className="text-red-700" />
+              <p className="text-xs font-black uppercase tracking-widest text-gray-600">Herramientas proficientes</p>
+            </div>
+            {profs.tools.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">Sin proficiencias de herramienta.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {profs.tools.map(t => (
+                  <div key={t.name} className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="font-bold text-gray-800 text-sm truncate">{t.name}</p>
+                      {t.source && <p className="text-[11px] text-gray-500 truncate">{t.source}</p>}
+                    </div>
+                    <ProfTag prof />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : tab === 'profs' ? (
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
@@ -91,18 +123,27 @@ export default function Equipamiento({ personajeId, onClose }) {
                 <Sword size={16} className="text-red-700" />
                 <p className="text-xs font-black uppercase tracking-widest text-gray-600">Armas proficientes</p>
               </div>
-              {profs.weapons.size === 0 ? (
-                <p className="text-sm text-gray-400 italic">Sin proficiencias de arma.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {[...profs.weapons].sort().map(w => (
-                    <div key={w} className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-                      <span className="font-bold text-gray-800 text-sm truncate">{titleCase(w)}</span>
-                      <ProfTag prof />
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Las armas proficientes salen de personaje_weapon, no de los feats:
+                  así también aparece la elegida al crear el personaje. */}
+              {(() => {
+                const profWeapons = allWeapons.filter(w => profs.isWeaponProf(w))
+                if (profWeapons.length === 0) {
+                  return <p className="text-sm text-gray-400 italic">Sin proficiencias de arma.</p>
+                }
+                return (
+                  <div className="space-y-1.5">
+                    {profWeapons
+                      .slice()
+                      .sort((a, b) => (a.weapon_type_name || '').localeCompare(b.weapon_type_name || ''))
+                      .map(w => (
+                        <div key={w.id_personaje_weapon} className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                          <span className="font-bold text-gray-800 text-sm truncate">{w.weapon_type_name}</span>
+                          <ProfTag prof />
+                        </div>
+                      ))}
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Tipos de armadura con proficiencia */}
@@ -143,7 +184,7 @@ export default function Equipamiento({ personajeId, onClose }) {
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="font-bold text-gray-800 text-sm truncate">{w.weapon_type_name}</span>
-                          <ProfTag prof={profs.isWeaponProf(w.weapon_type_name)} />
+                          <ProfTag prof={profs.isWeaponProf(w)} />
                         </div>
                         <span className="text-[10px] font-bold text-gray-400 uppercase shrink-0">{w.weapon_type_dnd_category}</span>
                       </div>

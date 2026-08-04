@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useLocation, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff } from 'lucide-react'
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
@@ -204,8 +204,10 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
 export default function TrainerPartida() {
   const { id }   = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const stateId  = location.state?.personaje?.id_personaje ?? null
+  const nombrePartida = location.state?.nombre ?? null
 
   const [personajeId, setPersonajeId] = useState(stateId)
   const [showPokedex, setShowPokedex] = useState(false)
@@ -257,9 +259,13 @@ export default function TrainerPartida() {
   }
   useEffect(() => { refreshPending() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId])
 
-  // Recupera el personaje del usuario: state → localStorage → backend (para recargas)
+  // Recupera el personaje del usuario: state → localStorage → backend (para recargas).
+  // Un usuario puede tener varios personajes en la misma partida (el lobby los lista
+  // para elegir), así que cuando no hay elección guardada NO se puede adivinar: antes
+  // se tomaba el primero de la lista y cargaba el personaje equivocado.
+  // La clave lleva sufijo v2 para descartar las elecciones que guardó esa versión.
   useEffect(() => {
-    const storeKey = `trainer_personaje_${id}`
+    const storeKey = `trainer_personaje_v2_${id}`
     if (stateId) { localStorage.setItem(storeKey, String(stateId)); return }
 
     const stored = localStorage.getItem(storeKey)
@@ -268,14 +274,18 @@ export default function TrainerPartida() {
     apiFetch(`/personaje?id_partida=${id}`)
       .then(r => r.json())
       .then(list => {
-        const first = Array.isArray(list) && list[0]
-        if (first) {
-          setPersonajeId(first.id_personaje)
-          localStorage.setItem(storeKey, String(first.id_personaje))
+        const arr = Array.isArray(list) ? list : []
+        if (arr.length === 1) {
+          // Un solo personaje: no hay ambigüedad posible
+          setPersonajeId(arr[0].id_personaje)
+          localStorage.setItem(storeKey, String(arr[0].id_personaje))
+          return
         }
+        // Varios (o ninguno): que lo elija en el lobby en vez de adivinar
+        navigate(`/partida-lobby/${id}`, { replace: true, state: { nombre: nombrePartida } })
       })
       .catch(() => {})
-  }, [id, stateId])
+  }, [id, stateId, navigate, nombrePartida])
 
   // Restaura el Pokémon invocado tras una recarga: se persiste en personaje_pokemon_is_in_game
   useEffect(() => {
@@ -412,7 +422,8 @@ export default function TrainerPartida() {
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-end justify-center gap-10">
           {user?.avatar_face_url && (
             <button onClick={openTrainerControl} className="transition-transform hover:scale-105" title="Controlar jugador">
-              <img src={user.avatar_face_url} alt="Jugador"
+              {/* data-throw-origin: PartidaRoom lo mide para lanzar la pokébola desde aquí */}
+              <img src={user.avatar_face_url} alt="Jugador" data-throw-origin="1"
                 className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
             </button>
           )}
@@ -425,13 +436,14 @@ export default function TrainerPartida() {
         </div>
         )}
 
-        {/* Botones laterales — columna centrada y scrolleable (para pantallas bajas) */}
-        <div className="fixed left-3 top-52 bottom-3 z-30 overflow-y-auto">
-          <div className="min-h-full flex flex-col justify-center gap-2 py-1">
-            <button onClick={() => setShowPokedex(true)} className={sideBtn} title="Abrir Pokédex">
-              <Smartphone size={18} />
-            </button>
+        {/* Pokédex — flotante justo debajo del botón de notas de PartidaRoom */}
+        <button onClick={() => setShowPokedex(true)} className={`${sideBtn} fixed left-3 top-52 z-40`} title="Abrir Pokédex">
+          <Smartphone size={18} />
+        </button>
 
+        {/* Botones laterales — columna centrada y scrolleable (para pantallas bajas) */}
+        <div className="fixed left-3 top-64 bottom-3 z-30 overflow-y-auto">
+          <div className="min-h-full flex flex-col justify-center gap-2 py-1">
             {personajeId && (
               <button onClick={() => setShowChar(true)} className={sideBtn} title="Ver mi personaje">
                 <User size={18} />
@@ -509,7 +521,8 @@ export default function TrainerPartida() {
 
       {/* Mochila */}
       {showMochila && personajeId && (
-        <Mochila personajeId={personajeId} onClose={() => setShowMochila(false)} />
+        <Mochila personajeId={personajeId}
+          onClose={() => { setShowMochila(false); partidaApiRef.current?.reloadPokeballs?.() }} />
       )}
 
       {/* Equipamiento */}

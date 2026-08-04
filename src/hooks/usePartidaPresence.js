@@ -17,6 +17,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [counters, setCounters] = useState({ up: 0, down: 0 }) // contadores del evento fire
   const [fight, setFight] = useState({ active: false, players: [], at: 0 }) // modo lucha
   const [prize, setPrize] = useState({ personaje_id: null, at: 0 }) // premio entregado a un personaje
+  const [captura, setCaptura] = useState({ trainer: null, pokemon: null, at: 0 }) // aviso de Pokémon atrapado
   const [eventIntroAt, setEventIntroAt] = useState(0) // secuencia de textos al iniciar el evento
   const [hitAt, setHitAt] = useState(0) // aviso de "Rave reclamó 1 HP"
   const [healAt, setHealAt] = useState(0) // aviso de "Rave otorgó 1 HP"
@@ -145,6 +146,9 @@ export function usePartidaPresence(partidaId, userInfo) {
       .on('broadcast', { event: 'prize' }, ({ payload }) => {
         if (payload?.personaje_id != null) setPrize({ personaje_id: payload.personaje_id, at: Date.now() })
       })
+      .on('broadcast', { event: 'captura' }, ({ payload }) => {
+        if (payload?.trainer) setCaptura({ trainer: payload.trainer, pokemon: payload.pokemon, at: Date.now() })
+      })
       .on('broadcast', { event: 'event_intro' }, () => {
         setEventIntroAt(Date.now())
       })
@@ -259,6 +263,13 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'prize', payload: { personaje_id } })
   }, [])
 
+  // Anuncia que un trainer atrapó un Pokémon (aviso central de 5s en la partida)
+  const sendCaptura = useCallback((trainer, pokemon) => {
+    if (!trainer) return
+    channelRef.current?.send({ type: 'broadcast', event: 'captura', payload: { trainer, pokemon } })
+    setCaptura({ trainer, pokemon, at: Date.now() }) // el emisor también lo ve
+  }, [])
+
   // Dispara la secuencia de textos de inicio del evento en los trainers
   const sendEventIntro = useCallback(() => {
     setEventIntroAt(Date.now())
@@ -277,5 +288,5 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'heal_flash', payload: {} })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash }
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash }
 }
