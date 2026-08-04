@@ -1052,9 +1052,21 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     })
   }, [presentes])
 
+  // En la presencia solo viaja el nombre de usuario, así que se consulta la
+  // party para poder mostrar el nombre del personaje de cada trainer.
+  const [nombresPersonaje, setNombresPersonaje] = useState({}) // personaje_id → nombre
+  const nombreTrainer = (t) =>
+    nombresPersonaje[String(t?.personaje_id)] || t?.user_name || 'Jugador'
+
   const abrirTransferencia = (pokemon) => {
     setTransferPoke(pokemon); setTransferDest(null)
     setTransferConfirm(false); setTransferError('')
+    apiFetch(`/personaje/party?id_partida=${id}`).then(r => r.json())
+      .then(d => {
+        const m = {}
+        for (const c of (Array.isArray(d) ? d : [])) m[String(c.id_personaje)] = c.nombre_personaje
+        setNombresPersonaje(m)
+      }).catch(() => {})
   }
   const cerrarTransferencia = () => {
     setTransferPoke(null); setTransferDest(null)
@@ -1075,10 +1087,11 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       // Desaparece del campo para el master y para todos los jugadores
       sendPokemons(activePokemons.filter(p => p.uid !== transferPoke.uid))
       const nombrePokemon = j.pokemon_apodo || j.pokemon_name || transferPoke.name
-      const texto = `Felicitaciones el trainer ${transferDest.user_name} ha atrapado al pokemon ${nombrePokemon}`
+      const nombreDest = nombreTrainer(transferDest)
+      const texto = `Felicitaciones el trainer ${nombreDest} ha atrapado al pokemon ${nombrePokemon}`
       sendMasterMessage(texto)
       sendActivity(texto)
-      sendCaptura(transferDest.user_name, nombrePokemon) // aviso central de 5s
+      sendCaptura(nombreDest, nombrePokemon) // aviso central de 5s
       sendPartyUpdate()
       cerrarTransferencia()
     } catch {
@@ -1552,7 +1565,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                           <img src={t.avatar_face_url} alt="" className="w-8 h-8 object-contain rounded-full bg-gray-100 shrink-0"
                             onError={e => { e.target.style.opacity = '0.2' }} />
                         )}
-                        <span className="flex-1 min-w-0 text-sm font-bold text-gray-900 truncate">{t.user_name}</span>
+                        <span className="flex-1 min-w-0 text-sm font-bold text-gray-900 truncate">{nombreTrainer(t)}</span>
                         <span className={`shrink-0 w-4 h-4 rounded-full border-2 ${sel ? 'border-red-600 bg-red-600' : 'border-gray-300'}`} />
                       </button>
                     )
@@ -1582,7 +1595,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             <div className="px-5 py-4 flex items-start gap-3">
               <AlertTriangle size={22} className="text-amber-500 shrink-0 mt-0.5" />
               <p className="text-sm text-gray-700">
-                ¿Está seguro de transferir el pokemon <b>{transferPoke.name}</b> al trainer <b>{transferDest.user_name}</b>?
+                ¿Está seguro de transferir el pokemon <b>{transferPoke.name}</b> al trainer <b>{nombreTrainer(transferDest)}</b>?
               </p>
             </div>
             <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
