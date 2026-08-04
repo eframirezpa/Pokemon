@@ -35,20 +35,29 @@ function ReadCheck({ pref, expert }) {
   )
 }
 
-function MoveRow({ m, onClick }) {
+// pasiva: misma fila que un movimiento pero con la etiqueta "pasiva" y sin
+// PP/tiempo/rango, que no aplican. El detalle se abre al hacer clic.
+function MoveRow({ m, onClick, pasiva = false }) {
   const Tag = onClick ? 'button' : 'div'
   return (
     <Tag onClick={onClick}
-      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border bg-green-100 border-green-300 text-left ${
-        onClick ? 'hover:border-green-500 transition-colors' : ''}`}>
+      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left ${
+        pasiva ? 'bg-purple-100 border-purple-300' : 'bg-green-100 border-green-300'} ${
+        onClick ? (pasiva ? 'hover:border-purple-500 transition-colors' : 'hover:border-green-500 transition-colors') : ''}`}>
       <div className="flex items-center gap-2 min-w-0">
-        <span className="font-semibold text-sm text-gray-800 truncate">{m.move_name}</span>
+        <span className="font-semibold text-sm text-gray-800 truncate">
+          {pasiva ? m.ability_name : m.move_name}
+        </span>
         <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
-          style={{ backgroundColor: TYPE_COLORS[m.move_type] || '#9CA3AF' }}>{m.move_type}</span>
+          style={{ backgroundColor: pasiva ? '#7C3AED' : (TYPE_COLORS[m.move_type] || '#9CA3AF') }}>
+          {pasiva ? 'pasiva' : m.move_type}
+        </span>
       </div>
-      <span className="text-[10px] text-gray-500 shrink-0 text-right">
-        PP {m.move_pp} · {m.move_time} · {m.move_range}
-      </span>
+      {!pasiva && (
+        <span className="text-[10px] text-gray-500 shrink-0 text-right">
+          PP {m.move_pp} · {m.move_time} · {m.move_range}
+        </span>
+      )}
     </Tag>
   )
 }
@@ -61,6 +70,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [moveInfo, setMoveInfo] = useState(null) // movimiento cuyo detalle se muestra
+  const [abilityInfo, setAbilityInfo] = useState(null) // pasiva cuyo detalle se muestra
   const [featInfo, setFeatInfo] = useState(null) // feat cuyo detalle se muestra
   const url = endpoint || `/personaje/${personajeId}/pokemon/${idpp}`
 
@@ -304,27 +314,17 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
             </div>
           )}
 
-          {/* Pasiva */}
-          {(d.pasivas || []).length > 0 && (
-            <div>
-              <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Pasiva</p>
-              <div className="space-y-2">
-                {d.pasivas.map(p => (
-                  <div key={p.ability_id} className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
-                    <span className="text-sm font-bold text-gray-800">{p.ability_name}</span>
-                    {p.ability_description && <p className="text-xs text-gray-500 leading-relaxed mt-0.5">{p.ability_description}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Movimientos */}
-          {(d.moves || []).length > 0 && (
+          {/* Movimientos — las pasivas van al final de la misma lista */}
+          {((d.moves || []).length > 0 || (d.pasivas || []).length > 0) && (
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Movimientos</p>
               <div className="space-y-1.5">
-                {d.moves.map(m => <MoveRow key={m.move_id} m={m} onClick={master ? () => setMoveInfo(m) : undefined} />)}
+                {(d.moves || []).map(m => (
+                  <MoveRow key={m.move_id} m={m} onClick={master ? () => setMoveInfo(m) : undefined} />
+                ))}
+                {(d.pasivas || []).map(p => (
+                  <MoveRow key={`pasiva-${p.ability_id}`} m={p} pasiva onClick={() => setAbilityInfo(p)} />
+                ))}
               </div>
             </div>
           )}
@@ -358,6 +358,27 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
       </div>
 
       {moveInfo && <MoveInfoModal m={moveInfo} theme="light" onClose={() => setMoveInfo(null)} />}
+
+      {/* Detalle de una pasiva */}
+      {abilityInfo && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget) setAbilityInfo(null) }}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <h4 className="font-bold text-gray-900 text-sm truncate">{abilityInfo.ability_name}</h4>
+                <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0" style={{ backgroundColor: '#7C3AED' }}>pasiva</span>
+              </div>
+              <button onClick={() => setAbilityInfo(null)} className="text-gray-400 hover:text-gray-700 shrink-0"><X size={16} /></button>
+            </div>
+            <div className="px-4 py-3">
+              <p className="text-xs text-gray-600 leading-relaxed">
+                {abilityInfo.ability_description || 'Sin descripción.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       {featInfo && <FeatInfoModal feat={featInfo} theme="light" onClose={() => setFeatInfo(null)} />}
     </div>
   )

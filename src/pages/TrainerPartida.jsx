@@ -55,10 +55,12 @@ const MOVE_TYPE_COLORS = {
 }
 
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
-function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onReturn, onClose }) {
+function CombatePanel({ title, initial, moves, pasivas = [], skills = [], movePP, onCast, onPersist, onReturn, onClose }) {
+  const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
   const [moveInfo, setMoveInfo] = useState(null) // movimiento cuyo detalle se muestra
+  const [abilityInfo, setAbilityInfo] = useState(null) // pasiva cuyo detalle se muestra
 
   // Cooldown de 3s tras lanzar un movimiento (deshabilita el botón Lanzar)
   const [cooldown, setCooldown] = useState(false)
@@ -132,28 +134,88 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
           )
         })()}
 
-        {/* EXH / DSTS / DSTF: valor con subir/bajar a los lados */}
-        <div className="mt-3 border-t border-gray-700 pt-3 space-y-2">
-          {[['EXH', 'exhaust'], ['DSTS', 'dsts'], ['DSTF', 'dstf']].map(([label, key]) => (
-            <div key={key} className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-black text-gray-400 uppercase">{label}</span>
-              <div className="flex items-center gap-3">
-                <button onClick={() => step(key, -1)}
-                  className="w-7 h-7 rounded-lg bg-gray-700 hover:bg-red-600 flex items-center justify-center text-white transition-colors"><ChevronDown size={15} /></button>
-                <span className="w-6 text-center font-black text-white">{v[key]}</span>
-                <button onClick={() => step(key, 1)}
-                  className="w-7 h-7 rounded-lg bg-gray-700 hover:bg-green-600 flex items-center justify-center text-white transition-colors"><ChevronUp size={15} /></button>
+        {/* Dos columnas sin separador visible: a la izquierda los valores fijos
+            del Pokémon, a la derecha los contadores editables. */}
+        <div className="mt-3 border-t border-gray-700 pt-3 grid grid-cols-2 gap-x-5">
+          {/* Valores fijos: solo los tiene el Pokémon, no el entrenador.
+              Dos por columna para que ocupen la mitad de alto. */}
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2 content-start">
+            {[
+              ['STAB', v.stab != null ? `+${v.stab}` : null],
+              ['PROF', v.prof != null ? `+${v.prof}` : null],
+              ['AC',   v.ac],
+              ['SALV', v.saving],
+            ].filter(([, val]) => val !== null && val !== undefined && val !== '').map(([label, val]) => (
+              <div key={label} className="flex items-center justify-between gap-1 h-7 min-w-0">
+                <span className="text-[10px] font-black text-gray-400 uppercase shrink-0">{label}</span>
+                <span className="font-black text-white text-sm truncate">{val}</span>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* EXH / DSTS / DSTF: valor con subir/bajar a los lados */}
+          <div className="space-y-2">
+            {[['EXH', 'exhaust'], ['DSTS', 'dsts'], ['DSTF', 'dstf']].map(([label, key]) => (
+              <div key={key} className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black text-gray-400 uppercase">{label}</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => step(key, -1)}
+                    className="w-7 h-7 rounded-lg bg-gray-700 hover:bg-red-600 flex items-center justify-center text-white transition-colors"><ChevronDown size={15} /></button>
+                  <span className="w-6 text-center font-black text-white">{v[key]}</span>
+                  <button onClick={() => step(key, 1)}
+                    className="w-7 h-7 rounded-lg bg-gray-700 hover:bg-green-600 flex items-center justify-center text-white transition-colors"><ChevronUp size={15} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Movimientos (mismo comportamiento que el panel del master) */}
-        {moves && moves.length > 0 && (
+        {/* Movimientos (mismo comportamiento que el panel del master).
+            Las pasivas van al final: sin PP ni Lanzar, solo su detalle. */}
+        {((moves && moves.length > 0) || pasivas.length > 0 || skills.length > 0) && (
           <div className="mt-3 border-t border-gray-700 pt-2">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Movimientos</p>
-            <div className="space-y-1 max-h-48 overflow-y-auto">
-              {moves.map((m, i) => {
+            {/* Sin habilidades (control del entrenador) se muestra solo el título */}
+            {skills.length === 0 ? (
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Movimientos</p>
+            ) : (
+              <div className="flex items-center gap-1 mb-1.5">
+                {[['moves', 'Movimientos'], ['skills', 'Habilidades']].map(([k, label]) => (
+                  <button key={k} onClick={() => setTabPanel(k)}
+                    className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-colors ${
+                      tabPanel === k ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Habilidades: nombre, atributo asociado y modificador ya calculado */}
+            {tabPanel === 'skills' && skills.length > 0 && (
+              <div className="grid grid-cols-2 gap-1">
+                {skills.map(s => (
+                  <div key={s.name} className="flex items-center justify-between gap-1.5 bg-gray-700/50 rounded-lg px-2 py-1.5 min-w-0">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="text-white text-xs font-medium truncate">{s.name}</span>
+                      <span className="text-[10px] text-gray-400 shrink-0">({s.ability})</span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {s.expert
+                        ? <span className="text-[9px] font-bold text-white bg-blue-700 rounded px-1 py-0.5">Ex</span>
+                        : s.pref
+                          ? <span className="text-[9px] font-bold text-white bg-green-600 rounded px-1 py-0.5">Pr</span>
+                          : null}
+                      <span className={`text-xs font-black tabular-nums w-7 text-right ${s.mod < 0 ? 'text-red-400' : 'text-white'}`}>
+                        {s.mod >= 0 ? `+${s.mod}` : s.mod}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Sin scroll: como mucho son 6 movimientos más las pasivas, caben todos */}
+            <div className={`space-y-1 ${tabPanel === 'skills' && skills.length > 0 ? 'hidden' : ''}`}>
+              {(moves || []).map((m, i) => {
                 const base = Number(m.move_pp) || 0
                 const unlimited = base === 0 // move_pp 0 = PP ilimitado
                 const pp = movePP?.[m.move_id] ?? base
@@ -183,6 +245,20 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
                   </div>
                 )
               })}
+
+              {/* Pasivas: no se lanzan ni gastan PP, solo muestran su detalle */}
+              {pasivas.map(p => (
+                <div key={`pasiva-${p.ability_id}`} className="flex items-center justify-between gap-2 bg-purple-900/30 border border-purple-700/40 rounded-lg px-2 py-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <button onClick={() => setAbilityInfo(p)} title="Ver detalle de la pasiva"
+                      className="text-white text-xs font-medium truncate underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-amber-300 transition-colors">
+                      {p.ability_name}
+                    </button>
+                    <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
+                      style={{ backgroundColor: '#7C3AED' }}>pasiva</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -197,6 +273,27 @@ function CombatePanel({ title, initial, moves, movePP, onCast, onPersist, onRetu
 
       {/* Detalle del movimiento seleccionado */}
       {moveInfo && <MoveInfoModal m={moveInfo} onClose={() => setMoveInfo(null)} />}
+
+      {/* Detalle de una pasiva (tema oscuro, como el panel de combate) */}
+      {abilityInfo && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+          onClick={e => { if (e.target === e.currentTarget) setAbilityInfo(null) }}>
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <h4 className="font-bold text-white text-sm truncate">{abilityInfo.ability_name}</h4>
+                <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0" style={{ backgroundColor: '#7C3AED' }}>pasiva</span>
+              </div>
+              <button onClick={() => setAbilityInfo(null)} className="text-gray-400 hover:text-white shrink-0"><X size={16} /></button>
+            </div>
+            <div className="px-4 py-3">
+              <p className="text-xs text-gray-300 leading-relaxed">
+                {abilityInfo.ability_description || 'Sin descripción.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -334,10 +431,50 @@ export default function TrainerPartida() {
     try {
       const d = await apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}`).then(r => r.json())
       const moves = Array.isArray(d.moves) ? d.moves : []
+
+      // Habilidades con su modificador: misma fórmula que el detalle del Pokémon
+      // (stat base + bonus + overlay de feats, tope por nivel, más proficiencia).
+      const stats = d.stats || {}
+      const lvl = Number(d.pokemon_level) || 1
+      const capStat = x => Math.min(x, lvl >= 20 ? 22 : 20)
+      const conFeats = (d.feats || []).length > 0
+      const statAdd = {}, skProf = new Set(), skExpert = new Set()
+      if (conFeats) for (const f of (d.feats || [])) for (const b of (f.bonos || [])) {
+        const t = (b.type || '').toLowerCase(), llave = (b.llave || '').toLowerCase()
+        if (t === 'stat') statAdd[llave] = (statAdd[llave] || 0) + (Number(b.value) || 0)
+        else if (t === 'skill') {
+          const val = (b.value || '').toLowerCase()
+          if (val === 'expert') skExpert.add(llave); else if (val === 'prof') skProf.add(llave)
+        }
+      }
+      const statVal = k => {
+        const x = (Number(stats[`pokemon_${k}`]) || 0) + (Number(stats[`pokemon_${k}_bonus`]) || 0) + (statAdd[k] || 0)
+        return conFeats ? capStat(x) : x
+      }
+      const modOf = k => Math.floor((statVal(k) - 10) / 2)
+      const profBonus = Number(d.pokemon_proficient) || 2
+      const skills = (Array.isArray(d.skills) ? d.skills : []).map(s => {
+        const nombre = (s.skill_name || '').toLowerCase()
+        let pref = !!s.pokemon_skill_pref, expert = !!s.pokemon_skill_expert
+        if (conFeats) {
+          if (skProf.has(nombre)) pref = true
+          if (skExpert.has(nombre)) { if (pref) expert = true; else pref = true }
+        }
+        return {
+          name: s.skill_name,
+          ability: s.skill_related_ability,
+          pref, expert,
+          mod: modOf((s.skill_related_ability || '').toLowerCase()) + (pref ? profBonus : 0) + (expert ? profBonus : 0),
+        }
+      })
       setPokeData({
         hp: d.pokemon_current_hp ?? d.pokemon_hp ?? 0, hpMax: d.pokemon_hp ?? 0,
         exhaust: d.personaje_pokemon_exahust_lvl ?? 0, dsts: d.personaje_pokemon_dsts ?? 0, dstf: d.personaje_pokemon_dstf ?? 0,
         moves,
+        pasivas: Array.isArray(d.pasivas) ? d.pasivas : [],
+        skills,
+        stab: d.personaje_pokemon_stab, prof: d.pokemon_proficient,
+        ac: d.personaje_pokemon_ac, saving: d.pokemon_saving_throw_prof,
         name: d.pokemon_apodo || 'Pokémon',
         level: d.pokemon_level,
         typeId1: d.personaje_pokemon_type_1, typeId2: d.personaje_pokemon_type_2,
@@ -585,6 +722,8 @@ export default function TrainerPartida() {
           title={`${pokeData.name || 'Pokémon'}${pokeData.level != null ? ` (Nv ${pokeData.level})` : ''}`}
           initial={pokeData}
           moves={pokeData.moves}
+          pasivas={pokeData.pasivas}
+          skills={pokeData.skills}
           movePP={movePP}
           onCast={castMove}
           onPersist={persistPoke}
