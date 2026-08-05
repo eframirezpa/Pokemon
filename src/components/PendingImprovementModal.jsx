@@ -79,15 +79,37 @@ function MoveChip({ m, dir, disabled, onMove }) {
   )
 }
 
-/* Flujo de movimientos: transferencia por clic (máx 4 aprendidos) */
-function MovesFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
+/* Selector de movimientos por clic (máx 4). Se usa en los dos flujos: los
+   movimientos se pueden reacomodar en cualquier subida de nivel. */
+function MovesPicker({ learned, available, toAvailable, toLearned }) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">Aprendidos</p>
+        <div className="space-y-1.5 min-h-[3rem]">
+          {learned.length === 0 && <p className="text-xs text-gray-400 italic">Ninguno</p>}
+          {learned.map(m => <MoveChip key={m.move_id} m={m} dir="left" onMove={() => toAvailable(m)} />)}
+        </div>
+        <p className={`text-xs font-bold mt-2 ${learned.length > 4 ? 'text-red-600' : 'text-gray-600'}`}>
+          Movimientos aprendidos {learned.length} de 4
+        </p>
+      </div>
+      <div>
+        <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">Disponibles</p>
+        <div className="space-y-1.5 min-h-[3rem]">
+          {available.length === 0 && <p className="text-xs text-gray-400 italic">Ninguno</p>}
+          {available.map(m => <MoveChip key={m.move_id} m={m} dir="right" disabled={learned.length >= 4} onMove={() => toLearned(m)} />)}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* Hook con el estado de la transferencia de movimientos */
+function useMovesState(pending) {
   const byId = new Set((pending.learned_moves || []).map(m => m.move_id))
   const [learned, setLearned] = useState(() => pending.learned_moves || [])
   const [available, setAvailable] = useState(() => (pending.move_pool || []).filter(m => !byId.has(m.move_id)))
-  const [alert, setAlert] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-
   const toAvailable = (m) => {
     setLearned(l => l.filter(x => x.move_id !== m.move_id))
     setAvailable(a => [...a, m].sort((x, y) => x.move_name.localeCompare(y.move_name)))
@@ -97,6 +119,15 @@ function MovesFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
     setAvailable(a => a.filter(x => x.move_id !== m.move_id))
     setLearned(l => [...l, m])
   }
+  return { learned, available, toAvailable, toLearned }
+}
+
+/* Flujo de movimientos: transferencia por clic (máx 4 aprendidos) */
+function MovesFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
+  const { learned, available, toAvailable, toLearned } = useMovesState(pending)
+  const [alert, setAlert] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
 
   const confirm = async () => {
     setBusy(true); setError('')
@@ -115,25 +146,7 @@ function MovesFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
   return (
     <>
       <div className="flex-1 overflow-y-auto px-5 pb-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">Aprendidos</p>
-            <div className="space-y-1.5 min-h-[3rem]">
-              {learned.length === 0 && <p className="text-xs text-gray-400 italic">Ninguno</p>}
-              {learned.map(m => <MoveChip key={m.move_id} m={m} dir="left" onMove={() => toAvailable(m)} />)}
-            </div>
-            <p className={`text-xs font-bold mt-2 ${learned.length > 4 ? 'text-red-600' : 'text-gray-600'}`}>
-              Movimientos aprendidos {learned.length} de 4
-            </p>
-          </div>
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">Disponibles</p>
-            <div className="space-y-1.5 min-h-[3rem]">
-              {available.length === 0 && <p className="text-xs text-gray-400 italic">Ninguno</p>}
-              {available.map(m => <MoveChip key={m.move_id} m={m} dir="right" disabled={learned.length >= 4} onMove={() => toLearned(m)} />)}
-            </div>
-          </div>
-        </div>
+        <MovesPicker learned={learned} available={available} toAvailable={toAvailable} toLearned={toLearned} />
         {error && <p className="text-xs text-red-600 font-medium mt-3">{error}</p>}
       </div>
       <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between shrink-0">
@@ -159,6 +172,7 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
   const cap = level >= 20 ? 22 : 20
   const totalPoints = Number(pending.points) || 0
 
+  const { learned, available, toAvailable, toLearned } = useMovesState(pending)
   const [adds, setAdds] = useState({ dex: 0, str: 0, con: 0, int: 0, wis: 0, cha: 0 })
   const [feats, setFeats] = useState([])
   const [skillsList, setSkillsList] = useState([])
@@ -198,7 +212,7 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
     try {
       const feat = feats[0] ? { feat_id: feats[0].feat_id, bonos: feats[0].bonos } : null
       const res = await apiFetch(`/personaje/${personajeId}/pokemon/${pending.id_personaje_pokemon}/improvement/asi`,
-        { method: 'POST', body: JSON.stringify({ stats: adds, feat, hp_roll: hpRoll }) })
+        { method: 'POST', body: JSON.stringify({ stats: adds, feat, hp_roll: hpRoll, move_ids: learned.map(m => m.move_id) }) })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
         setError(j.error === 'points' ? 'Debes gastar todos los puntos'
@@ -214,6 +228,9 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
   return (
     <>
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
+        {/* Movimientos: se pueden reacomodar en cualquier nivel, también en los ASI */}
+        <MovesPicker learned={learned} available={available} toAvailable={toAvailable} toLearned={toLearned} />
+
         {/* Puntos disponibles */}
         <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
           <span className="text-sm font-bold text-red-800">Puntos disponibles</span>
@@ -258,7 +275,7 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
         <span className="text-xs text-gray-500">
           {!hpValid ? 'Falta la tirada del dado' : remaining === 0 ? 'Todo repartido' : `Faltan ${remaining} punto(s)`}
         </span>
-        <button onClick={() => setAlert(true)} disabled={remaining !== 0 || !hpValid}
+        <button onClick={() => setAlert(true)} disabled={remaining !== 0 || !hpValid || learned.length > 4}
           className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
           Confirmar
         </button>

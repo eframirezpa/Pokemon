@@ -138,9 +138,7 @@ function PokemonHpCard({ p, onPokeball = null, ballSprite = null }) {
             </div>
           )}
         </div>
-        {!hidden && (
-          <p className="text-right text-[10px] font-bold text-gray-700 mt-0.5">{p.hp_current}/{p.hp_max}</p>
-        )}
+        {/* Sin hit points: el trainer ve la barra y su color, no las cifras */}
       </div>
     </div>
     </div>
@@ -949,8 +947,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   // reloadPokeballs lo llama la mochila al cerrarse, para que el icono y el panel
   // reflejen al instante las pokébolas que se acaban de agregar.
   useEffect(() => {
-    if (apiRef) apiRef.current = { sendPartyUpdate, sendAttack, reloadPokeballs: loadPokeballs }
-  }, [apiRef, sendPartyUpdate, sendAttack, loadPokeballs])
+    if (apiRef) apiRef.current = { sendPartyUpdate, sendAttack, reloadPokeballs: loadPokeballs, getPresentes: () => presentes }
+  }, [apiRef, sendPartyUpdate, sendAttack, loadPokeballs, presentes])
 
   // Difunde el Pokémon invocado del jugador cuando cambia
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, Loader2, Sparkles } from 'lucide-react'
+import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, Loader2, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle } from 'lucide-react'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
 import { ResolvedBonusBadges } from './featBonoBadges'
@@ -451,7 +451,7 @@ function AddExpModal({ personajeId, pokemon, onClose, onDone }) {
   )
 }
 
-export default function PokemonBox({ personajeId, mode, editable = false, onClose, onInvoke, onMoved, onExpAdded }) {
+export default function PokemonBox({ personajeId, partidaId = null, getConectados = null, mode, editable = false, onClose, onInvoke, onMoved, onExpAdded }) {
   const isBelt = mode === 'belt'
   const title    = isBelt ? 'Cinturón' : 'Femputadora'
   const subtitle = isBelt ? 'Pokémones en tu equipo' : 'Pokémones almacenados'
@@ -462,6 +462,28 @@ export default function PokemonBox({ personajeId, mode, editable = false, onClos
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [expFor, setExpFor] = useState(null) // Pokémon al que se le agrega experiencia
+  const [releaseFor, setReleaseFor] = useState(null)   // Pokémon a liberar
+  const [releaseSure, setReleaseSure] = useState(false) // segunda confirmación
+  const [transferFor, setTransferFor] = useState(null) // Pokémon a transferir
+  const [transferDest, setTransferDest] = useState(null)
+  const [trainers, setTrainers] = useState([])         // otros entrenadores de la partida
+  const [busyAccion, setBusyAccion] = useState(false)
+  const [errorAccion, setErrorAccion] = useState('')
+
+  // Al abrir la transferencia se listan solo los entrenadores CONECTADOS a la
+  // partida, excluyendo el propio. La presencia solo trae el id del personaje,
+  // así que se cruza con la party para obtener su nombre.
+  const abrirTransferencia = (p) => {
+    setTransferFor(p); setTransferDest(null); setErrorAccion('')
+    const conectados = (getConectados?.() ?? [])
+      .filter(u => u.role !== 'master' && u.personaje_id != null)
+    const ids = new Set(conectados.map(u => String(u.personaje_id)))
+    if (partidaId == null || ids.size === 0) { setTrainers([]); return }
+    apiFetch(`/personaje/party?id_partida=${partidaId}`).then(r => r.json())
+      .then(d => setTrainers((Array.isArray(d) ? d : [])
+        .filter(c => ids.has(String(c.id_personaje)) && String(c.id_personaje) !== String(personajeId))))
+      .catch(() => setTrainers([]))
+  }
 
   const load = () => {
     setLoading(true)
@@ -539,6 +561,19 @@ export default function PokemonBox({ personajeId, mode, editable = false, onClos
                           EXP <ArrowUp size={11} strokeWidth={3} />
                         </button>
                       )}
+                      {/* Solo en la femputadora: liberar (izquierda) y transferir (derecha) */}
+                      {!isBelt && (
+                        <>
+                          <button onClick={e => { e.stopPropagation(); setReleaseFor(p) }} title="Liberar Pokémon"
+                            className="absolute bottom-1.5 left-1.5 text-gray-400 hover:text-red-600 transition-colors">
+                            <DoorOpen size={16} />
+                          </button>
+                          <button onClick={e => { e.stopPropagation(); abrirTransferencia(p) }} title="Transferir a otro entrenador"
+                            className="absolute bottom-1.5 right-1.5 text-gray-400 hover:text-red-600 transition-colors">
+                            <ArrowRightLeft size={16} />
+                          </button>
+                        </>
+                      )}
                       <img src={(p.pokemon_is_shiny && p.pokemon_media_sprite_shiny) ? p.pokemon_media_sprite_shiny : (p.pokemon_media_sprite || p.pokemon_media_main)}
                         alt={p.pokemon_apodo}
                         className="w-16 h-16 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
@@ -556,6 +591,115 @@ export default function PokemonBox({ personajeId, mode, editable = false, onClos
           </>
         )}
       </div>
+
+      {/* Liberar Pokémon — primera advertencia */}
+      {releaseFor && !releaseSure && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200">
+              <h4 className="font-black text-gray-900 text-base">Liberar pokemon</h4>
+              <p className="text-xs text-gray-500 mt-0.5 truncate">{releaseFor.pokemon_apodo}</p>
+            </div>
+            <div className="px-5 py-4 flex items-start gap-3">
+              <AlertTriangle size={22} className="text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-gray-700">
+                Estas apunto de liberar al pokemon, esta accion no se puede deshacer
+              </p>
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+              <button onClick={() => { setReleaseFor(null); setErrorAccion('') }}
+                className="text-sm font-semibold text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg">Cancelar</button>
+              <button onClick={() => setReleaseSure(true)}
+                className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 px-4 py-1.5 rounded-lg transition-colors">Aceptar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Liberar Pokémon — confirmación final */}
+      {releaseFor && releaseSure && (
+        <div className="fixed inset-0 z-[115] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+          <div className="bg-white rounded-2xl w-full max-w-[16rem] shadow-2xl overflow-hidden">
+            <div className="px-5 py-5 text-center">
+              <AlertTriangle size={26} className="text-red-600 mx-auto mb-2" />
+              <p className="text-base font-black text-gray-900">¿Totalmente seguro?</p>
+              {errorAccion && <p className="text-xs text-red-600 font-medium mt-2">{errorAccion}</p>}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-center gap-2">
+              <button onClick={() => { setReleaseSure(false); setReleaseFor(null); setErrorAccion('') }} disabled={busyAccion}
+                className="text-sm font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 disabled:opacity-40 px-5 py-1.5 rounded-lg transition-colors">NO</button>
+              <button disabled={busyAccion}
+                onClick={async () => {
+                  setBusyAccion(true); setErrorAccion('')
+                  try {
+                    const res = await apiFetch(`/personaje/${personajeId}/pokemon/${releaseFor.id_personaje_pokemon}`, { method: 'DELETE' })
+                    if (!res.ok) { const j = await res.json().catch(() => ({})); setErrorAccion(j.error || 'No se pudo liberar'); return }
+                    setReleaseSure(false); setReleaseFor(null); load(); onMoved?.()
+                  } catch { setErrorAccion('No se pudo liberar') } finally { setBusyAccion(false) }
+                }}
+                className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-1.5 rounded-lg transition-colors">
+                {busyAccion ? <Loader2 size={14} className="animate-spin" /> : null} SI
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transferir a otro entrenador */}
+      {transferFor && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <div className="bg-white rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-2 shrink-0">
+              <div className="min-w-0">
+                <h4 className="font-black text-gray-900 text-base leading-tight">Transferencia de pokémon</h4>
+                <p className="text-xs text-gray-500 truncate">{transferFor.pokemon_apodo}</p>
+              </div>
+              <button onClick={() => { setTransferFor(null); setTransferDest(null); setErrorAccion('') }}
+                className="text-gray-400 hover:text-gray-700 shrink-0"><X size={20} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-3">
+              <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-2">Entrenadores conectados</p>
+              {trainers.length === 0 ? (
+                <p className="text-sm text-gray-400 italic py-3">No hay otros entrenadores conectados.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {trainers.map(t => {
+                    const sel = transferDest?.id_personaje === t.id_personaje
+                    return (
+                      <button key={t.id_personaje} onClick={() => setTransferDest(t)}
+                        className={`w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors ${
+                          sel ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
+                        <span className="flex-1 min-w-0 text-sm font-bold text-gray-900 truncate">
+                          {t.nombre_personaje || 'Sin nombre'}
+                        </span>
+                        <span className={`shrink-0 w-4 h-4 rounded-full border-2 ${sel ? 'border-red-600 bg-red-600' : 'border-gray-300'}`} />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {errorAccion && <p className="text-xs text-red-600 font-medium mt-3">{errorAccion}</p>}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
+              <button onClick={() => { setTransferFor(null); setTransferDest(null); setErrorAccion('') }}
+                className="text-sm font-semibold text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg">Cancelar</button>
+              <button disabled={!transferDest || busyAccion}
+                onClick={async () => {
+                  setBusyAccion(true); setErrorAccion('')
+                  try {
+                    const res = await apiFetch(`/personaje/${personajeId}/pokemon/${transferFor.id_personaje_pokemon}/transfer`,
+                      { method: 'POST', body: JSON.stringify({ id_personaje_destino: transferDest.id_personaje }) })
+                    if (!res.ok) { const j = await res.json().catch(() => ({})); setErrorAccion(j.error || 'No se pudo transferir'); return }
+                    setTransferFor(null); setTransferDest(null); load(); onMoved?.()
+                  } catch { setErrorAccion('No se pudo transferir') } finally { setBusyAccion(false) }
+                }}
+                className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
+                {busyAccion ? <Loader2 size={14} className="animate-spin" /> : null} Transferir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

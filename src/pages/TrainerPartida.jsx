@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff } from 'lucide-react'
+import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff, Loader2, ArrowRight } from 'lucide-react'
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
 import CharacterSheet from '../components/CharacterSheet'
@@ -55,23 +55,13 @@ const MOVE_TYPE_COLORS = {
 }
 
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
-function CombatePanel({ title, initial, moves, pasivas = [], skills = [], movePP, onCast, onPersist, onReturn, onClose }) {
+function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
   const [moveInfo, setMoveInfo] = useState(null) // movimiento cuyo detalle se muestra
   const [abilityInfo, setAbilityInfo] = useState(null) // pasiva cuyo detalle se muestra
 
-  // Cooldown de 3s tras lanzar un movimiento (deshabilita el botón Lanzar)
-  const [cooldown, setCooldown] = useState(false)
-  const cdTimer = useRef(null)
-  useEffect(() => () => { if (cdTimer.current) clearTimeout(cdTimer.current) }, [])
-  const handleCast = (m) => {
-    onCast?.(m)
-    setCooldown(true)
-    if (cdTimer.current) clearTimeout(cdTimer.current)
-    cdTimer.current = setTimeout(() => setCooldown(false), 3000)
-  }
 
   if (!v) return null
 
@@ -88,7 +78,8 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], movePP
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className={`bg-gray-800 border border-gray-700 rounded-2xl p-4 shadow-2xl ${moves && moves.length > 0 ? 'w-[26rem] max-w-[95vw]' : 'w-72'}`}>
+      {/* max-h + scroll: en pantallas bajas el panel se recortaba por abajo */}
+      <div className={`bg-gray-800 border border-gray-700 rounded-2xl p-4 shadow-2xl max-h-[90vh] overflow-y-auto ${moves && moves.length > 0 ? 'w-[26rem] max-w-[95vw]' : 'w-72'}`}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-white font-bold text-sm truncate">{title}</h3>
           <div className="flex items-center gap-2 shrink-0">
@@ -216,9 +207,10 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], movePP
             {/* Sin scroll: como mucho son 6 movimientos más las pasivas, caben todos */}
             <div className={`space-y-1 ${tabPanel === 'skills' && skills.length > 0 ? 'hidden' : ''}`}>
               {(moves || []).map((m, i) => {
-                const base = Number(m.move_pp) || 0
-                const unlimited = base === 0 // move_pp 0 = PP ilimitado
-                const pp = movePP?.[m.move_id] ?? base
+                // Los PP viven en personaje_pokemon_moves; max 0 = ilimitado (Struggle)
+                const maxPP = Number(m.personaje_pokemon_moves_max_pp) || 0
+                const unlimited = maxPP === 0
+                const pp = Number(m.personaje_pokemon_moves_current_pp) || 0
                 const disabled = !unlimited && pp <= 0
                 return (
                   <div key={i} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
@@ -231,10 +223,21 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], movePP
                         style={{ backgroundColor: MOVE_TYPE_COLORS[m.move_type] || '#9CA3AF' }}>{m.move_type}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-[10px] font-black tabular-nums ${disabled ? 'text-red-400' : 'text-gray-300'}`}>PP {unlimited ? '∞' : pp}</span>
-                      <button onClick={() => handleCast(m)} disabled={disabled || cooldown}
-                        className="text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
-                        Lanzar
+                      {/* Lápiz pegado a los PP. Struggle no lo lleva: sus PP son ilimitados */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {!unlimited && (
+                          <button onClick={() => onManagePP?.(m)} title="Gestión de PP"
+                            className="shrink-0 text-gray-400 hover:text-amber-300 transition-colors">
+                            <Pencil size={13} />
+                          </button>
+                        )}
+                        <span className={`text-[10px] font-black tabular-nums ${disabled ? 'text-red-400' : 'text-gray-300'}`}>
+                          PP {unlimited ? '∞' : `${pp}/${maxPP}`}
+                        </span>
+                      </div>
+                      <button onClick={() => onCastRequest?.(m)} disabled={disabled || castDisabled} title="Lanzar"
+                        className="flex items-center justify-center text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 rounded-md transition-colors">
+                        <ArrowRight size={14} strokeWidth={3} />
                       </button>
                       {/* Rango y duración del movimiento */}
                       <div className="w-24 text-left leading-tight">
@@ -273,6 +276,7 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], movePP
 
       {/* Detalle del movimiento seleccionado */}
       {moveInfo && <MoveInfoModal m={moveInfo} onClose={() => setMoveInfo(null)} />}
+
 
       {/* Detalle de una pasiva (tema oscuro, como el panel de combate) */}
       {abilityInfo && (
@@ -316,13 +320,27 @@ export default function TrainerPartida() {
   const [showEdit, setShowEdit]       = useState(false)
   const [isEditable, setIsEditable]   = useState(false) // personaje_is_editable (lo controla el master)
   const [pending, setPending]         = useState([])    // mejoras de nivel por confirmar (secuencial)
+  const [renames, setRenames]         = useState([])    // Pokémon recibidos pendientes de renombrar
+  const [apodoEdit, setApodoEdit]     = useState({ id: null, value: '' })
+  const [ppMove, setPpMove]           = useState(null)  // movimiento cuyo gasto de PP se está confirmando
+  const [ppCantidad, setPpCantidad]   = useState(1)
+  const [ppBusy, setPpBusy]           = useState(false)
+  const [ppError, setPpError]         = useState('')
+  const [castCooldown, setCastCooldown] = useState(false)
+  const castTimer = useRef(null)
+  const [gpMove, setGpMove]     = useState(null)  // movimiento en gestión de PP
+  const [gpMax, setGpMax]       = useState(0)
+  const [gpCur, setGpCur]       = useState(0)
+  const [gpBusy, setGpBusy]     = useState(false)
+  const [gpError, setGpError]   = useState('')
+  const [renameBusy, setRenameBusy]   = useState(false)
+  const [renameError, setRenameError] = useState('')
   const [partyVersion, setPartyVersion] = useState(0)   // cambia cuando el master actualiza la party
   const [pokemonInvocado, setPokemonInvocado] = useState(null) // id_personaje_pokemon
   const [invocadoSprite, setInvocadoSprite]   = useState(null)
   const [openControl, setOpenControl] = useState(null) // 'trainer' | 'pokemon' | null (solo uno a la vez)
   const [charData, setCharData] = useState(null)
   const [pokeData, setPokeData] = useState(null)
-  const [movePP, setMovePP] = useState({}) // PP actual por move_id (solo sesión, sin persistencia en BD)
   const partidaApiRef = useRef(null) // acciones expuestas por PartidaRoom (p. ej. sendPartyUpdate)
   const [fight, setFight] = useState({ active: false, players: [] }) // modo lucha
   // Monitor (PC/escritorio con mouse) → iconos más grandes
@@ -334,8 +352,6 @@ export default function TrainerPartida() {
     return () => mq.removeEventListener('change', onChange)
   }, [])
 
-  // Al cambiar el Pokémon invocado (nuevo o regresado), reinicia los PP de sesión
-  useEffect(() => { setMovePP({}) }, [pokemonInvocado])
 
   // Lee si el personaje es editable (lo activa el master). Se re-consulta al recibir party_update.
   useEffect(() => {
@@ -354,7 +370,18 @@ export default function TrainerPartida() {
       .then(d => setPending(Array.isArray(d) ? d : []))
       .catch(() => {})
   }
+
+  // Pokémon recién recibidos que aún hay que renombrar. Se consulta también en
+  // cada party_update, que es lo que disparan las dos transferencias.
+  const refreshRenames = () => {
+    if (!personajeId) return
+    apiFetch(`/personaje/${personajeId}/pokemon/pending-rename`)
+      .then(r => r.json())
+      .then(d => setRenames(Array.isArray(d) ? d : []))
+      .catch(() => {})
+  }
   useEffect(() => { refreshPending() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId])
+  useEffect(() => { refreshRenames() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId, partyVersion])
 
   // Recupera el personaje del usuario: state → localStorage → backend (para recargas).
   // Un usuario puede tener varios personajes en la misma partida (el lobby los lista
@@ -480,25 +507,81 @@ export default function TrainerPartida() {
         typeId1: d.personaje_pokemon_type_1, typeId2: d.personaje_pokemon_type_2,
         exp: d.pokemon_experiencia ?? 0, expNext: d.exp_next ?? null,
       })
-      // Inicializa los PP con move_pp (solo los que aún no están en sesión → se conservan al reabrir)
-      setMovePP(prev => {
-        const next = { ...prev }
-        for (const m of moves) if (!(m.move_id in next)) next[m.move_id] = Number(m.move_pp) || 0
-        return next
-      })
     } catch { /* noop */ }
   }
 
   // Lanzar movimiento del Pokémon invocado → animación de ataque (como el master)
-  // Descuenta 1 PP de sesión (sin persistencia en BD). Si no hay PP, no hace nada.
-  const castMove = (m) => {
-    const id = m.move_id
-    const base = Number(m.move_pp) || 0
-    if (base !== 0) { // move_pp 0 = ilimitado: no descuenta ni bloquea
-      if ((movePP[id] ?? base) <= 0) return
-      setMovePP(prev => ({ ...prev, [id]: (prev[id] ?? base) - 1 }))
-    }
+  // Al pulsar la flecha se abre el popup para elegir cuántos PP gastar
+  const abrirPP = (m) => {
+    // Struggle y demás movimientos de PP ilimitado no gastan nada: se lanzan directo
+    if ((Number(m.personaje_pokemon_moves_max_pp) || 0) === 0) { lanzar(m); return }
+    setPpMove(m); setPpCantidad(1); setPpError('')
+  }
+
+  // Dispara el ataque y arranca el cooldown
+  const lanzar = (m) => {
     partidaApiRef.current?.sendAttack?.({ pokemonName: pokeData?.name || 'Pokémon', moveName: m.move_name, type: m.move_type, hidden: false })
+    setCastCooldown(true)
+    if (castTimer.current) clearTimeout(castTimer.current)
+    castTimer.current = setTimeout(() => setCastCooldown(false), 3000)
+  }
+
+  // Gestión manual de PP: se edita en local y solo se persiste al confirmar
+  const abrirGestionPP = (m) => {
+    setGpMove(m)
+    setGpMax(Number(m.personaje_pokemon_moves_max_pp) || 0)
+    setGpCur(Number(m.personaje_pokemon_moves_current_pp) || 0)
+    setGpError('')
+  }
+
+  const confirmarGestionPP = async () => {
+    const m = gpMove
+    if (!m || gpBusy) return
+    setGpBusy(true); setGpError('')
+    try {
+      const res = await apiFetch(
+        `/personaje/${personajeId}/pokemon/${pokemonInvocado}/moves/${m.personaje_pokemon_moves_id}/pp`,
+        { method: 'PUT', body: JSON.stringify({ current_pp: gpCur, max_pp: gpMax }) })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        setGpError(j.error || 'No se pudo guardar'); setGpBusy(false); return
+      }
+      const j = await res.json()
+      setPokeData(prev => prev && ({
+        ...prev,
+        moves: (prev.moves || []).map(x => x.personaje_pokemon_moves_id === m.personaje_pokemon_moves_id
+          ? { ...x, personaje_pokemon_moves_current_pp: j.current_pp, personaje_pokemon_moves_max_pp: j.max_pp } : x),
+      }))
+      setGpMove(null)
+    } catch { setGpError('No se pudo guardar') } finally { setGpBusy(false) }
+  }
+
+  // Confirma el gasto: lo persiste y solo entonces dispara el ataque
+  const confirmarPP = async () => {
+    const m = ppMove
+    if (!m || ppBusy) return
+    const maxPP = Number(m.personaje_pokemon_moves_max_pp) || 0
+    setPpBusy(true); setPpError('')
+    try {
+      if (maxPP > 0) { // max 0 = PP ilimitado: no se descuenta nada
+        const res = await apiFetch(
+          `/personaje/${personajeId}/pokemon/${pokemonInvocado}/moves/${m.personaje_pokemon_moves_id}/pp`,
+          { method: 'PATCH', body: JSON.stringify({ cantidad: ppCantidad }) })
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}))
+          setPpError(j.error || 'No se pudo gastar los PP'); setPpBusy(false); return
+        }
+        const j = await res.json()
+        // Refleja el nuevo saldo sin volver a pedir todo el detalle
+        setPokeData(prev => prev && ({
+          ...prev,
+          moves: (prev.moves || []).map(x => x.personaje_pokemon_moves_id === m.personaje_pokemon_moves_id
+            ? { ...x, personaje_pokemon_moves_current_pp: j.current_pp } : x),
+        }))
+      }
+      setPpMove(null)
+      lanzar(m)
+    } catch { setPpError('No se pudo gastar los PP') } finally { setPpBusy(false) }
   }
 
   const toBody = (patch) => {
@@ -553,6 +636,154 @@ export default function TrainerPartida() {
       {pending.length > 0 && personajeId && (
         <PendingImprovementModal personajeId={personajeId} pending={pending[0]} onConfirmed={refreshPending} />
       )}
+
+      {/* Gestión de PP: edita máximo y actual, se persiste solo al confirmar */}
+      {gpMove && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+          onClick={e => { if (e.target === e.currentTarget && !gpBusy) setGpMove(null) }}>
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-[17rem] shadow-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h4 className="font-bold text-white text-sm">Gestion de PP</h4>
+                <p className="text-[11px] text-gray-400 truncate">{gpMove.move_name}</p>
+              </div>
+              <button onClick={() => setGpMove(null)} disabled={gpBusy}
+                className="text-gray-400 hover:text-white shrink-0 disabled:opacity-40"><X size={16} /></button>
+            </div>
+            <div className="px-4 py-3 space-y-3">
+              {[
+                ['PP máximos', gpMax, (n) => { const v = Math.max(0, n); setGpMax(v); if (gpCur > v) setGpCur(v) }],
+                ['PP actuales', gpCur, (n) => setGpCur(Math.max(0, Math.min(gpMax, n)))],
+              ].map(([label, valor, set]) => (
+                <div key={label} className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black text-gray-400 uppercase">{label}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => set(valor - 1)} disabled={gpBusy || valor <= 0}
+                      className="w-7 h-7 rounded-lg bg-gray-700 hover:bg-red-600 disabled:opacity-30 flex items-center justify-center text-white transition-colors">
+                      <Minus size={14} />
+                    </button>
+                    <span className="w-8 text-center font-black text-white tabular-nums">{valor}</span>
+                    <button onClick={() => set(valor + 1)} disabled={gpBusy}
+                      className="w-7 h-7 rounded-lg bg-gray-700 hover:bg-green-600 disabled:opacity-30 flex items-center justify-center text-white transition-colors">
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={() => setGpCur(gpMax)} disabled={gpBusy || gpCur === gpMax}
+                className="w-full text-xs font-bold text-gray-200 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 py-1.5 rounded-lg transition-colors">
+                Restore
+              </button>
+              {gpError && <p className="text-xs text-red-400 font-medium text-center">{gpError}</p>}
+            </div>
+            <div className="px-4 py-3 border-t border-gray-700 flex items-center justify-center">
+              <button onClick={confirmarGestionPP} disabled={gpBusy}
+                className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
+                {gpBusy ? <Loader2 size={15} className="animate-spin" /> : null} Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PPs a gastar antes de lanzar el movimiento */}
+      {ppMove && (() => {
+        const maxPP = Number(ppMove.personaje_pokemon_moves_max_pp) || 0
+        const actual = Number(ppMove.personaje_pokemon_moves_current_pp) || 0
+        const tope = maxPP > 0 ? actual : 99 // max 0 = ilimitado
+        const set = (n) => setPpCantidad(Math.max(1, Math.min(tope, n)))
+        return (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+            onClick={e => { if (e.target === e.currentTarget && !ppBusy) setPpMove(null) }}>
+            <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-[15rem] shadow-2xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <h4 className="font-bold text-white text-sm">PPs a gastar</h4>
+                  <p className="text-[11px] text-gray-400 truncate">{ppMove.move_name}</p>
+                </div>
+                <button onClick={() => setPpMove(null)} disabled={ppBusy}
+                  className="text-gray-400 hover:text-white shrink-0 disabled:opacity-40"><X size={16} /></button>
+              </div>
+              <div className="px-4 py-4">
+                <div className="flex items-center justify-center gap-3">
+                  <button onClick={() => set(ppCantidad - 1)} disabled={ppBusy || ppCantidad <= 1}
+                    className="w-9 h-9 shrink-0 rounded-lg bg-gray-700 hover:bg-red-600 disabled:opacity-30 flex items-center justify-center text-white transition-colors">
+                    <Minus size={16} />
+                  </button>
+                  <span className="w-12 text-center text-2xl font-black text-white tabular-nums">{ppCantidad}</span>
+                  <button onClick={() => set(ppCantidad + 1)} disabled={ppBusy || ppCantidad >= tope}
+                    className="w-9 h-9 shrink-0 rounded-lg bg-gray-700 hover:bg-green-600 disabled:opacity-30 flex items-center justify-center text-white transition-colors">
+                    <Plus size={16} />
+                  </button>
+                </div>
+                <p className="text-center text-[11px] text-gray-400 mt-2">
+                  {maxPP > 0 ? `Disponibles ${actual}/${maxPP}` : 'PP ilimitados'}
+                </p>
+                {ppError && <p className="text-xs text-red-400 font-medium mt-2 text-center">{ppError}</p>}
+              </div>
+              <div className="px-4 py-3 border-t border-gray-700 flex items-center justify-center">
+                <button onClick={confirmarPP} disabled={ppBusy}
+                  className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
+                  {ppBusy ? <Loader2 size={15} className="animate-spin" /> : null} Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Renombrar Pokémon recibido: obligatorio, no se puede cerrar.
+          Va por encima de la mejora de nivel para que el jugador sepa primero
+          qué Pokémon acaba de recibir. */}
+      {renames.length > 0 && (() => {
+        const r = renames[0]
+        const sprite = (r.pokemon_is_shiny && r.pokemon_media_sprite_shiny) ? r.pokemon_media_sprite_shiny : r.pokemon_media_sprite
+        // El campo arranca con el apodo actual y solo se sobreescribe cuando el
+        // jugador escribe; así no hace falta un efecto que sincronice el estado.
+        const nuevoApodo = apodoEdit.id === r.id_personaje_pokemon ? apodoEdit.value : (r.pokemon_apodo ?? '')
+        const valido = nuevoApodo.trim().length > 0
+        const confirmar = async () => {
+          if (!valido || renameBusy) return
+          setRenameBusy(true); setRenameError('')
+          try {
+            const res = await apiFetch(`/personaje/${personajeId}/pokemon/${r.id_personaje_pokemon}/apodo`,
+              { method: 'PATCH', body: JSON.stringify({ apodo: nuevoApodo.trim() }) })
+            if (!res.ok) { const j = await res.json().catch(() => ({})); setRenameError(j.error || 'No se pudo guardar'); return }
+            refreshRenames()
+          } catch { setRenameError('No se pudo guardar') } finally { setRenameBusy(false) }
+        }
+        return (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}>
+            <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-200">
+                <h3 className="font-black text-gray-900 text-lg leading-tight">Renombrar Pokemon</h3>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">{r.pokemon_name} · Nv {r.pokemon_level}</p>
+              </div>
+              <div className="px-5 py-4">
+                {sprite && (
+                  <img src={sprite} alt="" className="w-20 h-20 object-contain mx-auto mb-2"
+                    onError={e => { e.target.style.opacity = '0.2' }} />
+                )}
+                <label htmlFor="apodo-nuevo" className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">Apodo</label>
+                <input id="apodo-nuevo" value={nuevoApodo} autoFocus maxLength={60}
+                  onChange={e => { setApodoEdit({ id: r.id_personaje_pokemon, value: e.target.value }); setRenameError('') }}
+                  onKeyDown={e => { if (e.key === 'Enter') confirmar() }}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                {renameError && <p className="text-xs text-red-600 font-medium mt-2">{renameError}</p>}
+                {renames.length > 1 && (
+                  <p className="text-[11px] text-gray-400 mt-2">Quedan {renames.length - 1} por renombrar.</p>
+                )}
+              </div>
+              <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end">
+                <button onClick={confirmar} disabled={!valido || renameBusy}
+                  className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
+                  {renameBusy ? <Loader2 size={15} className="animate-spin" /> : null} Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
       <div className="absolute inset-0">
         {/* Zona inferior: sprite del jugador + sprite del Pokémon invocado */}
         {!hideBottomIcons && (
@@ -694,7 +925,9 @@ export default function TrainerPartida() {
 
       {/* Femputadora — Pokémon almacenados */}
       {showPC && personajeId && (
-        <PokemonBox personajeId={personajeId} mode="pc" editable={isEditable} onExpAdded={refreshPending} onClose={() => setShowPC(false)} />
+        <PokemonBox personajeId={personajeId} partidaId={id} getConectados={() => partidaApiRef.current?.getPresentes?.() ?? []} mode="pc" editable={isEditable} onExpAdded={refreshPending}
+          onMoved={() => { refreshRenames(); partidaApiRef.current?.sendPartyUpdate?.() }}
+          onClose={() => setShowPC(false)} />
       )}
 
       {/* Editar jugador (solo si el master lo habilitó) */}
@@ -724,8 +957,9 @@ export default function TrainerPartida() {
           moves={pokeData.moves}
           pasivas={pokeData.pasivas}
           skills={pokeData.skills}
-          movePP={movePP}
-          onCast={castMove}
+          onCastRequest={abrirPP}
+          onManagePP={abrirGestionPP}
+          castDisabled={castCooldown}
           onPersist={persistPoke}
           onReturn={returnPokemon}
           onClose={closeControl}

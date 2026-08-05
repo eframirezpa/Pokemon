@@ -22,7 +22,7 @@ function MiniStat({ label, value, tone }) {
   )
 }
 
-function HpBar({ cur, max }) {
+function HpBar({ cur, max, showNumbers = true }) {
   const c = cur ?? max
   const pct = hpPct(cur, max)
   return (
@@ -33,7 +33,8 @@ function HpBar({ cur, max }) {
           <div className="h-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: hpColor(pct) }} />
         </div>
       </div>
-      <p className="text-right text-[9px] font-bold text-gray-700 leading-none mt-0.5">{c}/{max}</p>
+      {/* Los trainers ven la barra y su color, pero no los hit points */}
+      {showNumbers && <p className="text-right text-[9px] font-bold text-gray-700 leading-none mt-0.5">{c}/{max}</p>}
     </div>
   )
 }
@@ -53,7 +54,7 @@ function PartyPokemon({ p, hideHp, onClick }) {
         onError={e => { e.target.style.opacity = '0.2' }} />
       <div className="flex-1 min-w-0">
         <p className="font-bold text-gray-900 text-xs truncate">{p.pokemon_apodo}</p>
-        {!hideHp && <HpBar cur={p.pokemon_current_hp} max={p.pokemon_hp} />}
+        <HpBar cur={p.pokemon_current_hp} max={p.pokemon_hp} showNumbers={!hideHp} />
       </div>
       <div className="flex flex-col gap-0.5 shrink-0">
         <MiniStat label="EXH"  value={p.personaje_pokemon_exahust_lvl} />
@@ -85,7 +86,7 @@ export function PlayerCard({ char: c, pres, invId, hideHp, onCharClick, onPokemo
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-gray-900 text-sm truncate">{c.nombre_personaje || 'Sin nombre'}</p>
-            {!hideHp && <HpBar cur={c.personaje_current_hp} max={c.personaje_hp} />}
+            <HpBar cur={c.personaje_current_hp} max={c.personaje_hp} showNumbers={!hideHp} />
           </div>
           <div className="flex flex-col gap-0.5 shrink-0">
             <MiniStat label="EXH"  value={c.personaje_exahust_lvl} />
