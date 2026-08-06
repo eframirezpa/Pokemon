@@ -787,8 +787,14 @@ export default function TrainerPartida() {
       })()}
       <div className="absolute inset-0">
         {/* Zona inferior: sprite del jugador + sprite del Pokémon invocado */}
+        {/* fixed y no absolute: con muchos Pokémon invocados el contenedor crece
+            y el bottom-4 quedaba anclado al final del contenido, no al de la
+            pantalla, así que al hacer scroll los iconos se iban al medio.
+            z-[48] los deja por encima de todo el campo -- las tarjetas de los
+            invocados van en z-10 y llegaban a taparlos hasta impedir el clic --
+            y por debajo de los modales, que empiezan en z-50. */}
         {!hideBottomIcons && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-end justify-center gap-10">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[48] flex items-end justify-center gap-10">
           {user?.avatar_face_url && (
             <button onClick={openTrainerControl} className="transition-transform hover:scale-105" title="Controlar jugador">
               {/* data-throw-origin: PartidaRoom lo mide para lanzar la pokébola desde aquí */}
