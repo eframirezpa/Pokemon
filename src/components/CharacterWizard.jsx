@@ -123,20 +123,39 @@ function SkillSelectPopup({ skills, count = 1, onCancel, onConfirm }) {
 function OriginStep({ selected, selectedSkills, onSelect }) {
   const [origins, setOrigins] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [openId,  setOpenId]  = useState(null)
+  const [intento, setIntento] = useState(0)
 
+  // Mismo motivo que en BackgroundStep: sin origin_feat_id no se sabe qué
+  // otorga el origen, y el fallo se disfrazaría de funcionalidad rota.
   useEffect(() => {
+    let vivo = true
     apiFetch('/origins/character-creation')
-      .then(r => r.json())
-      .then(d => setOrigins(Array.isArray(d) ? d : []))
-      .catch(() => setOrigins([]))
-      .finally(() => setLoading(false))
-  }, [])
+      .then(r => { if (!r.ok) throw new Error(`El servidor respondió ${r.status}`); return r.json() })
+      .then(d => { if (vivo) setOrigins(Array.isArray(d) ? d : []) })
+      .catch(e => { if (vivo) { setOrigins([]); setLoadError(e.message || 'No se pudieron cargar los orígenes') } })
+      .finally(() => { if (vivo) setLoading(false) })
+    return () => { vivo = false }
+  }, [intento])
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-400">
         <Loader2 className="animate-spin mr-2" size={18} /> Cargando orígenes...
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="py-14 text-center space-y-3">
+        <p className="text-sm font-semibold text-red-600">No se pudieron cargar los orígenes</p>
+        <p className="text-xs text-gray-500">{loadError}</p>
+        <button onClick={() => { setLoading(true); setLoadError(''); setIntento(n => n + 1) }}
+          className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 px-4 py-1.5 rounded-lg transition-colors">
+          Reintentar
+        </button>
       </div>
     )
   }
@@ -406,20 +425,40 @@ function ProfBlock({ name, description, items }) {
 function BackgroundStep({ selected, selectedSkills, onSelect }) {
   const [backgrounds, setBackgrounds] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [openId,  setOpenId]  = useState(null)
+  const [intento, setIntento] = useState(0)
 
+  // Un fallo aquí NO se puede tragar en silencio: sin background_feat_id el
+  // wizard no sabe que el background otorga Skilled y se salta su ventana, con
+  // el aspecto de un bug de la funcionalidad y no de una carga fallida.
   useEffect(() => {
+    let vivo = true
     apiFetch('/backgrounds/character-creation')
-      .then(r => r.json())
-      .then(d => setBackgrounds(Array.isArray(d) ? d : []))
-      .catch(() => setBackgrounds([]))
-      .finally(() => setLoading(false))
-  }, [])
+      .then(r => { if (!r.ok) throw new Error(`El servidor respondió ${r.status}`); return r.json() })
+      .then(d => { if (vivo) setBackgrounds(Array.isArray(d) ? d : []) })
+      .catch(e => { if (vivo) { setBackgrounds([]); setLoadError(e.message || 'No se pudieron cargar los backgrounds') } })
+      .finally(() => { if (vivo) setLoading(false) })
+    return () => { vivo = false }
+  }, [intento])
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-400">
         <Loader2 className="animate-spin mr-2" size={18} /> Cargando backgrounds...
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="py-14 text-center space-y-3">
+        <p className="text-sm font-semibold text-red-600">No se pudieron cargar los backgrounds</p>
+        <p className="text-xs text-gray-500">{loadError}</p>
+        <button onClick={() => { setLoading(true); setLoadError(''); setIntento(n => n + 1) }}
+          className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 px-4 py-1.5 rounded-lg transition-colors">
+          Reintentar
+        </button>
       </div>
     )
   }
