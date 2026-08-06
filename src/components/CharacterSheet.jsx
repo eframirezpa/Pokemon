@@ -125,11 +125,50 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
       }
       for (const a of (ef.armor_profs || [])) armorList.push(a)
     }
+    // Los feats de origen y background no se insertan en personaje_feat, y la
+    // creación tampoco aplica sus bonos de 'saving' (solo hornea el healing en
+    // personaje_hp y las skills en personaje_skill). Se aplican aquí, igual que
+    // el resto: sin prerequisitos, porque origen y background son fijos.
+    for (const f of [data?.origin_feat, data?.background_feat]) {
+      for (const b of (f?.bonos || [])) {
+        if ((b.type || '').toLowerCase() === 'saving') savingProf.add((b.llave || '').toLowerCase())
+      }
+    }
     return { statAdd, savingProf, skillProf, skillExpert, hp, armorList, maxDexCap }
   })()
 
+  // Tiradas de salvación proficientes, separadas por coma. Se derivan de los
+  // booleanos personaje_stats_<stat>_prof (más las que otorgan los feats), la
+  // misma condición que marca el check en Atributos: así la fila y los checks
+  // no pueden contradecirse. El texto de personaje.saving_throw_prof solo
+  // guarda la elegida al crear el personaje, por eso no se usa aquí.
+  const savingThrows = STATS
+    .filter(([, key]) => stats?.[`personaje_stats_${key}_prof`] || featFx.savingProf.has(key))
+    .map(([label]) => label)
+    .join(', ')
+
   // Proficiencias de arma (bonos 'text') y de tipo de armadura (feats + background)
   const profs = buildProfs(data)
+
+  // El feat que otorgan el origen o el background también vive en personaje_feat
+  // cuando necesita elecciones (Skilled se inserta así al crear el personaje),
+  // pero la hoja ya lo muestra en su fila de "Rasgo origen" / "Rasgo background".
+  // Se oculta UNA instancia por cada uno para no listarlo dos veces. Si el feat
+  // es repetible y además se tomó con el lápiz, esa segunda copia sí se lista:
+  // extra_feats viene ordenado por personaje_feat_id, así que la que se descarta
+  // es siempre la de la creación.
+  // Ojo: esto solo afecta el listado. Los bonos siguen saliendo de
+  // data.extra_feats completo, que es lo que leen featFx y buildProfs.
+  const extraFeatsVisibles = (() => {
+    const porOcultar = [data?.origin_feat?.feat_id, data?.background_feat?.feat_id]
+      .filter(Boolean).map(Number)
+    return (data?.extra_feats || []).filter(f => {
+      const i = porOcultar.indexOf(Number(f.feat_id))
+      if (i === -1) return true
+      porOcultar.splice(i, 1)
+      return false
+    })
+  })()
 
   // Efectos de las especialidades (personaje_specializations_bonus), también solo al visualizar.
   // Se aplican DESPUÉS de los feats (importa para la regla prof → expert).
@@ -349,7 +388,7 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
 
             {/* Info general al final: saving, equipo, origen/background, rasgos y herramientas */}
             <div className="pt-1 border-t border-gray-100">
-              <Row label="Saving Throw" value={data.saving_throw_prof} />
+              <Row label="Saving Throw" value={savingThrows} />
               {data.armor && (
                 <Row label="Armadura" value={data.armor.armor_type_name}
                   prof={profs.isArmorProf(data.armor.armor_type_category)} />
@@ -366,7 +405,7 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
               <Row label="Background" value={data.background_name} />
               <FeatRow label="Rasgo origen"     feat={data.origin_feat}     onClick={() => setFeatInfo(data.origin_feat)} />
               <FeatRow label="Rasgo background" feat={data.background_feat} onClick={() => setFeatInfo(data.background_feat)} />
-              {(data.extra_feats || []).map((f, i) => {
+              {extraFeatsVisibles.map((f, i) => {
                 const met = featMet(f)
                 return (
                 <div key={f.personaje_feat_id} className={`flex items-center justify-between gap-3 py-1 border-b border-gray-100 ${met ? '' : 'opacity-60'}`}>

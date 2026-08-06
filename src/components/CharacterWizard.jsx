@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react'
 import { X, Check, ChevronLeft, ChevronDown, Plus, Minus, Loader2 } from 'lucide-react'
 import { apiFetch } from '../api'
+import { healingBase } from '../lib/hp'
+import SkilledModal from './SkilledModal'
+
+// Skilled no tiene filas en feats_bonus: su forma son 3 elecciones entre
+// proficiencias de skill y textos de 'Tool Prof'. Se pide aquí cuando lo otorga
+// el origen o el background, igual que lo pide el lápiz.
+const FEAT_SKILLED = 10
+const grantsSkilled = (o, b) =>
+  Number(o?.origin_feat_id) === FEAT_SKILLED || Number(b?.background_feat_id) === FEAT_SKILLED
 
 const STEPS = ['Nombre', 'Origen', 'Background', 'Stats', 'Iniciales', 'Equipo', 'Detalles']
 
@@ -522,11 +531,12 @@ function IniRow({ label, value }) {
   )
 }
 
-function IniciativesStep({ hpBonus = 0, skills, iniSkills, setIniSkills, onMount }) {
+function IniciativesStep({ hpBonus = 0, conMod = 0, skills, iniSkills, setIniSkills, onMount }) {
   useEffect(() => { onMount() }, []) // al entrar: agrega Animal Handling al prof in
 
-  // HP base que se persiste: 6 + bonos de healing. El modificador de CON se suma al mostrar la ficha.
-  const hp = 6 + hpBonus
+  // Lo que se persiste es la base (6 + healing horneado), pero lo que se muestra
+  // es el total con el que nace el personaje, que le suma el modificador de CON.
+  const hp = 6 + hpBonus + conMod
   const opciones = skills.filter(s => s.skill_name !== 'Animal Handling')
   const toggle = (name) => setIniSkills(cur =>
     cur.includes(name) ? cur.filter(x => x !== name) : (cur.length < 2 ? [...cur, name] : cur)
@@ -778,6 +788,8 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const [bgStats,     setBgStats]     = useState({}) // bonos de ability del background
   const [bgPopup,     setBgPopup]     = useState(null) // background con popup de ability abierto
   const [bgSkills,    setBgSkills]    = useState([]) // skills elegidas para feat_bonus skill "any"
+  const [skilledChoices, setSkilledChoices] = useState(null)  // { skills, texts } del feat Skilled
+  const [skilledPopup,   setSkilledPopup]   = useState(false)
   const [bgSkillPopup, setBgSkillPopup] = useState(false)
   const [pendingBg,   setPendingBg]   = useState(null) // { b, abilityDist }
   const [armorList,    setArmorList]    = useState([])
@@ -824,6 +836,10 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
 
   const finalizeOrigin = (o, abilityDist, skills) => {
     setOrigin(o); setOriginStats(abilityDist); setOriginSkills(skills)
+    // Cambiar de origen invalida las elecciones de Skilled: puede dejar de
+    // otorgarlo, o hacerlo cuando antes no.
+    setSkilledChoices(null)
+    if (grantsSkilled(o, background)) setSkilledPopup(true)
   }
 
   // Tras resolver el bono de ability, si falta elegir skills se abre el segundo popup
@@ -851,6 +867,8 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const finalizeBackground = (b, abilityDist, skills) => {
     setBackground(b); setBgStats(abilityDist); setBgSkills(skills)
     setArmorSelected(null); setWeaponSelected(null) // al cambiar de background se vuelve a elegir
+    setSkilledChoices(null)
+    if (grantsSkilled(origin, b)) setSkilledPopup(true)
   }
 
   // Armaduras cuyo armor_type_category coincide con la proficiencia del background
@@ -962,10 +980,12 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
       if ((b.type || '').toLowerCase() === 'healing') healingBonuses.push(b)
     }
   }
-  // Bono total de HP (llave 'hp') para sumar a los Hit Points
+  // Bono total de HP (llave 'hp') para sumar a los Hit Points.
+  // El personaje nace a nivel 1, así que de un bono "N per lvl" se hornea una
+  // sola instancia; los niveles restantes los repone lib/hp.js al mostrar.
   const hpBonus = healingBonuses
     .filter(b => (b.llave || '').toLowerCase() === 'hp')
-    .reduce((sum, b) => sum + (Number(b.valor) || 0), 0)
+    .reduce((sum, b) => sum + healingBase(b.valor), 0)
 
   // Skill proficiencies de los feat_bonus del background seleccionado
   const bgFeatProfSkills = []
@@ -985,7 +1005,27 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
     ...bgFeatProfSkills,
     ...(animalHandling ? ['Animal Handling'] : []),
     ...iniSkills,
+    // Las skills elegidas dentro de Skilled NO van aquí: quedan como bono del
+    // feat, igual que cuando se agrega por lápiz. La hoja hace el OR entre
+    // personaje_skill_pref y las skills de los feats, así que se ven igual y
+    // no queda el mismo dato en dos sitios.
   ].filter(Boolean)
+
+  // ¿El origen o el background otorgan Skilled? Entonces hay que elegir sus 3
+  // opciones antes de poder crear.
+  const needsSkilled = grantsSkilled(origin, background)
+  const skilledListo = !needsSkilled || !!skilledChoices
+  // Las que ya tiene ANTES de Skilled: es lo que el selector marca en verde.
+  const profSkillNames = new Set(profSkills.map(s => (s || '').toLowerCase()))
+
+  // Para MOSTRAR proficiencias hay que sumar las elegidas dentro de Skilled.
+  // No van en profSkills porque no se persisten en personaje_skill (quedan como
+  // bono del feat), pero al usuario le cuentan igual: es el mismo OR que hace la
+  // hoja entre personaje_skill_pref y las skills de los feats.
+  const profSkillsVisibles = new Set([
+    ...profSkillNames,
+    ...(skilledChoices?.skills || []).map(s => (s || '').toLowerCase()),
+  ])
 
   const handleCreate = async () => {
     setSaving(true); setError('')
@@ -1025,6 +1065,8 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
           falencias: narrativa.falencias,
           conexiones: narrativa.conexiones,
           detalles,
+          // El backend lo persiste como un feat agregado al personaje
+          skilled_choices: needsSkilled ? skilledChoices : null,
         }),
       })
       if (!res.ok) {
@@ -1111,6 +1153,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
           {step === 4 && (
             <IniciativesStep
               hpBonus={hpBonus}
+              conMod={Math.floor(((displayStats.personaje_con ?? 0) - 10) / 2)}
               skills={skillsList}
               iniSkills={iniSkills}
               setIniSkills={setIniSkills}
@@ -1207,6 +1250,21 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
         />
       )}
 
+      {/* Skilled otorgado por el origen o el background: sus 3 elecciones.
+          Aquí solo se guardan; el feat se persiste al crear el personaje, así
+          que a diferencia del lápiz esto todavía se puede deshacer. */}
+      {skilledPopup && (
+        <SkilledModal
+          allSkills={skillsList}
+          proficientNames={profSkillNames}
+          confirmLabel="Guardar"
+          warn={false}
+          initial={skilledChoices}
+          onCancel={() => setSkilledPopup(false)}
+          onConfirm={(payload) => { setSkilledChoices(payload); setSkilledPopup(false) }}
+        />
+      )}
+
       {/* Selección de armadura (al avanzar desde Background) */}
       {showArmorPicker && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
@@ -1277,7 +1335,10 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
 
       {/* Ventana de verificación antes de crear */}
       {showVerify && (() => {
-        const hitPoints   = 6 + hpBonus
+        // 6 + healing horneado es solo la BASE que se persiste. El total con el
+        // que nace el personaje le suma el modificador de CON, igual que la hoja.
+        const hitPointsBase = 6 + hpBonus
+        const hitPoints     = hitPointsBase + Math.floor(((displayStats.personaje_con ?? 0) - 10) / 2)
         const pokedollars = pokedollarsRoll === '' ? 0 : 1000 + 100 * Number(pokedollarsRoll)
         const VRow = ({ label, value }) => (
           <div className="flex justify-between gap-3 py-1 border-b border-gray-100">
@@ -1302,6 +1363,22 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                   {background?.background_tool_proficiencies_values && (
                     <VRow label="Herramientas" value={background.background_tool_proficiencies_values} />
                   )}
+                  {needsSkilled && (
+                    <div className="flex justify-between items-start gap-3 py-1 border-b border-gray-100">
+                      <span className="text-xs font-semibold text-red-700 uppercase tracking-wide shrink-0">Skilled</span>
+                      <div className="text-right">
+                        <span className={`text-sm ${skilledChoices ? 'text-gray-700' : 'text-red-600 font-semibold'}`}>
+                          {skilledChoices
+                            ? [...skilledChoices.skills, ...skilledChoices.texts].join(', ')
+                            : 'Faltan las 3 elecciones'}
+                        </span>
+                        <button onClick={() => setSkilledPopup(true)}
+                          className="block ml-auto text-[11px] font-bold text-red-600 hover:text-red-700 underline">
+                          {skilledChoices ? 'Cambiar' : 'Elegir'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Atributos */}
@@ -1322,7 +1399,9 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
 
                 {/* Habilidades */}
                 {skillsList.length > 0 && (() => {
-                  const profSet = new Set(profSkills.map(s => (s || '').toLowerCase()))
+                  // Incluye las elegidas en Skilled: no se persisten en
+                  // personaje_skill, pero sí dan proficiencia (vía el feat).
+                  const profSet = profSkillsVisibles
                   const skillVal = (sk) => {
                     const key = `personaje_${(sk.skill_related_ability || '').toLowerCase()}`
                     if (!(key in displayModifiers)) return null
@@ -1411,7 +1490,8 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                 {error && <span className="text-xs text-red-600 flex-1 text-center">{error}</span>}
                 <button
                   onClick={handleCreate}
-                  disabled={saving}
+                  disabled={saving || !skilledListo}
+                  title={skilledListo ? undefined : 'Faltan las elecciones de Skilled'}
                   className="flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed
                              text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors"
                 >
