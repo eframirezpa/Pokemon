@@ -961,7 +961,10 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     if (personajeId != null) sendInvocado(personajeId, pokemonInvocado)
   }, [personajeId, pokemonInvocado, sendInvocado])
 
-  const MAX_POKEMON = 6
+  // Tope de Pokémon que el máster puede tener invocados a la vez en el campo.
+  // No tiene que ver con el cinturón (ese sigue en 6): el selector ofrece toda
+  // su colección, así que este número es solo cuántos caben en la mesa.
+  const MAX_POKEMON = 20
 
   const [attackFx, setAttackFx] = useState(null)
 
