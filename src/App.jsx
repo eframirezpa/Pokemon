@@ -10,6 +10,7 @@ import FeatsList from './pages/FeatsList'
 import BackgroundsList from './pages/BackgroundsList'
 import OriginsList from './pages/OriginsList'
 import SpecializationsList from './pages/SpecializationsList'
+import PathsList from './pages/PathsList'
 import BondsList from './pages/BondsList'
 import ArmorTypesList from './pages/ArmorTypesList'
 import WeaponTypesList from './pages/WeaponTypesList'
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="backgrounds" element={<BackgroundsList />} />
           <Route path="origins" element={<OriginsList />} />
           <Route path="specializations" element={<SpecializationsList />} />
+          <Route path="paths" element={<PathsList />} />
           <Route path="bonds" element={<BondsList />} />
           <Route path="armor-types" element={<ArmorTypesList />} />
           <Route path="weapon-types" element={<WeaponTypesList />} />
