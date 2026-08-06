@@ -124,7 +124,9 @@ function PokemonHpCard({ p, onPokeball = null, ballSprite = null }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span className="font-bold text-gray-900 text-sm truncate">{hidden ? '???' : p.name}</span>
-          <span className="text-xs font-bold text-gray-700 shrink-0">Lv.{p.level}</span>
+          {/* El nivel delata lo peligroso que es: se oculta hasta que el máster
+              lo revele, igual que el nombre, los tipos y la barra de vida. */}
+          <span className="text-xs font-bold text-gray-700 shrink-0">Lv.{hidden ? '??' : p.level}</span>
         </div>
         <div className="flex gap-1 my-1 min-h-[14px]">
           {!hidden && <><TypeBadge type={p.type1} /><TypeBadge type={p.type2} /></>}
