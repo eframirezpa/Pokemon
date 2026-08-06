@@ -500,7 +500,8 @@ export default function TrainerPartida() {
         moves,
         pasivas: Array.isArray(d.pasivas) ? d.pasivas : [],
         skills,
-        stab: d.personaje_pokemon_stab, prof: d.pokemon_proficient,
+        // El STAB siempre vale lo mismo que la proficiencia
+        stab: d.pokemon_proficient, prof: d.pokemon_proficient,
         ac: d.personaje_pokemon_ac, saving: d.pokemon_saving_throw_prof,
         name: d.pokemon_apodo || 'Pokémon',
         level: d.pokemon_level,

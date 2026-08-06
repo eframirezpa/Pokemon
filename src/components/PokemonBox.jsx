@@ -118,7 +118,8 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
     }
     return { pref, expert }
   }
-  const stab = d.personaje_pokemon_stab != null ? d.personaje_pokemon_stab : 2
+  // El STAB siempre vale lo mismo que la proficiencia: se deriva de ella
+  const stab = prof
   const nature = d.nature_name ? {
     nature_name: d.nature_name,
     nature_effect_increase: d.nature_effect_increase, nature_effect_increase_value: d.nature_effect_increase_value,
@@ -215,7 +216,8 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
             <div className="px-4 py-1.5 space-y-0.5 text-xs text-gray-800">
               {master && <p><span className="font-bold text-[#7A200D]">Nivel</span> {level}</p>}
               <p><span className="font-bold text-[#7A200D]">Clase de Armadura</span> {d.personaje_pokemon_ac}</p>
-              <p><span className="font-bold text-[#7A200D]">Puntos de Golpe</span> {(d.pokemon_current_hp ?? 0) + featFx.healing}/{(d.pokemon_hp ?? 0) + featFx.healing} ({d.pokemon_hit_dice})</p>
+              {/* pokemon_hp ya llega con el modCON y el healing de feats aplicados */}
+              <p><span className="font-bold text-[#7A200D]">Puntos de Golpe</span> {d.pokemon_current_hp ?? 0}/{d.pokemon_hp ?? 0} ({d.pokemon_hit_dice})</p>
               <p><span className="font-bold text-[#7A200D]">Experiencia</span> {(d.pokemon_experiencia ?? 0).toLocaleString()}
                 {d.exp_next != null ? `/${d.exp_next.toLocaleString()}` : ' · Máx'}</p>
               {speeds && <p><span className="font-bold text-[#7A200D]">Velocidad</span> {speeds}</p>}
@@ -319,8 +321,10 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Movimientos</p>
               <div className="space-y-1.5">
+                {/* El detalle del movimiento se abre en todas las vistas:
+                    cinturón, femputadora y Pokémon del master */}
                 {(d.moves || []).map(m => (
-                  <MoveRow key={m.move_id} m={m} onClick={master ? () => setMoveInfo(m) : undefined} />
+                  <MoveRow key={m.move_id} m={m} onClick={() => setMoveInfo(m)} />
                 ))}
                 {(d.pasivas || []).map(p => (
                   <MoveRow key={`pasiva-${p.ability_id}`} m={p} pasiva onClick={() => setAbilityInfo(p)} />

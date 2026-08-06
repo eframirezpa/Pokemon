@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import PartyPanel, { PlayerCard } from './PartyPanel'
+import MoveInfoModal from './MoveInfoModal'
 import CharacterSheet from './CharacterSheet'
 import { PokemonDetailView } from './PokemonBox'
 import PartidaInfoPanel from './PartidaInfoPanel'
@@ -146,7 +147,7 @@ function PokemonHpCard({ p, onPokeball = null, ballSprite = null }) {
 }
 
 /* Card de un Pokémon del master — colapsable (toggle) */
-function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer }) {
+function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo }) {
   const [collapsed, setCollapsed] = useState(false)
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-lg self-start">
@@ -240,7 +241,10 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
                 {pokemon.moves.map((m, i) => (
                   <div key={i} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-white text-xs font-medium truncate">{m.name}</span>
+                      <button onClick={e => { e.stopPropagation(); onMoveInfo?.(m) }} title="Ver detalle del movimiento"
+                        className="text-white text-xs font-medium truncate underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-amber-300 transition-colors">
+                        {m.name}
+                      </button>
                       <TypeBadge type={m.type} />
                     </div>
                     <button
@@ -261,7 +265,7 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
 }
 
 /* Panel de Pokémon del master — botón + grid de Pokémon (máx. según `max`) */
-function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer }) {
+function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo }) {
   const full = pokemons.length >= max
   const [collapsed, setCollapsed] = useState(false)
   return (
@@ -304,6 +308,7 @@ function MasterPokemonPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, 
               onInspect={onInspect}
               onToggleBall={onToggleBall}
               onTransfer={onTransfer}
+              onMoveInfo={onMoveInfo}
             />
           ))}
         </div>
@@ -690,6 +695,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [showPokedex, setShowPokedex] = useState(false)
   const [showInfo, setShowInfo]     = useState(false)   // personajes registrados (solo master)
   const [inspectCharId, setInspectCharId] = useState(null) // ficha de personaje abierta desde el party (master)
+  const [masterMoveInfo, setMasterMoveInfo] = useState(null) // detalle de un movimiento del panel del master
   const [inspectMasterPoke, setInspectMasterPoke] = useState(null) // detalle de un Pokémon del master en el campo
   const [inspectPoke, setInspectPoke]     = useState(null) // { personajeId, idpp } detalle de pokémon (master)
   // Detecta celular (no tablet) y su orientación
@@ -977,7 +983,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     if (activePokemons.length >= MAX_POKEMON) return
     try {
       const d = await apiFetch(`/master/pokemon/${mp.id_master_pokemon}`).then(r => r.json())
-      const moves = (d.moves || []).map(m => ({ name: m.move_name, type: m.move_type || null }))
+      // Se guarda el movimiento completo: el detalle del panel lo necesita.
+      // name/type se mantienen como alias de lo que ya usaba la tarjeta.
+      const moves = (d.moves || []).map(m => ({ ...m, name: m.move_name, type: m.move_type || null }))
 
       // Healing de feats (ej. Tough 'N per lvl') sumado a la vida
       const lvl = d.pokemon_level || 1
@@ -998,6 +1006,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         level:       lvl,
         hp_max:      (d.pokemon_hp ?? 0) + healing,
         hp_current:  (d.pokemon_current_hp ?? d.pokemon_hp ?? 0) + healing,
+        healing,     // bono de feats: se resta al persistir, la BD guarda el HP crudo
         sprite:      d.pokemon_media_sprite || d.pokemon_media_main,
         moves,
         hidden:      true,
@@ -1013,10 +1022,19 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const updatePokemon = (uid, patch) =>
     sendPokemons(activePokemons.map(p => (p.uid === uid ? { ...p, ...patch } : p)))
 
+  // El HP del Pokémon invocado se persiste además de propagarse por presencia:
+  // sin esto las bajas se perdían al reloguear o al volver a invocarlo.
   const handleHpChange = (uid, delta) => {
     const p = activePokemons.find(x => x.uid === uid)
     if (!p) return
-    updatePokemon(uid, { hp_current: Math.max(0, Math.min(p.hp_max, p.hp_current + delta)) })
+    const nuevo = Math.max(0, Math.min(p.hp_max, p.hp_current + delta))
+    updatePokemon(uid, { hp_current: nuevo })
+    if (p.master_pokemon_id != null) {
+      apiFetch(`/master/pokemon/${p.master_pokemon_id}/combate`, {
+        method: 'PATCH',
+        body: JSON.stringify({ current_hp: Math.max(0, nuevo - (p.healing || 0)) }),
+      }).catch(() => {})
+    }
   }
 
   const handleToggleHidden = (uid) => {
@@ -1344,6 +1362,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onToggleHidden={handleToggleHidden}
                 onToggleBall={handleToggleBall}
                 onTransfer={abrirTransferencia}
+                onMoveInfo={setMasterMoveInfo}
                 onInspect={setInspectMasterPoke}
               />
               <EdicionJugadoresPanel partidaId={id} presentes={presentes} partyVersion={partyUpdatedAt} onAfterChange={sendPartyUpdate} />
@@ -1519,6 +1538,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       {showInfo && isMaster && (
         <PartidaInfoPanel partidaId={id} onClose={() => setShowInfo(false)} />
       )}
+
+      {masterMoveInfo && <MoveInfoModal m={masterMoveInfo} theme="dark" onClose={() => setMasterMoveInfo(null)} />}
 
       {/* Aviso de captura: 5 s centrado en pantalla, para toda la partida (master incluido) */}
       {showCaptura && captura.trainer && (

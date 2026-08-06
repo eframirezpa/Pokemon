@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, ArrowRight, Plus, Minus, Loader2, AlertTriangle } from 'lucide-react'
 import { apiFetch } from '../api'
 import MasterPokemonFeats from './MasterPokemonFeats'
+import MoveInfoModal from './MoveInfoModal'
 
 const STAT_KEYS = ['dex', 'str', 'con', 'int', 'wis', 'cha']
 const STAT_LABEL = { dex: 'DEX', str: 'STR', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' }
@@ -63,14 +64,17 @@ function HpRollField({ dice, max, value, onChange }) {
 }
 
 /* Chip de movimiento con botón para moverlo a la otra columna */
-function MoveChip({ m, dir, disabled, onMove }) {
+function MoveChip({ m, dir, disabled, onMove, onInfo }) {
   return (
     <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-2 py-1.5">
       {dir === 'left' && (
         <button onClick={onMove} title="Quitar" className="text-gray-400 hover:text-red-600 shrink-0"><ArrowRight size={14} /></button>
       )}
       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: TYPE_COLORS[m.move_type] || '#9CA3AF' }} />
-      <span className="text-xs font-semibold text-gray-800 truncate flex-1">{m.move_name}</span>
+      <button onClick={() => onInfo?.(m)} title="Ver detalle del movimiento"
+        className="text-xs font-semibold text-gray-800 truncate flex-1 text-left underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-red-700 transition-colors">
+        {m.move_name}
+      </button>
       {dir === 'right' && (
         <button onClick={onMove} disabled={disabled} title="Aprender"
           className="text-gray-400 hover:text-green-600 disabled:opacity-30 shrink-0"><ArrowLeft size={14} /></button>
@@ -81,14 +85,14 @@ function MoveChip({ m, dir, disabled, onMove }) {
 
 /* Selector de movimientos por clic (máx 4). Se usa en los dos flujos: los
    movimientos se pueden reacomodar en cualquier subida de nivel. */
-function MovesPicker({ learned, available, toAvailable, toLearned }) {
+function MovesPicker({ learned, available, toAvailable, toLearned, onInfo }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
         <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">Aprendidos</p>
         <div className="space-y-1.5 min-h-[3rem]">
           {learned.length === 0 && <p className="text-xs text-gray-400 italic">Ninguno</p>}
-          {learned.map(m => <MoveChip key={m.move_id} m={m} dir="left" onMove={() => toAvailable(m)} />)}
+          {learned.map(m => <MoveChip key={m.move_id} m={m} dir="left" onMove={() => toAvailable(m)} onInfo={onInfo} />)}
         </div>
         <p className={`text-xs font-bold mt-2 ${learned.length > 4 ? 'text-red-600' : 'text-gray-600'}`}>
           Movimientos aprendidos {learned.length} de 4
@@ -98,7 +102,7 @@ function MovesPicker({ learned, available, toAvailable, toLearned }) {
         <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">Disponibles</p>
         <div className="space-y-1.5 min-h-[3rem]">
           {available.length === 0 && <p className="text-xs text-gray-400 italic">Ninguno</p>}
-          {available.map(m => <MoveChip key={m.move_id} m={m} dir="right" disabled={learned.length >= 4} onMove={() => toLearned(m)} />)}
+          {available.map(m => <MoveChip key={m.move_id} m={m} dir="right" disabled={learned.length >= 4} onMove={() => toLearned(m)} onInfo={onInfo} />)}
         </div>
       </div>
     </div>
@@ -119,12 +123,13 @@ function useMovesState(pending) {
     setAvailable(a => a.filter(x => x.move_id !== m.move_id))
     setLearned(l => [...l, m])
   }
-  return { learned, available, toAvailable, toLearned }
+  const [moveInfo, setMoveInfo] = useState(null) // movimiento cuyo detalle se muestra
+  return { learned, available, toAvailable, toLearned, moveInfo, setMoveInfo }
 }
 
 /* Flujo de movimientos: transferencia por clic (máx 4 aprendidos) */
 function MovesFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
-  const { learned, available, toAvailable, toLearned } = useMovesState(pending)
+  const { learned, available, toAvailable, toLearned, moveInfo, setMoveInfo } = useMovesState(pending)
   const [alert, setAlert] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -146,8 +151,9 @@ function MovesFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
   return (
     <>
       <div className="flex-1 overflow-y-auto px-5 pb-4">
-        <MovesPicker learned={learned} available={available} toAvailable={toAvailable} toLearned={toLearned} />
+        <MovesPicker learned={learned} available={available} toAvailable={toAvailable} toLearned={toLearned} onInfo={setMoveInfo} />
         {error && <p className="text-xs text-red-600 font-medium mt-3">{error}</p>}
+        {moveInfo && <MoveInfoModal m={moveInfo} theme="light" onClose={() => setMoveInfo(null)} />}
       </div>
       <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between shrink-0">
         <span className="text-xs text-gray-500">{hpValid ? '' : 'Falta la tirada del dado'}</span>
@@ -172,7 +178,7 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
   const cap = level >= 20 ? 22 : 20
   const totalPoints = Number(pending.points) || 0
 
-  const { learned, available, toAvailable, toLearned } = useMovesState(pending)
+  const { learned, available, toAvailable, toLearned, moveInfo, setMoveInfo } = useMovesState(pending)
   const [adds, setAdds] = useState({ dex: 0, str: 0, con: 0, int: 0, wis: 0, cha: 0 })
   const [feats, setFeats] = useState([])
   const [skillsList, setSkillsList] = useState([])
@@ -184,6 +190,14 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
     apiFetch('/skills').then(r => r.json()).then(d => setSkillsList(Array.isArray(d) ? d : (d.data ?? []))).catch(() => setSkillsList([]))
   }, [])
 
+  // Bonos de stat de los feats que el Pokémon YA tiene entrenados. Sin esto la
+  // ventana de nivel mostraba los stats sin ellos, a diferencia del resto de vistas.
+  const prevFeatAdd = { dex: 0, str: 0, con: 0, int: 0, wis: 0, cha: 0 }
+  for (const f of (pending.feats || [])) for (const b of (f.bonos || [])) {
+    const t = (b.type || '').toLowerCase(), llave = (b.llave || '').toLowerCase()
+    if (t === 'stat' && prevFeatAdd[llave] !== undefined) prevFeatAdd[llave] += Number(b.value) || 0
+  }
+
   const baseVal = k => (Number(st[`pokemon_${k}`]) || 0) + (Number(st[`pokemon_${k}_bonus`]) || 0)
   const trainedVal = k => Math.min(baseVal(k) + adds[k], cap) // valor que se guarda (base + puntos)
 
@@ -193,7 +207,7 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
     const t = (b.type || '').toLowerCase(), llave = (b.llave || '').toLowerCase()
     if (t === 'stat' && featStatAdd[llave] !== undefined) featStatAdd[llave] += Number(b.value) || 0
   }
-  const shownVal = k => Math.min(trainedVal(k) + featStatAdd[k], cap) // display (incluye el feat)
+  const shownVal = k => Math.min(trainedVal(k) + prevFeatAdd[k] + featStatAdd[k], cap) // display: puntos + feats previos + el feat elegido
   const modOf = k => Math.floor((shownVal(k) - 10) / 2)
 
   const spentStats = STAT_KEYS.reduce((a, k) => a + adds[k], 0)
@@ -204,7 +218,7 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
   const dec = k => { if (adds[k] > 0) setAdds(a => ({ ...a, [k]: a[k] - 1 })) }
 
   // Stats para los prerequisitos del control de feats (con puntos ya asignados, sin el bonus del propio feat)
-  const statCtx = Object.fromEntries(STAT_KEYS.map(k => [k, trainedVal(k)]))
+  const statCtx = Object.fromEntries(STAT_KEYS.map(k => [k, trainedVal(k) + prevFeatAdd[k]]))
   const skillCtx = (pending.skills || []).map(s => ({ skill_name: s.skill_name, pref: s.pokemon_skill_pref, expert: s.pokemon_skill_expert }))
 
   const confirm = async () => {
@@ -229,7 +243,8 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
     <>
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {/* Movimientos: se pueden reacomodar en cualquier nivel, también en los ASI */}
-        <MovesPicker learned={learned} available={available} toAvailable={toAvailable} toLearned={toLearned} />
+        <MovesPicker learned={learned} available={available} toAvailable={toAvailable} toLearned={toLearned} onInfo={setMoveInfo} />
+        {moveInfo && <MoveInfoModal m={moveInfo} theme="light" onClose={() => setMoveInfo(null)} />}
 
         {/* Puntos disponibles */}
         <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
