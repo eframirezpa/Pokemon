@@ -1108,7 +1108,10 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       // Desaparece del campo para el master y para todos los jugadores
       sendPokemons(activePokemons.filter(p => p.uid !== transferPoke.uid))
       const nombrePokemon = j.pokemon_apodo || j.pokemon_name || transferPoke.name
-      const nombreDest = nombreTrainer(transferDest)
+      // El nombre del PERSONAJE, no el del usuario. Se toma de la respuesta del
+      // backend, que lo lee de la tabla: nombreTrainer() depende de un fetch
+      // aparte y, si ese no volvió, caía en el user_name.
+      const nombreDest = j.nombre_personaje || nombreTrainer(transferDest)
       const texto = `Felicitaciones el trainer ${nombreDest} ha atrapado al pokemon ${nombrePokemon}`
       sendMasterMessage(texto)
       sendActivity(texto)
