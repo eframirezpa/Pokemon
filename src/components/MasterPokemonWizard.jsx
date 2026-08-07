@@ -137,6 +137,9 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
   const [struggle, setStruggle] = useState(null)
   // estado editable
   const [apodo, setApodo]     = useState('')
+  // Etiqueta de procedencia. Viaja con el Pokémon si se transfiere a un
+  // entrenador, así que no queda como 'starter' en el destino.
+  const [tag, setTag]         = useState('created')
   const [genero, setGenero]   = useState('N')
   const [nature, setNature]   = useState(null)
   const [type1, setType1]     = useState(null)   // ids
@@ -183,6 +186,7 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
         pokemon_media_sprite: d.pokemon_media_sprite, pokemon_media_main: d.pokemon_media_main,
       })
       setApodo((d.pokemon_apodo || d.pokemon_name || '') + (mode === 'clone' ? ' clon' : ''))
+      setTag(d.pokemon_tag || 'created')
       setGenero(generoCode(d.personaje_pokemon_genero))
       setNature(d.personaje_pokemon_nature ? {
         nature_id: d.personaje_pokemon_nature, nature_name: d.nature_name,
@@ -373,6 +377,7 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
       const payload = {
         id_pokemon: pokemon.pokemon_id,
         apodo: apodo || pokemon.pokemon_name,
+        pokemon_tag: tag.trim() || 'created',
         genero, id_nature: nature?.nature_id ?? null, id_bond: DEFAULT_BOND, is_shiny: false,
         type_1: type1, type_2: type2,
         hp: Number(hp) || 0,
@@ -478,11 +483,19 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
             <span className="text-[11px] font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1">Experiencia {experiencia.toLocaleString()}</span>
           </div>
 
-          {/* Nombre */}
-          <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Nombre</label>
-            <input value={apodo} onChange={e => setApodo(e.target.value)} placeholder={pokemon.pokemon_name}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+          {/* Nombre + etiqueta */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Nombre</label>
+              <input value={apodo} onChange={e => setApodo(e.target.value)} placeholder={pokemon.pokemon_name}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Etiqueta</label>
+              <input value={tag} onChange={e => setTag(e.target.value)} placeholder="created"
+                title="Procedencia del Pokémon. Se conserva si lo transfieres a un entrenador."
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+            </div>
           </div>
 
           {/* Tipos */}
