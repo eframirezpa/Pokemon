@@ -587,6 +587,12 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                         <span className="shrink-0">({p.pokemon_level})</span>
                       </span>
                       <span className="text-[11px] text-gray-400 truncate max-w-full">{p.pokemon_name}</span>
+                      {/* Procedencia: va bajo el nombre de especie, no bajo el apodo */}
+                      {p.pokemon_tag && (
+                        <span className="text-[9px] font-bold uppercase tracking-wide text-gray-500 bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 truncate max-w-full">
+                          {p.pokemon_tag}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

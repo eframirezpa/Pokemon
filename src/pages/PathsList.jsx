@@ -1,28 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Search, X, ChevronDown } from 'lucide-react'
 import { apiFetch } from '../api'
+import { describirPathBonus, TARGET_BONO } from '../lib/pathBonus'
 
 // Las rutas otorgan sus rasgos en estos cuatro niveles, siempre los mismos.
 const NIVELES = [2, 5, 9, 15]
 
 // Etiquetas de path_bonus_type / target, que en la BD vienen en snake_case
-const TIPO = {
-  resource:               'Recurso',
-  resource_die:           'Dado de recurso',
-  feature_uses:           'Usos',
-  ability_score_increase: 'Aumento de atributo',
-  skill_proficiency:      'Proficiencia',
-  skill_expertise:        'Experiencia',
-  stab_bonus:             'Bono STAB',
-  saving_throw:           'Tirada de salvación',
-}
-const TARGET = {
-  trainer:     'Entrenador',
-  all_pokemon: 'Todos los Pokémon',
-  pokemon:     'Pokémon',
-}
-const legible = (s) => (s ?? '').replace(/_/g, ' ')
-
 /* Un rasgo (nivel + nombre + descripción) con los bonos que otorga */
 function Rasgo({ nivel, nombre, descripcion, bonos }) {
   if (!nombre && !descripcion) return null
@@ -35,18 +19,20 @@ function Rasgo({ nivel, nombre, descripcion, bonos }) {
       {descripcion && <p className="text-xs text-gray-600 leading-relaxed mt-1">{descripcion}</p>}
       {bonos.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-1.5">
-          {bonos.map(b => (
-            <span key={b.id} title={b.notes || undefined}
-              className="text-[10px] font-semibold text-gray-700 bg-white border border-gray-300 rounded-md px-1.5 py-0.5">
-              <span className="text-red-700">{TIPO[b.type] || legible(b.type)}</span>
-              {b.key && <span className="text-gray-500"> · {legible(b.key)}</span>}
-              {b.value && <span className="text-green-700"> {b.value}</span>}
-              {b.resource_die && <span className="text-blue-700"> {b.resource_die}</span>}
-              {b.target && b.target !== 'trainer' && (
-                <span className="text-gray-400"> ({TARGET[b.target] || legible(b.target)})</span>
-              )}
-            </span>
-          ))}
+          {bonos.map(b => {
+            const d = describirPathBonus(b)
+            return (
+              <span key={b.id} title={d.detalle || b.notes || undefined}
+                className={`text-[10px] font-semibold rounded-md px-1.5 py-0.5 border ${
+                  d.aplica ? 'text-green-800 bg-green-50 border-green-200'
+                           : 'text-gray-600 bg-white border-gray-300'}`}>
+                {d.texto}
+                {d.target && d.target !== 'trainer' && (
+                  <span className="font-normal text-gray-500"> · {TARGET_BONO[d.target] || d.target}</span>
+                )}
+              </span>
+            )
+          })}
         </div>
       )}
     </div>

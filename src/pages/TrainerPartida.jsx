@@ -4,6 +4,7 @@ import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, Che
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
 import CharacterSheet from '../components/CharacterSheet'
+import TrainerLevelUpModal from '../components/TrainerLevelUpModal'
 import Mochila from '../components/Mochila'
 import Equipamiento from '../components/Equipamiento'
 import PokemonBox from '../components/PokemonBox'
@@ -321,6 +322,7 @@ export default function TrainerPartida() {
   const [isEditable, setIsEditable]   = useState(false) // personaje_is_editable (lo controla el master)
   const [pending, setPending]         = useState([])    // mejoras de nivel por confirmar (secuencial)
   const [renames, setRenames]         = useState([])    // Pokémon recibidos pendientes de renombrar
+  const [levelUps, setLevelUps]       = useState([])    // niveles de entrenador por confirmar
   const [apodoEdit, setApodoEdit]     = useState({ id: null, value: '' })
   const [ppMove, setPpMove]           = useState(null)  // movimiento cuyo gasto de PP se está confirmando
   const [ppCantidad, setPpCantidad]   = useState(1)
@@ -380,8 +382,19 @@ export default function TrainerPartida() {
       .then(d => setRenames(Array.isArray(d) ? d : []))
       .catch(() => {})
   }
+  // Niveles de entrenador pendientes de confirmar. Se persisten, así que
+  // sobreviven a una recarga: subir de nivel ocurre en el servidor y el jugador
+  // puede no estar mirando cuando pasa.
+  const refreshLevelUps = () => {
+    if (!personajeId) return
+    apiFetch(`/personaje/${personajeId}/improvements`)
+      .then(r => r.json())
+      .then(d => setLevelUps(Array.isArray(d) ? d : []))
+      .catch(() => {})
+  }
   useEffect(() => { refreshPending() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId])
   useEffect(() => { refreshRenames() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId, partyVersion])
+  useEffect(() => { refreshLevelUps() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId, partyVersion])
 
   // Recupera el personaje del usuario: state → localStorage → backend (para recargas).
   // Un usuario puede tener varios personajes en la misma partida (el lobby los lista
@@ -736,6 +749,20 @@ export default function TrainerPartida() {
       {/* Renombrar Pokémon recibido: obligatorio, no se puede cerrar.
           Va por encima de la mejora de nivel para que el jugador sepa primero
           qué Pokémon acaba de recibir. */}
+      {/* Subida de nivel del entrenador: se resuelve un nivel a la vez, del más
+          bajo al más alto, y va por delante del renombrado porque puede cambiar
+          los pokéslots. */}
+      {levelUps.length > 0 && (
+        <TrainerLevelUpModal
+          key={levelUps[0].id}
+          personajeId={personajeId}
+          pending={levelUps[0]}
+          // Bump de partyVersion: el nivel cambia stats, prof y pokéslots,
+          // así que la ficha y el cinturón tienen que releerse.
+          onConfirmed={() => { refreshLevelUps(); setPartyVersion(v => v + 1) }}
+        />
+      )}
+
       {renames.length > 0 && (() => {
         const r = renames[0]
         const sprite = (r.pokemon_is_shiny && r.pokemon_media_sprite_shiny) ? r.pokemon_media_sprite_shiny : r.pokemon_media_sprite

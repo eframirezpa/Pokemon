@@ -139,7 +139,8 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
   const [apodo, setApodo]     = useState('')
   // Etiqueta de procedencia. Viaja con el Pokémon si se transfiere a un
   // entrenador, así que no queda como 'starter' en el destino.
-  const [tag, setTag]         = useState('created')
+  // Se rellena con el DEFAULT real de la columna, que llega en el preview
+  const [tag, setTag]         = useState('')
   const [genero, setGenero]   = useState('N')
   const [nature, setNature]   = useState(null)
   const [type1, setType1]     = useState(null)   // ids
@@ -241,6 +242,8 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
     setLevelBusy(true)
     try {
       const pv = await apiFetch(`/master/pokemon/level-preview?id_pokemon=${pk.pokemon_id}&level=${lvl}`).then(r => r.json())
+      // Solo si el usuario no escribió nada: no pisar lo que ya eligió
+      setTag(t => t || pv?.pokemon_tag_default || '')
       // naturaleza al azar (editable después)
       const nat = natures.length ? pick(natures) : null
       // género al azar entre los posibles de la especie
@@ -377,7 +380,8 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
       const payload = {
         id_pokemon: pokemon.pokemon_id,
         apodo: apodo || pokemon.pokemon_name,
-        pokemon_tag: tag.trim() || 'created',
+        // En blanco viaja vacío y el backend aplica el DEFAULT de la tabla
+        pokemon_tag: tag.trim(),
         genero, id_nature: nature?.nature_id ?? null, id_bond: DEFAULT_BOND, is_shiny: false,
         type_1: type1, type_2: type2,
         hp: Number(hp) || 0,

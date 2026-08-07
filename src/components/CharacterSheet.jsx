@@ -6,6 +6,7 @@ import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
 import { ResolvedBonusBadges } from './featBonoBadges'
 import SpecializationInfoModal from './SpecializationInfoModal'
 import { buildProfs, titleCase } from '../lib/profs'
+import PathInfoModal from './PathInfoModal'
 import { hpValues } from '../lib/hp'
 
 /* Checkbox de solo lectura (estilo de la imagen) */
@@ -72,6 +73,7 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
   const [showDetalles, setShowDetalles] = useState(false)
   const [showMochila, setShowMochila]   = useState(false)
   const [featInfo, setFeatInfo]         = useState(null) // rasgo cuyo detalle se muestra
+  const [pathInfo, setPathInfo] = useState(null)   // ruta cuyo detalle se muestra
   const [specInfo, setSpecInfo]         = useState(null) // especialidad cuyo detalle se muestra
 
   // Carga inicial + re-carga cuando cambia la party (para reflejar cambios en vivo del otro panel)
@@ -187,6 +189,22 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
     return { statAdd, skillProf, skillExpert, hp }
   })()
 
+  // Bonos de la ruta (personaje_path_bonus). Se aplican como los de feats:
+  // value 'prof' da proficiencia y 'expert' da experticia. Los de target
+  // all_pokemon no tocan al entrenador: son para sus Pokémon.
+  const pathFx = (() => {
+    const skillProf = new Set(), skillExpert = new Set()
+    for (const b of (data?.path_bonos || [])) {
+      if ((b.type || '').toLowerCase() !== 'skill') continue
+      if ((b.target || '').toLowerCase() !== 'trainer') continue
+      const llave = (b.llave || '').toLowerCase()
+      const v = (b.value || '').toLowerCase()
+      if (v === 'expert') skillExpert.add(llave)
+      else if (v === 'prof') skillProf.add(llave)
+    }
+    return { skillProf, skillExpert }
+  })()
+
   // Modificador del ability: FLOOR((base + bonus + feat + especialidad - 10) / 2)
   const abilMod = (key) => {
     if (!stats) return 0
@@ -204,6 +222,8 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
     if (featFx.skillExpert.has(name)) { if (pref) expert = true; else pref = true }
     if (specFx.skillProf.has(name)) pref = true
     if (specFx.skillExpert.has(name)) { if (pref) expert = true; else pref = true }
+    if (pathFx.skillProf.has(name)) pref = true
+    if (pathFx.skillExpert.has(name)) { if (pref) expert = true; else pref = true }
     return { pref, expert }
   }
 
@@ -386,6 +406,34 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
               )
             })()}
 
+            {/* TRAINER PATH: va justo debajo de las habilidades. A la izquierda los
+                bonos que ya otorgó, como las proficiencias de feats; el valor es
+                el nombre de la ruta, y al pulsarlo se abre su detalle completo. */}
+            {data.path && (
+              <div className="pt-1 border-t border-gray-100">
+                <div className="flex justify-between gap-3 py-1">
+                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    <span className="text-xs font-semibold text-red-700 uppercase tracking-wide shrink-0">Trainer Path</span>
+                    {(data.path_bonos || []).map(b => (
+                      <span key={b.id}
+                        className={`text-[10px] font-bold rounded px-1.5 py-0.5 border ${
+                          (b.value || '').toLowerCase() === 'expert'
+                            ? 'text-blue-700 bg-blue-50 border-blue-200'
+                            : 'text-green-700 bg-green-50 border-green-200'}`}
+                        title={`Nivel ${b.level}${(b.target || '') !== 'trainer' ? ` · ${b.target}` : ''}`}>
+                        {b.llave}{(b.value || '').toLowerCase() === 'expert' ? ' exp' : ''}
+                        {(b.target || '') === 'all_pokemon' && <span className="font-normal"> (pkmn)</span>}
+                      </span>
+                    ))}
+                  </div>
+                  <button onClick={() => setPathInfo(data.path)}
+                    className="text-sm text-right text-gray-700 hover:text-red-700 underline decoration-dotted decoration-gray-400 underline-offset-2 shrink-0 transition-colors">
+                    {data.path.path_name}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Info general al final: saving, equipo, origen/background, rasgos y herramientas */}
             <div className="pt-1 border-t border-gray-100">
               <Row label="Saving Throw" value={savingThrows} />
@@ -499,6 +547,10 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
 
       {/* Detalle del rasgo (feat) */}
       {featInfo && <FeatInfoModal feat={featInfo} theme="light" onClose={() => setFeatInfo(null)} />}
+      {pathInfo && (
+        <PathInfoModal path={pathInfo} nivel={data?.personaje_level ?? 1}
+          otorgados={data?.path_bonos || []} onClose={() => setPathInfo(null)} />
+      )}
 
       {/* Detalle de la especialidad */}
       {specInfo && (
