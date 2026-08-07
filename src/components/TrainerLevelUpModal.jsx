@@ -104,7 +104,7 @@ function DetallePath({ path }) {
 
 /* Bonos de ruta del nivel: los que exigen elegir muestran el selector, los
    fijos anuncian la skill, y el resto son narrativa (solo se listan). */
-function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas }) {
+function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, preview }) {
   const toggle = (bonusId, cuantas, nombre) => setElegidas(prev => {
     const act = prev[bonusId] || []
     if (act.includes(nombre)) return { ...prev, [bonusId]: act.filter(x => x !== nombre) }
@@ -121,6 +121,36 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas }) {
             <div key={b.path_bonus_id} className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
               <span className="font-semibold text-gray-700">{describirPathBonus(b).texto}</span>
               <span className="text-gray-400"> — lo lleva el DM</span>
+            </div>
+          )
+        }
+        if (r.modo === 'stab') {
+          const lista = preview || []
+          return (
+            <div key={b.path_bonus_id} className="border border-gray-200 rounded-lg px-2.5 py-2">
+              <p className="text-xs font-bold text-gray-700 mb-1.5">
+                Tus Pokémon del tipo de tus especializaciones ganan STAB
+              </p>
+              {lista.length === 0 ? (
+                <p className="text-[11px] text-gray-400 italic">
+                  Ninguno de tus Pokémon coincide todavía con el tipo de tus especializaciones.
+                  El bono se aplicará solo cuando alguno lo haga.
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {lista.map(x => (
+                    <div key={x.id} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="truncate text-gray-700">
+                        <span className="font-semibold">{x.apodo}</span>
+                        <span className="text-gray-400"> · {[x.tipo_1, x.tipo_2].filter(Boolean).join(' / ')}</span>
+                      </span>
+                      <span className="shrink-0 text-[11px] font-black text-green-700 bg-green-50 border border-green-200 rounded px-1.5 py-0.5">
+                        STAB +{x.extra}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )
         }
@@ -416,7 +446,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
                 <div className="mt-3 border-t border-gray-100 pt-3">
                   <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Lo que ganas ahora</p>
                   <BonosDeRuta bonos={bonosDelNivel} skillsList={skillsList}
-                    elegidas={pathSkills} setElegidas={setPathSkills} />
+                    elegidas={pathSkills} setElegidas={setPathSkills} preview={p.stab_preview} />
                 </div>
               )}
               {pathElegido && (
@@ -445,7 +475,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
                   {bonosDelNivel.length > 0 && (
                     <div className="mt-2">
                       <BonosDeRuta bonos={bonosDelNivel} skillsList={skillsList}
-                        elegidas={pathSkills} setElegidas={setPathSkills} />
+                        elegidas={pathSkills} setElegidas={setPathSkills} preview={p.stab_preview} />
                     </div>
                   )}
                 </>

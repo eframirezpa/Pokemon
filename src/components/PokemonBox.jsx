@@ -118,8 +118,9 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
     }
     return { pref, expert }
   }
-  // El STAB siempre vale lo mismo que la proficiencia: se deriva de ella
-  const stab = prof
+  // El STAB parte de la proficiencia y le suma el bono de la ruta del
+  // entrenador, que el backend resuelve según sus especializaciones.
+  const stab = prof + (Number(d.pokemon_stab_extra) || 0)
   const nature = d.nature_name ? {
     nature_name: d.nature_name,
     nature_effect_increase: d.nature_effect_increase, nature_effect_increase_value: d.nature_effect_increase_value,
