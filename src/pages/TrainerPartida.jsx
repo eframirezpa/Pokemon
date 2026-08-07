@@ -392,6 +392,13 @@ export default function TrainerPartida() {
       .then(d => setLevelUps(Array.isArray(d) ? d : []))
       .catch(() => {})
   }
+  // Ganar experiencia o subir de nivel un Pokémon puede subir también al
+  // entrenador, porque su nivel se deriva de los niveles de sus Pokémon. Hay
+  // que releer las DOS colas: sin esto la ventana de leveo no aparecía hasta
+  // recargar, ya que solo se refrescaba con partyVersion, que únicamente mueve
+  // el máster.
+  const trasEventoPokemon = () => { refreshPending(); refreshLevelUps() }
+
   useEffect(() => { refreshPending() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId])
   useEffect(() => { refreshRenames() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId, partyVersion])
   useEffect(() => { refreshLevelUps() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId, partyVersion])
@@ -648,7 +655,7 @@ export default function TrainerPartida() {
     <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion}>
       {/* Mejora obligatoria por subida de nivel (una a la vez, no se puede cerrar) */}
       {pending.length > 0 && personajeId && (
-        <PendingImprovementModal personajeId={personajeId} pending={pending[0]} onConfirmed={refreshPending} />
+        <PendingImprovementModal personajeId={personajeId} pending={pending[0]} onConfirmed={trasEventoPokemon} />
       )}
 
       {/* Gestión de PP: edita máximo y actual, se persiste solo al confirmar */}
@@ -938,7 +945,7 @@ export default function TrainerPartida() {
           personajeId={personajeId}
           mode="belt"
           editable={isEditable}
-          onExpAdded={refreshPending}
+          onExpAdded={trasEventoPokemon}
           onClose={() => setShowBelt(false)}
           onInvoke={(idpp, sprite) => {
             persistEnJuego(idpp, true)
@@ -959,7 +966,7 @@ export default function TrainerPartida() {
 
       {/* Femputadora — Pokémon almacenados */}
       {showPC && personajeId && (
-        <PokemonBox personajeId={personajeId} partidaId={id} getConectados={() => partidaApiRef.current?.getPresentes?.() ?? []} mode="pc" editable={isEditable} onExpAdded={refreshPending}
+        <PokemonBox personajeId={personajeId} partidaId={id} getConectados={() => partidaApiRef.current?.getPresentes?.() ?? []} mode="pc" editable={isEditable} onExpAdded={trasEventoPokemon}
           onMoved={() => { refreshRenames(); partidaApiRef.current?.sendPartyUpdate?.() }}
           onClose={() => setShowPC(false)} />
       )}
