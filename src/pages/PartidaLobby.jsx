@@ -57,10 +57,16 @@ export default function PartidaLobby() {
     setSelected(personaje.id_personaje)
   }
 
-  const selectedHasPokemon = selected && (pokemonByChar[selected]?.length > 0)
+  // Se puede entrar con al menos un Pokémon, o sin ninguno si ya recibió su
+  // starter: en ese caso se quedó sin ellos por liberarlos o entregarlos, y
+  // bloquearle la entrada lo dejaría fuera de la partida sin forma de recuperar
+  // ninguno, porque eso ocurre dentro.
+  const selectedChar   = personajes.find(p => p.id_personaje === selected)
+  const yaTuvoStarter  = !!selectedChar?.personaje_get_starter_pokemon
+  const selectedHasPokemon = selected && (pokemonByChar[selected]?.length > 0 || yaTuvoStarter)
 
   const handleEnter = () => {
-    const personaje = personajes.find(p => p.id_personaje === selected)
+    const personaje = selectedChar
     navigate(`/trainer-partida/${id}`, { state: { nombre, personaje } })
   }
 
