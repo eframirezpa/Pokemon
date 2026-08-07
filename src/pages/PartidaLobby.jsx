@@ -130,7 +130,10 @@ export default function PartidaLobby() {
                       </div>
                     </button>
 
-                    {/* Pokémon inicial: sprite o botón agregar */}
+                    {/* Pokémon inicial: sprite, o botón de agregar solo si aún
+                        no lo ha recibido. Sin comprobar la marca, un entrenador
+                        que liberara todos sus Pokémon volvería a ver el botón y
+                        se llevaría un segundo inicial. */}
                     <div className="shrink-0">
                       {first ? (
                         <img
@@ -140,6 +143,10 @@ export default function PartidaLobby() {
                           className="w-14 h-14 object-contain"
                           onError={e => { e.target.style.opacity = '0.3' }}
                         />
+                      ) : p.personaje_get_starter_pokemon ? (
+                        <span className="text-xs text-gray-500 italic px-2" title="Ya recibió su Pokémon inicial">
+                          Sin Pokémon
+                        </span>
                       ) : (
                         <button
                           onClick={() => setAddPokemonFor(p.id_personaje)}
