@@ -303,12 +303,11 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                     <InfoBox label="DSTF" value={data.personaje_dstf} red />
                   </div>
 
-                  {/* Hit dice / Hit dice left / Speed / Poke lvs */}
+                  {/* Hit dice / Hit dice pool / Speed / Poke lvs */}
                   <div className="grid grid-cols-4 gap-2">
                     <InfoBox label="Hit Dice"      value={data.personaje_hit_dice} />
-                    {/* Los dados disponibles y el total son dos columnas enteras;
-                        se muestran juntas como antes: "restantes/total". */}
-                    <InfoBox label="Hit Dice Left" value={`${data.personaje_hit_dice_left ?? 0}/${data.hit_dice_pool ?? 0}`} />
+                    {/* Los disponibles sobre el total, cada uno en su columna */}
+                    <InfoBox label="Hit Dice Pool" value={`${data.personaje_hit_dice_left ?? 0}/${data.hit_dice_pool ?? 0}`} />
                     <InfoBox label="Speed"         value={data.personaje_speed != null ? `${data.personaje_speed} ft` : ''} />
                     <InfoBox label="Poke lvs"      value={data.personaje_pokelvls} />
                   </div>

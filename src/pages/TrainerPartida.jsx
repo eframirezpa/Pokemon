@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff, Loader2, ArrowRight } from 'lucide-react'
+import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff, Loader2, ArrowRight, BedDouble } from 'lucide-react'
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
 import CharacterSheet from '../components/CharacterSheet'
@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 import { hpValues } from '../lib/hp'
 import TypeEffectivenessView from '../components/TypeEffectivenessView'
+import DescansoModal from '../components/DescansoModal'
 
 // Ícono de 3 pokébolas (para el cinturón)
 function PokeballsIcon({ size = 18 }) {
@@ -128,7 +129,7 @@ const MOVE_TYPE_COLORS = {
 }
 
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
-function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso }) {
+function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -203,19 +204,43 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
         <div className="mt-3 border-t border-gray-700 pt-3 grid grid-cols-2 gap-x-5">
           {/* Valores fijos: solo los tiene el Pokémon, no el entrenador.
               Dos por columna para que ocupen la mitad de alto. */}
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2 content-start">
-            {[
-              ['STAB', v.stab != null ? `+${v.stab}` : null],
-              ['PROF', v.prof != null ? `+${v.prof}` : null],
-              ['AC',   v.ac],
-              ['SALV', v.saving],
-              ['SR',   v.sr != null ? `+${v.sr}` : null],
-            ].filter(([, val]) => val !== null && val !== undefined && val !== '').map(([label, val]) => (
-              <div key={label} className="flex items-center justify-between gap-1 h-7 min-w-0">
-                <span className="text-[10px] font-black text-gray-400 uppercase shrink-0">{label}</span>
-                <span className="font-black text-white text-sm truncate">{val}</span>
+          <div className="content-start">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+              {[
+                ['STAB', v.stab != null ? `+${v.stab}` : null],
+                ['PROF', v.prof != null ? `+${v.prof}` : null],
+                ['AC',   v.ac],
+                ['SALV', v.saving],
+                ['SR',   v.sr != null ? `+${v.sr}` : null],
+              ].filter(([, val]) => val !== null && val !== undefined && val !== '').map(([label, val]) => (
+                <div key={label} className="flex items-center justify-between gap-1 h-7 min-w-0">
+                  <span className="text-[10px] font-black text-gray-400 uppercase shrink-0">{label}</span>
+                  <span className="font-black text-white text-sm truncate">{val}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Dados de golpe: mismo control que los Extra Points de la ruta.
+                Cierra esta columna, así que queda bajo el SR del entrenador y
+                bajo el AC/SALV del Pokémon. */}
+            {hitDice && (
+              <div className="mt-2 flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
+                <div className="flex items-center gap-1 min-w-0">
+                  {/* El lápiz solo ajusta lo que queda: el total sale del nivel. */}
+                  <button onClick={() => onManageHitDice?.()} title="Ajustar dados de golpe"
+                    className="shrink-0 text-gray-400 hover:text-amber-300 transition-colors">
+                    <Pencil size={13} />
+                  </button>
+                  <span className={`text-[10px] font-black tabular-nums truncate ${hitDice.actual <= 0 ? 'text-red-400' : 'text-gray-300'}`}>
+                    HIT DICE {hitDice.actual}/{hitDice.maximo}
+                  </span>
+                </div>
+                <button onClick={() => onSpendHitDice?.()} disabled={hitDice.actual <= 0} title="Gastar un dado"
+                  className="flex items-center justify-center text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 rounded-md transition-colors">
+                  <ArrowRight size={13} />
+                </button>
               </div>
-            ))}
+            )}
           </div>
 
           {/* EXH / DSTS / DSTF: valor con subir/bajar a los lados */}
@@ -494,6 +519,11 @@ export default function TrainerPartida() {
   const [recursosRasgos, setRecursosRasgos] = useState([]) // rasgos de la ruta ya alcanzados
   const [recursoEdit, setRecursoEdit] = useState(null)  // recurso en el lápiz
   const [recursoVal, setRecursoVal]   = useState(0)
+  // Dados de golpe: { actual, maximo }. Van aparte de charData/pokeData porque
+  // el panel los muta en vivo y esos objetos se rearman al abrir el control.
+  const [hdTrainer, setHdTrainer]     = useState(null)
+  const [hdPoke, setHdPoke]           = useState(null)
+  const [showDescanso, setShowDescanso] = useState(false)
   const [apodoEdit, setApodoEdit]     = useState({ id: null, value: '' })
   const [ppMove, setPpMove]           = useState(null)  // movimiento cuyo gasto de PP se está confirmando
   const [ppCantidad, setPpCantidad]   = useState(1)
@@ -570,6 +600,11 @@ export default function TrainerPartida() {
   // el máster.
   const trasEventoPokemon = () => { refreshPending(); refreshLevelUps() }
 
+  // El descanso toca HP, dados y PP de varios a la vez: al terminar se cierra
+  // el control abierto para que no muestre valores viejos.
+  const abrirDescanso = () => setShowDescanso(true)
+  const trasDescanso = () => { setOpenControl(null); setCharData(null); setPokeData(null); trasEventoPokemon() }
+
   useEffect(() => { refreshPending() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId])
   useEffect(() => { refreshRenames() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId, partyVersion])
   useEffect(() => { refreshLevelUps() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId, partyVersion])
@@ -642,13 +677,45 @@ export default function TrainerPartida() {
 
   const guardarRecurso = async () => {
     if (!recursoEdit) return
+    const tipo = recursoEdit.tipo || 'path'
     try {
-      const res = await apiFetch(`/personaje/${personajeId}/path-resource/${recursoEdit.id}`,
-        { method: 'PUT', body: JSON.stringify({ actual: recursoVal }) })
-      const j = await res.json()
-      if (res.ok) setRecursos(prev => prev.map(x => x.id === recursoEdit.id ? { ...x, actual: j.actual, maximo: j.maximo } : x))
+      if (tipo === 'path') {
+        const res = await apiFetch(`/personaje/${personajeId}/path-resource/${recursoEdit.id}`,
+          { method: 'PUT', body: JSON.stringify({ actual: recursoVal }) })
+        const j = await res.json()
+        if (res.ok) setRecursos(prev => prev.map(x => x.id === recursoEdit.id ? { ...x, actual: j.actual, maximo: j.maximo } : x))
+      } else {
+        const res = await apiFetch(urlDados(tipo), { method: 'PUT', body: JSON.stringify({ actual: recursoVal }) })
+        const j = await res.json()
+        if (res.ok) (tipo === 'hd-trainer' ? setHdTrainer : setHdPoke)({ actual: j.actual, maximo: j.maximo })
+      }
     } catch { /* noop */ }
     setRecursoEdit(null)
+  }
+
+  // ── Dados de golpe ────────────────────────────────────────────────────────
+  const urlDados = tipo => tipo === 'hd-trainer'
+    ? `/personaje/${personajeId}/hit-dice`
+    : `/personaje/${personajeId}/pokemon/${pokemonInvocado}/hit-dice`
+
+  // Gastar un dado: optimista y con reconciliación, igual que los Extra Points
+  const gastarDado = async (tipo) => {
+    const set = tipo === 'hd-trainer' ? setHdTrainer : setHdPoke
+    const previo = tipo === 'hd-trainer' ? hdTrainer : hdPoke
+    if (!previo || previo.actual <= 0) return
+    set({ ...previo, actual: previo.actual - 1 })
+    try {
+      const res = await apiFetch(urlDados(tipo), { method: 'PATCH', body: JSON.stringify({ cantidad: 1 }) })
+      const j = await res.json()
+      set({ actual: j.actual ?? previo.actual, maximo: j.maximo ?? previo.maximo })
+    } catch { set(previo) }
+  }
+
+  const abrirLapizDados = (tipo) => {
+    const d = tipo === 'hd-trainer' ? hdTrainer : hdPoke
+    if (!d) return
+    setRecursoEdit({ tipo, nombre: 'Dados de golpe', maximo: d.maximo })
+    setRecursoVal(d.actual)
   }
 
   const openTrainerControl = async () => {
@@ -686,6 +753,7 @@ export default function TrainerPartida() {
         sr:   d.personaje_sr,
         exhaust: d.personaje_exahust_lvl ?? 0, dsts: d.personaje_dsts ?? 0, dstf: d.personaje_dstf ?? 0,
       })
+      setHdTrainer({ actual: d.personaje_hit_dice_left ?? 0, maximo: d.hit_dice_pool ?? 0 })
     } catch { /* noop */ }
   }
 
@@ -736,6 +804,7 @@ export default function TrainerPartida() {
       const statsLista = ['str','dex','con','int','wis','cha'].map(k => ({
         key: k.toUpperCase(), valor: statVal(k), mod: modOf(k),
       }))
+      setHdPoke({ actual: d.pokemon_hit_dice_left ?? 0, maximo: d.hit_dice_pool ?? 0 })
       setPokeData({
         stats: statsLista,
         hp: d.pokemon_current_hp ?? d.pokemon_hp ?? 0, hpMax: d.pokemon_hp ?? 0,
@@ -1120,9 +1189,23 @@ export default function TrainerPartida() {
                 {isEditable ? <Pencil size={18} /> : <PencilOff size={18} />}
               </button>
             )}
+
+            {/* Descansos: el visto bueno del DM se pide dentro de la ventana */}
+            {personajeId && (
+              <button onClick={abrirDescanso} className={sideBtn} title="Tomar un descanso">
+                <BedDouble size={18} />
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Descanso largo / corto */}
+      {showDescanso && personajeId && (
+        <DescansoModal personajeId={personajeId}
+          onClose={() => setShowDescanso(false)}
+          onDone={trasDescanso} />
+      )}
 
       {/* Modal Pokédex */}
       {showPokedex && (
@@ -1215,6 +1298,9 @@ export default function TrainerPartida() {
           recursosRasgos={recursosRasgos}
           onSpendRecurso={gastarRecurso}
           onManageRecurso={r => { setRecursoEdit(r); setRecursoVal(r.actual) }}
+          hitDice={hdTrainer}
+          onSpendHitDice={() => gastarDado('hd-trainer')}
+          onManageHitDice={() => abrirLapizDados('hd-trainer')}
           onPersist={persistChar}
           onClose={closeControl}
         />
@@ -1228,10 +1314,14 @@ export default function TrainerPartida() {
           <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-200">
               <h3 className="font-bold text-gray-900 truncate">{recursoEdit.nombre}</h3>
-              <p className="text-[11px] text-gray-500">Máximo {recursoEdit.maximo} · se deriva de tu personaje</p>
+              <p className="text-[11px] text-gray-500">
+                Máximo {recursoEdit.maximo} · {recursoEdit.tipo && recursoEdit.tipo !== 'path' ? 'lo fija el nivel' : 'se deriva de tu personaje'}
+              </p>
             </div>
             <div className="px-5 py-4">
-              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Puntos restantes</label>
+              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">
+                {recursoEdit.tipo && recursoEdit.tipo !== 'path' ? 'Dados restantes' : 'Puntos restantes'}
+              </label>
               <div className="flex items-center gap-2">
                 <button onClick={() => setRecursoVal(v => Math.max(0, v - 1))}
                   className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center"><Minus size={15} /></button>
@@ -1262,6 +1352,9 @@ export default function TrainerPartida() {
           onCastRequest={abrirPP}
           onManagePP={abrirGestionPP}
           castDisabled={castCooldown}
+          hitDice={hdPoke}
+          onSpendHitDice={() => gastarDado('hd-poke')}
+          onManageHitDice={() => abrirLapizDados('hd-poke')}
           onPersist={persistPoke}
           onReturn={returnPokemon}
           onClose={closeControl}

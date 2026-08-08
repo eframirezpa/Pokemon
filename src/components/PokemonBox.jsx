@@ -219,6 +219,8 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
               <p><span className="font-bold text-[#7A200D]">Clase de Armadura</span> {d.personaje_pokemon_ac}</p>
               {/* pokemon_hp ya llega con el modCON y el healing de feats aplicados */}
               <p><span className="font-bold text-[#7A200D]">Puntos de Golpe</span> {d.pokemon_current_hp ?? 0}/{d.pokemon_hp ?? 0} ({d.pokemon_hit_dice})</p>
+              {/* Los disponibles sobre el total, igual que en la ficha del entrenador */}
+              <p><span className="font-bold text-[#7A200D]">Hit Dice Pool</span> {d.pokemon_hit_dice_left ?? 0}/{d.hit_dice_pool ?? 0}</p>
               <p><span className="font-bold text-[#7A200D]">Experiencia</span> {(d.pokemon_experiencia ?? 0).toLocaleString()}
                 {d.exp_next != null ? `/${d.exp_next.toLocaleString()}` : ' · Máx'}</p>
               {speeds && <p><span className="font-bold text-[#7A200D]">Velocidad</span> {speeds}</p>}
