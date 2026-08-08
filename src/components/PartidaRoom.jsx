@@ -833,6 +833,16 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     return () => clearTimeout(t)
   }, [prize.at, prize.personaje_id, personajeId])
 
+  // Aviso del navegador antes de recargar o cerrar. En tablets y móviles el
+  // scroll dispara el "pull to refresh" con facilidad, y eso tira la partida:
+  // se pierde el estado en memoria y hay que volver a entrar.
+  // El texto lo decide el navegador; desde hace años no se puede personalizar.
+  useEffect(() => {
+    const avisar = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', avisar)
+    return () => window.removeEventListener('beforeunload', avisar)
+  }, [])
+
   // Aviso de Pokémon atrapado durante 5s, para todos los de la partida.
   // Se marca cuál ya expiró en vez de encender un flag: así el efecto solo
   // toca el estado dentro del timeout y no de forma síncrona al renderizar.

@@ -44,6 +44,78 @@ function PokeballIcon({ size = 18 }) {
   )
 }
 
+/* Habilidades del entrenador para el panel de Jugador (y el modificador de DEX
+   ya con bonos, que reusa el AC), con los mismos bonos que
+   aplica la ficha: feats, especializaciones y ruta. Se calcula aquí y no se
+   importa de CharacterSheet porque allí va entretejido con el render. */
+function construirSkillsTrainer(d) {
+  const norm = x => (x ?? '').toLowerCase()
+  const statAdd = {}, skProf = new Set(), skExpert = new Set(), savingProf = new Set()
+
+  const acumular = (bonos) => {
+    for (const b of (bonos || [])) {
+      const t = norm(b.type), k = norm(b.llave), v = norm(b.value)
+      if (t === 'stat') statAdd[k] = (statAdd[k] || 0) + (Number(b.value) || 0)
+      else if (t === 'skill') { if (v === 'expert' || v === 'exp') skExpert.add(k); else if (v === 'prof') skProf.add(k) }
+      else if (t === 'saving') savingProf.add(k)
+    }
+  }
+  for (const f of (d.extra_feats || [])) acumular(f.bonos)
+  for (const sp of (d.specializations || [])) acumular(sp.bonos)
+  // El origen y el background también otorgan salvaciones (p. ej. Frostborn)
+  for (const f of [d.origin_feat, d.background_feat]) acumular(f?.bonos)
+  // Los bonos de ruta con target all_pokemon son para los Pokémon, no para él
+  acumular((d.path_bonos || []).filter(b => norm(b.target) === 'trainer'))
+
+  const st = d.stats || {}
+  const modOf = k => Math.floor(
+    ((Number(st[`personaje_${k}`]) || 0) + (Number(st[`personaje_${k}_bonus`]) || 0) + (statAdd[k] || 0) - 10) / 2)
+  const prof = Number(d.personaje_prof) || 2
+
+  const skills = (Array.isArray(d.skills) ? d.skills : []).map(s => {
+    const nombre = norm(s.skill_name)
+    let pref = !!s.personaje_skill_pref, expert = !!s.personaje_skill_expert
+    if (skProf.has(nombre)) pref = true
+    if (skExpert.has(nombre)) { if (pref) expert = true; else pref = true }
+    return {
+      name: s.skill_name,
+      ability: s.skill_related_ability,
+      pref, expert,
+      mod: modOf(norm(s.skill_related_ability)) + (pref ? prof : 0) + (expert ? prof : 0),
+    }
+  })
+  // El modificador de DEX sale de aquí porque ya tiene aplicados los bonos de
+  // feats y especialidades; lo necesita el cálculo del AC.
+  // Proficiencia en la tirada de salvación: el booleano de personaje_stats más
+  // las que otorgan los feats. Misma condición que el check verde de la ficha.
+  const stats = ['str','dex','con','int','wis','cha'].map(k => ({
+    key: k.toUpperCase(),
+    valor: (Number(st[`personaje_${k}`]) || 0) + (Number(st[`personaje_${k}_bonus`]) || 0) + (statAdd[k] || 0),
+    mod: modOf(k),
+    prof: !!st[`personaje_stats_${k}_prof`] || savingProf.has(k),
+  }))
+  return { skills, dexMod: modOf('dex'), stats }
+}
+
+/* AC del entrenador con la MISMA regla que la ficha: base de la armadura más el
+   modificador de DEX, topado por la armadura (Medium Armor Master sube ese tope
+   de +2 a +3). Sin armadura, el AC guardado. Replicarlo evita que el panel y la
+   ficha muestren números distintos. */
+const FEAT_MEDIUM_ARMOR_MASTER = 33
+function acDelTrainer(d, dexMod) {
+  const a = d.armor
+  if (!a) return d.personaje_ac
+  let v = a.armor_type_base_ac || 0
+  if (a.armor_type_uses_dex_modifier === 1) {
+    if (a.armor_type_max_dex_modifier != null) {
+      const sube = (d.extra_feats || []).some(f => Number(f.feat_id) === FEAT_MEDIUM_ARMOR_MASTER)
+      const cap = sube ? Math.max(a.armor_type_max_dex_modifier, 3) : a.armor_type_max_dex_modifier
+      v += Math.min(dexMod, cap)
+    } else v += dexMod
+  }
+  return v
+}
+
 const hpColorPct = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
 // Experiencia: rojo ≤20%, amarillo 21-80%, verde ≥81%
 const expColorPct = pct => (pct >= 81 ? '#22c55e' : pct >= 21 ? '#eab308' : '#ef4444')
@@ -56,7 +128,7 @@ const MOVE_TYPE_COLORS = {
 }
 
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
-function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose }) {
+function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -80,7 +152,7 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       {/* max-h + scroll: en pantallas bajas el panel se recortaba por abajo */}
-      <div className={`bg-gray-800 border border-gray-700 rounded-2xl p-4 shadow-2xl max-h-[90vh] overflow-y-auto ${moves && moves.length > 0 ? 'w-[26rem] max-w-[95vw]' : 'w-72'}`}>
+      <div className={`bg-gray-800 border border-gray-700 rounded-2xl p-4 shadow-2xl max-h-[90vh] overflow-y-auto ${(moves && moves.length > 0) || recursos ? 'w-[26rem] max-w-[95vw]' : 'w-72'}`}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-white font-bold text-sm truncate">{title}</h3>
           <div className="flex items-center gap-2 shrink-0">
@@ -137,6 +209,7 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
               ['PROF', v.prof != null ? `+${v.prof}` : null],
               ['AC',   v.ac],
               ['SALV', v.saving],
+              ['SR',   v.sr],
             ].filter(([, val]) => val !== null && val !== undefined && val !== '').map(([label, val]) => (
               <div key={label} className="flex items-center justify-between gap-1 h-7 min-w-0">
                 <span className="text-[10px] font-black text-gray-400 uppercase shrink-0">{label}</span>
@@ -168,10 +241,16 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
           <div className="mt-3 border-t border-gray-700 pt-2">
             {/* Sin habilidades (control del entrenador) se muestra solo el título */}
             {skills.length === 0 ? (
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Movimientos</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                {recursos ? <>Clase <span className="text-gray-500 normal-case">· {recursosTitulo}</span></> : 'Movimientos'}
+              </p>
             ) : (
               <div className="flex items-center gap-1 mb-1.5">
-                {[['moves', 'Movimientos'], ['skills', 'Habilidades']].map(([k, label]) => (
+                {[
+                  ['moves',  recursos ? 'Clase' : 'Movimientos'],
+                  ['skills', 'Habilidades'],
+                  ...(v.stats?.length ? [['stats', 'Stats']] : []),
+                ].map(([k, label]) => (
                   <button key={k} onClick={() => setTabPanel(k)}
                     className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-colors ${
                       tabPanel === k ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
@@ -205,8 +284,81 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
               </div>
             )}
 
+            {/* Stats: valor final con sus bonos ya aplicados, y el modificador */}
+            {tabPanel === 'stats' && (v.stats || []).length > 0 && (
+              <div className="grid grid-cols-3 gap-1">
+                {v.stats.map(st => (
+                  <div key={st.key} title={st.prof ? 'Proficiente en su tirada de salvación' : undefined}
+                    className={`flex items-center justify-between gap-1 rounded-lg px-2 py-1.5 min-w-0 border ${
+                      st.prof ? 'bg-green-900/40 border-green-600' : 'bg-gray-700/50 border-transparent'}`}>
+                    <span className={`text-[10px] font-black uppercase shrink-0 ${st.prof ? 'text-green-300' : 'text-gray-400'}`}>{st.key}</span>
+                    <div className="flex items-baseline gap-1 shrink-0">
+                      <span className="text-white text-xs font-bold tabular-nums">{st.valor}</span>
+                      <span className={`text-[10px] font-black tabular-nums ${st.mod < 0 ? 'text-red-400' : 'text-gray-300'}`}>
+                        ({st.mod >= 0 ? `+${st.mod}` : st.mod})
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Pestaña Clase del entrenador: los Extra Points de su ruta */}
+            {recursos && (
+              <div className={`${tabPanel !== 'moves' ? 'hidden' : ''}`}>
+            {recursos.length === 0 && recursosRasgos.length === 0 ? (
+              <p className="text-[11px] text-gray-500 italic">Sin nada por ahora.</p>
+            ) : (
+              <div className="space-y-1">
+                {recursos.map(r => {
+                  const vacio = r.actual <= 0
+                  return (
+                    <div key={r.id} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
+                      <span className="text-white text-xs font-medium truncate">{r.nombre}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1">
+                          {/* El lápiz solo ajusta lo que queda: el máximo se
+                              deriva del personaje y no se edita a mano. */}
+                          <button onClick={() => onManageRecurso?.(r)} title="Ajustar puntos"
+                            className="shrink-0 text-gray-400 hover:text-amber-300 transition-colors">
+                            <Pencil size={13} />
+                          </button>
+                          <span className={`text-[10px] font-black tabular-nums ${vacio ? 'text-red-400' : 'text-gray-300'}`}>
+                            {r.nombre.toUpperCase()} {r.actual}/{r.maximo}
+                          </span>
+                        </div>
+                        <button onClick={() => onSpendRecurso?.(r)} disabled={vacio} title="Gastar un punto"
+                          className="flex items-center justify-center text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 rounded-md transition-colors">
+                          <ArrowRight size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Rasgos de la ruta ya alcanzados, debajo de los botones */}
+            {recursosRasgos.length > 0 && (
+              <div className={`space-y-2 ${recursos.length > 0 ? 'mt-2 border-t border-gray-700 pt-2' : ''}`}>
+                {recursosRasgos.map(f => (
+                  <div key={f.nivel}>
+                    <div className="flex items-baseline gap-1.5 flex-wrap">
+                      <span className="text-[9px] font-bold text-white bg-gray-600 rounded px-1.5 py-0.5 shrink-0">Nv {f.nivel}</span>
+                      <span className="text-xs font-bold text-white">{f.nombre}</span>
+                    </div>
+                    {f.descripcion && (
+                      <p className="text-[11px] text-gray-400 leading-relaxed mt-0.5">{f.descripcion}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+              </div>
+            )}
+
             {/* Sin scroll: como mucho son 6 movimientos más las pasivas, caben todos */}
-            <div className={`space-y-1 ${tabPanel === 'skills' && skills.length > 0 ? 'hidden' : ''}`}>
+            <div className={`space-y-1 ${tabPanel !== 'moves' || recursos ? 'hidden' : ''}`}>
               {(moves || []).map((m, i) => {
                 // Los PP viven en personaje_pokemon_moves; max 0 = ilimitado (Struggle)
                 const maxPP = Number(m.personaje_pokemon_moves_max_pp) || 0
@@ -323,6 +475,13 @@ export default function TrainerPartida() {
   const [pending, setPending]         = useState([])    // mejoras de nivel por confirmar (secuencial)
   const [renames, setRenames]         = useState([])    // Pokémon recibidos pendientes de renombrar
   const [levelUps, setLevelUps]       = useState([])    // niveles de entrenador por confirmar
+  const [charSkills, setCharSkills]   = useState([])    // habilidades del entrenador
+  const [charNombre, setCharNombre]   = useState('')    // nombre del personaje, no del usuario
+  const [recursos, setRecursos]       = useState([])    // Extra Points de la ruta
+  const [recursosTitulo, setRecursosTitulo] = useState('Trainer')
+  const [recursosRasgos, setRecursosRasgos] = useState([]) // rasgos de la ruta ya alcanzados
+  const [recursoEdit, setRecursoEdit] = useState(null)  // recurso en el lápiz
+  const [recursoVal, setRecursoVal]   = useState(0)
   const [apodoEdit, setApodoEdit]     = useState({ id: null, value: '' })
   const [ppMove, setPpMove]           = useState(null)  // movimiento cuyo gasto de PP se está confirmando
   const [ppCantidad, setPpCantidad]   = useState(1)
@@ -456,6 +615,30 @@ export default function TrainerPartida() {
     }).catch(() => {})
 
   // Abrir control del jugador (personaje) — carga HP/exhaust/dsts/dstf
+  // Gastar un punto: optimista y con reconciliación, como los PP
+  const gastarRecurso = async (r) => {
+    if (r.actual <= 0) return
+    setRecursos(prev => prev.map(x => x.id === r.id ? { ...x, actual: x.actual - 1 } : x))
+    try {
+      const res = await apiFetch(`/personaje/${personajeId}/path-resource/${r.id}`,
+        { method: 'PATCH', body: JSON.stringify({ cantidad: 1 }) })
+      const j = await res.json()
+      if (res.ok) setRecursos(prev => prev.map(x => x.id === r.id ? { ...x, actual: j.actual } : x))
+      else setRecursos(prev => prev.map(x => x.id === r.id ? { ...x, actual: j.actual ?? r.actual } : x))
+    } catch { setRecursos(prev => prev.map(x => x.id === r.id ? { ...x, actual: r.actual } : x)) }
+  }
+
+  const guardarRecurso = async () => {
+    if (!recursoEdit) return
+    try {
+      const res = await apiFetch(`/personaje/${personajeId}/path-resource/${recursoEdit.id}`,
+        { method: 'PUT', body: JSON.stringify({ actual: recursoVal }) })
+      const j = await res.json()
+      if (res.ok) setRecursos(prev => prev.map(x => x.id === recursoEdit.id ? { ...x, actual: j.actual, maximo: j.maximo } : x))
+    } catch { /* noop */ }
+    setRecursoEdit(null)
+  }
+
   const openTrainerControl = async () => {
     setPokeData(null)
     setOpenControl('trainer')
@@ -463,8 +646,31 @@ export default function TrainerPartida() {
       // /full trae stats, feats y especialidades: el HP se calcula con sus bonos
       const d = await apiFetch(`/personaje/${personajeId}/full`).then(r => r.json())
       const { max, cur } = hpValues(d)
+      // Recursos de la ruta y su título: el nombre del path, o "Trainer"
+      // mientras no tenga uno (nivel 1).
+      setCharNombre(d.nombre_personaje || '')
+      // Rasgos de la ruta que ya alcanzó: los de nivel <= su nivel actual
+      const nivel = Number(d.personaje_level) || 1
+      setRecursosRasgos(d.path
+        ? [2, 5, 9, 15]
+            .filter(n => nivel >= n && (d.path[`path_level_${n}_feature_name`] || d.path[`path_level_${n}_description`]))
+            .map(n => ({
+              nivel: n,
+              nombre: d.path[`path_level_${n}_feature_name`],
+              descripcion: d.path[`path_level_${n}_description`],
+            }))
+        : [])
+      setRecursos(Array.isArray(d.path_recursos) ? d.path_recursos : [])
+      setRecursosTitulo(d.path?.path_name || 'Trainer')
+      const { skills: skillsTrainer, dexMod, stats: statsTrainer } = construirSkillsTrainer(d)
+      setCharSkills(skillsTrainer)
       setCharData({
+        stats: statsTrainer,
         hp: cur, hpMax: max,
+        // Van en la columna izquierda, donde el Pokémon lleva STAB/PROF/AC/SALV
+        prof: d.personaje_prof,
+        ac:   acDelTrainer(d, dexMod),
+        sr:   d.personaje_sr,
         exhaust: d.personaje_exahust_lvl ?? 0, dsts: d.personaje_dsts ?? 0, dstf: d.personaje_dstf ?? 0,
       })
     } catch { /* noop */ }
@@ -514,7 +720,11 @@ export default function TrainerPartida() {
           mod: modOf((s.skill_related_ability || '').toLowerCase()) + (pref ? profBonus : 0) + (expert ? profBonus : 0),
         }
       })
+      const statsLista = ['str','dex','con','int','wis','cha'].map(k => ({
+        key: k.toUpperCase(), valor: statVal(k), mod: modOf(k),
+      }))
       setPokeData({
+        stats: statsLista,
         hp: d.pokemon_current_hp ?? d.pokemon_hp ?? 0, hpMax: d.pokemon_hp ?? 0,
         exhaust: d.personaje_pokemon_exahust_lvl ?? 0, dsts: d.personaje_pokemon_dsts ?? 0, dstf: d.personaje_pokemon_dstf ?? 0,
         moves,
@@ -984,11 +1194,48 @@ export default function TrainerPartida() {
       {/* Control del jugador */}
       {openControl === 'trainer' && charData && (
         <CombatePanel
-          title="Jugador"
+          title={charNombre || 'Jugador'}
           initial={charData}
+          skills={charSkills}
+          recursos={recursos}
+          recursosTitulo={recursosTitulo}
+          recursosRasgos={recursosRasgos}
+          onSpendRecurso={gastarRecurso}
+          onManageRecurso={r => { setRecursoEdit(r); setRecursoVal(r.actual) }}
           onPersist={persistChar}
           onClose={closeControl}
         />
+      )}
+
+      {/* Lápiz de un Extra Point: solo ajusta lo que queda. El máximo se deriva
+          del personaje (nivel, proficiencia...) y no se edita a mano. */}
+      {recursoEdit && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget) setRecursoEdit(null) }}>
+          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200">
+              <h3 className="font-bold text-gray-900 truncate">{recursoEdit.nombre}</h3>
+              <p className="text-[11px] text-gray-500">Máximo {recursoEdit.maximo} · se deriva de tu personaje</p>
+            </div>
+            <div className="px-5 py-4">
+              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Puntos restantes</label>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setRecursoVal(v => Math.max(0, v - 1))}
+                  className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center"><Minus size={15} /></button>
+                <input type="number" min={0} max={recursoEdit.maximo} value={recursoVal}
+                  onChange={e => setRecursoVal(Math.min(recursoEdit.maximo, Math.max(0, Math.floor(Number(e.target.value) || 0))))}
+                  className="flex-1 px-3 py-2 text-sm text-center text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                <button onClick={() => setRecursoVal(v => Math.min(recursoEdit.maximo, v + 1))}
+                  className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center"><Plus size={15} /></button>
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+              <button onClick={() => setRecursoEdit(null)} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg">Cancelar</button>
+              <button onClick={guardarRecurso}
+                className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 px-4 py-1.5 rounded-lg transition-colors">Guardar</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Control del Pokémon invocado */}

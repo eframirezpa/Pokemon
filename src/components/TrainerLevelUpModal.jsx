@@ -104,7 +104,7 @@ function DetallePath({ path }) {
 
 /* Bonos de ruta del nivel: los que exigen elegir muestran el selector, los
    fijos anuncian la skill, y el resto son narrativa (solo se listan). */
-function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, preview }) {
+function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, preview, bondPreview, specs2, specSel2, setSpecSel2 }) {
   const toggle = (bonusId, cuantas, nombre) => setElegidas(prev => {
     const act = prev[bonusId] || []
     if (act.includes(nombre)) return { ...prev, [bonusId]: act.filter(x => x !== nombre) }
@@ -121,6 +121,53 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, preview }) {
             <div key={b.path_bonus_id} className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
               <span className="font-semibold text-gray-700">{describirPathBonus(b).texto}</span>
               <span className="text-gray-400"> — lo lleva el DM</span>
+            </div>
+          )
+        }
+        if (r.modo === 'spec_extra') {
+          return (
+            <div key={b.path_bonus_id} className="border border-gray-200 rounded-lg px-2.5 py-2">
+              <p className="text-xs font-bold text-gray-700 mb-1.5">Ganas una especialización más</p>
+              <select value={specSel2} onChange={e => setSpecSel2(e.target.value)}
+                className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400">
+                <option value="" className="text-gray-900">Elige una especialización...</option>
+                {(specs2 || []).map(x => (
+                  <option key={x.specialization_id} value={x.specialization_id} className="text-gray-900">
+                    {x.specialization_name}{x.specialization_pokemon_type_name ? ` — ${x.specialization_pokemon_type_name}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )
+        }
+        if (r.modo === 'bond') {
+          const lista = bondPreview || []
+          return (
+            <div key={b.path_bonus_id} className="border border-gray-200 rounded-lg px-2.5 py-2">
+              <p className="text-xs font-bold text-gray-700 mb-1.5">
+                Tus Pokémon con vínculo positivo lo suben (+2 tu inicial)
+              </p>
+              {lista.length === 0 ? (
+                <p className="text-[11px] text-gray-400 italic">
+                  Ninguno de tus Pokémon tiene todavía un vínculo positivo. El bono se
+                  aplicará solo en cuanto alguno lo tenga.
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {lista.map(x => (
+                    <div key={x.id} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="truncate text-gray-700">
+                        <span className="font-semibold">{x.apodo}</span>
+                        {x.es_starter && <span className="text-[10px] text-amber-700"> · inicial</span>}
+                        <span className="text-gray-400"> · {x.nombre}</span>
+                      </span>
+                      <span className="shrink-0 text-[11px] font-black text-blue-700 bg-blue-100 border border-blue-300 rounded px-1.5 py-0.5">
+                        +{x.extra}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )
         }
@@ -205,6 +252,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
   const [hpRoll, setHpRoll] = useState('')   // tirada del dado de golpe
   const [skillsList, setSkillsList] = useState([])
   const [pathSkills, setPathSkills] = useState({}) // { path_bonus_id: [nombres] }
+  const [pathSpec, setPathSpec] = useState('')     // especialización que pide un bono de ruta
   const [alerta, setAlerta] = useState(false)      // confirmación irreversible del path
   const [busy, setBusy]     = useState(false)
   const [error, setError]   = useState('')
@@ -214,8 +262,8 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
       .then(d => setStats(d?.stats || null)).catch(() => setStats(null))
   }, [personajeId])
 
+  // Se carga si lo pide la feature del nivel O un bono de la ruta
   useEffect(() => {
-    if (!has(F.SPEC)) return
     apiFetch(`/personaje/${personajeId}/improvements/specializations`).then(r => r.json())
       .then(d => setSpecs(Array.isArray(d) ? d : [])).catch(() => setSpecs([]))
   }, [personajeId, p.id])
@@ -279,6 +327,9 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
       const n = (pathSkills[b.path_bonus_id] || []).length
       if (n !== r.cuantas) return `Elige ${r.cuantas} habilidad(es) del rasgo de ruta`
     }
+    if (bonosDelNivel.some(b => b.regla?.modo === 'spec_extra') && !pathSpec) {
+      return 'Elige la especialización del rasgo de ruta'
+    }
     return null
   })()
 
@@ -292,6 +343,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
       if (has(F.RESOLVE) && savSel) body.saving = savSel
       if (has(F.PATH))    body.path_id = Number(pathSel)
       if (Object.keys(pathSkills).length) body.path_skills = pathSkills
+      if (pathSpec) body.path_specialization_id = Number(pathSpec)
       const res = await apiFetch(`/personaje/${personajeId}/improvements/${p.id}/confirm`,
         { method: 'POST', body: JSON.stringify(body) })
       if (!res.ok) {
@@ -446,7 +498,8 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
                 <div className="mt-3 border-t border-gray-100 pt-3">
                   <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Lo que ganas ahora</p>
                   <BonosDeRuta bonos={bonosDelNivel} skillsList={skillsList}
-                    elegidas={pathSkills} setElegidas={setPathSkills} preview={p.stab_preview} />
+                    elegidas={pathSkills} setElegidas={setPathSkills} preview={p.stab_preview} bondPreview={p.bond_preview}
+                    specs2={specs} specSel2={pathSpec} setSpecSel2={setPathSpec} />
                 </div>
               )}
               {pathElegido && (
@@ -475,7 +528,8 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
                   {bonosDelNivel.length > 0 && (
                     <div className="mt-2">
                       <BonosDeRuta bonos={bonosDelNivel} skillsList={skillsList}
-                        elegidas={pathSkills} setElegidas={setPathSkills} preview={p.stab_preview} />
+                        elegidas={pathSkills} setElegidas={setPathSkills} preview={p.stab_preview} bondPreview={p.bond_preview}
+                    specs2={specs} specSel2={pathSpec} setSpecSel2={setPathSpec} />
                     </div>
                   )}
                 </>

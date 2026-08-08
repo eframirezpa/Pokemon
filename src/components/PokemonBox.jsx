@@ -269,12 +269,22 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                   .filter(Boolean).join(' · ')
                 return senses && <p><span className="font-bold text-[#7A200D]">Sentidos</span> {senses}</p>
               })()}
-              {d.bond_name && (
-                <>
-                  <p><span className="font-bold text-[#7A200D]">Vínculo</span> {d.bond_name}</p>
-                  {d.bond_description && <p className="text-gray-500">{d.bond_description}</p>}
-                </>
-              )}
+              {d.bond_name && (() => {
+                // Si la ruta del entrenador subió el vínculo, se marca en azul
+                // con lo que aportó al lado.
+                const extra = Number(d.pokemon_bond_extra) || 0
+                return (
+                  <>
+                    <p className={extra > 0 ? 'bg-blue-100 border border-blue-300 rounded px-1.5 py-0.5 inline-flex items-center gap-1.5' : ''}>
+                      <span className="font-bold text-[#7A200D]">Vínculo</span> {d.bond_name}
+                      {extra > 0 && (
+                        <span className="text-[10px] font-black text-blue-700" title="Bono de tu Trainer Path">+{extra}</span>
+                      )}
+                    </p>
+                    {d.bond_description && <p className="text-gray-500">{d.bond_description}</p>}
+                  </>
+                )
+              })()}
             </div>
           </div>
 
