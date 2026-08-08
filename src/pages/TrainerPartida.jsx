@@ -209,7 +209,7 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
               ['PROF', v.prof != null ? `+${v.prof}` : null],
               ['AC',   v.ac],
               ['SALV', v.saving],
-              ['SR',   v.sr],
+              ['SR',   v.sr != null ? `+${v.sr}` : null],
             ].filter(([, val]) => val !== null && val !== undefined && val !== '').map(([label, val]) => (
               <div key={label} className="flex items-center justify-between gap-1 h-7 min-w-0">
                 <span className="text-[10px] font-black text-gray-400 uppercase shrink-0">{label}</span>
@@ -349,6 +349,18 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
                     </div>
                     {f.descripcion && (
                       <p className="text-[11px] text-gray-400 leading-relaxed mt-0.5">{f.descripcion}</p>
+                    )}
+                    {/* Bonos del catálogo de ese nivel: "key : value", o solo la
+                        llave cuando el valor viene vacío. */}
+                    {(f.bonos || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {f.bonos.map(b => (
+                          <span key={b.id}
+                            className="text-[10px] font-bold text-gray-200 bg-gray-700/60 border border-gray-600 rounded px-1.5 py-0.5">
+                            {b.key}{b.value ? <> : <span className="text-green-300">{b.value}</span></> : null}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                 ))}
@@ -658,6 +670,7 @@ export default function TrainerPartida() {
               nivel: n,
               nombre: d.path[`path_level_${n}_feature_name`],
               descripcion: d.path[`path_level_${n}_description`],
+              bonos: (d.path.bonos_catalogo || []).filter(b => Number(b.level) === n),
             }))
         : [])
       setRecursos(Array.isArray(d.path_recursos) ? d.path_recursos : [])

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, Loader2, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle } from 'lucide-react'
+import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, Loader2, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Minus, Plus } from 'lucide-react'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
 import { ResolvedBonusBadges } from './featBonoBadges'
@@ -477,6 +477,9 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [expFor, setExpFor] = useState(null) // Pokémon al que se le agrega experiencia
+  const [bondFor, setBondFor] = useState(null) // Pokémon cuyo bond se edita
+  const [bondVal, setBondVal] = useState(0)
+  const [bondBusy, setBondBusy] = useState(false)
   const [releaseFor, setReleaseFor] = useState(null)   // Pokémon a liberar
   const [releaseSure, setReleaseSure] = useState(false) // segunda confirmación
   const [transferFor, setTransferFor] = useState(null) // Pokémon a transferir
@@ -544,6 +547,48 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
             onDone={() => { setExpFor(null); load(); onExpAdded?.() }} />
         )}
 
+      {/* Editar bond: puntos de -3 a 3. Al guardar, el backend ajusta el nivel
+          de vínculo al que corresponda en la tabla bonds. */}
+      {bondFor && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget && !bondBusy) setBondFor(null) }}>
+          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200">
+              <h3 className="font-bold text-gray-900">Editar bond</h3>
+              <p className="text-[11px] text-gray-500 truncate">{bondFor.pokemon_apodo}</p>
+            </div>
+            <div className="px-5 py-4">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setBondVal(v => Math.max(-3, v - 1))} disabled={bondBusy || bondVal <= -3}
+                  className="w-9 h-9 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-30 flex items-center justify-center"><Minus size={16} /></button>
+                <span className="flex-1 text-center text-2xl font-black text-gray-900 tabular-nums">
+                  {bondVal > 0 ? `+${bondVal}` : bondVal}
+                </span>
+                <button onClick={() => setBondVal(v => Math.min(3, v + 1))} disabled={bondBusy || bondVal >= 3}
+                  className="w-9 h-9 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-30 flex items-center justify-center"><Plus size={16} /></button>
+              </div>
+              <p className="text-[11px] text-gray-400 text-center mt-2">Entre -3 y 3</p>
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+              <button onClick={() => setBondFor(null)} disabled={bondBusy}
+                className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
+              <button onClick={async () => {
+                  setBondBusy(true)
+                  try {
+                    await apiFetch(`/personaje/${personajeId}/pokemon/${bondFor.id_personaje_pokemon}/bond`,
+                      { method: 'PUT', body: JSON.stringify({ puntos: bondVal }) })
+                    setBondFor(null); load()
+                  } catch { /* noop */ } finally { setBondBusy(false) }
+                }} disabled={bondBusy}
+                className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+                {bondBusy && <Loader2 size={15} className="animate-spin" />} Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
         {selected ? (
           <PokemonDetailView personajeId={personajeId} idpp={selected} onBack={() => setSelected(null)}
             actionLabel={actionLabel} onAction={handleAction} onInvoke={onInvoke} />
@@ -566,7 +611,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                     <div key={p.id_personaje_pokemon} onClick={() => setSelected(p.id_personaje_pokemon)}
                       className="relative flex flex-col items-center gap-1 p-3 rounded-xl border border-gray-200 hover:border-red-400 hover:shadow transition-all bg-white cursor-pointer">
                       {p.pokemon_is_shiny && (
-                        <span title="Shiny" className="absolute top-1.5 left-1.5 flex items-center gap-0.5 text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-300 rounded-md px-1 py-0.5">
+                        <span title="Shiny" className="absolute top-1.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-300 rounded-md px-1 py-0.5">
                           <Sparkles size={10} strokeWidth={2.5} /> Shiny
                         </span>
                       )}
@@ -574,6 +619,13 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                         <button onClick={e => { e.stopPropagation(); setExpFor(p) }} title="Subir experiencia"
                           className="absolute top-1.5 right-1.5 flex items-center gap-0.5 text-[9px] font-black text-white bg-red-600 hover:bg-red-700 rounded-md px-1.5 py-0.5 shadow transition-colors">
                           EXP <ArrowUp size={11} strokeWidth={3} />
+                        </button>
+                      )}
+                      {editable && (
+                        <button onClick={e => { e.stopPropagation(); setBondFor(p); setBondVal(Number(p.personaje_pokemon_bond_points) || 0) }}
+                          title="Editar bond"
+                          className="absolute top-1.5 left-1.5 flex items-center gap-0.5 text-[9px] font-black text-white bg-blue-600 hover:bg-blue-700 rounded-md px-1.5 py-0.5 shadow transition-colors">
+                          BOND <ArrowUp size={11} strokeWidth={3} />
                         </button>
                       )}
                       {/* Solo en la femputadora: liberar (izquierda) y transferir (derecha) */}

@@ -26,23 +26,6 @@ export const skillLegible = s => legible(s)
   .map(w => w.charAt(0).toUpperCase() + w.slice(1))
   .join(' ')
 
-/**
- * Qué hay que hacer con el bono:
- *   { modo:'elegir', valor, cuantas, target }  el jugador escoge N habilidades
- *   { modo:'fija',   valor, llave, target }    la habilidad viene dada
- *   null                                       narrativa: se muestra, no se aplica
- */
-export function clasificarPathBonus(tipo, llave, valor, target) {
-  const t = norm(tipo), k = norm(llave), tg = norm(target)
-  if (t !== 'skill_proficiency' && t !== 'skill_expertise') return null
-  const v = t === 'skill_expertise' ? 'expert' : 'prof'
-  if (k === 'chosen_skill') {
-    return { modo: 'elegir', valor: v, cuantas: Math.max(1, Math.floor(Number(valor) || 1)), target: tg }
-  }
-  if (!k) return null
-  return { modo: 'fija', valor: v, llave: k, target: tg }
-}
-
 /* Acepta una fila del catálogo (path_bonus_*) o la forma anidada de /paths */
 const campos = (b) => ({
   tipo:   b.path_bonus_type   ?? b.type,
@@ -51,7 +34,47 @@ const campos = (b) => ({
   target: b.path_bonus_target ?? b.target,
   die:    b.path_bonus_resource_die ?? b.resource_die,
   notas:  b.path_bonus_notes  ?? b.notes,
+  recurso: b.path_bonus_resource_name ?? b.resource_name,
+  usesFormula: b.path_bonus_uses_formula ?? b.uses_formula,
 })
+
+/**
+ * Qué hay que hacer con el bono:
+ *   { modo:'elegir', valor, cuantas, target }  el jugador escoge N habilidades
+ *   { modo:'fija',   valor, llave, target }    la habilidad viene dada
+ *   null                                       narrativa: se muestra, no se aplica
+ */
+export function clasificarPathBonus(bonus) {
+  const c = campos(bonus)
+  const t = norm(c.tipo), k = norm(c.llave), tg = norm(c.target)
+
+  // Especialización extra: la identifica la LLAVE
+  if (k === 'specialization') {
+    return { modo: 'spec_extra', cuantas: Math.max(1, Math.floor(Number(c.valor) || 1)), target: tg }
+  }
+  // Recurso del entrenador: uses_formula nombra la columna del máximo. Sin ella
+  // la fórmula está en prosa y queda fuera, igual que en el backend.
+  if (t === 'resource' && tg === 'trainer') {
+    const col = (c.usesFormula || '').trim()
+    if (!col) return null
+    return { modo: 'resource', nombre: (c.recurso || '').trim() || k, columna: col, target: tg }
+  }
+  // Vínculo: por TARGET, porque en el catálogo su tipo es 'resource'
+  if (tg === 'positive_bond_pokemon') return { modo: 'bond', valor: '1', target: 'all_pokemon' }
+  if (t === 'max_sr_bonus' && tg === 'trainer') {
+    return { modo: 'max_sr', valor: String(Math.max(1, Math.abs(parseInt(c.valor, 10) || 1))), target: tg }
+  }
+  if (t === 'stab_bonus') return { modo: 'stab', valor: '1', target: 'all_pokemon' }
+
+  if (t !== 'skill_proficiency' && t !== 'skill_expertise') return null
+  const v = t === 'skill_expertise' ? 'expert' : 'prof'
+  if (k === 'chosen_skill') {
+    return { modo: 'elegir', valor: v, cuantas: Math.max(1, Math.floor(Number(c.valor) || 1)), target: tg }
+  }
+  if (!k) return null
+  return { modo: 'fija', valor: v, llave: k, target: tg }
+}
+
 
 /**
  * Texto legible del bono, más metadatos para pintarlo.
@@ -59,7 +82,7 @@ const campos = (b) => ({
  */
 export function describirPathBonus(bonus) {
   const c = campos(bonus)
-  const r = clasificarPathBonus(c.tipo, c.llave, c.valor, c.target)
+  const r = clasificarPathBonus(bonus)
   const tg = norm(c.target)
   const quien = tg && tg !== 'trainer' ? (TARGET_BONO[tg] || legible(tg)) : null
 
@@ -70,6 +93,21 @@ export function describirPathBonus(bonus) {
       detalle: `Gana ${q}${quien ? ` para ${quien.toLowerCase()}` : ''}`,
       target: tg, aplica: true,
     }
+  }
+  if (r?.modo === 'spec_extra') {
+    return { texto: `Ganas ${r.cuantas} especialización${r.cuantas > 1 ? 'es' : ''} más`, detalle: null, target: tg, aplica: true }
+  }
+  if (r?.modo === 'resource') {
+    return { texto: `${r.nombre} · puntos gastables`, detalle: `El máximo sale de ${legible(r.columna)}`, target: tg, aplica: true }
+  }
+  if (r?.modo === 'bond') {
+    return { texto: 'Sube el vínculo de tus Pokémon', detalle: 'Solo los que ya lo tienen positivo; el inicial sube 2', target: tg, aplica: true }
+  }
+  if (r?.modo === 'max_sr') {
+    return { texto: `+${r.valor} al máximo de SR`, detalle: 'Permanente, se suma al tope de tu nivel', target: tg, aplica: true }
+  }
+  if (r?.modo === 'stab') {
+    return { texto: 'STAB por tus especializaciones', detalle: '+1 por cada especialización cuyo tipo coincida', target: tg, aplica: true }
   }
   if (r?.modo === 'fija') {
     return {

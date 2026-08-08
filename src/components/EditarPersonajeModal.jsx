@@ -6,6 +6,7 @@ import SpecializationInfoModal from './SpecializationInfoModal'
 import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
 import { ResolvedBonusBadges, ArmorProfBadges } from './featBonoBadges'
 import SkilledModal, { SkillPickMany } from './SkilledModal'
+import { specPreviewBonos } from '../lib/specBonus'
 
 const lower = s => (s ?? '').toLowerCase()
 
@@ -362,16 +363,6 @@ function ConfirmDeleteFeat({ feat, busy, error, onCancel, onConfirm }) {
 }
 
 /* Bonos que otorgará una especialización del catálogo (aún no agregada) */
-function specPreviewBonos(s) {
-  const bonos = []
-  if (s.specialization_ability_score_increase) {
-    bonos.push({ type: 'stat', llave: s.specialization_ability_score_increase, value: String(s.specialization_ability_score_increase_value ?? 1) })
-  }
-  if (s.specialization_skill_proficiency) {
-    bonos.push({ type: 'skill', llave: s.specialization_skill_proficiency, value: 'exp' })
-  }
-  return bonos
-}
 
 /* Confirmación de agregado / eliminación de una especialización */
 function ConfirmSpec({ spec, mode, busy, error, onCancel, onConfirm }) {

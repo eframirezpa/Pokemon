@@ -8,6 +8,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { Loader2, Plus, Minus, Sparkles, ArrowRight, Award } from 'lucide-react'
 import { apiFetch } from '../api'
 import { SkillPickMany } from './SkilledModal'
+import { ResolvedBonusBadges } from './featBonoBadges'
+import { specPreviewBonos } from '../lib/specBonus'
 import { clasificarPathBonus, describirPathBonus, TIPO_BONO, TARGET_BONO, legible, skillLegible } from '../lib/pathBonus'
 
 const STAT_KEYS  = ['str', 'dex', 'con', 'int', 'wis', 'cha']
@@ -29,6 +31,63 @@ const F = {
   PATH:     'trainer path',
   PATH_FEAT:'trainer path feature',
   TRACKER:  'pokemon tracker',
+}
+
+/* Skills en las que el personaje YA es proficiente o experto, de cualquier vía:
+   personaje_skill, feats, especializaciones y ruta. El selector las pinta en
+   verde suave para que se vea que elegirlas no aporta nada nuevo. */
+function skillsProficientes(d) {
+  const out = new Set()
+  for (const s of (d?.skills || [])) {
+    if (s.personaje_skill_pref || s.personaje_skill_expert) out.add(norm(s.skill_name))
+  }
+  const desdeBonos = (bonos) => {
+    for (const b of (bonos || [])) {
+      if (norm(b.type) !== 'skill') continue
+      const v = norm(b.value)
+      if (v === 'prof' || v === 'expert' || v === 'exp') out.add(norm(b.llave))
+    }
+  }
+  for (const f of (d?.extra_feats || [])) desdeBonos(f.bonos)
+  for (const sp of (d?.specializations || [])) desdeBonos(sp.bonos)
+  desdeBonos((d?.path_bonos || []).filter(b => norm(b.target) === 'trainer'))
+  return out
+}
+
+/* Selector de especialización con el mismo aspecto que la pestaña del lápiz:
+   la lista entera a la vista, cada una con su tipo y sus bonos, en vez de un
+   desplegable que obliga a abrir y cerrar para comparar. */
+function SpecPicker({ specs, valor, onPick }) {
+  return (
+    <div className="border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-64 overflow-y-auto">
+      {(specs || []).length === 0 ? (
+        <p className="text-xs text-gray-400 italic px-3 py-3">Sin especialidades disponibles.</p>
+      ) : specs.map(s => {
+        const sel = String(valor) === String(s.specialization_id)
+        return (
+          <button key={s.specialization_id} onClick={() => onPick(sel ? '' : String(s.specialization_id))}
+            className={`w-full text-left flex items-center justify-between gap-2 px-3 py-2 transition-colors ${
+              sel ? 'bg-red-50' : 'hover:bg-gray-50'}`}>
+            <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
+              <span className={`text-sm font-medium truncate ${sel ? 'text-red-700' : 'text-gray-800'}`}>
+                {s.specialization_name}
+              </span>
+              {s.specialization_pokemon_type_name && (
+                <span className="text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded px-1 shrink-0">
+                  {s.specialization_pokemon_type_name}
+                </span>
+              )}
+              <ResolvedBonusBadges bonos={specPreviewBonos(s)} />
+            </div>
+            <span className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+              sel ? 'border-red-600 bg-red-600' : 'border-gray-300'}`}>
+              {sel && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 /* Tarjeta con el título de la feature y su contenido */
@@ -104,7 +163,7 @@ function DetallePath({ path }) {
 
 /* Bonos de ruta del nivel: los que exigen elegir muestran el selector, los
    fijos anuncian la skill, y el resto son narrativa (solo se listan). */
-function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, preview, bondPreview, specs2, specSel2, setSpecSel2 }) {
+function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, preview, bondPreview, specs2, specSel2, setSpecSel2, yaProf = new Set() }) {
   const toggle = (bonusId, cuantas, nombre) => setElegidas(prev => {
     const act = prev[bonusId] || []
     if (act.includes(nombre)) return { ...prev, [bonusId]: act.filter(x => x !== nombre) }
@@ -124,19 +183,28 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, preview, bondPr
             </div>
           )
         }
+        if (r.modo === 'max_sr') {
+          return (
+            <div key={b.path_bonus_id} className="text-xs bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
+              <span className="font-bold text-green-800">+{r.valor} al máximo de SR</span>
+              <span className="text-gray-500"> · permanente</span>
+            </div>
+          )
+        }
+        if (r.modo === 'resource') {
+          // No pide nada: se otorga al confirmar y se gestiona en el panel
+          return (
+            <div key={b.path_bonus_id} className="text-xs bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
+              <span className="font-bold text-green-800">{r.nombre}</span>
+              <span className="text-gray-500"> · puntos gastables, los verás en tu panel</span>
+            </div>
+          )
+        }
         if (r.modo === 'spec_extra') {
           return (
             <div key={b.path_bonus_id} className="border border-gray-200 rounded-lg px-2.5 py-2">
               <p className="text-xs font-bold text-gray-700 mb-1.5">Ganas una especialización más</p>
-              <select value={specSel2} onChange={e => setSpecSel2(e.target.value)}
-                className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400">
-                <option value="" className="text-gray-900">Elige una especialización...</option>
-                {(specs2 || []).map(x => (
-                  <option key={x.specialization_id} value={x.specialization_id} className="text-gray-900">
-                    {x.specialization_name}{x.specialization_pokemon_type_name ? ` — ${x.specialization_pokemon_type_name}` : ''}
-                  </option>
-                ))}
-              </select>
+              <SpecPicker specs={specs2} valor={specSel2} onPick={setSpecSel2} />
             </div>
           )
         }
@@ -225,7 +293,7 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, preview, bondPr
               </span>
               <span className="text-[11px] font-bold text-gray-500">{sel.length}/{r.cuantas}</span>
             </div>
-            <SkillPickMany skills={skillsList} proficientNames={new Set()} kind="prof"
+            <SkillPickMany skills={skillsList} proficientNames={yaProf} kind="prof"
               count={r.cuantas} chosen={sel}
               onToggle={n => toggle(b.path_bonus_id, r.cuantas, n)} disabled={false} />
           </div>
@@ -243,6 +311,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
   const has = (f) => features.includes(f)
 
   const [stats, setStats]   = useState(null)
+  const [yaProf, setYaProf] = useState(new Set())  // skills en las que ya es proficiente
   const [specs, setSpecs]   = useState([])
   const [paths, setPaths]   = useState([])
   const [adds, setAdds]     = useState({})
@@ -259,7 +328,8 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
 
   useEffect(() => {
     apiFetch(`/personaje/${personajeId}/full`).then(r => r.json())
-      .then(d => setStats(d?.stats || null)).catch(() => setStats(null))
+      .then(d => { setStats(d?.stats || null); setYaProf(skillsProficientes(d)) })
+      .catch(() => { setStats(null); setYaProf(new Set()) })
   }, [personajeId])
 
   // Se carga si lo pide la feature del nivel O un bono de la ruta
@@ -301,7 +371,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
           path_bonus_id: b.id, path_bonus_type: b.type, path_bonus_key: b.key,
           path_bonus_value: b.value, path_bonus_target: b.target,
           path_bonus_resource_die: b.resource_die,
-          regla: clasificarPathBonus(b.type, b.key, b.value, b.target),
+          regla: clasificarPathBonus(b),
         }))
     }
     return p.path_bonos || []
@@ -435,31 +505,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
           {/* 3. Specialization — una que no tenga */}
           {has(F.SPEC) && (
             <Bloque titulo="Especialización">
-              <select value={specSel} onChange={e => setSpecSel(e.target.value)}
-                className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400">
-                <option value="" className="text-gray-900">Elige una especialización...</option>
-                {specs.map(s => (
-                  <option key={s.specialization_id} value={s.specialization_id} className="text-gray-900">
-                    {s.specialization_name}{s.specialization_pokemon_type_name ? ` — ${s.specialization_pokemon_type_name}` : ''}
-                  </option>
-                ))}
-              </select>
-              {(() => {
-                const s = specs.find(x => String(x.specialization_id) === String(specSel))
-                if (!s) return null
-                return (
-                  <div className="mt-2 text-xs text-gray-600 space-y-1">
-                    {s.specialization_description && <p className="leading-relaxed">{s.specialization_description}</p>}
-                    {s.specialization_ability_score_increase && (
-                      <p><span className="font-semibold text-gray-800">Atributo: </span>
-                        {s.specialization_ability_score_increase.toUpperCase()} +{s.specialization_ability_score_increase_value ?? 1}</p>
-                    )}
-                    {s.specialization_skill_proficiency && (
-                      <p><span className="font-semibold text-gray-800">Proficiencia: </span>{s.specialization_skill_proficiency}</p>
-                    )}
-                  </div>
-                )
-              })()}
+              <SpecPicker specs={specs} valor={specSel} onPick={setSpecSel} />
             </Bloque>
           )}
 
@@ -499,7 +545,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
                   <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Lo que ganas ahora</p>
                   <BonosDeRuta bonos={bonosDelNivel} skillsList={skillsList}
                     elegidas={pathSkills} setElegidas={setPathSkills} preview={p.stab_preview} bondPreview={p.bond_preview}
-                    specs2={specs} specSel2={pathSpec} setSpecSel2={setPathSpec} />
+                    specs2={specs} specSel2={pathSpec} setSpecSel2={setPathSpec} yaProf={yaProf} />
                 </div>
               )}
               {pathElegido && (
@@ -529,7 +575,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
                     <div className="mt-2">
                       <BonosDeRuta bonos={bonosDelNivel} skillsList={skillsList}
                         elegidas={pathSkills} setElegidas={setPathSkills} preview={p.stab_preview} bondPreview={p.bond_preview}
-                    specs2={specs} specSel2={pathSpec} setSpecSel2={setPathSpec} />
+                    specs2={specs} specSel2={pathSpec} setSpecSel2={setPathSpec} yaProf={yaProf} />
                     </div>
                   )}
                 </>
