@@ -16,23 +16,9 @@ import { apiFetch } from '../api'
 import { hpValues } from '../lib/hp'
 import TypeEffectivenessView from '../components/TypeEffectivenessView'
 import DescansoModal from '../components/DescansoModal'
+import PokeballsIcon from '../components/PokeballsIcon'
 
 // Ícono de 3 pokébolas (para el cinturón)
-function PokeballsIcon({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.5" strokeLinecap="round">
-      {[5, 12, 19].map(cx => (
-        <g key={cx}>
-          <circle cx={cx} cy="12" r="3.4" />
-          <line x1={cx - 3.4} y1="12" x2={cx + 3.4} y2="12" />
-          <circle cx={cx} cy="12" r="0.9" fill="currentColor" stroke="none" />
-        </g>
-      ))}
-    </svg>
-  )
-}
-
 // Ícono de una pokébola (regresar)
 function PokeballIcon({ size = 18 }) {
   return (

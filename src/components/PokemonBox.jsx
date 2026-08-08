@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, Loader2, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Minus, Plus } from 'lucide-react'
+import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, Loader2, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Minus, Plus, Monitor } from 'lucide-react'
+import PokeballsIcon from './PokeballsIcon'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
 import { ResolvedBonusBadges } from './featBonoBadges'
@@ -494,6 +495,8 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
   const [trainers, setTrainers] = useState([])         // otros entrenadores de la partida
   const [busyAccion, setBusyAccion] = useState(false)
   const [errorAccion, setErrorAccion] = useState('')
+  const [movingId, setMovingId]   = useState(null) // Pokémon moviéndose con el atajo
+  const [errorMover, setErrorMover] = useState('')
 
   // Al abrir la transferencia se listan solo los entrenadores CONECTADOS a la
   // partida, excluyendo el propio. La presencia solo trae el id del personaje,
@@ -536,6 +539,31 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
     } catch {
       return 'No se pudo actualizar el Pokémon'
     }
+  }
+
+  // Atajo desde la tarjeta: mueve al otro lado sin cerrar la ventana, para poder
+  // mover varios seguidos. El Pokémon se quita de la lista en vez de recargarla,
+  // así no parpadea. La vía de siempre (abrir el detalle y usar el botón) sigue
+  // intacta, y esa sí cierra.
+  const moverRapido = async (e, idpp) => {
+    e.stopPropagation()   // no abrir el detalle del Pokémon
+    if (movingId) return
+    setMovingId(idpp); setErrorMover('')
+    try {
+      const res = await apiFetch(`/personaje/${personajeId}/pokemon/${idpp}/en-equipo`, {
+        method: 'PATCH',
+        body: JSON.stringify({ en_equipo: targetEnEquipo }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        setErrorMover(j.error || 'No se pudo mover el Pokémon')
+        return
+      }
+      setList(prev => prev.filter(x => x.id_personaje_pokemon !== idpp))
+      onMoved?.(idpp)
+    } catch {
+      setErrorMover('No se pudo mover el Pokémon')
+    } finally { setMovingId(null) }
   }
 
   return (
@@ -606,6 +634,12 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
               <p className="text-xs text-gray-500">{subtitle}</p>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
+              {/* El cinturón tiene cupo, así que mover puede fallar y hay que decirlo */}
+              {errorMover && (
+                <p className="mb-3 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  {errorMover}
+                </p>
+              )}
               {loading ? (
                 <p className="text-center text-gray-400 text-sm py-10">Cargando…</p>
               ) : list.length === 0 ? (
@@ -635,6 +669,20 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                           BOND <ArrowUp size={11} strokeWidth={3} />
                         </button>
                       )}
+                      {/* Atajo para mover al otro lado, pegado al borde izquierdo y a media
+                          altura: ahí no choca con BOND (arriba) ni con liberar (abajo).
+                          Mismo botón circular gris que la barra de la partida. */}
+                      <button onClick={e => moverRapido(e, p.id_personaje_pokemon)}
+                        disabled={movingId != null}
+                        title={isBelt ? 'Enviar a la computadora' : 'Enviar al cinturón'}
+                        className="absolute left-1 top-1/2 -translate-y-1/2 z-10 shrink-0 flex items-center justify-center
+                                   w-6 h-6 rounded-full bg-blue-200 hover:bg-blue-300 text-blue-900 shadow
+                                   border border-blue-300 disabled:opacity-40 transition-all">
+                        {movingId === p.id_personaje_pokemon
+                          ? <Loader2 size={11} className="animate-spin" />
+                          : isBelt ? <Monitor size={11} /> : <PokeballsIcon size={11} />}
+                      </button>
+
                       {/* Solo en la femputadora: liberar (izquierda) y transferir (derecha) */}
                       {!isBelt && (
                         <>
@@ -651,12 +699,12 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                       <img src={(p.pokemon_is_shiny && p.pokemon_media_sprite_shiny) ? p.pokemon_media_sprite_shiny : (p.pokemon_media_sprite || p.pokemon_media_main)}
                         alt={p.pokemon_apodo}
                         className="w-16 h-16 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
-                      {/* El nivel va junto al apodo; el apodo trunca pero el nivel siempre se ve */}
-                      <span className="flex items-baseline gap-1 max-w-full text-sm font-semibold text-gray-800">
-                        <span className="truncate">{p.pokemon_apodo}</span>
-                        <span className="shrink-0">({p.pokemon_level})</span>
+                      <span className="text-sm font-semibold text-gray-800 truncate max-w-full">{p.pokemon_apodo}</span>
+                      {/* El nivel acompaña a la especie; el nombre trunca pero el nivel siempre se ve */}
+                      <span className="flex items-baseline gap-1 max-w-full text-[11px] text-gray-400">
+                        <span className="truncate">{p.pokemon_name}</span>
+                        <span className="shrink-0">Nivel {p.pokemon_level}</span>
                       </span>
-                      <span className="text-[11px] text-gray-400 truncate max-w-full">{p.pokemon_name}</span>
                       {/* Procedencia: va bajo el nombre de especie, no bajo el apodo */}
                       {p.pokemon_tag && (
                         <span className="text-[9px] font-bold uppercase tracking-wide text-gray-500 bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 truncate max-w-full">
