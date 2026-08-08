@@ -272,15 +272,20 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                 return senses && <p><span className="font-bold text-[#7A200D]">Sentidos</span> {senses}</p>
               })()}
               {d.bond_name && (() => {
-                // Si la ruta del entrenador subió el vínculo, se marca en azul
-                // con lo que aportó al lado.
-                const extra = Number(d.pokemon_bond_extra) || 0
+                // Si la ruta del entrenador otorga el rasgo de vínculo se marca
+                // en azul y se dice de qué ruta viene. Sin número: los puntos se
+                // editan a mano después, así que una cifra quedaría mintiendo;
+                // que el entrenador tenga el rasgo, en cambio, sigue siendo cierto.
+                const ruta = d.pokemon_bond_ruta
                 return (
                   <>
-                    <p className={extra > 0 ? 'bg-blue-100 border border-blue-300 rounded px-1.5 py-0.5 inline-flex items-center gap-1.5' : ''}>
+                    <p className={ruta ? 'bg-blue-100 border border-blue-300 rounded px-1.5 py-0.5 inline-flex items-center gap-1.5' : ''}>
                       <span className="font-bold text-[#7A200D]">Vínculo</span> {d.bond_name}
-                      {extra > 0 && (
-                        <span className="text-[10px] font-black text-blue-700" title="Bono de tu Trainer Path">+{extra}</span>
+                      {ruta && (
+                        <span className="text-[10px] font-black text-blue-700 uppercase tracking-wide"
+                          title={`Vínculo mejorado por tu Trainer Path: ${ruta}`}>
+                          por {ruta} Path
+                        </span>
                       )}
                     </p>
                     {d.bond_description && <p className="text-gray-500">{d.bond_description}</p>}
@@ -468,7 +473,7 @@ function AddExpModal({ personajeId, pokemon, onClose, onDone }) {
   )
 }
 
-export default function PokemonBox({ personajeId, partidaId = null, getConectados = null, mode, editable = false, onClose, onInvoke, onMoved, onExpAdded }) {
+export default function PokemonBox({ personajeId, partidaId = null, getConectados = null, mode, editable = false, onClose, onInvoke, onMoved, onExpAdded, nombrePersonaje = null, onAnuncio = null }) {
   const isBelt = mode === 'belt'
   const title    = isBelt ? 'Cinturón' : 'Femputadora'
   const subtitle = isBelt ? 'Pokémones en tu equipo' : 'Pokémones almacenados'
@@ -634,11 +639,11 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                       {!isBelt && (
                         <>
                           <button onClick={e => { e.stopPropagation(); setReleaseFor(p) }} title="Liberar Pokémon"
-                            className="absolute bottom-1.5 left-1.5 text-gray-400 hover:text-red-600 transition-colors">
+                            className="absolute bottom-1.5 left-1.5 text-white bg-green-600 hover:bg-green-700 rounded-md p-1 shadow transition-colors">
                             <DoorOpen size={16} />
                           </button>
                           <button onClick={e => { e.stopPropagation(); abrirTransferencia(p) }} title="Transferir a otro entrenador"
-                            className="absolute bottom-1.5 right-1.5 text-gray-400 hover:text-red-600 transition-colors">
+                            className="absolute bottom-1.5 right-1.5 text-white bg-yellow-500 hover:bg-yellow-600 rounded-md p-1 shadow transition-colors">
                             <ArrowRightLeft size={16} />
                           </button>
                         </>
@@ -658,6 +663,13 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                           {p.pokemon_tag}
                         </span>
                       )}
+                      {/* Evolución: todavía sin funcionalidad. Va deshabilitado, así
+                          que tampoco abre el detalle al pulsarlo. */}
+                      <button type="button" disabled title="Evolucionar (próximamente)"
+                        className="mt-1 max-w-full text-[9px] font-black uppercase tracking-wide text-white rounded px-1.5 py-1
+                                   bg-gradient-to-r from-red-600 to-blue-600 opacity-60 cursor-not-allowed">
+                        Evolucionar
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -709,6 +721,10 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                   try {
                     const res = await apiFetch(`/personaje/${personajeId}/pokemon/${releaseFor.id_personaje_pokemon}`, { method: 'DELETE' })
                     if (!res.ok) { const j = await res.json().catch(() => ({})); setErrorAccion(j.error || 'No se pudo liberar'); return }
+                    // Queda en la actividad de la partida, igual que una entrega del máster
+                    const apodo = releaseFor.pokemon_apodo || 'su Pokémon'
+                    onAnuncio?.(`El trainer ${nombrePersonaje || 'Entrenador'} ha liberado al pokemon ${apodo}`,
+                      nombrePersonaje || 'Entrenador', apodo)
                     setReleaseSure(false); setReleaseFor(null); load(); onMoved?.()
                   } catch { setErrorAccion('No se pudo liberar') } finally { setBusyAccion(false) }
                 }}
@@ -765,6 +781,11 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                     const res = await apiFetch(`/personaje/${personajeId}/pokemon/${transferFor.id_personaje_pokemon}/transfer`,
                       { method: 'POST', body: JSON.stringify({ id_personaje_destino: transferDest.id_personaje }) })
                     if (!res.ok) { const j = await res.json().catch(() => ({})); setErrorAccion(j.error || 'No se pudo transferir'); return }
+                    // El aviso central va a nombre del que RECIBE, como en la entrega del máster
+                    const apodo = transferFor.pokemon_apodo || 'un Pokémon'
+                    const destino = transferDest.nombre_personaje || 'otro entrenador'
+                    onAnuncio?.(`El trainer ${nombrePersonaje || 'Entrenador'} ha transferido al pokemon ${apodo} al trainer ${destino}`,
+                      destino, apodo)
                     setTransferFor(null); setTransferDest(null); load(); onMoved?.()
                   } catch { setErrorAccion('No se pudo transferir') } finally { setBusyAccion(false) }
                 }}

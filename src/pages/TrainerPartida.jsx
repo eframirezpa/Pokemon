@@ -1253,6 +1253,8 @@ export default function TrainerPartida() {
           mode="belt"
           editable={isEditable}
           onExpAdded={trasEventoPokemon}
+          nombrePersonaje={charNombre}
+          onAnuncio={(texto, trainer, pokemon) => partidaApiRef.current?.anunciar?.(texto, trainer, pokemon)}
           onClose={() => setShowBelt(false)}
           onInvoke={(idpp, sprite) => {
             persistEnJuego(idpp, true)
@@ -1275,6 +1277,8 @@ export default function TrainerPartida() {
       {showPC && personajeId && (
         <PokemonBox personajeId={personajeId} partidaId={id} getConectados={() => partidaApiRef.current?.getPresentes?.() ?? []} mode="pc" editable={isEditable} onExpAdded={trasEventoPokemon}
           onMoved={() => { refreshRenames(); partidaApiRef.current?.sendPartyUpdate?.() }}
+          nombrePersonaje={charNombre}
+          onAnuncio={(texto, trainer, pokemon) => partidaApiRef.current?.anunciar?.(texto, trainer, pokemon)}
           onClose={() => setShowPC(false)} />
       )}
 

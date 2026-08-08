@@ -147,7 +147,7 @@ export function usePartidaPresence(partidaId, userInfo) {
         if (payload?.personaje_id != null) setPrize({ personaje_id: payload.personaje_id, at: Date.now() })
       })
       .on('broadcast', { event: 'captura' }, ({ payload }) => {
-        if (payload?.trainer) setCaptura({ trainer: payload.trainer, pokemon: payload.pokemon, at: Date.now() })
+        if (payload?.trainer) setCaptura({ trainer: payload.trainer, pokemon: payload.pokemon, texto: payload.texto ?? null, at: Date.now() })
       })
       .on('broadcast', { event: 'event_intro' }, () => {
         setEventIntroAt(Date.now())
@@ -263,11 +263,13 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'prize', payload: { personaje_id } })
   }, [])
 
-  // Anuncia que un trainer atrapó un Pokémon (aviso central de 5s en la partida)
-  const sendCaptura = useCallback((trainer, pokemon) => {
+  // Aviso central de 5s en la partida. Nació para las capturas y por eso el
+  // texto por defecto es el de atrapar; `texto` lo reemplaza cuando el motivo es
+  // otro (una transferencia entre trainers, una liberación).
+  const sendCaptura = useCallback((trainer, pokemon, texto = null) => {
     if (!trainer) return
-    channelRef.current?.send({ type: 'broadcast', event: 'captura', payload: { trainer, pokemon } })
-    setCaptura({ trainer, pokemon, at: Date.now() }) // el emisor también lo ve
+    channelRef.current?.send({ type: 'broadcast', event: 'captura', payload: { trainer, pokemon, texto } })
+    setCaptura({ trainer, pokemon, texto, at: Date.now() }) // el emisor también lo ve
   }, [])
 
   // Dispara la secuencia de textos de inicio del evento en los trainers

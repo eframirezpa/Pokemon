@@ -100,13 +100,22 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
     : paso === 'listo' ? 'Descanso aplicado'
     : 'Tomar un descanso'
 
+  // Sin puntos de vida no se descansa: el largo cura y repone, no revive.
   const filas = data ? [
-    { clave: ENTRENADOR, nombre: data.entrenador.nombre, sub: `Entrenador · ${data.entrenador.dados}/${data.entrenador.dados_max} dados` },
-    ...data.pokemons.map(p => ({ clave: p.id, nombre: p.apodo, sub: `${p.dados}/${p.dados_max} dados` })),
+    {
+      clave: ENTRENADOR, nombre: data.entrenador.nombre, caido: data.entrenador.caido,
+      sub: data.entrenador.caido ? 'Entrenador · sin puntos de vida'
+        : `Entrenador · ${data.entrenador.dados}/${data.entrenador.dados_max} dados`,
+    },
+    ...data.pokemons.map(p => ({
+      clave: p.id, nombre: p.apodo, caido: p.caido,
+      sub: p.caido ? 'Sin puntos de vida' : `${p.dados}/${p.dados_max} dados`,
+    })),
   ] : []
 
   // En el corto solo tiene sentido quien conserve algún dado
   const filasCorto = filas.filter(f => (f.clave === ENTRENADOR ? data.entrenador.dados : data.pokemons.find(p => p.id === f.clave)?.dados) > 0)
+  const elegibles = tipo === 'long' ? filas : filasCorto
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -164,17 +173,19 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
                 {tipo === 'long' ? 'Quiénes tomarán el descanso largo' : 'Quién toma el descanso corto'}
               </p>
               <div className="space-y-1">
-                {(tipo === 'long' ? filas : filasCorto).map(f => (
-                  <label key={f.clave} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+                {elegibles.map(f => (
+                  <label key={f.clave}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${f.caido ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 cursor-pointer'}`}>
                     <input
                       type={tipo === 'long' ? 'checkbox' : 'radio'}
                       name="descansante"
+                      disabled={f.caido}
                       checked={tipo === 'long' ? sel.includes(f.clave) : uno === f.clave}
                       onChange={() => tipo === 'long' ? toggle(f.clave) : setUno(f.clave)}
-                      className="shrink-0 accent-indigo-600" />
+                      className="shrink-0 accent-indigo-600 disabled:cursor-not-allowed" />
                     <span className="min-w-0">
                       <span className="block text-sm text-gray-900 truncate">{f.nombre}</span>
-                      <span className="block text-[11px] text-gray-500">{f.sub}</span>
+                      <span className={`block text-[11px] ${f.caido ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>{f.sub}</span>
                     </span>
                   </label>
                 ))}
@@ -223,6 +234,11 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
                     {hecho.movimientos > 0 && <li>{hecho.movimientos} movimientos con sus PP al tope</li>}
                     {hecho.recursos > 0 && <li>{hecho.recursos} recursos de ruta al máximo</li>}
                   </ul>
+                  {hecho.omitidos?.length > 0 && (
+                    <p className="text-[12px] text-red-600">
+                      Sin puntos de vida, no descansaron: {hecho.omitidos.join(', ')}
+                    </p>
+                  )}
                 </>
               ) : (
                 <>

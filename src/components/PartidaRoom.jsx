@@ -965,8 +965,18 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   // reloadPokeballs lo llama la mochila al cerrarse, para que el icono y el panel
   // reflejen al instante las pokébolas que se acaban de agregar.
   useEffect(() => {
-    if (apiRef) apiRef.current = { sendPartyUpdate, sendAttack, reloadPokeballs: loadPokeballs, getPresentes: () => presentes }
-  }, [apiRef, sendPartyUpdate, sendAttack, loadPokeballs, presentes])
+    if (apiRef) apiRef.current = {
+      sendPartyUpdate, sendAttack, reloadPokeballs: loadPokeballs, getPresentes: () => presentes,
+      // Anuncio de partida: el mensaje del DM, la línea de actividad y el aviso
+      // central. Los tres juntos son lo que hace el máster al entregar un
+      // Pokémon, y las acciones del trainer deben verse igual.
+      anunciar: (texto, trainer, pokemon) => {
+        sendMasterMessage(texto)
+        sendActivity(texto)
+        if (trainer) sendCaptura(trainer, pokemon, texto)
+      },
+    }
+  }, [apiRef, sendPartyUpdate, sendAttack, loadPokeballs, presentes, sendMasterMessage, sendActivity, sendCaptura])
 
   // Difunde el Pokémon invocado del jugador cuando cambia
   useEffect(() => {
@@ -1566,7 +1576,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             <img src={POKEBALL_SPRITE} alt="" className="w-12 h-12 object-contain mx-auto mb-2 animate-pokeball-wobble"
               onError={e => { e.target.style.opacity = '0.3' }} />
             <p className="text-lg font-black text-gray-900 leading-snug">
-              En hora buena, el trainer <span className="text-red-600">{captura.trainer}</span> ha atrapado a <span className="text-red-600">{captura.pokemon}</span>
+              {captura.texto ? captura.texto : (
+                <>En hora buena, el trainer <span className="text-red-600">{captura.trainer}</span> ha atrapado a <span className="text-red-600">{captura.pokemon}</span></>
+              )}
             </p>
           </div>
         </div>
