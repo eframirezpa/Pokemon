@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getEffectivenessRows, effectivenessByIds, effectivenessByNames } from '../lib/typeEffect'
+import { getEffectivenessRows, effectivenessByIds, effectivenessByNames, typeNamesByIds } from '../lib/typeEffect'
 
 const TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -29,7 +29,7 @@ function Line({ label, color, types }) {
 
 /* Muestra resistencias / vulnerabilidades / inmunidades de un Pokémon.
    Acepta ids (personaje_pokemon_type_1/_2) o nombres (pokemon_type_1/_2). */
-export default function TypeEffectivenessView({ typeId1, typeId2, typeName1, typeName2, dark = false, title = 'Efectividad de tipo' }) {
+export default function TypeEffectivenessView({ typeId1, typeId2, typeName1, typeName2, dark = false, title = 'Efectividad de tipo', showTypes = false }) {
   const [te, setTe] = useState(null)
   useEffect(() => { getEffectivenessRows().then(setTe) }, [])
 
@@ -41,10 +41,21 @@ export default function TypeEffectivenessView({ typeId1, typeId2, typeName1, typ
 
   const labelCls = dark ? 'text-gray-400' : 'text-gray-500'
 
+  // Los tipos propios del Pokémon. Los nombres salen de las mismas filas ya
+  // cargadas cuando llegan ids, así que no hay una consulta extra.
+  const tipos = showTypes
+    ? (typeId1 != null || typeId2 != null
+        ? typeNamesByIds(te, typeId1, typeId2)
+        : [typeName1, typeName2].filter(Boolean))
+    : []
+
   return (
     <div>
       <p className={`text-[11px] font-black uppercase tracking-widest mb-1.5 ${labelCls}`}>{title}</p>
       <div className="space-y-1.5">
+        {showTypes && (
+          <Line label="Tipo" color={dark ? 'text-gray-300' : 'text-gray-700'} types={tipos} />
+        )}
         <Line label="Resiste"    color="text-green-600"  types={eff.resist} />
         <Line label="Vulnerable" color="text-red-600"    types={eff.vuln} />
         <Line label="Inmune"     color="text-indigo-500" types={eff.immune} />

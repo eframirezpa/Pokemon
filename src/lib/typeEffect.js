@@ -50,6 +50,16 @@ export function effectivenessByNames(te, name1, name2) {
     name2 ? r => norm(r.type_effectiveness_defending_type) === norm(name2) : null)
 }
 
+/* Nombres de los tipos defensores a partir de sus ids. Sale de las mismas filas
+   de type_effectiveness que ya están cargadas, así que no cuesta una consulta. */
+export function typeNamesByIds(te, id1, id2) {
+  if (!te) return []
+  const nombre = id => id == null ? null
+    : te.find(r => Number(r.type_effectiveness_defending_type_id) === Number(id))
+        ?.type_effectiveness_defending_type ?? null
+  return [nombre(id1), nombre(id2)].filter(Boolean)
+}
+
 // Carga (una sola vez por sesión) las 120 filas de type_effectiveness
 let cache = null
 export function getEffectivenessRows() {

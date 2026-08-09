@@ -457,7 +457,7 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
         {/* Efectividad de tipo (solo para el Pokémon) */}
         {v.typeId1 != null && (
           <div className="mt-3 border-t border-gray-700 pt-3">
-            <TypeEffectivenessView typeId1={v.typeId1} typeId2={v.typeId2} dark />
+            <TypeEffectivenessView typeId1={v.typeId1} typeId2={v.typeId2} dark showTypes />
           </div>
         )}
       </div>

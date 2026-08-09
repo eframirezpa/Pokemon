@@ -299,7 +299,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
           </div>
 
           {/* Efectividad de tipo */}
-          <TypeEffectivenessView typeId1={d.personaje_pokemon_type_1} typeId2={d.personaje_pokemon_type_2} />
+          <TypeEffectivenessView typeId1={d.personaje_pokemon_type_1} typeId2={d.personaje_pokemon_type_2} showTypes />
 
           {/* Habilidades */}
           {skills.length > 0 && (
