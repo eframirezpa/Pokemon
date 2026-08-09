@@ -797,7 +797,10 @@ export default function TrainerPartida() {
           name: s.skill_name,
           ability: s.skill_related_ability,
           pref, expert,
-          mod: modOf((s.skill_related_ability || '').toLowerCase()) + (pref ? profBonus : 0) + (expert ? profBonus : 0),
+          // especializacion_extra lo resuelve el backend: ya viene en 0 si la
+          // característica asociada no es proficiente o si no coincide el tipo.
+          mod: modOf((s.skill_related_ability || '').toLowerCase()) + (pref ? profBonus : 0) + (expert ? profBonus : 0)
+             + (Number(s.especializacion_extra) || 0),
         }
       })
       const statsLista = ['str','dex','con','int','wis','cha'].map(k => ({

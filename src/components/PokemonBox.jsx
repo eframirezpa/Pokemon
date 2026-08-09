@@ -140,7 +140,9 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
   const skillValue = s => {
     const m = modOf((s.skill_related_ability || '').toLowerCase())
     const { pref, expert } = skillFlags(s)
-    return m + (pref ? prof : 0) + (expert ? prof : 0)
+    // especializacion_extra lo resuelve el backend: ya viene en 0 si la
+    // característica asociada no es proficiente o si no hay coincidencia de tipo.
+    return m + (pref ? prof : 0) + (expert ? prof : 0) + (Number(s.especializacion_extra) || 0)
   }
 
   const doAction = async () => {
