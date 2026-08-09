@@ -115,7 +115,7 @@ export default function NotasModal({ personajeId, onClose }) {
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
-          <h3 className="font-bold text-gray-900">Notas</h3>
+          <h3 className="font-bold text-gray-900">Pokenotas</h3>
           <div className="flex items-center gap-2 shrink-0">
             <button onClick={() => { setError(''); setForm({}) }} title="Nueva nota"
               className="w-8 h-8 flex items-center justify-center rounded-full bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors">

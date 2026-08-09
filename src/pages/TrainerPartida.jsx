@@ -17,6 +17,7 @@ import { hpValues } from '../lib/hp'
 import TypeEffectivenessView from '../components/TypeEffectivenessView'
 import DescansoModal from '../components/DescansoModal'
 import PokeballsIcon from '../components/PokeballsIcon'
+import ItemsPanel from '../components/ItemsPanel'
 
 // Ícono de 3 pokébolas (para el cinturón)
 // Ícono de una pokébola (regresar)
@@ -115,7 +116,7 @@ const MOVE_TYPE_COLORS = {
 }
 
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
-function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice }) {
+function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -198,6 +199,9 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
                 ['AC',   v.ac],
                 ['SALV', v.saving],
                 ['SR',   v.sr != null ? `+${v.sr}` : null],
+              // Iniciativa: el modificador de DEX, igual que en el creador de
+              // personajes. Puede ser negativo, así que lleva su propio signo.
+              ['INIT', v.init != null ? (v.init >= 0 ? `+${v.init}` : `${v.init}`) : null],
               ].filter(([, val]) => val !== null && val !== undefined && val !== '').map(([label, val]) => (
                 <div key={label} className="flex items-center justify-between gap-1 h-7 min-w-0">
                   <span className="text-[10px] font-black text-gray-400 uppercase shrink-0">{label}</span>
@@ -261,6 +265,9 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
                   ['moves',  recursos ? 'Clase' : 'Movimientos'],
                   ['skills', 'Habilidades'],
                   ...(v.stats?.length ? [['stats', 'Stats']] : []),
+                  // Los items son del entrenador, pero se consultan igual desde
+                  // el panel del Pokémon: en mesa se usan sobre cualquiera.
+                  ...(personajeId ? [['items', 'Items']] : []),
                 ].map(([k, label]) => (
                   <button key={k} onClick={() => setTabPanel(k)}
                     className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-colors ${
@@ -312,6 +319,11 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
                   </div>
                 ))}
               </div>
+            )}
+
+            {/* Items del entrenador: equipo y medicinas, para gastarlos en mesa */}
+            {tabPanel === 'items' && personajeId && (
+              <ItemsPanel personajeId={personajeId} />
             )}
 
             {/* Pestaña Clase del entrenador: los Extra Points de su ruta */}
@@ -737,6 +749,7 @@ export default function TrainerPartida() {
         prof: d.personaje_prof,
         ac:   acDelTrainer(d, dexMod),
         sr:   d.personaje_sr,
+        init: dexMod,
         exhaust: d.personaje_exahust_lvl ?? 0, dsts: d.personaje_dsts ?? 0, dstf: d.personaje_dstf ?? 0,
       })
       setHdTrainer({ actual: d.personaje_hit_dice_left ?? 0, maximo: d.hit_dice_pool ?? 0 })
@@ -1291,6 +1304,7 @@ export default function TrainerPartida() {
           hitDice={hdTrainer}
           onSpendHitDice={() => gastarDado('hd-trainer')}
           onManageHitDice={() => abrirLapizDados('hd-trainer')}
+          personajeId={personajeId}
           onPersist={persistChar}
           onClose={closeControl}
         />
@@ -1345,6 +1359,7 @@ export default function TrainerPartida() {
           hitDice={hdPoke}
           onSpendHitDice={() => gastarDado('hd-poke')}
           onManageHitDice={() => abrirLapizDados('hd-poke')}
+          personajeId={personajeId}
           onPersist={persistPoke}
           onReturn={returnPokemon}
           onClose={closeControl}

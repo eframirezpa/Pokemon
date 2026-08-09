@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, Loader2, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Minus, Plus, Monitor } from 'lucide-react'
+import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, ArrowDown, Loader2, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Minus, Plus, Monitor } from 'lucide-react'
 import PokeballsIcon from './PokeballsIcon'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
@@ -682,6 +682,26 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                           ? <Loader2 size={11} className="animate-spin" />
                           : isBelt ? <Monitor size={11} /> : <PokeballsIcon size={11} />}
                       </button>
+
+                      {/* Solo en el cinturón: invocar al campo. Va en el borde opuesto,
+                          a la misma altura que el de la computadora, para que los dos
+                          formen una pareja simétrica. Invocar cierra la ventana, y de eso
+                          se encarga el padre en onInvoke. */}
+                      {isBelt && onInvoke && (
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            const img = (p.pokemon_is_shiny && p.pokemon_media_main_shiny)
+                              ? p.pokemon_media_main_shiny : p.pokemon_media_main
+                            onInvoke(p.id_personaje_pokemon, img)
+                          }}
+                          title="Invocar al campo"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 z-10 shrink-0 flex items-center justify-center
+                                     w-6 h-6 rounded-full bg-pink-200 hover:bg-pink-300 text-pink-900 shadow
+                                     border border-pink-300 transition-all">
+                          <ArrowDown size={11} strokeWidth={2.5} />
+                        </button>
+                      )}
 
                       {/* Solo en la femputadora: liberar (izquierda) y transferir (derecha) */}
                       {!isBelt && (

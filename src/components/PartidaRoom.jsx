@@ -1353,7 +1353,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             className="fixed left-3 top-40 z-40 flex items-center justify-center w-10 h-10
                        rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
                        border border-gray-600 transition-all"
-            title="Notas"
+            title="Pokenotas"
           >
             <NotebookPen size={18} />
           </button>
