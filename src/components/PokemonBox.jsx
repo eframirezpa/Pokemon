@@ -230,13 +230,21 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
             </div>
             <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
             <div className="px-4 py-2 flex justify-around">
-              {[['STR', 'str'], ['DEX', 'dex'], ['CON', 'con'], ['INT', 'int'], ['WIS', 'wis'], ['CHA', 'cha']].map(([lbl, k]) => (
-                <div key={k} className="flex flex-col items-center">
-                  <span className="text-[10px] font-black text-[#7A200D]">{lbl}</span>
-                  <span className="text-base font-bold text-gray-900 leading-tight">{statVal(k)}</span>
-                  <span className="text-xs text-gray-600">{fmtSign(modOf(k))}</span>
-                </div>
-              ))}
+              {[['STR', 'str'], ['DEX', 'dex'], ['CON', 'con'], ['INT', 'int'], ['WIS', 'wis'], ['CHA', 'cha']].map(([lbl, k]) => {
+                // Proficiente en la tirada de salvación: se marca en verde igual
+                // que en la ficha del entrenador. Es además la condición que
+                // habilita el bono de especialización sobre las habilidades.
+                const esProf = !!stats[`pokemon_stats_${k}_prof`]
+                return (
+                  <div key={k} title={esProf ? 'Proficiente en su tirada de salvación' : undefined}
+                    className={`flex flex-col items-center px-2 py-0.5 rounded-lg border ${
+                      esProf ? 'bg-green-100 border-green-500' : 'border-transparent'}`}>
+                    <span className={`text-[10px] font-black ${esProf ? 'text-green-700' : 'text-[#7A200D]'}`}>{lbl}</span>
+                    <span className="text-base font-bold text-gray-900 leading-tight">{statVal(k)}</span>
+                    <span className="text-xs text-gray-600">{fmtSign(modOf(k))}</span>
+                  </div>
+                )
+              })}
             </div>
             <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
             <div className="px-4 py-2 flex justify-around items-stretch">

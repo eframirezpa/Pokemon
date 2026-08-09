@@ -257,14 +257,14 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
             {/* Sin habilidades (control del entrenador) se muestra solo el título */}
             {skills.length === 0 ? (
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
-                {recursos ? <>Clase <span className="text-gray-500 normal-case">· {recursosTitulo}</span></> : 'Movimientos'}
+                {recursos ? <>Path <span className="text-gray-500 normal-case">· {recursosTitulo}</span></> : 'Moves'}
               </p>
             ) : (
               <div className="flex items-center gap-1 mb-1.5">
                 {[
-                  ['moves',  recursos ? 'Clase' : 'Movimientos'],
-                  ['skills', 'Habilidades'],
-                  ...(v.stats?.length ? [['stats', 'Stats']] : []),
+                  ['moves',  recursos ? 'Path' : 'Moves'],
+                  ['skills', 'Skills'],
+                  ...(v.stats?.length ? [['stats', 'Stats'], ['saves', 'Saves']] : []),
                   // Los items son del entrenador, pero se consultan igual desde
                   // el panel del Pokémon: en mesa se usan sobre cualquiera.
                   ...(personajeId ? [['items', 'Items']] : []),
@@ -305,11 +305,12 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
             {/* Stats: valor final con sus bonos ya aplicados, y el modificador */}
             {tabPanel === 'stats' && (v.stats || []).length > 0 && (
               <div className="grid grid-cols-3 gap-1">
+                {/* Sin marcar la proficiencia: aquí solo van la característica y su
+                    modificador. Quien la tenga se ve en Saves, que además aplica el bono. */}
                 {v.stats.map(st => (
-                  <div key={st.key} title={st.prof ? 'Proficiente en su tirada de salvación' : undefined}
-                    className={`flex items-center justify-between gap-1 rounded-lg px-2 py-1.5 min-w-0 border ${
-                      st.prof ? 'bg-green-900/40 border-green-600' : 'bg-gray-700/50 border-transparent'}`}>
-                    <span className={`text-[10px] font-black uppercase shrink-0 ${st.prof ? 'text-green-300' : 'text-gray-400'}`}>{st.key}</span>
+                  <div key={st.key}
+                    className="flex items-center justify-between gap-1 rounded-lg px-2 py-1.5 min-w-0 border bg-gray-700/50 border-transparent">
+                    <span className="text-[10px] font-black uppercase shrink-0 text-gray-400">{st.key}</span>
                     <div className="flex items-baseline gap-1 shrink-0">
                       <span className="text-white text-xs font-bold tabular-nums">{st.valor}</span>
                       <span className={`text-[10px] font-black tabular-nums ${st.mod < 0 ? 'text-red-400' : 'text-gray-300'}`}>
@@ -321,12 +322,35 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
               </div>
             )}
 
+            {/* Tiradas de salvación: el modificador de la característica más el
+                bono de proficiencia, y solo en las que se es proficiente. Es un
+                bono APARTE: no toca el modificador con el que se calculan las
+                habilidades, que sigue siendo el de la característica a secas. */}
+            {tabPanel === 'saves' && (v.stats || []).length > 0 && (
+              <div className="grid grid-cols-3 gap-1">
+                {v.stats.map(st => {
+                  const salv = st.mod + (st.prof ? (Number(v.prof) || 0) : 0)
+                  return (
+                    <div key={st.key}
+                      title={st.prof ? `Proficiente: ${st.mod >= 0 ? `+${st.mod}` : st.mod} de ${st.key} y +${Number(v.prof) || 0} de proficiencia` : undefined}
+                      className={`flex items-center justify-between gap-1 rounded-lg px-2 py-1.5 min-w-0 border ${
+                        st.prof ? 'bg-green-900/40 border-green-600' : 'bg-gray-700/50 border-transparent'}`}>
+                      <span className={`text-[10px] font-black uppercase shrink-0 ${st.prof ? 'text-green-300' : 'text-gray-400'}`}>{st.key}</span>
+                      <span className={`text-xs font-black tabular-nums shrink-0 ${salv < 0 ? 'text-red-400' : 'text-white'}`}>
+                        {salv >= 0 ? `+${salv}` : salv}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
             {/* Items del entrenador: equipo y medicinas, para gastarlos en mesa */}
             {tabPanel === 'items' && personajeId && (
               <ItemsPanel personajeId={personajeId} />
             )}
 
-            {/* Pestaña Clase del entrenador: los Extra Points de su ruta */}
+            {/* Pestaña Path del entrenador: los Extra Points de su ruta */}
             {recursos && (
               <div className={`${tabPanel !== 'moves' ? 'hidden' : ''}`}>
             {recursos.length === 0 && recursosRasgos.length === 0 ? (
@@ -803,8 +827,12 @@ export default function TrainerPartida() {
              + (Number(s.especializacion_extra) || 0),
         }
       })
+      // Proficiencia en la tirada de salvación, igual que en el entrenador: es
+      // la que marca en verde el recuadro y la que decide el bono de
+      // especialización sobre las habilidades.
       const statsLista = ['str','dex','con','int','wis','cha'].map(k => ({
         key: k.toUpperCase(), valor: statVal(k), mod: modOf(k),
+        prof: !!stats[`pokemon_stats_${k}_prof`],
       }))
       setHdPoke({ actual: d.pokemon_hit_dice_left ?? 0, maximo: d.hit_dice_pool ?? 0 })
       setPokeData({
