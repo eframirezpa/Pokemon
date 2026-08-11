@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff, Loader2, ArrowRight, BedDouble, ArrowBigUp } from 'lucide-react'
+import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff, Loader2, ArrowRight, BedDouble } from 'lucide-react'
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
 import CharacterSheet from '../components/CharacterSheet'
@@ -105,8 +105,6 @@ function acDelTrainer(d, dexMod) {
 }
 
 const hpColorPct = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
-// Experiencia: rojo ≤20%, amarillo 21-80%, verde ≥81%
-const expColorPct = pct => (pct >= 81 ? '#22c55e' : pct >= 21 ? '#eab308' : '#ef4444')
 
 const MOVE_TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -116,7 +114,7 @@ const MOVE_TYPE_COLORS = {
 }
 
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
-function CombatePanel({ title, nivel = null, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
+function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -153,15 +151,9 @@ function CombatePanel({ title, nivel = null, initial, moves, pasivas = [], skill
           </div>
         </div>
 
-        {/* Nivel y dados de golpe: los dados se gastan por nivel, así que se leen
-            juntos. Va bajo el título para no competir por ancho con el nombre. */}
-        {(nivel != null || hitDice) && (
+        {/* Dados de golpe y, a su lado, el atajo al otro panel */}
+        {(hitDice || switchSprite) && (
           <div className="flex items-center gap-2 mb-3">
-            {nivel != null && (
-              <span className="shrink-0 text-[10px] font-black text-white bg-gray-700 rounded-lg px-2 py-1.5 tabular-nums">
-                N {nivel}
-              </span>
-            )}
             {/* Dados de golpe: mismo control que los Extra Points de la ruta */}
             {hitDice && (
               <div className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5 min-w-0">
@@ -181,6 +173,17 @@ function CombatePanel({ title, nivel = null, initial, moves, pasivas = [], skill
                 </button>
               </div>
             )}
+
+            {/* Salto al otro panel de combate: en el del entrenador se ve al
+                Pokémon invocado y en el del Pokémon al entrenador. Sin Pokémon
+                invocado no hay a dónde saltar y el botón no se pinta. */}
+            {switchSprite && (
+              <button onClick={() => onSwitch?.()} title={switchLabel}
+                className="shrink-0 w-9 h-9 rounded-lg bg-gray-700/50 hover:bg-gray-600 flex items-center justify-center transition-colors">
+                <img src={switchSprite} alt={switchLabel} className="w-7 h-7 object-contain"
+                  onError={e => { e.target.style.opacity = '0.2' }} />
+              </button>
+            )}
           </div>
         )}
 
@@ -199,23 +202,6 @@ function CombatePanel({ title, nivel = null, initial, moves, pasivas = [], skill
           <button onClick={() => setHp(v.hp + 1)}
             className="w-8 h-8 shrink-0 rounded-lg bg-gray-700 hover:bg-green-600 flex items-center justify-center text-white transition-colors"><Plus size={15} /></button>
         </div>
-
-        {/* Experiencia (solo Pokémon) — barra debajo del HP */}
-        {v.exp !== undefined && (() => {
-          const next = v.expNext
-          const pctExp = next ? Math.max(0, Math.min(100, Math.round((v.exp / next) * 100))) : 100
-          return (
-            <div className="mt-2 px-10">
-              <div className="w-full h-2 rounded-full bg-gray-700 overflow-hidden">
-                <div className="h-full rounded-full transition-all"
-                  style={{ width: `${pctExp}%`, backgroundColor: expColorPct(pctExp) }} />
-              </div>
-              <p className="text-center text-[10px] font-bold text-gray-300 mt-1">
-                EXP {v.exp.toLocaleString()}{next != null ? ` / ${next.toLocaleString()}` : ' · Máx'}
-              </p>
-            </div>
-          )
-        })()}
 
         {/* Dos columnas sin separador visible: a la izquierda los valores fijos
             del Pokémon, a la derecha los contadores editables. */}
@@ -288,17 +274,18 @@ function CombatePanel({ title, nivel = null, initial, moves, pasivas = [], skill
                 {recursos ? <>Path <span className="text-gray-500 normal-case">· {recursosTitulo}</span></> : 'Moves'}
               </p>
             ) : (
-              <div className="flex items-center gap-1 mb-1.5">
+              <div className="flex items-center gap-[2px] mb-1.5">
+                {/* Seis pestañas en el panel del Pokémon. Medidas en Chromium
+                    con la tipografía real: con px-1.5 y 2px de hueco la fila
+                    ocupa 294px, y el panel deja 310px en un móvil de 360. Por
+                    eso los nombres van completos y sin scroll. */}
                 {[
-                  // La flecha marca dónde vive la información de la ruta. En el
-                  // entrenador acompaña al texto; en el Pokémon va sola, que en
-                  // móvil no sobra el ancho.
-                  ['moves', recursos
-                    ? <span className="flex items-center gap-1"><ArrowBigUp size={14} strokeWidth={2.5} className="animate-path-arrow" /> Path</span>
-                    : 'Moves'],
+                  // El entrenador no tiene movimientos: su primera pestaña ES la
+                  // de la ruta, así que cambia de nombre según quién sea.
+                  ['moves', recursos ? 'Path' : 'Moves'],
                   // Siempre que el entrenador tenga ruta: aunque no le dé puntos a
                   // este Pokémon, sus rasgos pueden traer algo que le aplique.
-                  ...(recursosPokemon ? [['path', <ArrowBigUp size={15} strokeWidth={2.5} className="animate-path-arrow" />]] : []),
+                  ...(recursosPokemon ? [['path', 'Path']] : []),
                   ['skills', 'Skills'],
                   ...(v.stats?.length ? [['stats', 'Stats'], ['saves', 'Saves']] : []),
                   // Los items son del entrenador, pero se consultan igual desde
@@ -306,7 +293,7 @@ function CombatePanel({ title, nivel = null, initial, moves, pasivas = [], skill
                   ...(personajeId ? [['items', 'Items']] : []),
                 ].map(([k, label]) => (
                   <button key={k} onClick={() => setTabPanel(k)}
-                    className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-colors ${
+                    className={`px-1.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-colors ${
                       tabPanel === k ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
                     {label}
                   </button>
@@ -967,7 +954,6 @@ export default function TrainerPartida() {
         name: d.pokemon_apodo || 'Pokémon',
         level: d.pokemon_level,
         typeId1: d.personaje_pokemon_type_1, typeId2: d.personaje_pokemon_type_2,
-        exp: d.pokemon_experiencia ?? 0, expNext: d.exp_next ?? null,
       })
     } catch { /* noop */ }
   }
@@ -1442,8 +1428,11 @@ export default function TrainerPartida() {
       {/* Control del jugador */}
       {openControl === 'trainer' && charData && (
         <CombatePanel
-          title={charNombre || 'Jugador'}
-          nivel={charData.level ?? null}
+          title={`${charNombre || 'Jugador'}${charData.level != null ? ` (nivel ${charData.level})` : ''}`}
+          // Salta al Pokémon invocado; sin uno en campo no hay atajo
+          switchSprite={pokemonInvocado ? invocadoSprite : null}
+          switchLabel="Ir al Pokémon"
+          onSwitch={openPokemonControl}
           initial={charData}
           skills={charSkills}
           recursos={recursos}
@@ -1500,8 +1489,11 @@ export default function TrainerPartida() {
       {/* Control del Pokémon invocado */}
       {openControl === 'pokemon' && pokeData && (
         <CombatePanel
-          title={pokeData.name || 'Pokémon'}
-          nivel={pokeData.level ?? null}
+          title={`${pokeData.name || 'Pokémon'}${pokeData.level != null ? ` (nivel ${pokeData.level})` : ''}`}
+          // De vuelta al entrenador: aquí siempre hay a dónde ir
+          switchSprite={user?.avatar_face_url || null}
+          switchLabel="Ir al entrenador"
+          onSwitch={openTrainerControl}
           initial={pokeData}
           moves={pokeData.moves}
           pasivas={pokeData.pasivas}
