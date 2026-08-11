@@ -116,7 +116,7 @@ const MOVE_TYPE_COLORS = {
 }
 
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
-function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
+function CombatePanel({ title, nivel = null, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -141,7 +141,7 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       {/* max-h + scroll: en pantallas bajas el panel se recortaba por abajo */}
       <div className={`bg-gray-800 border border-gray-700 rounded-2xl p-4 shadow-2xl max-h-[90vh] overflow-y-auto ${(moves && moves.length > 0) || recursos ? 'w-[26rem] max-w-[95vw]' : 'w-72'}`}>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           <h3 className="text-white font-bold text-sm truncate">{title}</h3>
           <div className="flex items-center gap-2 shrink-0">
             {onReturn && (
@@ -152,6 +152,37 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
             <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={18} /></button>
           </div>
         </div>
+
+        {/* Nivel y dados de golpe: los dados se gastan por nivel, así que se leen
+            juntos. Va bajo el título para no competir por ancho con el nombre. */}
+        {(nivel != null || hitDice) && (
+          <div className="flex items-center gap-2 mb-3">
+            {nivel != null && (
+              <span className="shrink-0 text-[10px] font-black text-white bg-gray-700 rounded-lg px-2 py-1.5 tabular-nums">
+                N {nivel}
+              </span>
+            )}
+            {/* Dados de golpe: mismo control que los Extra Points de la ruta */}
+            {hitDice && (
+              <div className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5 min-w-0">
+                <div className="flex items-center gap-1 min-w-0">
+                  {/* El lápiz solo ajusta lo que queda: el total sale del nivel. */}
+                  <button onClick={() => onManageHitDice?.()} title="Ajustar dados de golpe"
+                    className="shrink-0 text-gray-400 hover:text-amber-300 transition-colors">
+                    <Pencil size={13} />
+                  </button>
+                  <span className={`text-[10px] font-black tabular-nums truncate ${hitDice.actual <= 0 ? 'text-red-400' : 'text-gray-300'}`}>
+                    HIT DICE {hitDice.actual}/{hitDice.maximo}
+                  </span>
+                </div>
+                <button onClick={() => onSpendHitDice?.()} disabled={hitDice.actual <= 0} title="Gastar un dado"
+                  className="flex items-center justify-center text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 rounded-md transition-colors">
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* HP (estilo del control del master) */}
         <div className="flex items-center gap-2">
@@ -188,20 +219,24 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
 
         {/* Dos columnas sin separador visible: a la izquierda los valores fijos
             del Pokémon, a la derecha los contadores editables. */}
-        <div className="mt-3 border-t border-gray-700 pt-3 grid grid-cols-2 gap-x-5">
-          {/* Valores fijos: solo los tiene el Pokémon, no el entrenador.
-              Dos por columna para que ocupen la mitad de alto. */}
+        <div className="mt-3 border-t border-gray-700 pt-3 grid grid-cols-[3fr_2fr] gap-x-5">
+          {/* Valores fijos del ser vivo, los que no se editan desde aquí */}
           <div className="content-start">
-            <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+            {/* Tres por renglón: arriba PROF/AC/SR, que los tienen ambos, y
+                abajo el que sea propio — INIT en el entrenador, STAB en el
+                Pokémon. Como ninguno de los dos tiene el del otro, el orden del
+                array basta para que cada uno caiga en su sitio. */}
+            <div className="grid grid-cols-3 gap-x-2 gap-y-2">
               {[
-                ['STAB', v.stab != null ? `+${v.stab}` : null],
                 ['PROF', v.prof != null ? `+${v.prof}` : null],
                 ['AC',   v.ac],
-                ['SALV', v.saving],
-                ['SR',   v.sr != null ? `+${v.sr}` : null],
-              // Iniciativa: el modificador de DEX, igual que en el creador de
-              // personajes. Puede ser negativo, así que lleva su propio signo.
-              ['INIT', v.init != null ? (v.init >= 0 ? `+${v.init}` : `${v.init}`) : null],
+                // SR no es un bono sino el rango: el del Pokémon llega como
+                // "1/2" o "13", y el del entrenador es el tope que puede llevar.
+                ['SR',   v.sr],
+                ['STAB', v.stab != null ? `+${v.stab}` : null],
+                // Iniciativa: el modificador de DEX, igual que en el creador de
+                // personajes. Puede ser negativo, así que lleva su propio signo.
+                ['INIT', v.init != null ? (v.init >= 0 ? `+${v.init}` : `${v.init}`) : null],
               ].filter(([, val]) => val !== null && val !== undefined && val !== '').map(([label, val]) => (
                 <div key={label} className="flex items-center justify-between gap-1 h-7 min-w-0">
                   <span className="text-[10px] font-black text-gray-400 uppercase shrink-0">{label}</span>
@@ -210,25 +245,18 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
               ))}
             </div>
 
-            {/* Dados de golpe: mismo control que los Extra Points de la ruta.
-                Cierra esta columna, así que queda bajo el SR del entrenador y
-                bajo el AC/SALV del Pokémon. */}
-            {hitDice && (
-              <div className="mt-2 flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
-                <div className="flex items-center gap-1 min-w-0">
-                  {/* El lápiz solo ajusta lo que queda: el total sale del nivel. */}
-                  <button onClick={() => onManageHitDice?.()} title="Ajustar dados de golpe"
-                    className="shrink-0 text-gray-400 hover:text-amber-300 transition-colors">
-                    <Pencil size={13} />
-                  </button>
-                  <span className={`text-[10px] font-black tabular-nums truncate ${hitDice.actual <= 0 ? 'text-red-400' : 'text-gray-300'}`}>
-                    HIT DICE {hitDice.actual}/{hitDice.maximo}
-                  </span>
-                </div>
-                <button onClick={() => onSpendHitDice?.()} disabled={hitDice.actual <= 0} title="Gastar un dado"
-                  className="flex items-center justify-center text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 rounded-md transition-colors">
-                  <ArrowRight size={13} />
-                </button>
+            {/* Velocidad: cierra esta columna, donde antes iban los dados de
+                golpe. El Pokémon puede traer varias (andar, volar, nadar...) y
+                el entrenador una sola, así que va una por línea: en un renglón
+                único los nombres no caben sin recortarse. */}
+            {(v.speeds || []).length > 0 && (
+              <div className="mt-2 space-y-1">
+                {v.speeds.map(([nombre, valor]) => (
+                  <div key={nombre} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1 min-w-0">
+                    <span className="text-[10px] font-black text-gray-400 uppercase truncate">{nombre}</span>
+                    <span className="text-[10px] font-black text-white shrink-0">{valor}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -850,11 +878,13 @@ export default function TrainerPartida() {
       setCharData({
         stats: statsTrainer,
         hp: cur, hpMax: max,
-        // Van en la columna izquierda, donde el Pokémon lleva STAB/PROF/AC/SALV
+        level: nivel,
+        // Van en la columna izquierda, donde el Pokémon lleva STAB/PROF/AC
         prof: d.personaje_prof,
         ac:   acDelTrainer(d, dexMod),
         sr:   d.personaje_sr,
         init: dexMod,
+        speeds: d.personaje_speed != null ? [['Speed', `${d.personaje_speed} ft`]] : [],
         exhaust: d.personaje_exahust_lvl ?? 0, dsts: d.personaje_dsts ?? 0, dstf: d.personaje_dstf ?? 0,
       })
       setHdTrainer({ actual: d.personaje_hit_dice_left ?? 0, maximo: d.hit_dice_pool ?? 0 })
@@ -927,7 +957,13 @@ export default function TrainerPartida() {
         // El STAB parte de la proficiencia y suma el bono de ruta del entrenador
         stab: (Number(d.pokemon_proficient) || 0) + (Number(d.pokemon_stab_extra) || 0),
         prof: d.pokemon_proficient,
-        ac: d.personaje_pokemon_ac, saving: d.pokemon_saving_throw_prof,
+        ac: d.personaje_pokemon_ac,
+        sr: d.pokemon_sr,   // de la especie: no cambia con el ejemplar
+        // Las velocidades son del ejemplar, no de la especie: se editan por
+        // Pokémon y pueden ser varias (andar, volar, nadar, trepar).
+        speeds: [1, 2, 3, 4]
+          .filter(i => d[`personaje_pokemon_speed${i}_name`])
+          .map(i => [d[`personaje_pokemon_speed${i}_name`], d[`personaje_pokemon_speed${i}_value`]]),
         name: d.pokemon_apodo || 'Pokémon',
         level: d.pokemon_level,
         typeId1: d.personaje_pokemon_type_1, typeId2: d.personaje_pokemon_type_2,
@@ -1407,6 +1443,7 @@ export default function TrainerPartida() {
       {openControl === 'trainer' && charData && (
         <CombatePanel
           title={charNombre || 'Jugador'}
+          nivel={charData.level ?? null}
           initial={charData}
           skills={charSkills}
           recursos={recursos}
@@ -1463,7 +1500,8 @@ export default function TrainerPartida() {
       {/* Control del Pokémon invocado */}
       {openControl === 'pokemon' && pokeData && (
         <CombatePanel
-          title={`${pokeData.name || 'Pokémon'}${pokeData.level != null ? ` (Nv ${pokeData.level})` : ''}`}
+          title={pokeData.name || 'Pokémon'}
+          nivel={pokeData.level ?? null}
           initial={pokeData}
           moves={pokeData.moves}
           pasivas={pokeData.pasivas}
