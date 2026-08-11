@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { LogOut, Plus, UserCircle, Check, LogIn, Loader2, Eye } from 'lucide-react'
+import { LogOut, Plus, UserCircle, Check, LogIn, Eye } from 'lucide-react'
 import { apiFetch } from '../api'
 import CharacterWizard from '../components/CharacterWizard'
 import CharacterSheet from '../components/CharacterSheet'
 import PokemonWizard from '../components/PokemonWizard'
+import PokeballSpinner from '../components/PokeballSpinner'
 
 export default function PartidaLobby() {
   const { id }    = useParams()
@@ -101,7 +102,7 @@ export default function PartidaLobby() {
 
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-500">
-            <Loader2 className="animate-spin mr-2" size={18} /> Cargando...
+            <PokeballSpinner size={18} className="mr-2" /> Cargando...
           </div>
         ) : personajes.length === 0 ? (
           <div className="text-center py-16 bg-gray-800/50 border border-gray-700 rounded-2xl">

@@ -4,7 +4,7 @@ import {
   LogOut, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff, Info, Search,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
   Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star, Globe, NotebookPen,
-  ArrowRightLeft, Loader2, AlertTriangle,
+  ArrowRightLeft, AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
@@ -18,6 +18,7 @@ import EdicionJugadoresPanel from './EdicionJugadoresPanel'
 import MapaModal from './MapaModal'
 import NotasModal from './NotasModal'
 import MasterFieldPicker from './MasterFieldPicker'
+import PokeballSpinner from './PokeballSpinner'
 
 const ROLE_DASHBOARD = {
   master:     '/dashboard/master',
@@ -1654,7 +1655,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
               </button>
               <button onClick={confirmarTransferencia} disabled={transferBusy}
                 className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
-                {transferBusy ? <Loader2 size={15} className="animate-spin" /> : null} Confirmar
+                {transferBusy ? <PokeballSpinner size={15} /> : null} Confirmar
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { X, Plus, Pencil, Trash2, Loader2, ChevronDown, Check, User, Zap, Backpack, HelpCircle } from 'lucide-react'
+import { X, Plus, Pencil, Trash2, ChevronDown, Check, User, Zap, Backpack, HelpCircle } from 'lucide-react'
 import { apiFetch } from '../api'
+import PokeballSpinner from './PokeballSpinner'
 
 const TIPOS = ['Personaje', 'Pokemon', 'Items', 'Otros']
 const MAX_LEN = 125
@@ -55,7 +56,7 @@ function NotaForm({ nota, busy, error, onCancel, onSave, tipoPorDefecto = 'Perso
           <button onClick={onCancel} disabled={busy} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
           <button onClick={() => onSave({ tipo_nota: tipo, nota: texto.trim() })} disabled={busy || !texto.trim()}
             className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
-            {busy ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Guardar
+            {busy ? <PokeballSpinner size={15} /> : <Check size={15} />} Guardar
           </button>
         </div>
       </div>
@@ -149,7 +150,7 @@ export default function NotasModal({ personajeId, onClose }) {
         {/* Lista */}
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-gray-400"><Loader2 className="animate-spin mr-2" size={18} /> Cargando...</div>
+            <div className="flex items-center justify-center py-16 text-gray-400"><PokeballSpinner size={18} className="mr-2" /> Cargando...</div>
           ) : list.length === 0 ? (
             <p className="text-sm text-gray-400 italic text-center py-10">{notas.length === 0 ? 'No tienes notas.' : 'Sin notas de este tipo.'}</p>
           ) : (

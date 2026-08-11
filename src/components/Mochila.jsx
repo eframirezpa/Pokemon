@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { X, Plus, Minus, Loader2, Search, PackagePlus, Check, Wallet, CreditCard, Coins, Banknote, DollarSign } from 'lucide-react'
+import { X, Plus, Minus, Search, PackagePlus, Check, Wallet, CreditCard, Coins, Banknote, DollarSign } from 'lucide-react'
 import { apiFetch } from '../api'
 import ItemsList from '../pages/ItemsList'
 import ItemDetailPanel from './ItemDetailPanel'
+import PokeballSpinner from './PokeballSpinner'
 
 const ITEM_TYPES = [
   { value: 'berry',        label: 'Berry',           bg: '#78C850' },
@@ -301,7 +302,7 @@ export default function Mochila({ personajeId, onClose }) {
               </div>
             </div>
             {loadingItems ? (
-              <div className="flex items-center justify-center py-16 text-gray-400"><Loader2 className="animate-spin mr-2" size={18} /> Cargando...</div>
+              <div className="flex items-center justify-center py-16 text-gray-400"><PokeballSpinner size={18} className="mr-2" /> Cargando...</div>
             ) : filteredItems.length === 0 ? (
               <div className="py-16 text-center text-gray-400 text-sm">{items.length === 0 ? 'No hay items en la mochila.' : 'Sin resultados.'}</div>
             ) : (
@@ -345,7 +346,7 @@ export default function Mochila({ personajeId, onClose }) {
               </button>
             </div>
             {loadingArmor ? (
-              <div className="flex items-center justify-center py-16 text-gray-400"><Loader2 className="animate-spin mr-2" size={18} /> Cargando...</div>
+              <div className="flex items-center justify-center py-16 text-gray-400"><PokeballSpinner size={18} className="mr-2" /> Cargando...</div>
             ) : armor.length === 0 ? (
               <div className="py-16 text-center text-gray-400 text-sm">No hay armaduras.</div>
             ) : (
@@ -392,7 +393,7 @@ export default function Mochila({ personajeId, onClose }) {
               </div>
             )}
             {loadingWeapons ? (
-              <div className="flex items-center justify-center py-16 text-gray-400"><Loader2 className="animate-spin mr-2" size={18} /> Cargando...</div>
+              <div className="flex items-center justify-center py-16 text-gray-400"><PokeballSpinner size={18} className="mr-2" /> Cargando...</div>
             ) : weapons.length === 0 ? (
               <div className="py-16 text-center text-gray-400 text-sm">No hay armas.</div>
             ) : (
@@ -458,7 +459,7 @@ export default function Mochila({ personajeId, onClose }) {
                   className="flex-1 px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
                 <button onClick={handleAddPokedollars} disabled={adding}
                   className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shrink-0">
-                  {adding ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} Agregar
+                  {adding ? <PokeballSpinner size={15} /> : <Plus size={15} />} Agregar
                 </button>
               </div>
               {addMsg && <p className="text-xs text-red-600 font-medium mt-2">{addMsg}</p>}
@@ -475,7 +476,7 @@ export default function Mochila({ personajeId, onClose }) {
                   className="flex-1 px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
                 <button onClick={handleRemovePokedollars} disabled={removing}
                   className="flex items-center gap-1.5 bg-gray-700 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shrink-0">
-                  {removing ? <Loader2 size={15} className="animate-spin" /> : <Minus size={15} />} Quitar
+                  {removing ? <PokeballSpinner size={15} /> : <Minus size={15} />} Quitar
                 </button>
               </div>
               {removeMsg && <p className="text-xs text-red-600 font-medium mt-2">{removeMsg}</p>}
@@ -580,7 +581,7 @@ export default function Mochila({ personajeId, onClose }) {
                 className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg disabled:opacity-40">Volver</button>
               <button onClick={handleBuy} disabled={buying}
                 className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
-                {buying && <Loader2 size={14} className="animate-spin" />} Comprar
+                {buying && <PokeballSpinner size={14} />} Comprar
               </button>
             </div>
           </div>

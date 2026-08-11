@@ -7,7 +7,8 @@
 // background. El payload que devuelve onConfirm es el que espera addFeat en
 // `choices.skilled`.
 import { useState } from 'react'
-import { X, Loader2, Plus, Trash2, AlertTriangle } from 'lucide-react'
+import { X, Plus, Trash2, AlertTriangle } from 'lucide-react'
+import PokeballSpinner from './PokeballSpinner'
 
 const lower = s => (s ?? '').toLowerCase()
 
@@ -119,7 +120,7 @@ export default function SkilledModal({
           <button onClick={onCancel} disabled={busy} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
           <button onClick={() => onConfirm({ skills, texts: texts.map(t => t.trim()).filter(Boolean) })} disabled={!canConfirm}
             className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
-            {busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} {confirmLabel}
+            {busy ? <PokeballSpinner size={15} /> : <Plus size={15} />} {confirmLabel}
           </button>
         </div>
       </div>

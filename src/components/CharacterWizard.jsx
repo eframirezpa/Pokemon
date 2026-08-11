@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { X, Check, ChevronLeft, ChevronDown, Plus, Minus, Loader2 } from 'lucide-react'
+import { X, Check, ChevronLeft, ChevronDown, Plus, Minus } from 'lucide-react'
 import { apiFetch } from '../api'
 import { healingBase } from '../lib/hp'
 import SkilledModal from './SkilledModal'
+import PokeballSpinner from './PokeballSpinner'
 
 // Skilled no tiene filas en feats_bonus: su forma son 3 elecciones entre
 // proficiencias de skill y textos de 'Tool Prof'. Se pide aquí cuando lo otorga
@@ -142,7 +143,7 @@ function OriginStep({ selected, selectedSkills, onSelect }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-400">
-        <Loader2 className="animate-spin mr-2" size={18} /> Cargando orígenes...
+        <PokeballSpinner size={18} className="mr-2" /> Cargando orígenes...
       </div>
     )
   }
@@ -445,7 +446,7 @@ function BackgroundStep({ selected, selectedSkills, onSelect }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-400">
-        <Loader2 className="animate-spin mr-2" size={18} /> Cargando backgrounds...
+        <PokeballSpinner size={18} className="mr-2" /> Cargando backgrounds...
       </div>
     )
   }
@@ -635,7 +636,7 @@ function EquipoStep({ choice, setChoice, roll, setRoll }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-400">
-        <Loader2 className="animate-spin mr-2" size={18} /> Cargando equipo...
+        <PokeballSpinner size={18} className="mr-2" /> Cargando equipo...
       </div>
     )
   }
@@ -1534,7 +1535,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                   className="flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed
                              text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors"
                 >
-                  {saving && <Loader2 className="animate-spin" size={15} />} Confirmar y crear
+                  {saving && <PokeballSpinner size={15} />} Confirmar y crear
                 </button>
               </div>
             </div>

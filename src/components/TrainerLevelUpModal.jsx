@@ -5,12 +5,13 @@
 // o varias features separadas por coma en trainer_levels.trainer_level_features,
 // y cada una se pinta distinta. El backend valida lo mismo que se valida aquí.
 import { useState, useEffect, useMemo } from 'react'
-import { Loader2, Plus, Minus, Sparkles, ArrowRight, Award } from 'lucide-react'
+import { Plus, Minus, Sparkles, ArrowRight, Award } from 'lucide-react'
 import { apiFetch } from '../api'
 import { SkillPickMany } from './SkilledModal'
 import { ResolvedBonusBadges } from './featBonoBadges'
 import { specPreviewBonos } from '../lib/specBonus'
 import { clasificarPathBonus, describirPathBonus, TIPO_BONO, TARGET_BONO, legible, skillLegible } from '../lib/pathBonus'
+import PokeballSpinner from './PokeballSpinner'
 
 const STAT_KEYS  = ['str', 'dex', 'con', 'int', 'wis', 'cha']
 const STAT_LABEL = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' }
@@ -608,7 +609,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
           <span className="text-xs text-gray-500">{faltante || 'Todo listo'}</span>
           <button onClick={() => (has(F.PATH) ? setAlerta(true) : confirmar())} disabled={!!faltante || busy}
             className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
-            {busy && <Loader2 size={15} className="animate-spin" />} Confirmar
+            {busy && <PokeballSpinner size={15} />} Confirmar
           </button>
         </div>
       </div>
@@ -633,7 +634,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
                 className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
               <button onClick={confirmar} disabled={busy}
                 className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
-                {busy && <Loader2 size={15} className="animate-spin" />} Confirmar
+                {busy && <PokeballSpinner size={15} />} Confirmar
               </button>
             </div>
           </div>

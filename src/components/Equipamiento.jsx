@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { X, Loader2, Sword, Shield, FlaskConical } from 'lucide-react'
+import { X, Sword, Shield, FlaskConical } from 'lucide-react'
 import { apiFetch } from '../api'
 import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
 import { buildProfs, titleCase } from '../lib/profs'
 import ItemDetailPanel from './ItemDetailPanel'
+import PokeballSpinner from './PokeballSpinner'
 
 const FEAT_MEDIUM_ARMOR_MASTER = 33 // sube a +3 el tope del modificador de DEX en la armadura
 
@@ -121,7 +122,7 @@ export default function Equipamiento({ personajeId, onClose }) {
 
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-400">
-            <Loader2 className="animate-spin mr-2" size={18} /> Cargando...
+            <PokeballSpinner size={18} className="mr-2" /> Cargando...
           </div>
         ) : tab === 'tools' ? (
           <div className="flex-1 overflow-y-auto px-5 py-4">

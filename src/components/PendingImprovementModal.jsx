@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, ArrowRight, Plus, Minus, Loader2, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Plus, Minus, AlertTriangle } from 'lucide-react'
 import { apiFetch } from '../api'
 import MasterPokemonFeats from './MasterPokemonFeats'
 import MoveInfoModal from './MoveInfoModal'
+import PokeballSpinner from './PokeballSpinner'
 
 const STAT_KEYS = ['dex', 'str', 'con', 'int', 'wis', 'cha']
 const STAT_LABEL = { dex: 'DEX', str: 'STR', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' }
@@ -35,7 +36,7 @@ function AlertConfirm({ message, busy, onCancel, onConfirm }) {
           <button onClick={onCancel} disabled={busy} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
           <button onClick={onConfirm} disabled={busy}
             className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
-            {busy ? <Loader2 size={15} className="animate-spin" /> : null} Confirmar
+            {busy ? <PokeballSpinner size={15} /> : null} Confirmar
           </button>
         </div>
       </div>

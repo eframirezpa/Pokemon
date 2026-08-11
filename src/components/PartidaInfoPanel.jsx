@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { X, Info, ChevronDown, Loader2 } from 'lucide-react'
+import { X, Info, ChevronDown } from 'lucide-react'
 import { apiFetch } from '../api'
 import FeatInfoModal from './FeatInfoModal'
+import PokeballSpinner from './PokeballSpinner'
 
 const has = x => (x ?? '') !== ''
 
@@ -171,7 +172,7 @@ export default function PartidaInfoPanel({ partidaId, onClose }) {
                   <div className="px-4 pb-3 border-t border-gray-700/60">
                     {loadingId === c.id_personaje || !d ? (
                       <div className="flex items-center justify-center py-6 text-gray-500 text-sm">
-                        <Loader2 className="animate-spin mr-2" size={15} /> Cargando…
+                        <PokeballSpinner size={15} className="mr-2" /> Cargando…
                       </div>
                     ) : !full ? (
                       <p className="text-center text-gray-500 text-sm py-6">No se pudo cargar la información.</p>

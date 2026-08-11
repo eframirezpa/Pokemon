@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Loader2, Check, ChevronDown, Clock } from 'lucide-react'
+import { X, Check, ChevronDown, Clock } from 'lucide-react'
 import { apiFetch } from '../api'
 import FeatInfoModal from './FeatInfoModal'
 import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
@@ -8,6 +8,7 @@ import SpecializationInfoModal from './SpecializationInfoModal'
 import { buildProfs, titleCase } from '../lib/profs'
 import PathInfoModal from './PathInfoModal'
 import { hpValues } from '../lib/hp'
+import PokeballSpinner from './PokeballSpinner'
 
 /* Checkbox de solo lectura (estilo de la imagen) */
 function ReadCheck({ pref, expert }) {
@@ -242,7 +243,7 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
 
         {loading ? (
           <div className="flex items-center justify-center py-20 text-gray-400">
-            <Loader2 className="animate-spin mr-2" size={18} /> Cargando...
+            <PokeballSpinner size={18} className="mr-2" /> Cargando...
           </div>
         ) : !data ? (
           <div className="py-20 text-center text-gray-400 text-sm">No se pudo cargar el personaje.</div>

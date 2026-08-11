@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { X, Loader2, Plus, Pencil, Copy, Trash2, AlertTriangle } from 'lucide-react'
+import { X, Plus, Pencil, Copy, Trash2, AlertTriangle } from 'lucide-react'
 import { apiFetch, API_BASE_URL } from '../api'
 import MasterPokemonWizard from './MasterPokemonWizard'
+import PokeballSpinner from './PokeballSpinner'
 
 function Sprite({ src }) {
   if (!src) return <div className="w-11 h-11 bg-gray-100 rounded-lg shrink-0" />
@@ -36,7 +37,7 @@ function ConfirmDelete({ pokemon, busy, error, onCancel, onConfirm }) {
           </button>
           <button onClick={onConfirm} disabled={busy}
             className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
-            {busy ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />} Eliminar
+            {busy ? <PokeballSpinner size={15} /> : <Trash2 size={15} />} Eliminar
           </button>
         </div>
       </div>
@@ -104,7 +105,7 @@ export default function MasterPokemonPanel({ onClose }) {
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-gray-400">
-              <Loader2 className="animate-spin mr-2" size={18} /> Cargando...
+              <PokeballSpinner size={18} className="mr-2" /> Cargando...
             </div>
           ) : pokemons.length === 0 ? (
             <p className="text-sm text-gray-400 italic text-center py-10">Aún no tienes Pokémon.</p>

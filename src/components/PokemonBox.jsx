@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, ArrowDown, Loader2, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Monitor, ChevronDown } from 'lucide-react'
+import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, ArrowDown, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Monitor, ChevronDown } from 'lucide-react'
 import PokeballsIcon from './PokeballsIcon'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
 import { ResolvedBonusBadges } from './featBonoBadges'
 import MoveInfoModal from './MoveInfoModal'
 import FeatInfoModal from './FeatInfoModal'
+import PokeballSpinner from './PokeballSpinner'
 
 const TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -476,7 +477,7 @@ function AddExpModal({ personajeId, pokemon, onClose, onDone }) {
           <button onClick={onClose} disabled={busy} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
           <button onClick={submit} disabled={busy || !amount}
             className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
-            {busy ? <Loader2 size={15} className="animate-spin" /> : <ArrowUp size={15} />} Agregar
+            {busy ? <PokeballSpinner size={15} /> : <ArrowUp size={15} />} Agregar
           </button>
         </div>
       </div>
@@ -607,7 +608,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
             </div>
             <div className="px-5 py-4">
               {bondOpts === null ? (
-                <p className="text-sm text-gray-500 flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Cargando…</p>
+                <p className="text-sm text-gray-500 flex items-center gap-2"><PokeballSpinner size={14} /> Cargando…</p>
               ) : (
                 <>
                   <label className="block text-xs font-bold text-gray-600 mb-1">Vínculo</label>
@@ -638,7 +639,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                   } catch { /* noop */ } finally { setBondBusy(false) }
                 }} disabled={bondBusy}
                 className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
-                {bondBusy && <Loader2 size={15} className="animate-spin" />} Guardar
+                {bondBusy && <PokeballSpinner size={15} />} Guardar
               </button>
             </div>
           </div>
@@ -708,7 +709,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                                    w-6 h-6 rounded-full bg-blue-200 hover:bg-blue-300 text-blue-900 shadow
                                    border border-blue-300 disabled:opacity-40 transition-all">
                         {movingId === p.id_personaje_pokemon
-                          ? <Loader2 size={11} className="animate-spin" />
+                          ? <PokeballSpinner size={11} />
                           : isBelt ? <Monitor size={11} /> : <PokeballsIcon size={11} />}
                       </button>
 
@@ -826,7 +827,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                   } catch { setErrorAccion('No se pudo liberar') } finally { setBusyAccion(false) }
                 }}
                 className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-1.5 rounded-lg transition-colors">
-                {busyAccion ? <Loader2 size={14} className="animate-spin" /> : null} SI
+                {busyAccion ? <PokeballSpinner size={14} /> : null} SI
               </button>
             </div>
           </div>
@@ -887,7 +888,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                   } catch { setErrorAccion('No se pudo transferir') } finally { setBusyAccion(false) }
                 }}
                 className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
-                {busyAccion ? <Loader2 size={14} className="animate-spin" /> : null} Transferir
+                {busyAccion ? <PokeballSpinner size={14} /> : null} Transferir
               </button>
             </div>
           </div>

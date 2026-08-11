@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Loader2, AlertTriangle } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { apiFetch } from '../api'
+import PokeballSpinner from './PokeballSpinner'
 
 // Items del entrenador dentro del panel de combate.
 //
@@ -57,7 +58,7 @@ export default function ItemsPanel({ personajeId }) {
   }
 
   if (items === null) {
-    return <p className="text-[11px] text-gray-500 flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Cargando…</p>
+    return <p className="text-[11px] text-gray-500 flex items-center gap-1.5"><PokeballSpinner size={12} /> Cargando…</p>
   }
 
   return (
@@ -124,7 +125,7 @@ export default function ItemsPanel({ personajeId }) {
                 className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg">Cancelar</button>
               <button onClick={confirmarUso} disabled={busy}
                 className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
-                {busy && <Loader2 size={14} className="animate-spin" />} Usar
+                {busy && <PokeballSpinner size={14} />} Usar
               </button>
             </div>
           </div>

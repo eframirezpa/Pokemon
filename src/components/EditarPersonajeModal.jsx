@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { X, Loader2, Plus, Minus, Search, Info, AlertTriangle, Trash2 } from 'lucide-react'
+import { X, Plus, Minus, Search, Info, AlertTriangle, Trash2 } from 'lucide-react'
 import { apiFetch } from '../api'
 import FeatInfoModal from './FeatInfoModal'
 import SpecializationInfoModal from './SpecializationInfoModal'
@@ -7,6 +7,7 @@ import { featPrereqStatus, buildPrereqContext } from '../lib/featPrereq'
 import { ResolvedBonusBadges, ArmorProfBadges } from './featBonoBadges'
 import SkilledModal, { SkillPickMany } from './SkilledModal'
 import { specPreviewBonos } from '../lib/specBonus'
+import PokeballSpinner from './PokeballSpinner'
 
 const lower = s => (s ?? '').toLowerCase()
 
@@ -317,7 +318,7 @@ function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, bu
           </button>
           <button onClick={() => onConfirm(choices)} disabled={busy || !allResolved}
             className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
-            {busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} Confirmar
+            {busy ? <PokeballSpinner size={15} /> : <Plus size={15} />} Confirmar
           </button>
         </div>
       </div>
@@ -354,7 +355,7 @@ function ConfirmDeleteFeat({ feat, busy, error, onCancel, onConfirm }) {
           </button>
           <button onClick={onConfirm} disabled={busy}
             className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
-            {busy ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />} Eliminar
+            {busy ? <PokeballSpinner size={15} /> : <Trash2 size={15} />} Eliminar
           </button>
         </div>
       </div>
@@ -402,7 +403,7 @@ function ConfirmSpec({ spec, mode, busy, error, onCancel, onConfirm }) {
           </button>
           <button onClick={onConfirm} disabled={busy}
             className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
-            {busy ? <Loader2 size={15} className="animate-spin" />
+            {busy ? <PokeballSpinner size={15} />
               : del ? <Trash2 size={15} /> : <Plus size={15} />}
             {del ? 'Eliminar' : 'Agregar'}
           </button>
@@ -497,7 +498,7 @@ function WeaponPickModal({ llave, count, martialOnly = false, onCancel, onDone }
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-gray-400"><Loader2 className="animate-spin mr-2" size={18} /> Cargando...</div>
+          <div className="flex items-center justify-center py-16 text-gray-400"><PokeballSpinner size={18} className="mr-2" /> Cargando...</div>
         ) : (
           <div className="flex-1 overflow-y-auto px-4 pb-3">
             <div className="grid grid-cols-2 gap-1.5">
@@ -771,7 +772,7 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
         {tab === 'especialidades' ? (
           loading ? (
             <div className="flex items-center justify-center py-20 text-gray-400">
-              <Loader2 className="animate-spin mr-2" size={18} /> Cargando...
+              <PokeballSpinner size={18} className="mr-2" /> Cargando...
             </div>
           ) : (
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
@@ -846,7 +847,7 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
           )
         ) : loading ? (
           <div className="flex items-center justify-center py-20 text-gray-400">
-            <Loader2 className="animate-spin mr-2" size={18} /> Cargando...
+            <PokeballSpinner size={18} className="mr-2" /> Cargando...
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">

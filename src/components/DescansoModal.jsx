@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { X, BedDouble, Loader2 } from 'lucide-react'
+import { X, BedDouble } from 'lucide-react'
 import { apiFetch } from '../api'
+import PokeballSpinner from './PokeballSpinner'
 
 // Ventana de descanso del entrenador.
 //
@@ -140,7 +141,7 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
 
         <div className="px-5 py-4 overflow-y-auto">
           {!data && !error && (
-            <p className="text-sm text-gray-500 flex items-center gap-2"><Loader2 size={15} className="animate-spin" /> Cargando…</p>
+            <p className="text-sm text-gray-500 flex items-center gap-2"><PokeballSpinner size={15} /> Cargando…</p>
           )}
 
           {/* Menú */}

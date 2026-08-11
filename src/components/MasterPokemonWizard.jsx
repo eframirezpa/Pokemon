@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { X, Loader2, Search, Venus, Mars, Plus, Trash2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, Search, Venus, Mars, Plus, Trash2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import PokemonList from '../pages/PokemonList'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
 import MasterPokemonFeats from './MasterPokemonFeats'
+import PokeballSpinner from './PokeballSpinner'
 
 const STRUGGLE_ID = 705
 const MAX_MOVES = 4          // movimientos aparte de Struggle
@@ -78,7 +79,7 @@ function SearchModal({ title, endpoint, render, onPick, onClose }) {
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {loading ? (
-            <div className="flex items-center justify-center py-10 text-gray-400"><Loader2 className="animate-spin mr-2" size={16} /> Cargando...</div>
+            <div className="flex items-center justify-center py-10 text-gray-400"><PokeballSpinner size={16} className="mr-2" /> Cargando...</div>
           ) : items.length === 0 ? (
             <p className="text-sm text-gray-400 italic text-center py-8">Sin resultados.</p>
           ) : (
@@ -408,7 +409,7 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
     return (
       <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
         <div className="bg-white rounded-2xl px-8 py-6 shadow-2xl flex items-center gap-2 text-gray-500">
-          <Loader2 className="animate-spin" size={18} /> Cargando...
+          <PokeballSpinner size={18} /> Cargando...
         </div>
       </div>
     )
@@ -440,7 +441,7 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
               className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
             <button onClick={acceptLevel} disabled={invalid || levelBusy}
               className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
-              {levelBusy && <Loader2 size={15} className="animate-spin" />} Aceptar
+              {levelBusy && <PokeballSpinner size={15} />} Aceptar
             </button>
           </div>
         </div>
@@ -659,7 +660,7 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
           <button onClick={onClose} disabled={saving} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-2 rounded-lg disabled:opacity-40">Cancelar</button>
           <button onClick={save} disabled={saving}
             className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
-            {saving && <Loader2 size={15} className="animate-spin" />} Guardar
+            {saving && <PokeballSpinner size={15} />} Guardar
           </button>
         </div>
       </div>

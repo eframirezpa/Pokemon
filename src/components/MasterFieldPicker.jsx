@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { X, Loader2, Search } from 'lucide-react'
+import { X, Search } from 'lucide-react'
 import { apiFetch, API_BASE_URL } from '../api'
+import PokeballSpinner from './PokeballSpinner'
 
 const TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -65,7 +66,7 @@ export default function MasterFieldPicker({ disabled = false, usedIds = [], onPi
 
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-gray-400"><Loader2 className="animate-spin mr-2" size={18} /> Cargando...</div>
+            <div className="flex items-center justify-center py-16 text-gray-400"><PokeballSpinner size={18} className="mr-2" /> Cargando...</div>
           ) : list.length === 0 ? (
             <p className="text-sm text-gray-400 italic text-center py-10">
               {pokemons.length === 0 ? 'No tienes Pokémon.'

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff, Loader2, ArrowRight, BedDouble } from 'lucide-react'
+import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff, ArrowRight, BedDouble } from 'lucide-react'
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
 import CharacterSheet from '../components/CharacterSheet'
@@ -18,19 +18,11 @@ import TypeEffectivenessView from '../components/TypeEffectivenessView'
 import DescansoModal from '../components/DescansoModal'
 import PokeballsIcon from '../components/PokeballsIcon'
 import ItemsPanel from '../components/ItemsPanel'
+import WeaponPanel from '../components/WeaponPanel'
+import { buildProfs } from '../lib/profs'
+import PokeballSpinner from '../components/PokeballSpinner'
+import PokeballIcon from '../components/PokeballIcon'
 
-// Ícono de 3 pokébolas (para el cinturón)
-// Ícono de una pokébola (regresar)
-function PokeballIcon({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M3 12h6M15 12h6" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  )
-}
 
 /* Habilidades del entrenador para el panel de Jugador (y el modificador de DEX
    ya con bonos, que reusa el AC), con los mismos bonos que
@@ -114,7 +106,7 @@ const MOVE_TYPE_COLORS = {
 }
 
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
-function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
+function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, weaponProfs = null, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -291,6 +283,8 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                   // Los items son del entrenador, pero se consultan igual desde
                   // el panel del Pokémon: en mesa se usan sobre cualquiera.
                   ...(personajeId ? [['items', 'Items']] : []),
+                  // El arma sí es solo del entrenador: el Pokémon no equipa.
+                  ...(recursos ? [['weapon', 'Weapon']] : []),
                 ].map(([k, label]) => (
                   <button key={k} onClick={() => setTabPanel(k)}
                     className={`px-1.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-colors ${
@@ -421,6 +415,11 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
             {/* Items del entrenador: equipo y medicinas, para gastarlos en mesa */}
             {tabPanel === 'items' && personajeId && (
               <ItemsPanel personajeId={personajeId} />
+            )}
+
+            {/* Arma equipada del entrenador */}
+            {tabPanel === 'weapon' && personajeId && (
+              <WeaponPanel personajeId={personajeId} profs={weaponProfs} />
             )}
 
             {/* Pestaña Path del entrenador: los Extra Points de su ruta */}
@@ -638,6 +637,7 @@ export default function TrainerPartida() {
   const [invocadoSprite, setInvocadoSprite]   = useState(null)
   const [openControl, setOpenControl] = useState(null) // 'trainer' | 'pokemon' | null (solo uno a la vez)
   const [cargandoPanel, setCargandoPanel] = useState(null) // panel que se está pidiendo, o null
+  const [charProfs, setCharProfs] = useState(null) // proficiencias del entrenador (de /full)
   const [charData, setCharData] = useState(null)
   const [pokeData, setPokeData] = useState(null)
   const partidaApiRef = useRef(null) // acciones expuestas por PartidaRoom (p. ej. sendPartyUpdate)
@@ -860,9 +860,14 @@ export default function TrainerPartida() {
             }))
         : []
       const { skills: skillsTrainer, dexMod, stats: statsTrainer } = construirSkillsTrainer(d)
+      // Proficiencias de arma: salen de este mismo /full, así que la pestaña
+      // Weapon no tiene que volver a pedirlo. Importa el feat que la otorga —
+      // si dejó de estar vigente, el arma ya no cuenta como proficiente.
+      const profsTrainer = buildProfs(d)
 
       // Ya está todo calculado: recién aquí se hace el cambio, de una sola vez.
       setCharNombre(d.nombre_personaje || '')
+      setCharProfs(profsTrainer)
       setRecursosRasgos(rasgos)
       // Recursos de la ruta y su título: el nombre del path, o "Trainer"
       // mientras no tenga uno (nivel 1).
@@ -1140,7 +1145,7 @@ export default function TrainerPartida() {
             <div className="px-4 py-3 border-t border-gray-700 flex items-center justify-center">
               <button onClick={confirmarGestionPP} disabled={gpBusy}
                 className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
-                {gpBusy ? <Loader2 size={15} className="animate-spin" /> : null} Confirmar
+                {gpBusy ? <PokeballSpinner size={15} /> : null} Confirmar
               </button>
             </div>
           </div>
@@ -1185,7 +1190,7 @@ export default function TrainerPartida() {
               <div className="px-4 py-3 border-t border-gray-700 flex items-center justify-center">
                 <button onClick={confirmarPP} disabled={ppBusy}
                   className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
-                  {ppBusy ? <Loader2 size={15} className="animate-spin" /> : null} Confirmar
+                  {ppBusy ? <PokeballSpinner size={15} /> : null} Confirmar
                 </button>
               </div>
             </div>
@@ -1252,7 +1257,7 @@ export default function TrainerPartida() {
               <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end">
                 <button onClick={confirmar} disabled={!valido || renameBusy}
                   className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
-                  {renameBusy ? <Loader2 size={15} className="animate-spin" /> : null} Confirmar
+                  {renameBusy ? <PokeballSpinner size={15} /> : null} Confirmar
                 </button>
               </div>
             </div>
@@ -1444,7 +1449,7 @@ export default function TrainerPartida() {
       {cargandoPanel && (
         <div className="fixed inset-0 z-[65] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
           <div className="bg-gray-800 border border-gray-700 rounded-2xl px-6 py-5 shadow-2xl flex flex-col items-center gap-2">
-            <span className="text-red-500 animate-pokeball-spin"><PokeballIcon size={38} /></span>
+            <PokeballSpinner size={38} className="text-red-500" />
             <p className="text-[11px] font-bold text-gray-300 uppercase tracking-widest">
               {cargandoPanel === 'trainer' ? 'Entrenador' : 'Pokémon'}
             </p>
@@ -1460,6 +1465,7 @@ export default function TrainerPartida() {
           switchSprite={pokemonInvocado ? invocadoSprite : null}
           switchLabel="Ir al Pokémon"
           onSwitch={openPokemonControl}
+          weaponProfs={charProfs}
           initial={charData}
           skills={charSkills}
           recursos={recursos}
