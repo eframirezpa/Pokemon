@@ -38,7 +38,12 @@ function SkeletonRow() {
 }
 
 /* ── Lista + panel de detalle ── */
-export default function PokemonList({ title = 'Pokémon', onPick = null, starter = false, onChoose = null, moveDetail = false }) {
+// onReady: avisa cada vez que termina una consulta, incluida la primera. Lo usa
+// quien monta esta lista dentro de una ventana propia (la Pokédex de la
+// partida) para no enseñarla vacía mientras carga; a ese le basta con la
+// primera y las siguientes le dan igual. Opcional: como página suelta nadie lo
+// pasa y no cambia nada.
+export default function PokemonList({ title = 'Pokémon', onPick = null, starter = false, onChoose = null, moveDetail = false, onReady = null }) {
   const [pokemon, setPokemon]           = useState([])
   const [total, setTotal]               = useState(0)
   const [loading, setLoading]           = useState(true)
@@ -50,6 +55,8 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
   const [selectedId, setSelectedId]     = useState(null)
 
   const debounceRef = useRef(null)
+  const onReadyRef  = useRef(onReady)
+  useEffect(() => { onReadyRef.current = onReady })
 
   useEffect(() => {
     apiFetch('/types').then(r => r.json()).then(d => setTypes(d.value ?? [])).catch(() => {})
@@ -76,7 +83,9 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
       .then(r => r.json())
       .then(d => { setPokemon(d.data ?? []); setTotal(d.total ?? 0) })
       .catch(() => setPokemon([]))
-      .finally(() => setLoading(false))
+      // onReadyRef y no onReady: si quien nos monta pasa una función nueva en
+      // cada render, tenerla como dependencia relanzaría la consulta en bucle.
+      .finally(() => { setLoading(false); onReadyRef.current?.() })
   }, [debouncedSearch, selectedType, page, starter])
 
   const totalPages = Math.ceil(total / LIMIT)

@@ -144,7 +144,7 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
           </div>
         </div>
 
-        {/* Dados de golpe y, a su lado, el atajo al otro panel */}
+        {/* Dados de golpe a la izquierda y el atajo al otro panel a la derecha */}
         {(hitDice || switchSprite) && (
           <div className="flex items-center gap-2 mb-3">
             {/* Dados de golpe: mismo control que los Extra Points de la ruta */}
@@ -169,10 +169,12 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
 
             {/* Salto al otro panel de combate: en el del entrenador se ve al
                 Pokémon invocado y en el del Pokémon al entrenador. Sin Pokémon
-                invocado no hay a dónde saltar y el botón no se pinta. */}
+                invocado no hay a dónde saltar y el botón no se pinta.
+                ml-auto lo pega al borde derecho, justo bajo la X de cerrar,
+                haya o no dados de golpe a su izquierda. */}
             {switchSprite && (
               <button onClick={() => onSwitch?.()} title={switchLabel}
-                className="shrink-0 w-9 h-9 rounded-lg bg-gray-700/50 hover:bg-gray-600 flex items-center justify-center transition-colors">
+                className="ml-auto shrink-0 w-9 h-9 rounded-lg bg-gray-700/50 hover:bg-gray-600 flex items-center justify-center transition-colors">
                 <img src={switchSprite} alt={switchLabel} className="w-7 h-7 object-contain"
                   onError={e => { e.target.style.opacity = '0.2' }} />
               </button>
@@ -285,7 +287,8 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                   // el panel del Pokémon: en mesa se usan sobre cualquiera.
                   ...(personajeId ? [['items', 'Items']] : []),
                   // El arma sí es solo del entrenador: el Pokémon no equipa.
-                  ...(recursos ? [['weapon', 'Weapon']] : []),
+                  // En plural porque se pueden llevar hasta dos equipadas.
+                  ...(recursos ? [['weapon', 'Weapons']] : []),
                 ].map(([k, label]) => (
                   <button key={k} onClick={() => setTabPanel(k)}
                     className={`px-1.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-colors ${
@@ -597,6 +600,7 @@ export default function TrainerPartida() {
 
   const [personajeId, setPersonajeId] = useState(stateId)
   const [showPokedex, setShowPokedex] = useState(false)
+  const [pokedexListo, setPokedexListo] = useState(false) // primera consulta resuelta
   const [showChar, setShowChar]       = useState(false)
   const [showMochila, setShowMochila] = useState(false)
   const [showEquip, setShowEquip]     = useState(false)
@@ -1292,7 +1296,7 @@ export default function TrainerPartida() {
         )}
 
         {/* Pokédex — flotante justo debajo del botón de notas de PartidaRoom */}
-        <button onClick={() => setShowPokedex(true)} className={`${sideBtn} fixed left-3 top-52 z-40`} title="Abrir Pokédex">
+        <button onClick={() => { setPokedexListo(false); setShowPokedex(true) }} className={`${sideBtn} fixed left-3 top-52 z-40`} title="Abrir Pokédex">
           <Smartphone size={18} />
         </button>
 
@@ -1360,25 +1364,35 @@ export default function TrainerPartida() {
           onDone={trasDescanso} />
       )}
 
-      {/* Modal Pokédex */}
+      {/* Modal Pokédex.
+          Aquí la ventana es de esta página pero quien consulta es PokemonList,
+          así que no se puede montar solo cuando esté lista: sin montarla no
+          consulta. Se monta oculta —invisible mantiene el componente vivo, que
+          es lo que hace falta— y la pokébola tapa mientras tanto. */}
       {showPokedex && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
-          onClick={e => { if (e.target === e.currentTarget) setShowPokedex(false) }}
-        >
-          <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl">
-            <button
-              onClick={() => setShowPokedex(false)}
-              className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center
-                         rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
-              title="Cerrar"
-            >
-              <X size={18} />
-            </button>
-            <PokemonList title="Pokédex" moveDetail />
+        <>
+          {!pokedexListo && (
+            <LoadingOverlay label="Pokédex" onClose={() => setShowPokedex(false)} z="z-[55]" />
+          )}
+          <div
+            className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${
+              pokedexListo ? '' : 'invisible pointer-events-none'}`}
+            style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+            onClick={e => { if (e.target === e.currentTarget) setShowPokedex(false) }}
+          >
+            <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl">
+              <button
+                onClick={() => setShowPokedex(false)}
+                className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center
+                           rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+                title="Cerrar"
+              >
+                <X size={18} />
+              </button>
+              <PokemonList title="Pokédex" moveDetail onReady={() => setPokedexListo(true)} />
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Hoja del personaje */}

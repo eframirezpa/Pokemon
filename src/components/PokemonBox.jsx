@@ -7,6 +7,7 @@ import { ResolvedBonusBadges } from './featBonoBadges'
 import MoveInfoModal from './MoveInfoModal'
 import FeatInfoModal from './FeatInfoModal'
 import PokeballSpinner from './PokeballSpinner'
+import LoadingOverlay from './LoadingOverlay'
 
 const TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -494,6 +495,10 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
 
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
+  // Aparte de `loading`: este solo cubre la primera carga. load() se vuelve a
+  // llamar tras mover, liberar o transferir, y ahí la ventana no debe
+  // desaparecer para reaparecer un instante después.
+  const [primeraCarga, setPrimeraCarga] = useState(true)
   const [selected, setSelected] = useState(null)
   const [expFor, setExpFor] = useState(null) // Pokémon al que se le agrega experiencia
   const [bondFor, setBondFor] = useState(null) // Pokémon cuyo bond se edita
@@ -531,7 +536,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
       .then(r => r.json())
       .then(d => setList(Array.isArray(d) ? d : []))
       .catch(() => setList([]))
-      .finally(() => setLoading(false))
+      .finally(() => { setLoading(false); setPrimeraCarga(false) })
   }
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId, isBelt])
 
@@ -577,6 +582,10 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
       setErrorMover('No se pudo mover el Pokémon')
     } finally { setMovingId(null) }
   }
+
+  // La pokébola hasta que estén los Pokémon: el título ya dice si es el
+  // cinturón o la femputadora, así que sirve de etiqueta.
+  if (primeraCarga) return <LoadingOverlay label={title} onClose={onClose} z="z-[60]" />
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
@@ -664,7 +673,9 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                 </p>
               )}
               {loading ? (
-                <p className="text-center text-gray-400 text-sm py-10">Cargando…</p>
+                <p className="flex items-center justify-center gap-2 text-gray-400 text-sm py-10">
+                  <PokeballSpinner size={16} /> Cargando…
+                </p>
               ) : list.length === 0 ? (
                 <p className="text-center text-gray-400 text-sm py-10">
                   {isBelt ? 'No tienes Pokémon en el cinturón.' : 'No tienes Pokémon almacenados.'}

@@ -9,6 +9,7 @@ import { buildProfs, titleCase } from '../lib/profs'
 import PathInfoModal from './PathInfoModal'
 import { hpValues } from '../lib/hp'
 import PokeballSpinner from './PokeballSpinner'
+import LoadingOverlay from './LoadingOverlay'
 
 /* Checkbox de solo lectura (estilo de la imagen) */
 function ReadCheck({ pref, expert }) {
@@ -227,6 +228,11 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
     if (pathFx.skillExpert.has(name)) { if (pref) expert = true; else pref = true }
     return { pref, expert }
   }
+
+  // Mientras llega la ficha se ve solo la pokébola, no la ventana a medio
+  // llenar. `loading` solo sube en la primera carga, así que las re-consultas
+  // por partyVersion no la hacen desaparecer.
+  if (loading) return <LoadingOverlay label="Personaje" onClose={onClose} z="z-[70]" />
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
