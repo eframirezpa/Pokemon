@@ -22,6 +22,7 @@ import WeaponPanel from '../components/WeaponPanel'
 import { buildProfs } from '../lib/profs'
 import PokeballSpinner from '../components/PokeballSpinner'
 import PokeballIcon from '../components/PokeballIcon'
+import LoadingOverlay from '../components/LoadingOverlay'
 
 
 /* Habilidades del entrenador para el panel de Jugador (y el modificador de DEX
@@ -1443,18 +1444,12 @@ export default function TrainerPartida() {
         />
       )}
 
-      {/* Pokébola girando mientras se pide el otro panel. Va por encima de los
-          paneles (z-[60]) y por debajo del lápiz de recursos (z-[70]), y tapa
-          los clics para que no se pueda pedir el cambio dos veces. */}
+      {/* Pokébola girando mientras se pide el otro panel. El z-[65] la deja por
+          encima de los paneles (z-[60]) y por debajo del lápiz de recursos
+          (z-[70]). Sin onClose: la espera es corta y no debe poder pedirse el
+          cambio dos veces. */}
       {cargandoPanel && (
-        <div className="fixed inset-0 z-[65] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
-          <div className="bg-gray-800 border border-gray-700 rounded-2xl px-6 py-5 shadow-2xl flex flex-col items-center gap-2">
-            <PokeballSpinner size={38} className="text-red-500" />
-            <p className="text-[11px] font-bold text-gray-300 uppercase tracking-widest">
-              {cargandoPanel === 'trainer' ? 'Entrenador' : 'Pokémon'}
-            </p>
-          </div>
-        </div>
+        <LoadingOverlay label={cargandoPanel === 'trainer' ? 'Entrenador' : 'Pokémon'} />
       )}
 
       {/* Control del jugador */}

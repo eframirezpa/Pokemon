@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, Users } from 'lucide-react'
 import { apiFetch } from '../api'
+import LoadingOverlay from './LoadingOverlay'
 
 const hpPct   = (cur, max) => Math.max(0, Math.min(100, Math.round(((cur ?? max ?? 0) / (max || 1)) * 100)))
 const hpColor = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
@@ -129,6 +130,18 @@ export default function PartyPanel({ partidaId, presentes, selfUserId, partyVers
     visibles.push({ char: c, pres: pr })
   }
 
+  // Hasta que llega la party no se pinta la ventana, solo la pokébola girando:
+  // igual que al cambiar de panel de combate. Abrirla vacía para rellenarla un
+  // segundo después se veía como un salto.
+  //
+  // Solo en la primera carga. Las re-consultas por partyVersion no vuelven a
+  // levantar `loading`, así que la ventana no parpadea cada vez que otro
+  // jugador cambia algo.
+  //
+  // Aquí sí se puede cerrar desde el fondo: es la única salida si la petición
+  // se queda colgada, porque no hay nada debajo a lo que volver.
+  if (loading) return <LoadingOverlay label="Party" onClose={onClose} z="z-[70]" />
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -139,9 +152,7 @@ export default function PartyPanel({ partidaId, presentes, selfUserId, partyVers
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {loading ? (
-            <p className="text-center text-gray-500 text-sm py-10">Cargando…</p>
-          ) : visibles.length === 0 ? (
+          {visibles.length === 0 ? (
             <p className="text-center text-gray-500 text-sm py-10">No hay otros jugadores conectados.</p>
           ) : visibles.map(({ char: c, pres }) => {
             const key = String(c.id_personaje)
