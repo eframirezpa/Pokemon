@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff, Loader2, ArrowRight, BedDouble } from 'lucide-react'
+import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff, Loader2, ArrowRight, BedDouble, ArrowBigUp } from 'lucide-react'
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
 import CharacterSheet from '../components/CharacterSheet'
@@ -116,7 +116,7 @@ const MOVE_TYPE_COLORS = {
 }
 
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
-function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null }) {
+function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -262,7 +262,15 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
             ) : (
               <div className="flex items-center gap-1 mb-1.5">
                 {[
-                  ['moves',  recursos ? 'Path' : 'Moves'],
+                  // La flecha marca dónde vive la información de la ruta. En el
+                  // entrenador acompaña al texto; en el Pokémon va sola, que en
+                  // móvil no sobra el ancho.
+                  ['moves', recursos
+                    ? <span className="flex items-center gap-1"><ArrowBigUp size={14} strokeWidth={2.5} className="animate-path-arrow" /> Path</span>
+                    : 'Moves'],
+                  // Siempre que el entrenador tenga ruta: aunque no le dé puntos a
+                  // este Pokémon, sus rasgos pueden traer algo que le aplique.
+                  ...(recursosPokemon ? [['path', <ArrowBigUp size={15} strokeWidth={2.5} className="animate-path-arrow" />]] : []),
                   ['skills', 'Skills'],
                   ...(v.stats?.length ? [['stats', 'Stats'], ['saves', 'Saves']] : []),
                   // Los items son del entrenador, pero se consultan igual desde
@@ -342,6 +350,56 @@ function CombatePanel({ title, initial, moves, pasivas = [], skills = [], onCast
                     </div>
                   )
                 })}
+              </div>
+            )}
+
+            {/* Ruta, en el panel del Pokémon: los recursos con target 'pokemon',
+                que son los de ESTE Pokémon. Los del entrenador viven en su
+                propia pestaña con los de target 'trainer'. */}
+            {tabPanel === 'path' && recursosPokemon && (
+              <div className="space-y-1">
+                {recursosPokemon.length === 0 && recursosRasgos.length === 0 && (
+                  <p className="text-[11px] text-gray-500 italic">Tu ruta no le da nada a este Pokémon.</p>
+                )}
+                {/* Mismo control que los Extra Points del entrenador: lápiz para
+                    ajustar y flecha roja para gastar de a uno. */}
+                {recursosPokemon.map(r => {
+                  const vacio = r.actual <= 0
+                  return (
+                    <div key={r.id} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
+                      <span className="text-white text-xs font-medium truncate">{r.nombre}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => onManageBond?.(r)} title="Ajustar puntos"
+                            className="shrink-0 text-gray-400 hover:text-amber-300 transition-colors">
+                            <Pencil size={13} />
+                          </button>
+                          <span className={`text-[10px] font-black tabular-nums ${vacio ? 'text-red-400' : 'text-gray-300'}`}>
+                            {r.nombre.toUpperCase()} {r.actual}/{r.maximo}
+                          </span>
+                        </div>
+                        <button onClick={() => onSpendBond?.(r)} disabled={vacio} title="Gastar un punto"
+                          className="flex items-center justify-center text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 rounded-md transition-colors">
+                          <ArrowRight size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Los rasgos de la ruta, los mismos que ve el entrenador. Se
+                    muestran sea cual sea la ruta: pueden traer algo que aplique
+                    al Pokémon aunque no otorgue puntos. */}
+                {recursosRasgos.length > 0 && (
+                  <div className="mt-2 border-t border-gray-700 pt-2 space-y-2">
+                    {recursosRasgos.map(f => (
+                      <div key={f.nivel}>
+                        <p className="text-[11px] font-bold text-amber-300">{f.nombre}</p>
+                        {f.descripcion && <p className="text-[11px] text-gray-400">{f.descripcion}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -706,6 +764,10 @@ export default function TrainerPartida() {
           { method: 'PUT', body: JSON.stringify({ actual: recursoVal }) })
         const j = await res.json()
         if (res.ok) setRecursos(prev => prev.map(x => x.id === recursoEdit.id ? { ...x, actual: j.actual, maximo: j.maximo } : x))
+      } else if (tipo === 'bond') {
+        const res = await apiFetch(urlBond(), { method: 'PUT', body: JSON.stringify({ actual: recursoVal }) })
+        const j = await res.json()
+        if (res.ok) setPokeData(p => p && ({ ...p, path_recursos: (p.path_recursos || []).map(x => x.id === recursoEdit.id ? { ...x, actual: j.actual, maximo: j.maximo } : x) }))
       } else {
         const res = await apiFetch(urlDados(tipo), { method: 'PUT', body: JSON.stringify({ actual: recursoVal }) })
         const j = await res.json()
@@ -731,6 +793,25 @@ export default function TrainerPartida() {
       const j = await res.json()
       set({ actual: j.actual ?? previo.actual, maximo: j.maximo ?? previo.maximo })
     } catch { set(previo) }
+  }
+
+  // Puntos de vínculo del Pokémon invocado: mismo patrón que los Extra Points
+  const urlBond = () => `/personaje/${personajeId}/pokemon/${pokemonInvocado}/bond-points`
+
+  const gastarBond = async (r) => {
+    if (!r || r.actual <= 0) return
+    const previo = pokeData?.path_recursos
+    setPokeData(p => p && ({ ...p, path_recursos: (p.path_recursos || []).map(x => x.id === r.id ? { ...x, actual: x.actual - 1 } : x) }))
+    try {
+      const res = await apiFetch(urlBond(), { method: 'PATCH', body: JSON.stringify({ cantidad: 1 }) })
+      const j = await res.json()
+      setPokeData(p => p && ({ ...p, path_recursos: (p.path_recursos || []).map(x => x.id === r.id ? { ...x, actual: j.actual ?? x.actual, maximo: j.maximo ?? x.maximo } : x) }))
+    } catch { setPokeData(p => p && ({ ...p, path_recursos: previo })) }
+  }
+
+  const abrirLapizBond = (r) => {
+    setRecursoEdit({ tipo: 'bond', nombre: r.nombre, maximo: r.maximo, id: r.id })
+    setRecursoVal(r.actual)
   }
 
   const abrirLapizDados = (tipo) => {
@@ -836,6 +917,7 @@ export default function TrainerPartida() {
       }))
       setHdPoke({ actual: d.pokemon_hit_dice_left ?? 0, maximo: d.hit_dice_pool ?? 0 })
       setPokeData({
+        path_recursos: Array.isArray(d.path_recursos) ? d.path_recursos : [],
         stats: statsLista,
         hp: d.pokemon_current_hp ?? d.pokemon_hp ?? 0, hpMax: d.pokemon_hp ?? 0,
         exhaust: d.personaje_pokemon_exahust_lvl ?? 0, dsts: d.personaje_pokemon_dsts ?? 0, dstf: d.personaje_pokemon_dstf ?? 0,
@@ -1330,6 +1412,8 @@ export default function TrainerPartida() {
           recursos={recursos}
           recursosTitulo={recursosTitulo}
           recursosRasgos={recursosRasgos}
+          onSpendBond={gastarBond}
+          onManageBond={abrirLapizBond}
           onSpendRecurso={gastarRecurso}
           onManageRecurso={r => { setRecursoEdit(r); setRecursoVal(r.actual) }}
           hitDice={hdTrainer}
@@ -1388,6 +1472,10 @@ export default function TrainerPartida() {
           onManagePP={abrirGestionPP}
           castDisabled={castCooldown}
           hitDice={hdPoke}
+          recursosPokemon={pokeData.path_recursos || []}
+          recursosRasgos={recursosRasgos}
+          onSpendBond={gastarBond}
+          onManageBond={abrirLapizBond}
           onSpendHitDice={() => gastarDado('hd-poke')}
           onManageHitDice={() => abrirLapizDados('hd-poke')}
           personajeId={personajeId}

@@ -141,3 +141,17 @@ body {
   .animate-pokeball-throw { animation-duration: 0.3s; }
   .animate-pokeball-wobble { animation: none; }
 }
+
+/* Flecha de la pestaña de ruta: parpadea entre el gris del panel y un amarillo
+   encendido, con brillo, para que se note que ahí hay algo que mirar. */
+@keyframes path-arrow-blink {
+  0%, 100% { color: #6b7280; filter: none; }
+  50%      { color: #fde047; filter: drop-shadow(0 0 5px rgba(253, 224, 71, 0.85)); }
+}
+.animate-path-arrow {
+  animation: path-arrow-blink 1.4s ease-in-out infinite;
+}
+/* Sin animación para quien la haya desactivado en su sistema */
+@media (prefers-reduced-motion: reduce) {
+  .animate-path-arrow { animation: none; color: #fde047; }
+}

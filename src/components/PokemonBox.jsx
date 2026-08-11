@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, ArrowDown, Loader2, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Minus, Plus, Monitor } from 'lucide-react'
+import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, ArrowDown, Loader2, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Monitor, ChevronDown } from 'lucide-react'
 import PokeballsIcon from './PokeballsIcon'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
@@ -498,6 +498,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
   const [bondFor, setBondFor] = useState(null) // Pokémon cuyo bond se edita
   const [bondVal, setBondVal] = useState(0)
   const [bondBusy, setBondBusy] = useState(false)
+  const [bondOpts, setBondOpts] = useState(null)  // los tres vínculos elegibles
   const [releaseFor, setReleaseFor] = useState(null)   // Pokémon a liberar
   const [releaseSure, setReleaseSure] = useState(false) // segunda confirmación
   const [transferFor, setTransferFor] = useState(null) // Pokémon a transferir
@@ -592,8 +593,10 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
             onDone={() => { setExpFor(null); load(); onExpAdded?.() }} />
         )}
 
-      {/* Editar bond: puntos de -3 a 3. Al guardar, el backend ajusta el nivel
-          de vínculo al que corresponda en la tabla bonds. */}
+      {/* Editar bond: se elige por NOMBRE entre tres opciones, la actual y un
+          escalón arriba y abajo. El vínculo se gana o se pierde poco a poco en
+          la mesa, así que no se salta de Disloyal a Incredible de una vez.
+          Ya no toca los puntos: son un recurso aparte. */}
       {bondFor && (
         <div className="fixed inset-0 z-[95] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
           onClick={e => { if (e.target === e.currentTarget && !bondBusy) setBondFor(null) }}>
@@ -603,16 +606,25 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
               <p className="text-[11px] text-gray-500 truncate">{bondFor.pokemon_apodo}</p>
             </div>
             <div className="px-5 py-4">
-              <div className="flex items-center gap-2">
-                <button onClick={() => setBondVal(v => Math.max(-3, v - 1))} disabled={bondBusy || bondVal <= -3}
-                  className="w-9 h-9 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-30 flex items-center justify-center"><Minus size={16} /></button>
-                <span className="flex-1 text-center text-2xl font-black text-gray-900 tabular-nums">
-                  {bondVal > 0 ? `+${bondVal}` : bondVal}
-                </span>
-                <button onClick={() => setBondVal(v => Math.min(3, v + 1))} disabled={bondBusy || bondVal >= 3}
-                  className="w-9 h-9 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-30 flex items-center justify-center"><Plus size={16} /></button>
-              </div>
-              <p className="text-[11px] text-gray-400 text-center mt-2">Entre -3 y 3</p>
+              {bondOpts === null ? (
+                <p className="text-sm text-gray-500 flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Cargando…</p>
+              ) : (
+                <>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Vínculo</label>
+                  <div className="relative">
+                    <select value={bondVal ?? ''} onChange={e => setBondVal(Number(e.target.value))} disabled={bondBusy}
+                      className="appearance-none w-full pl-3 pr-8 py-2 text-sm text-gray-900 border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-400">
+                      {bondOpts.opciones.map(o => (
+                        <option key={o.bond_id} value={o.bond_id}>
+                          {o.bond_name}{Number(o.bond_id) === Number(bondOpts.actual) ? ' (actual)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-2">Solo se puede subir o bajar un nivel.</p>
+                </>
+              )}
             </div>
             <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
               <button onClick={() => setBondFor(null)} disabled={bondBusy}
@@ -621,7 +633,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                   setBondBusy(true)
                   try {
                     await apiFetch(`/personaje/${personajeId}/pokemon/${bondFor.id_personaje_pokemon}/bond`,
-                      { method: 'PUT', body: JSON.stringify({ puntos: bondVal }) })
+                      { method: 'PUT', body: JSON.stringify({ bond_id: bondVal }) })
                     setBondFor(null); load()
                   } catch { /* noop */ } finally { setBondBusy(false) }
                 }} disabled={bondBusy}
@@ -673,7 +685,14 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                         </button>
                       )}
                       {editable && (
-                        <button onClick={e => { e.stopPropagation(); setBondFor(p); setBondVal(Number(p.personaje_pokemon_bond_points) || 0) }}
+                        <button onClick={e => {
+                            e.stopPropagation()
+                            setBondFor(p); setBondOpts(null); setBondVal(null)
+                            apiFetch(`/personaje/${personajeId}/pokemon/${p.id_personaje_pokemon}/bond`)
+                              .then(r => r.json())
+                              .then(d => { setBondOpts(d); setBondVal(d.actual ?? d.opciones?.[0]?.bond_id ?? null) })
+                              .catch(() => setBondOpts({ opciones: [], actual: null }))
+                          }}
                           title="Editar bond"
                           className="absolute top-1.5 left-1.5 flex items-center gap-0.5 text-[9px] font-black text-white bg-blue-600 hover:bg-blue-700 rounded-md px-1.5 py-0.5 shadow transition-colors">
                           BOND <ArrowUp size={11} strokeWidth={3} />

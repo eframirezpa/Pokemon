@@ -18,7 +18,11 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
   const [data, setData]   = useState(null)      // { entrenador, pokemons }
   const [sel, setSel]     = useState([])        // ids elegidos (largo)
   const [uno, setUno]     = useState(null)      // elegido (corto)
-  const [dados, setDados] = useState(1)
+  // Se guarda como TEXTO mientras se escribe. Normalizarlo en cada tecla impedía
+  // borrar el dígito para teclear otro: el campo vacío valía 0, se corregía a 1,
+  // y el siguiente dígito formaba un número de dos cifras que se recortaba al
+  // máximo. Se acota al salir del campo y al continuar.
+  const [dados, setDados] = useState('1')
   const [tirada, setTirada] = useState('')
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -40,7 +44,9 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
 
   // Dado y disponibles del elegido en el descanso corto
   const elegido = uno === ENTRENADOR ? data?.entrenador : data?.pokemons.find(p => p.id === uno)
-  const maxTirada = Math.max(1, dados) * (elegido?.cara || 6)
+  // Valor efectivo: lo que se envía y con lo que se calculan los topes
+  const nDados = Math.min(Math.max(1, parseInt(dados, 10) || 1), Math.max(1, elegido?.dados || 1))
+  const maxTirada = nDados * (elegido?.cara || 6)
 
   const toggle = clave => setSel(prev => prev.includes(clave) ? prev.filter(x => x !== clave) : [...prev, clave])
 
@@ -48,7 +54,7 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
 
   const confirmarDM = si => {
     if (!si) return onClose()
-    setSel([]); setUno(null); setDados(1); setTirada(''); setError('')
+    setSel([]); setUno(null); setDados('1'); setTirada(''); setError('')
     setPaso('elige')
   }
 
@@ -73,8 +79,8 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
 
   const enviarCorto = async () => {
     const n = Number(tirada)
-    if (!Number.isFinite(n) || n < dados || n > maxTirada) {
-      setError(`La tirada debe estar entre ${dados} y ${maxTirada}`)
+    if (!Number.isFinite(n) || n < nDados || n > maxTirada) {
+      setError(`La tirada debe estar entre ${nDados} y ${maxTirada}`)
       return
     }
     setEnviando(true); setError('')
@@ -84,7 +90,7 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
         body: JSON.stringify({
           objetivo: uno === ENTRENADOR ? 'trainer' : 'pokemon',
           idpp: uno === ENTRENADOR ? null : uno,
-          dados, resultado: n,
+          dados: nDados, resultado: n,
         }),
       })
       const j = await res.json()
@@ -201,7 +207,8 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
             <div className="space-y-3">
               <p className="text-sm text-gray-800">¿Cuántos hit dice va a usar?</p>
               <input type="number" min={1} max={elegido.dados} value={dados}
-                onChange={e => setDados(Math.min(elegido.dados, Math.max(1, Math.floor(Number(e.target.value) || 1))))}
+                onChange={e => setDados(e.target.value.replace(/[^0-9]/g, ''))}
+                onBlur={() => setDados(String(nDados))}
                 className="w-full px-3 py-2 text-sm text-center text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
               <p className="text-[11px] text-gray-500">Disponibles: {elegido.dados}</p>
             </div>
@@ -211,12 +218,12 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
           {paso === 'tirada' && elegido && (
             <div className="space-y-3">
               <p className="text-sm text-gray-800">
-                Lanza <span className="font-bold">{dados}</span> {dados === 1 ? 'dado' : 'dados'} de{' '}
+                Lanza <span className="font-bold">{nDados}</span> {nDados === 1 ? 'dado' : 'dados'} de{' '}
                 <span className="font-bold">{elegido.hit_dice || `d${elegido.cara}`}</span>
               </p>
-              <input type="number" min={dados} max={maxTirada} value={tirada} autoFocus
+              <input type="number" min={nDados} max={maxTirada} value={tirada} autoFocus
                 onChange={e => setTirada(e.target.value)}
-                placeholder={`Entre ${dados} y ${maxTirada}`}
+                placeholder={`Entre ${nDados} y ${maxTirada}`}
                 className="w-full px-3 py-2 text-sm text-center text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
               <p className="text-[11px] text-gray-500">El resultado se suma a los puntos de golpe, sin pasar del máximo.</p>
             </div>
@@ -268,13 +275,13 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
                   </button>
                 )}
                 {paso === 'elige' && tipo === 'short' && (
-                  <button onClick={() => { setPaso('dados'); setDados(1) }} disabled={uno == null}
+                  <button onClick={() => { setPaso('dados'); setDados('1') }} disabled={uno == null}
                     className="text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
                     Confirmar
                   </button>
                 )}
                 {paso === 'dados' && (
-                  <button onClick={() => { setPaso('tirada'); setTirada('') }}
+                  <button onClick={() => { setDados(String(nDados)); setPaso('tirada'); setTirada('') }}
                     className="text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-lg transition-colors">
                     Continuar
                   </button>

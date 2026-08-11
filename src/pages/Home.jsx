@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ShoppingBag, LogIn, Leaf, Star, BookOpen, Map, Heart, Shield, Tag, BookMarked, Swords, Sword, ChevronDown, Zap, Clock, Award, Route } from 'lucide-react'
 import LoginModal from '../components/LoginModal'
+import { AVISO_SESION } from '../api'
 
 function PokeballIcon({ size = 20, className = '' }) {
   return (
@@ -51,7 +52,14 @@ const SECTIONS = [
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const [loginOpen, setLoginOpen] = useState(false)
+  // Si la sesión venció, apiFetch nos trajo aquí: se abre el login y se explica
+  // por qué, en vez de dejar al usuario adivinando por qué lo sacaron.
+  const [expirada] = useState(() => {
+    const hay = sessionStorage.getItem(AVISO_SESION) === '1'
+    if (hay) sessionStorage.removeItem(AVISO_SESION)   // solo se avisa una vez
+    return hay
+  })
+  const [loginOpen, setLoginOpen] = useState(expirada)
   const [openSection, setOpenSection] = useState(null)
 
   const toggle = (title) => setOpenSection(prev => prev === title ? null : title)
@@ -120,7 +128,8 @@ export default function HomePage() {
         })}
       </div>
 
-      {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} />}
+      {loginOpen && <LoginModal aviso={expirada ? 'Tu sesión expiró. Vuelve a entrar para continuar.' : null}
+        onClose={() => setLoginOpen(false)} />}
     </div>
   )
 }

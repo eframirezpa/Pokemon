@@ -10,7 +10,7 @@ const ROLE_REDIRECT = {
   espectador: '/dashboard/espectador',
 }
 
-export default function LoginModal({ onClose }) {
+export default function LoginModal({ onClose, aviso = null }) {
   const backdropRef = useRef(null)
   const { login }   = useAuth()
   const navigate    = useNavigate()
@@ -105,6 +105,14 @@ export default function LoginModal({ onClose }) {
               />
             </div>
           </div>
+
+          {/* Motivo por el que se abrió solo (p. ej. la sesión venció). Cede el
+              sitio en cuanto hay un error real del formulario. */}
+          {aviso && !error && (
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
+              {aviso}
+            </p>
+          )}
 
           {error && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">

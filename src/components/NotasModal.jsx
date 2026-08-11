@@ -17,8 +17,11 @@ function TipoIcon({ tipo }) {
 }
 
 /* Popup para crear / editar una nota */
-function NotaForm({ nota, busy, error, onCancel, onSave }) {
-  const [tipo, setTipo] = useState(nota?.tipo_nota || 'Personaje')
+function NotaForm({ nota, busy, error, onCancel, onSave, tipoPorDefecto = 'Personaje' }) {
+  // Al crear, se propone el tipo que se está viendo: si estás filtrando por
+  // Items, lo natural es que la nota nueva nazca como Items. Al editar manda el
+  // tipo que ya tiene la nota.
+  const [tipo, setTipo] = useState(nota?.tipo_nota || tipoPorDefecto)
   const [texto, setTexto] = useState(nota?.nota || '')
   return (
     <div className="fixed inset-0 z-[85] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -174,7 +177,7 @@ export default function NotasModal({ personajeId, onClose }) {
       </div>
 
       {form && (
-        <NotaForm nota={form.id_nota ? form : null} busy={busy} error={error}
+        <NotaForm nota={form.id_nota ? form : null} tipoPorDefecto={filtro || 'Personaje'} busy={busy} error={error}
           onCancel={() => { if (!busy) { setForm(null); setError('') } }} onSave={save} />
       )}
     </div>
