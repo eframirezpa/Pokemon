@@ -136,8 +136,21 @@ body {
   transform-origin: 50% 88%;
 }
 
+/* Cargando: la pokébola gira sobre sí misma mientras se pide el otro panel. */
+@keyframes pokeball-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.animate-pokeball-spin {
+  display: inline-block;   /* un <span> en línea no admite transform */
+  animation: pokeball-spin 1s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-pokeball-idle { animation: none; }
   .animate-pokeball-throw { animation-duration: 0.3s; }
   .animate-pokeball-wobble { animation: none; }
+  /* Esta no se detiene: es el único indicio de que algo está pasando.
+     Se frena, que es lo que pide la preferencia sin dejar el icono mudo. */
+  .animate-pokeball-spin { animation-duration: 2.4s; }
 }

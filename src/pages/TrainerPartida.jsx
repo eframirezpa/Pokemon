@@ -637,6 +637,7 @@ export default function TrainerPartida() {
   const [pokemonInvocado, setPokemonInvocado] = useState(null) // id_personaje_pokemon
   const [invocadoSprite, setInvocadoSprite]   = useState(null)
   const [openControl, setOpenControl] = useState(null) // 'trainer' | 'pokemon' | null (solo uno a la vez)
+  const [cargandoPanel, setCargandoPanel] = useState(null) // panel que se está pidiendo, o null
   const [charData, setCharData] = useState(null)
   const [pokeData, setPokeData] = useState(null)
   const partidaApiRef = useRef(null) // acciones expuestas por PartidaRoom (p. ej. sendPartyUpdate)
@@ -836,19 +837,19 @@ export default function TrainerPartida() {
     setRecursoVal(d.actual)
   }
 
+  // Los dos abrir* piden primero y pintan después: mientras llega la respuesta
+  // el panel que estuviera abierto sigue en pantalla, con la pokébola girando
+  // encima. Antes se cambiaba de panel al empezar y la ventana se quedaba en
+  // blanco todo lo que tardara el servidor.
   const openTrainerControl = async () => {
-    setPokeData(null)
-    setOpenControl('trainer')
+    setCargandoPanel('trainer')
     try {
       // /full trae stats, feats y especialidades: el HP se calcula con sus bonos
       const d = await apiFetch(`/personaje/${personajeId}/full`).then(r => r.json())
       const { max, cur } = hpValues(d)
-      // Recursos de la ruta y su título: el nombre del path, o "Trainer"
-      // mientras no tenga uno (nivel 1).
-      setCharNombre(d.nombre_personaje || '')
       // Rasgos de la ruta que ya alcanzó: los de nivel <= su nivel actual
       const nivel = Number(d.personaje_level) || 1
-      setRecursosRasgos(d.path
+      const rasgos = d.path
         ? [2, 5, 9, 15]
             .filter(n => nivel >= n && (d.path[`path_level_${n}_feature_name`] || d.path[`path_level_${n}_description`]))
             .map(n => ({
@@ -857,10 +858,16 @@ export default function TrainerPartida() {
               descripcion: d.path[`path_level_${n}_description`],
               bonos: (d.path.bonos_catalogo || []).filter(b => Number(b.level) === n),
             }))
-        : [])
+        : []
+      const { skills: skillsTrainer, dexMod, stats: statsTrainer } = construirSkillsTrainer(d)
+
+      // Ya está todo calculado: recién aquí se hace el cambio, de una sola vez.
+      setCharNombre(d.nombre_personaje || '')
+      setRecursosRasgos(rasgos)
+      // Recursos de la ruta y su título: el nombre del path, o "Trainer"
+      // mientras no tenga uno (nivel 1).
       setRecursos(Array.isArray(d.path_recursos) ? d.path_recursos : [])
       setRecursosTitulo(d.path?.path_name || 'Trainer')
-      const { skills: skillsTrainer, dexMod, stats: statsTrainer } = construirSkillsTrainer(d)
       setCharSkills(skillsTrainer)
       setCharData({
         stats: statsTrainer,
@@ -875,14 +882,16 @@ export default function TrainerPartida() {
         exhaust: d.personaje_exahust_lvl ?? 0, dsts: d.personaje_dsts ?? 0, dstf: d.personaje_dstf ?? 0,
       })
       setHdTrainer({ actual: d.personaje_hit_dice_left ?? 0, maximo: d.hit_dice_pool ?? 0 })
-    } catch { /* noop */ }
+      setPokeData(null)
+      setOpenControl('trainer')
+    } catch { /* si falla, se queda donde estaba en vez de dejar el hueco */ }
+    finally { setCargandoPanel(null) }
   }
 
   // Abrir control del Pokémon invocado
   const openPokemonControl = async () => {
     if (!pokemonInvocado) return
-    setCharData(null)
-    setOpenControl('pokemon')
+    setCargandoPanel('pokemon')
     try {
       const d = await apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}`).then(r => r.json())
       const moves = Array.isArray(d.moves) ? d.moves : []
@@ -932,6 +941,7 @@ export default function TrainerPartida() {
         key: k.toUpperCase(), valor: statVal(k), mod: modOf(k),
         prof: !!stats[`pokemon_stats_${k}_prof`],
       }))
+      // Ya está todo calculado: recién aquí se hace el cambio, de una sola vez.
       setHdPoke({ actual: d.pokemon_hit_dice_left ?? 0, maximo: d.hit_dice_pool ?? 0 })
       setPokeData({
         path_recursos: Array.isArray(d.path_recursos) ? d.path_recursos : [],
@@ -955,7 +965,10 @@ export default function TrainerPartida() {
         level: d.pokemon_level,
         typeId1: d.personaje_pokemon_type_1, typeId2: d.personaje_pokemon_type_2,
       })
-    } catch { /* noop */ }
+      setCharData(null)
+      setOpenControl('pokemon')
+    } catch { /* si falla, se queda donde estaba en vez de dejar el hueco */ }
+    finally { setCargandoPanel(null) }
   }
 
   // Lanzar movimiento del Pokémon invocado → animación de ataque (como el master)
@@ -1423,6 +1436,20 @@ export default function TrainerPartida() {
           onClose={() => setShowEdit(false)}
           onChanged={() => partidaApiRef.current?.sendPartyUpdate?.()}
         />
+      )}
+
+      {/* Pokébola girando mientras se pide el otro panel. Va por encima de los
+          paneles (z-[60]) y por debajo del lápiz de recursos (z-[70]), y tapa
+          los clics para que no se pueda pedir el cambio dos veces. */}
+      {cargandoPanel && (
+        <div className="fixed inset-0 z-[65] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl px-6 py-5 shadow-2xl flex flex-col items-center gap-2">
+            <span className="text-red-500 animate-pokeball-spin"><PokeballIcon size={38} /></span>
+            <p className="text-[11px] font-bold text-gray-300 uppercase tracking-widest">
+              {cargandoPanel === 'trainer' ? 'Entrenador' : 'Pokémon'}
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Control del jugador */}
