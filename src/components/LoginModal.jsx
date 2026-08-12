@@ -41,7 +41,9 @@ export default function LoginModal({ onClose, aviso = null }) {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Error al iniciar sesión'); return }
-      login(data)
+      // await: login busca el sprite personal antes de guardar al usuario, y
+      // navegar antes de eso mostraría un instante el avatar del catálogo
+      await login(data)
       onClose()
       navigate(ROLE_REDIRECT[data.user.role] ?? '/')
     } catch {
