@@ -966,6 +966,11 @@ export default function TrainerPartida() {
         prof: d.pokemon_proficient,
         ac: d.personaje_pokemon_ac,
         sr: d.pokemon_sr,   // de la especie: no cambia con el ejemplar
+        // Iniciativa: el modificador de DEX, igual que el entrenador. Se
+        // calcula al leer y no se guarda, así ya viene con la naturaleza, los
+        // bonos de feats y el tope por nivel que aplica statVal. La columna
+        // pokemon_initiative no se usa: guarda un 3 fijo desde la creación.
+        init: modOf('dex'),
         // Las velocidades son del ejemplar, no de la especie: se editan por
         // Pokémon y pueden ser varias (andar, volar, nadar, trepar).
         speeds: [1, 2, 3, 4]
