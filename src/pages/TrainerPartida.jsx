@@ -204,9 +204,9 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
           {/* Valores fijos del ser vivo, los que no se editan desde aquí */}
           <div className="content-start">
             {/* Tres por renglón: arriba PROF/AC/SR, que los tienen ambos, y
-                abajo el que sea propio — INIT en el entrenador, STAB en el
-                Pokémon. Como ninguno de los dos tiene el del otro, el orden del
-                array basta para que cada uno caiga en su sitio. */}
+                abajo INIT y —solo en el Pokémon— STAB. El entrenador no tiene
+                STAB, así que el orden del array basta para que a cada uno le
+                caigan sus valores en su sitio. */}
             <div className="grid grid-cols-3 gap-x-2 gap-y-2">
               {[
                 ['PROF', v.prof != null ? `+${v.prof}` : null],
@@ -214,10 +214,10 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                 // SR no es un bono sino el rango: el del Pokémon llega como
                 // "1/2" o "13", y el del entrenador es el tope que puede llevar.
                 ['SR',   v.sr],
-                ['STAB', v.stab != null ? `+${v.stab}` : null],
                 // Iniciativa: el modificador de DEX, igual que en el creador de
                 // personajes. Puede ser negativo, así que lleva su propio signo.
                 ['INIT', v.init != null ? (v.init >= 0 ? `+${v.init}` : `${v.init}`) : null],
+                ['STAB', v.stab != null ? `+${v.stab}` : null],
               ].filter(([, val]) => val !== null && val !== undefined && val !== '').map(([label, val]) => (
                 <div key={label} className="flex items-center justify-between gap-1 h-7 min-w-0">
                   <span className="text-[10px] font-black text-gray-400 uppercase shrink-0">{label}</span>
