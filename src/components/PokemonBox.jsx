@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, ArrowDown, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Monitor, ChevronDown } from 'lucide-react'
+import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, ArrowDown, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Monitor, ChevronDown, Briefcase } from 'lucide-react'
 import PokeballsIcon from './PokeballsIcon'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
@@ -8,6 +8,7 @@ import MoveInfoModal from './MoveInfoModal'
 import FeatInfoModal from './FeatInfoModal'
 import PokeballSpinner from './PokeballSpinner'
 import LoadingOverlay from './LoadingOverlay'
+import HeldItemsModal from './HeldItemsModal'
 
 const TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -486,11 +487,13 @@ function AddExpModal({ personajeId, pokemon, onClose, onDone }) {
   )
 }
 
-export default function PokemonBox({ personajeId, partidaId = null, getConectados = null, mode, editable = false, onClose, onInvoke, onMoved, onExpAdded, nombrePersonaje = null, onAnuncio = null }) {
+export default function PokemonBox({ personajeId, partidaId = null, getConectados = null, mode, editable = false, onClose, onInvoke, onMoved, onExpAdded, nombrePersonaje = null, onAnuncio = null, onSwitchMode = null }) {
   const isBelt = mode === 'belt'
   const title    = isBelt ? 'Cinturón' : 'Femputadora'
   const subtitle = isBelt ? 'Pokémones en tu equipo' : 'Pokémones almacenados'
   const actionLabel = isBelt ? 'Enviar al computador' : 'Agregar al cinturón'
+  // El otro sitio donde viven los Pokémon, para el atajo de la cabecera
+  const otroSitio = isBelt ? 'Femputadora' : 'Cinturón'
   const targetEnEquipo = !isBelt   // belt → false (al PC); pc → true (al cinturón)
 
   const [list, setList] = useState([])
@@ -502,6 +505,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
   const [selected, setSelected] = useState(null)
   const [expFor, setExpFor] = useState(null) // Pokémon al que se le agrega experiencia
   const [bondFor, setBondFor] = useState(null) // Pokémon cuyo bond se edita
+  const [heldFor, setHeldFor] = useState(null) // Pokémon cuyos objetos equipados se gestionan
   const [bondVal, setBondVal] = useState(0)
   const [bondBusy, setBondBusy] = useState(false)
   const [bondOpts, setBondOpts] = useState(null)  // los tres vínculos elegibles
@@ -603,6 +607,15 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
             onDone={() => { setExpFor(null); load(); onExpAdded?.() }} />
         )}
 
+      {heldFor && (
+        <HeldItemsModal
+          personajeId={personajeId}
+          idpp={heldFor.id_personaje_pokemon}
+          modo="gestion"
+          onClose={() => setHeldFor(null)}
+        />
+      )}
+
       {/* Editar bond: se elige por NOMBRE entre tres opciones, la actual y un
           escalón arriba y abajo. El vínculo se gana o se pierde poco a poco en
           la mesa, así que no se salta de Disloyal a Incredible de una vez.
@@ -662,7 +675,18 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
         ) : (
           <>
             <div className="px-5 py-4 border-b border-gray-200 shrink-0">
-              <h2 className="text-lg font-black text-gray-900">{title}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-black text-gray-900">{title}</h2>
+                {/* Atajo al otro sitio: del cinturón a la femputadora y al revés,
+                    sin tener que cerrar y volver a abrir desde la barra lateral. */}
+                {onSwitchMode && (
+                  <button onClick={onSwitchMode} title={`Ir a ${otroSitio}`}
+                    className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full
+                               bg-[#4169E1] hover:bg-[#3355c4] text-white shadow-sm transition-colors">
+                    {isBelt ? <Monitor size={16} /> : <PokeballsIcon size={16} />}
+                  </button>
+                )}
+              </div>
               <p className="text-xs text-gray-500">{subtitle}</p>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
@@ -710,6 +734,16 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                           BOND <ArrowUp size={11} strokeWidth={3} />
                         </button>
                       )}
+                      {/* Objetos equipados. Debajo de BOND y con el mismo tamaño que el
+                          atajo circular; en verde para no confundirlo con ninguno de los dos. */}
+                      <button onClick={e => { e.stopPropagation(); setHeldFor(p) }}
+                        title="Held items"
+                        className="absolute top-8 left-1.5 z-10 flex items-center justify-center
+                                   w-6 h-6 rounded-full bg-green-600 hover:bg-green-700 text-white shadow
+                                   border border-green-700 transition-all">
+                        <Briefcase size={11} strokeWidth={2.5} />
+                      </button>
+
                       {/* Atajo para mover al otro lado, pegado al borde izquierdo y a media
                           altura: ahí no choca con BOND (arriba) ni con liberar (abajo).
                           Mismo botón circular gris que la barra de la partida. */}

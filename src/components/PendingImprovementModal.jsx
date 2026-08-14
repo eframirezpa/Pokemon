@@ -86,7 +86,7 @@ function MoveChip({ m, dir, disabled, onMove, onInfo }) {
 
 /* Selector de movimientos por clic (máx 4). Se usa en los dos flujos: los
    movimientos se pueden reacomodar en cualquier subida de nivel. */
-function MovesPicker({ learned, available, toAvailable, toLearned, onInfo }) {
+function MovesPicker({ learned, available, toAvailable, toLearned, onInfo, maxMoves = 4 }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
@@ -95,15 +95,15 @@ function MovesPicker({ learned, available, toAvailable, toLearned, onInfo }) {
           {learned.length === 0 && <p className="text-xs text-gray-400 italic">Ninguno</p>}
           {learned.map(m => <MoveChip key={m.move_id} m={m} dir="left" onMove={() => toAvailable(m)} onInfo={onInfo} />)}
         </div>
-        <p className={`text-xs font-bold mt-2 ${learned.length > 4 ? 'text-red-600' : 'text-gray-600'}`}>
-          Movimientos aprendidos {learned.length} de 4
+        <p className={`text-xs font-bold mt-2 ${learned.length > maxMoves ? 'text-red-600' : 'text-gray-600'}`}>
+          Movimientos aprendidos {learned.length} de {maxMoves}
         </p>
       </div>
       <div>
         <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">Disponibles</p>
         <div className="space-y-1.5 min-h-[3rem]">
           {available.length === 0 && <p className="text-xs text-gray-400 italic">Ninguno</p>}
-          {available.map(m => <MoveChip key={m.move_id} m={m} dir="right" disabled={learned.length >= 4} onMove={() => toLearned(m)} onInfo={onInfo} />)}
+          {available.map(m => <MoveChip key={m.move_id} m={m} dir="right" disabled={learned.length >= maxMoves} onMove={() => toLearned(m)} onInfo={onInfo} />)}
         </div>
       </div>
     </div>
@@ -112,6 +112,10 @@ function MovesPicker({ learned, available, toAvailable, toLearned, onInfo }) {
 
 /* Hook con el estado de la transferencia de movimientos */
 function useMovesState(pending) {
+  // El tope lo dice el servidor: 4 de base más lo que abran sus feats. El feat
+  // solo abre el hueco, no ata al movimiento que se eligió al tomarlo, así que
+  // en cada subida el moveset se puede recolocar entero.
+  const maxMoves = Number(pending.max_moves) > 0 ? Number(pending.max_moves) : 4
   const byId = new Set((pending.learned_moves || []).map(m => m.move_id))
   const [learned, setLearned] = useState(() => pending.learned_moves || [])
   const [available, setAvailable] = useState(() => (pending.move_pool || []).filter(m => !byId.has(m.move_id)))
@@ -120,17 +124,17 @@ function useMovesState(pending) {
     setAvailable(a => [...a, m].sort((x, y) => x.move_name.localeCompare(y.move_name)))
   }
   const toLearned = (m) => {
-    if (learned.length >= 4) return
+    if (learned.length >= maxMoves) return
     setAvailable(a => a.filter(x => x.move_id !== m.move_id))
     setLearned(l => [...l, m])
   }
   const [moveInfo, setMoveInfo] = useState(null) // movimiento cuyo detalle se muestra
-  return { learned, available, toAvailable, toLearned, moveInfo, setMoveInfo }
+  return { learned, available, toAvailable, toLearned, moveInfo, setMoveInfo, maxMoves }
 }
 
 /* Flujo de movimientos: transferencia por clic (máx 4 aprendidos) */
 function MovesFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
-  const { learned, available, toAvailable, toLearned, moveInfo, setMoveInfo } = useMovesState(pending)
+  const { learned, available, toAvailable, toLearned, moveInfo, setMoveInfo, maxMoves } = useMovesState(pending)
   const [alert, setAlert] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -152,13 +156,13 @@ function MovesFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
   return (
     <>
       <div className="flex-1 overflow-y-auto px-5 pb-4">
-        <MovesPicker learned={learned} available={available} toAvailable={toAvailable} toLearned={toLearned} onInfo={setMoveInfo} />
+        <MovesPicker learned={learned} available={available} toAvailable={toAvailable} toLearned={toLearned} onInfo={setMoveInfo} maxMoves={maxMoves} />
         {error && <p className="text-xs text-red-600 font-medium mt-3">{error}</p>}
         {moveInfo && <MoveInfoModal m={moveInfo} theme="light" onClose={() => setMoveInfo(null)} />}
       </div>
       <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between shrink-0">
         <span className="text-xs text-gray-500">{hpValid ? '' : 'Falta la tirada del dado'}</span>
-        <button onClick={() => setAlert(true)} disabled={learned.length > 4 || !hpValid}
+        <button onClick={() => setAlert(true)} disabled={learned.length > maxMoves || !hpValid}
           className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
           Confirmar
         </button>
@@ -179,7 +183,7 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
   const cap = level >= 20 ? 22 : 20
   const totalPoints = Number(pending.points) || 0
 
-  const { learned, available, toAvailable, toLearned, moveInfo, setMoveInfo } = useMovesState(pending)
+  const { learned, available, toAvailable, toLearned, moveInfo, setMoveInfo, maxMoves } = useMovesState(pending)
   const [adds, setAdds] = useState({ dex: 0, str: 0, con: 0, int: 0, wis: 0, cha: 0 })
   const [feats, setFeats] = useState([])
   const [skillsList, setSkillsList] = useState([])
@@ -244,7 +248,7 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
     <>
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {/* Movimientos: se pueden reacomodar en cualquier nivel, también en los ASI */}
-        <MovesPicker learned={learned} available={available} toAvailable={toAvailable} toLearned={toLearned} onInfo={setMoveInfo} />
+        <MovesPicker learned={learned} available={available} toAvailable={toAvailable} toLearned={toLearned} onInfo={setMoveInfo} maxMoves={maxMoves} />
         {moveInfo && <MoveInfoModal m={moveInfo} theme="light" onClose={() => setMoveInfo(null)} />}
 
         {/* Puntos disponibles */}
@@ -279,6 +283,13 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
         {/* Feat (máximo 1, cuesta 2 puntos) */}
         <MasterPokemonFeats feats={feats} setFeats={setFeats} level={level}
           stats={statCtx} skills={skillCtx} skillsList={skillsList}
+          /* Datos que necesitan las elecciones de los feats nuevos: el
+             movimiento extra sale de su learnset y la pasiva oculta de su
+             especie. Sin esto el selector no puede ofrecerlas. */
+          movePool={pending.move_pool || []}
+          learnedMoves={pending.learned_moves || []}
+          hiddenAbilities={pending.hidden_abilities || []}
+          maxMovesActual={pending.max_moves ?? null}
           ownedFeatIds={pending.owned_feat_ids || []}
           maxFeats={feats.length > 0 ? 1 : (remaining >= 2 ? 1 : 0)} />
         {feats.length === 0 && remaining < 2 && (
@@ -291,7 +302,7 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
         <span className="text-xs text-gray-500">
           {!hpValid ? 'Falta la tirada del dado' : remaining === 0 ? 'Todo repartido' : `Faltan ${remaining} punto(s)`}
         </span>
-        <button onClick={() => setAlert(true)} disabled={remaining !== 0 || !hpValid || learned.length > 4}
+        <button onClick={() => setAlert(true)} disabled={remaining !== 0 || !hpValid || learned.length > maxMoves}
           className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
           Confirmar
         </button>

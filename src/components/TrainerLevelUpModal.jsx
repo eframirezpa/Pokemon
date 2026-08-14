@@ -9,6 +9,7 @@ import { Plus, Minus, Sparkles, ArrowRight, Award } from 'lucide-react'
 import { apiFetch } from '../api'
 import { SkillPickMany } from './SkilledModal'
 import { ResolvedBonusBadges } from './featBonoBadges'
+import MasterPokemonFeats from './MasterPokemonFeats'
 import { specPreviewBonos } from '../lib/specBonus'
 import { clasificarPathBonus, describirPathBonus, TIPO_BONO, TARGET_BONO, legible, skillLegible } from '../lib/pathBonus'
 import PokeballSpinner from './PokeballSpinner'
@@ -350,7 +351,11 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
       .then(d => setSkillsList(Array.isArray(d) ? d : [])).catch(() => setSkillsList([]))
   }, [])
 
-  const usados = STAT_KEYS.reduce((s, k) => s + (adds[k] || 0), 0)
+  // Un feat cuesta los 2 puntos del ASI, igual que en los Pokémon: o se
+  // reparten en características, o se cambian por un rasgo.
+  const [featsElegidos, setFeatsElegidos] = useState([])
+  const costeFeat = featsElegidos.length > 0 ? ASI_PUNTOS : 0
+  const usados = STAT_KEYS.reduce((s, k) => s + (adds[k] || 0), 0) + costeFeat
   const restantes = ASI_PUNTOS - usados
   const base = (k) => Number(stats?.[`personaje_${k}`]) || 0
   const bonus = (k) => Number(stats?.[`personaje_${k}_bonus`]) || 0
@@ -409,7 +414,12 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
     setBusy(true); setError('')
     try {
       const body = { hp_roll: rollNum }
-      if (has(F.ASI))     body.asi = adds
+      if (has(F.ASI)) {
+        body.asi = adds
+        if (featsElegidos[0]) {
+          body.feat = { feat_id: featsElegidos[0].feat_id, bonos: featsElegidos[0].bonos }
+        }
+      }
       if (has(F.SPEC))    body.specialization_id = Number(specSel)
       if (has(F.RESOLVE) && savSel) body.saving = savSel
       if (has(F.PATH))    body.path_id = Number(pathSel)
@@ -500,6 +510,23 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
                   ))}
                 </div>
               )}
+
+              {/* Alternativa a repartir puntos: un rasgo por los 2 puntos.
+                  Se ofrecen los de origen y los generales, que son los que
+                  puede tomar un entrenador. */}
+              <div className="mb-3">
+                <MasterPokemonFeats
+                  feats={featsElegidos} setFeats={setFeatsElegidos} level={p.lvl}
+                  stats={stats} skills={[]} skillsList={skillsList}
+                  tipos="Origin,General"
+                  maxFeats={featsElegidos.length > 0 ? 1 : (usados === 0 ? 1 : 0)} />
+                {featsElegidos.length === 0 && usados > 0 && (
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Un rasgo cuesta los {ASI_PUNTOS} puntos. Quita los que repartiste para poder elegir uno.
+                  </p>
+                )}
+              </div>
+
             </Bloque>
           )}
 

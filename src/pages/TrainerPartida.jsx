@@ -19,6 +19,7 @@ import DescansoModal from '../components/DescansoModal'
 import PokeballsIcon from '../components/PokeballsIcon'
 import ItemsPanel from '../components/ItemsPanel'
 import WeaponPanel from '../components/WeaponPanel'
+import HeldItemsModal from '../components/HeldItemsModal'
 import { buildProfs } from '../lib/profs'
 import PokeballSpinner from '../components/PokeballSpinner'
 import PokeballIcon from '../components/PokeballIcon'
@@ -97,6 +98,11 @@ function acDelTrainer(d, dexMod) {
   return v
 }
 
+// Estética de los iconos laterales: redondo, gris, con borde y sombra. Vive
+// aquí y no dentro del componente para que CombatePanel pueda reutilizarla.
+const ICONO_REDONDO = 'shrink-0 flex items-center justify-center rounded-full bg-gray-700 ' +
+  'hover:bg-gray-600 text-gray-200 shadow-lg border border-gray-600 transition-all'
+
 const hpColorPct = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
 
 const MOVE_TYPE_COLORS = {
@@ -107,7 +113,7 @@ const MOVE_TYPE_COLORS = {
 }
 
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
-function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, weaponProfs = null, initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
+function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, weaponProfs = null, attackBonos = [], recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -145,7 +151,7 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
         </div>
 
         {/* Dados de golpe a la izquierda y el atajo al otro panel a la derecha */}
-        {(hitDice || switchSprite) && (
+        {(hitDice || switchSprite || onHeldItems) && (
           <div className="flex items-center gap-2 mb-3">
             {/* Dados de golpe: mismo control que los Extra Points de la ruta */}
             {hitDice && (
@@ -167,18 +173,30 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
               </div>
             )}
 
-            {/* Salto al otro panel de combate: en el del entrenador se ve al
-                Pokémon invocado y en el del Pokémon al entrenador. Sin Pokémon
-                invocado no hay a dónde saltar y el botón no se pinta.
-                ml-auto lo pega al borde derecho, justo bajo la X de cerrar,
-                haya o no dados de golpe a su izquierda. */}
-            {switchSprite && (
-              <button onClick={() => onSwitch?.()} title={switchLabel}
-                className="ml-auto shrink-0 w-9 h-9 rounded-lg bg-gray-700/50 hover:bg-gray-600 flex items-center justify-center transition-colors">
-                <img src={switchSprite} alt={switchLabel} className="w-7 h-7 object-contain"
-                  onError={e => { e.target.style.opacity = '0.2' }} />
-              </button>
-            )}
+            {/* Grupo pegado al borde derecho, bajo la X de cerrar: los objetos
+                equipados y, a su derecha, el salto al otro panel. ml-auto va en
+                el grupo para que los dos se muevan juntos haya o no dados de
+                golpe a su izquierda. */}
+            <div className="ml-auto flex items-center gap-2">
+              {onHeldItems && (
+                /* Misma estética que el icono lateral de mochila. A 36px y no a
+                   40 para que case con el sprite que lleva al lado. */
+                <button onClick={onHeldItems} title="Held items"
+                  className={`${ICONO_REDONDO} w-9 h-9`}>
+                  <Backpack size={17} />
+                </button>
+              )}
+              {/* En el panel del entrenador se ve al Pokémon invocado y en el del
+                  Pokémon al entrenador. Sin Pokémon invocado no hay a dónde
+                  saltar y el botón no se pinta. */}
+              {switchSprite && (
+                <button onClick={() => onSwitch?.()} title={switchLabel}
+                  className="shrink-0 w-9 h-9 rounded-lg bg-gray-700/50 hover:bg-gray-600 flex items-center justify-center transition-colors">
+                  <img src={switchSprite} alt={switchLabel} className="w-7 h-7 object-contain"
+                    onError={e => { e.target.style.opacity = '0.2' }} />
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -371,9 +389,37 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                 propia pestaña con los de target 'trainer'. */}
             {tabPanel === 'path' && recursosPokemon && (
               <div className="space-y-1">
-                {recursosPokemon.length === 0 && recursosRasgos.length === 0 && (
+                {recursosPokemon.length === 0 && recursosTrainer.length === 0 && recursosRasgos.length === 0 && (
                   <p className="text-[11px] text-gray-500 italic">Tu ruta no le da nada a este Pokémon.</p>
                 )}
+
+                {/* Los puntos del entrenador se ven también desde aquí y se
+                    gastan igual: son los mismos, no una copia. Al revés no:
+                    lo que es solo del Pokémon no aparece en el panel del
+                    entrenador. */}
+                {recursosTrainer.map(r => {
+                  const vacio = r.actual <= 0
+                  return (
+                    <div key={`t-${r.id}`} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
+                      <span className="text-white text-xs font-medium truncate">{r.nombre}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => onManageRecurso?.(r)} title="Ajustar puntos"
+                            className="shrink-0 text-gray-400 hover:text-amber-300 transition-colors">
+                            <Pencil size={13} />
+                          </button>
+                          <span className={`text-[10px] font-black tabular-nums ${vacio ? 'text-red-400' : 'text-gray-300'}`}>
+                            {r.nombre.toUpperCase()} {r.actual}/{r.maximo}
+                          </span>
+                        </div>
+                        <button onClick={() => onSpendRecurso?.(r)} disabled={vacio} title="Gastar un punto"
+                          className="flex items-center justify-center text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 rounded-md transition-colors">
+                          <ArrowRight size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
                 {/* Mismo control que los Extra Points del entrenador: lápiz para
                     ajustar y flecha roja para gastar de a uno. */}
                 {recursosPokemon.map(r => {
@@ -507,6 +553,14 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                         className="text-white text-xs font-medium truncate underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-amber-300 transition-colors">
                         {m.move_name}
                       </button>
+                      {/* Recordatorio de que este movimiento tiene un bono
+                          condicional: no desaparece al mirarlo, porque la
+                          condición hay que comprobarla en cada tirada. El
+                          detalle dice cuál es. */}
+                      {attackBonos.length > 0 && (
+                        <span title={attackBonos.map(a => `${a.feat_name}: Att+${a.valor}${a.terreno ? ` (${a.terreno})` : ''}`).join(' · ')}
+                          className="shrink-0 w-2 h-2 rounded-full bg-red-500 ring-2 ring-red-500/30" />
+                      )}
                       <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
                         style={{ backgroundColor: MOVE_TYPE_COLORS[m.move_type] || '#9CA3AF' }}>{m.move_type}</span>
                     </div>
@@ -563,7 +617,7 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
       </div>
 
       {/* Detalle del movimiento seleccionado */}
-      {moveInfo && <MoveInfoModal m={moveInfo} onClose={() => setMoveInfo(null)} />}
+      {moveInfo && <MoveInfoModal m={moveInfo} attackBonos={attackBonos} onClose={() => setMoveInfo(null)} />}
 
 
       {/* Detalle de una pasiva (tema oscuro, como el panel de combate) */}
@@ -643,6 +697,7 @@ export default function TrainerPartida() {
   const [openControl, setOpenControl] = useState(null) // 'trainer' | 'pokemon' | null (solo uno a la vez)
   const [cargandoPanel, setCargandoPanel] = useState(null) // panel que se está pidiendo, o null
   const [charProfs, setCharProfs] = useState(null) // proficiencias del entrenador (de /full)
+  const [heldOpen, setHeldOpen] = useState(false)   // popup de objetos equipados del Pokémon
   const [charData, setCharData] = useState(null)
   const [pokeData, setPokeData] = useState(null)
   const partidaApiRef = useRef(null) // acciones expuestas por PartidaRoom (p. ej. sendPartyUpdate)
@@ -951,7 +1006,25 @@ export default function TrainerPartida() {
         key: k.toUpperCase(), valor: statVal(k), mod: modOf(k),
         prof: !!stats[`pokemon_stats_${k}_prof`],
       }))
+      // La ruta del entrenador viaja en el propio detalle, así que su pestaña se
+      // ve igual aunque no se haya abierto antes el panel del jugador. Antes
+      // dependía de eso y se quedaba vacía.
+      const nivelT = Number(d.trainer_path_level) || 0
+      const rasgosT = d.trainer_path
+        ? [2, 5, 9, 15]
+            .filter(n => nivelT >= n && (d.trainer_path[`path_level_${n}_feature_name`] || d.trainer_path[`path_level_${n}_description`]))
+            .map(n => ({
+              nivel: n,
+              nombre: d.trainer_path[`path_level_${n}_feature_name`],
+              descripcion: d.trainer_path[`path_level_${n}_description`],
+              bonos: (d.trainer_path.bonos_catalogo || []).filter(b => Number(b.level) === n),
+            }))
+        : []
+
       // Ya está todo calculado: recién aquí se hace el cambio, de una sola vez.
+      setRecursos(Array.isArray(d.trainer_path_recursos) ? d.trainer_path_recursos : [])
+      setRecursosRasgos(rasgosT)
+      setRecursosTitulo(d.trainer_path?.path_name || 'Trainer')
       setHdPoke({ actual: d.pokemon_hit_dice_left ?? 0, maximo: d.hit_dice_pool ?? 0 })
       setPokeData({
         path_recursos: Array.isArray(d.path_recursos) ? d.path_recursos : [],
@@ -966,6 +1039,8 @@ export default function TrainerPartida() {
         prof: d.pokemon_proficient,
         ac: d.personaje_pokemon_ac,
         sr: d.pokemon_sr,   // de la especie: no cambia con el ejemplar
+        // Regla 6: bonos de ataque condicionales que dan sus feats
+        attack_bonos: d.feat_efectos?.attack_bonos || [],
         // Iniciativa: el modificador de DEX, igual que el entrenador. Se
         // calcula al leer y no se guarda, así ya viene con la naturaleza, los
         // bonos de feats y el tope por nivel que aplica statVal. La columna
@@ -1101,7 +1176,7 @@ export default function TrainerPartida() {
     notifyParty()
   }
 
-  const sideBtn = 'shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg border border-gray-600 transition-all'
+  const sideBtn = `${ICONO_REDONDO} w-10 h-10`
 
   // En modo lucha, los no seleccionados no ven sus iconos inferiores
   const hideBottomIcons = fight.active && !fight.players.some(p => String(p.id_personaje) === String(personajeId))
@@ -1428,6 +1503,7 @@ export default function TrainerPartida() {
           nombrePersonaje={charNombre}
           onAnuncio={(texto, trainer, pokemon) => partidaApiRef.current?.anunciar?.(texto, trainer, pokemon)}
           onClose={() => setShowBelt(false)}
+          onSwitchMode={() => { setShowBelt(false); setShowPC(true) }}
           onInvoke={(idpp, sprite) => {
             persistEnJuego(idpp, true)
             setPokemonInvocado(idpp)
@@ -1451,6 +1527,7 @@ export default function TrainerPartida() {
           onMoved={() => { refreshRenames(); partidaApiRef.current?.sendPartyUpdate?.() }}
           nombrePersonaje={charNombre}
           onAnuncio={(texto, trainer, pokemon) => partidaApiRef.current?.anunciar?.(texto, trainer, pokemon)}
+          onSwitchMode={() => { setShowPC(false); setShowBelt(true) }}
           onClose={() => setShowPC(false)} />
       )}
 
@@ -1533,6 +1610,18 @@ export default function TrainerPartida() {
         </div>
       )}
 
+      {/* Objetos equipados del Pokémon invocado. En modo combate solo se
+          consultan y se usan: quitarlos y devolverlos a la mochila es cosa del
+          cinturón, no de la mesa. */}
+      {heldOpen && pokemonInvocado && (
+        <HeldItemsModal
+          personajeId={personajeId}
+          idpp={pokemonInvocado}
+          modo="combate"
+          onClose={() => setHeldOpen(false)}
+        />
+      )}
+
       {/* Control del Pokémon invocado */}
       {openControl === 'pokemon' && pokeData && (
         <CombatePanel
@@ -1541,6 +1630,11 @@ export default function TrainerPartida() {
           switchSprite={user?.avatar_face_url || null}
           switchLabel="Ir al entrenador"
           onSwitch={openTrainerControl}
+          onHeldItems={() => setHeldOpen(true)}
+          attackBonos={pokeData.attack_bonos || []}
+          recursosTrainer={recursos}
+          onSpendRecurso={gastarRecurso}
+          onManageRecurso={r => { setRecursoEdit(r); setRecursoVal(r.actual) }}
           initial={pokeData}
           moves={pokeData.moves}
           pasivas={pokeData.pasivas}

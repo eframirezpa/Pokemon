@@ -14,12 +14,35 @@ function analyzeStat(b) {
   if (lower(b.type) !== 'stat') return null
   const llave = lower(b.llave).trim()
   const value = parseInt(b.valor, 10) || 0
+  // Regla 4: 'any' deja elegir entre las seis. Antes devolvía null y un feat
+  // como Gifted no ofrecía ninguna elección.
+  if (llave === 'any') return { mode: 'choose', options: STAT_KEYS, value }
   if (/\s+or\s+/i.test(llave)) {
     const options = llave.split(/\s+or\s+/i).map(s => s.trim()).filter(s => STAT_KEYS.includes(s))
     return { mode: 'choose', options, value }
   }
   if (STAT_KEYS.includes(llave)) return { mode: 'fixed', llave, value }
   return null
+}
+
+// Regla 6: el bono de ataque solo vale en un terreno, que elige el jugador.
+const TERRENOS = ['Coastal', 'Swamp', 'Forest', 'Arctic', 'Desert', 'Grassland', 'Hill', 'Mountain', 'Underwater']
+function analyzeTerrain(b) {
+  if (lower(b.type) !== 'attack' || lower(b.llave).trim() !== 'attack_roll') return null
+  return { mode: 'choose', value: parseInt(b.valor, 10) || 0 }
+}
+
+// Regla 3: sube el tope de movimientos y, de paso, se aprende uno del learnset.
+function analyzeKnownMoves(b) {
+  if (lower(b.type) !== 'known_moves') return null
+  return { mode: 'choose', value: parseInt(b.valor, 10) || 0 }
+}
+
+// Regla 5: cambia la pasiva actual por la oculta. Solo hay que elegir cuando la
+// especie tiene más de una oculta (el caso de Squawkabilly).
+function analyzeAbility(b) {
+  if (lower(b.type) !== 'ability' || lower(b.llave).trim() !== 'hidden_ability') return null
+  return { mode: 'choose' }
 }
 function analyzeSkill(b) {
   if (lower(b.type) !== 'skill') return null
@@ -85,7 +108,11 @@ function SkillPickMany({ skills, proficientNames, kind, count, chosen, onToggle 
 }
 
 /* Modal de confirmación: elecciones (stat 'x or y', skill 'any') con los controles del lápiz */
-function ConfirmFeat({ feat, skillsList, proficientNames, level, onCancel, onConfirm }) {
+function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], learnedMoves = [],
+                      hiddenAbilities = [], onCancel, onConfirm }) {
+  // Regla 3: solo se ofrecen los del learnset que aún no sabe
+  const conocidos = new Set((learnedMoves || []).map(m => m.move_id))
+  const movesElegibles = (movePool || []).filter(m => !conocidos.has(m.move_id))
   const bonos = bonusList(feat)
   // Estado de elección por índice: string (stat) o array de nombres (skill)
   const [choices, setChoices] = useState(() => {
@@ -94,15 +121,25 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, onCancel, onCon
       const st = analyzeStat(b); const sk = analyzeSkill(b)
       if (st?.mode === 'choose') init[i] = st.options[0] || ''
       else if (sk?.mode === 'choose') init[i] = []
+      else if (analyzeTerrain(b)) init[i] = TERRENOS[0]
+      else if (analyzeKnownMoves(b)) init[i] = ''
+      // Con una sola pasiva oculta no hay nada que elegir: se toma esa
+      else if (analyzeAbility(b)) init[i] = hiddenAbilities.length === 1 ? String(hiddenAbilities[0].ability_id) : ''
     })
     return init
   })
 
-  const needsChoice = bonos.some((b) => analyzeStat(b)?.mode === 'choose' || analyzeSkill(b)?.mode === 'choose')
+  const eligible = (b) => analyzeStat(b)?.mode === 'choose' || analyzeSkill(b)?.mode === 'choose'
+    || analyzeTerrain(b) || analyzeKnownMoves(b) || analyzeAbility(b)
+  const needsChoice = bonos.some(eligible)
   const complete = bonos.every((b, i) => {
     const st = analyzeStat(b); const sk = analyzeSkill(b)
     if (st?.mode === 'choose') return !!choices[i]
     if (sk?.mode === 'choose') return (choices[i] || []).length === 1
+    if (analyzeTerrain(b)) return !!choices[i]
+    // Sin movimientos elegibles no se bloquea: el feat sigue subiendo el tope
+    if (analyzeKnownMoves(b)) return movesElegibles.length === 0 || !!choices[i]
+    if (analyzeAbility(b)) return hiddenAbilities.length === 0 || !!choices[i]
     return true
   })
 
@@ -117,6 +154,18 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, onCancel, onCon
         out.push({ type: 'skill', llave, value: sk.kind })
       } else {
         out.push({ type: b.type, llave: b.llave, value: b.valor })
+        // Las elecciones que no caben en el propio bono viajan en una fila
+        // aparte: así el bono original se guarda tal cual lo define el catálogo
+        // y la decisión del jugador queda identificada por su propio tipo.
+        if (analyzeTerrain(b) && choices[i]) {
+          out.push({ type: 'terrain', llave: 'chosen', value: choices[i] })
+        }
+        if (analyzeKnownMoves(b) && choices[i]) {
+          out.push({ type: 'learned_move', llave: 'move_id', value: String(choices[i]) })
+        }
+        if (analyzeAbility(b) && choices[i]) {
+          out.push({ type: 'hidden_ability', llave: 'ability_id', value: String(choices[i]) })
+        }
       }
     })
     onConfirm(out)
@@ -161,6 +210,75 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, onCancel, onCon
                 </div>
               )
             }
+            // Regla 6 — el terreno donde vale el bono
+            if (analyzeTerrain(b)) return (
+              <div key={i}>
+                <label className="block text-xs font-bold text-gray-600 mb-1.5">
+                  Elige terreno (+{analyzeTerrain(b).value} a tiradas de ataque)
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {TERRENOS.map(t => (
+                    <button key={t} onClick={() => setChoices(c => ({ ...c, [i]: t }))}
+                      className={`text-xs font-bold px-2 py-1.5 rounded-lg border transition-colors ${
+                        choices[i] === t ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-400'
+                                         : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+
+            // Regla 3 — el movimiento que aprende, de su propio learnset
+            if (analyzeKnownMoves(b)) return (
+              <div key={i}>
+                <label className="block text-xs font-bold text-gray-600 mb-1.5">Elige el movimiento que aprende</label>
+                {movesElegibles.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">
+                    No hay movimientos disponibles para su nivel. El feat sube el tope igualmente.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto">
+                    {movesElegibles.map(m => (
+                      <button key={m.move_id} onClick={() => setChoices(c => ({ ...c, [i]: m.move_id }))}
+                        className={`text-left text-xs px-2 py-1.5 rounded-lg border transition-colors ${
+                          choices[i] === m.move_id ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-400'
+                                                   : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                        <span className="font-semibold">{m.move_name}</span>
+                        <span className="text-gray-400"> ({m.move_type})</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+
+            // Regla 5 — la pasiva oculta. Con una sola ya viene elegida.
+            if (analyzeAbility(b)) return (
+              <div key={i}>
+                <label className="block text-xs font-bold text-gray-600 mb-1.5">Pasiva oculta</label>
+                {hiddenAbilities.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">Esta especie no tiene pasiva oculta.</p>
+                ) : hiddenAbilities.length === 1 ? (
+                  <p className="text-sm text-gray-700">
+                    Reemplaza su pasiva por <span className="font-bold">{hiddenAbilities[0].ability_name}</span>.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] text-gray-500">Esta especie tiene varias. Elige una.</p>
+                    {hiddenAbilities.map(a => (
+                      <button key={a.ability_id} onClick={() => setChoices(c => ({ ...c, [i]: String(a.ability_id) }))}
+                        className={`w-full text-left text-xs px-2 py-1.5 rounded-lg border transition-colors ${
+                          choices[i] === String(a.ability_id) ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-400'
+                                                              : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                        <span className="font-semibold">{a.ability_name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+
             return null
           })}
           {!needsChoice && <p className="text-sm text-gray-600">¿Agregar este rasgo al Pokémon?</p>}
@@ -179,20 +297,39 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, onCancel, onCon
 }
 
 /* Sección de feats (tipo Pokemon) del creador/editor de Pokémon del master */
-export default function MasterPokemonFeats({ feats, setFeats, level, stats, skills, skillsList, maxFeats = Infinity, ownedFeatIds = [] }) {
+// `tipos` decide qué feats se ofrecen. Por defecto los del Pokémon, que es de
+// donde viene este componente; el ASI del entrenador le pasa 'Origin,General'.
+export default function MasterPokemonFeats({ feats, setFeats, level, stats, skills, skillsList,
+  maxFeats = Infinity, ownedFeatIds = [], movePool = [], learnedMoves = [], hiddenAbilities = [],
+  tipos = 'Pokemon', maxMovesActual = null }) {
   const [catalog, setCatalog] = useState([])
   const [search, setSearch]   = useState('')
   const [confirm, setConfirm] = useState(null)
   const [info, setInfo]       = useState(null)
 
   useEffect(() => {
-    apiFetch('/feats?type=Pokemon&limit=100').then(r => r.json())
+    apiFetch(`/feats?type=${encodeURIComponent(tipos)}&limit=200`).then(r => r.json())
       .then(d => setCatalog(d.data ?? [])).catch(() => setCatalog([]))
-  }, [])
+  }, [tipos])
 
   // Skills en los que el Pokémon ya es proficiente (para colorear el picker como el lápiz)
   const proficientNames = new Set()
   for (const s of (skills || [])) if (s.pref || s.expert) proficientNames.add(lower(s.skill_name))
+
+  // Un feat repetible puede llegar a su tope y entonces ya no aporta nada:
+  // tomarlo sería tirar la mejora del nivel. Extra Move dice en el catálogo que
+  // el límite son 6 movimientos, así que al llegar ahí deja de ofrecerse.
+  const topeAlcanzado = (f) => {
+    if (maxMovesActual == null) return null
+    for (const b of (f.feat_bonuses || [])) {
+      if (lower(b.type) !== 'known_moves') continue
+      const tope = parseInt(b.limit, 10)
+      if (Number.isFinite(tope) && maxMovesActual >= tope) {
+        return `Ya llega a ${tope} movimientos`
+      }
+    }
+    return null
+  }
 
   const prereqCtx = { level, statTotal: k => Number(stats?.[k]) || 0, armorProfs: new Set() }
   const featStatus = (f) => featPrereqStatus(
@@ -206,7 +343,8 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
 
   const openAdd = (feat) => {
     const bonos = bonusList(feat)
-    const needsChoice = bonos.some(b => analyzeStat(b)?.mode === 'choose' || analyzeSkill(b)?.mode === 'choose')
+    const needsChoice = bonos.some(b => analyzeStat(b)?.mode === 'choose' || analyzeSkill(b)?.mode === 'choose'
+      || analyzeTerrain(b) || analyzeKnownMoves(b) || analyzeAbility(b))
     if (needsChoice) { setConfirm(feat); return }
     addFeat(feat, bonos.map(b => {
       const st = analyzeStat(b); const sk = analyzeSkill(b)
@@ -254,7 +392,9 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
         {available.length === 0 ? (
           <p className="text-xs text-gray-400 italic px-3 py-3">Sin feats disponibles.</p>
         ) : available.map(f => {
-          const status = featStatus(f)
+          const tope = topeAlcanzado(f)
+          const prereq = featStatus(f)
+          const status = tope ? { met: false, reason: tope } : prereq
           return (
             <div key={f.feat_id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50">
               <button onClick={() => setInfo(f)} title="Ver detalle"
@@ -276,6 +416,7 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
 
       {confirm && (
         <ConfirmFeat feat={confirm} skillsList={skillsList} proficientNames={proficientNames} level={level}
+          movePool={movePool} learnedMoves={learnedMoves} hiddenAbilities={hiddenAbilities}
           onCancel={() => setConfirm(null)} onConfirm={(bonos) => addFeat(confirm, bonos)} />
       )}
       {info && <FeatInfoModal feat={info} theme="light" onClose={() => setInfo(null)} />}
