@@ -16,15 +16,32 @@ export default function PartidaPresentacion({ partida, onFinish }) {
 
   const [current, setCurrent] = useState(0)
   const [visible, setVisible] = useState(true)
+  // Los videos del intro son un prototipo LOCAL. Se cargan con import()
+  // DENTRO de la rama de desarrollo, no con un import estatico arriba: asi
+  // import.meta.env.DEV (que en `vite build` es false) deja la rama muerta y
+  // el empaquetador se lleva por delante el modulo entero. Con el import
+  // estatico el componente no se renderizaba, pero sus textos y las rutas de
+  // los .mp4 seguian viajando en el bundle de produccion.
+  const [Intro, setIntro] = useState(null)
 
   const goTo = (next) => {
     setVisible(false)
     setTimeout(() => {
-      if (next >= slides.length) { onFinish(); return }
+      if (next >= slides.length) {
+        if (import.meta.env.DEV) {
+          import('./IntroVideos')
+            .then(m => setIntro(() => m.default))
+            .catch(() => onFinish())   // sin videos, se entra igual
+          return
+        }
+        onFinish(); return
+      }
       setCurrent(next)
       setVisible(true)
     }, 400)
   }
+
+  if (Intro) return <Intro onFinish={onFinish} />
 
   const slide = slides[current]
   const url   = spriteUrl(slide.sprite)
@@ -45,9 +62,12 @@ export default function PartidaPresentacion({ partida, onFinish }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
       </div>
 
-      {/* Skip — arriba derecha */}
+      {/* Skip — arriba derecha.
+          Va por goTo y no a onFinish: saltar las diapositivas no debe saltar
+          tambien el intro, que tiene su propio Skip. En produccion goTo llama
+          a onFinish igual, asi que el comportamiento no cambia. */}
       <button
-        onClick={onFinish}
+        onClick={() => goTo(slides.length)}
         className="absolute top-5 right-5 z-10 flex items-center gap-1.5 text-white/70
                    hover:text-white text-sm px-3 py-1.5 rounded-lg hover:bg-white/10
                    backdrop-blur-sm transition-all"

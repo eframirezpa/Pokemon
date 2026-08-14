@@ -28,3 +28,7 @@ src/assets/pokemon/
 *.sw?
 
 public.zip
+
+# Videos del intro: prototipo local. public/ se copia entero a dist/, asi que
+# si se commitean se despliegan en produccion y engordan el deploy.
+public/Videos/

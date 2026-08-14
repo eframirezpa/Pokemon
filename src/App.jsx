@@ -23,10 +23,14 @@ import TrainerPartida from './pages/TrainerPartida'
 import MasterPartida from './pages/MasterPartida'
 import EspectadorPartida from './pages/EspectadorPartida'
 import PartidaLobby from './pages/PartidaLobby'
+import IntroDev from './components/IntroDev'
 
 export default function App() {
   return (
     <BrowserRouter>
+      {/* Atajo de desarrollo: ?intro=1 reproduce el intro sobre cualquier
+          pantalla. En produccion la rama es falsa y desaparece del bundle. */}
+      {import.meta.env.DEV && <IntroDev />}
       <Routes>
 
         {/* Páginas con header/footer */}
