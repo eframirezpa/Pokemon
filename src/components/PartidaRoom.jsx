@@ -50,6 +50,22 @@ const TYPE_ICONS = {
   Steel: Shield,   Fairy: Wand2,
 }
 
+// Experiencia que da un Pokémon al atraparlo: 200 x nivel x SR.
+//
+// El SR viene de la especie como texto y puede ser una fracción ('1/2', '1/8'),
+// así que hay que dividir antes de multiplicar. Se redondea hacia arriba porque
+// la experiencia es un número natural y un SR pequeño en niveles bajos daría un
+// decimal.
+const expAlAtrapar = (level, sr) => {
+  const txt = String(sr ?? '').trim()
+  if (!txt) return null
+  const [num, den] = txt.split('/')
+  const valorSr = den ? Number(num) / Number(den) : Number(num)
+  const nivel = Number(level)
+  if (!Number.isFinite(valorSr) || !Number.isFinite(nivel) || valorSr <= 0 || nivel <= 0) return null
+  return Math.ceil(200 * nivel * valorSr)
+}
+
 function TypeBadge({ type }) {
   if (!type) return null
   const c = TYPE_COLORS[type] ?? { bg: '#888', dark: false }
@@ -184,9 +200,18 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
               <ArrowRightLeft size={18} />
             </button>
           </div>
-          <div className="flex gap-1 mt-1 pl-5">
+          <div className="flex items-center gap-1 mt-1 pl-5">
             <TypeBadge type={pokemon.type1} />
             <TypeBadge type={pokemon.type2} />
+            {/* Lo que gana el entrenador que lo atrape. Solo en la tarjeta del
+                master: es un dato que el jugador no deberia ver antes de decidir. */}
+            {expAlAtrapar(pokemon.level, pokemon.sr) != null && (
+              <span title={`Experiencia al atraparlo · 200 x Lv.${pokemon.level} x SR ${pokemon.sr}`}
+                className="shrink-0 text-[9px] font-black tabular-nums text-amber-300
+                           bg-amber-500/10 border border-amber-500/40 rounded px-1.5 py-0.5">
+                {expAlAtrapar(pokemon.level, pokemon.sr).toLocaleString()} EXP
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -1029,6 +1054,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         name:        d.pokemon_apodo || d.pokemon_name,
         type1:       mp.type_1_name || null,
         type2:       mp.type_2_name || null,
+        sr:          d.pokemon_sr || null,   // de la especie: para la experiencia al atraparlo
         level:       lvl,
         hp_max:      (d.pokemon_hp ?? 0) + healing,
         hp_current:  (d.pokemon_current_hp ?? d.pokemon_hp ?? 0) + healing,

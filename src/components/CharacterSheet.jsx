@@ -297,6 +297,9 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                       </div>
                     </div>
                     <InfoBox label="AC"   value={ac} />
+                    {/* SR: el rango que puede llevar. Mismo orden que el panel
+                        de combate, donde va con PROF y AC. */}
+                    <InfoBox label="SR"   value={data.personaje_sr} />
                     <InfoBox label="Prof"
                       value={data.personaje_prof != null ? fmtMod(data.personaje_prof) : '—'}
                       danger={(data.personaje_prof ?? 0) < 0} />

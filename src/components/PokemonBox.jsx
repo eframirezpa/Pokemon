@@ -275,6 +275,12 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                 <span className="text-[10px] font-black text-[#7A200D]">AC</span>
                 <span className="text-base font-bold text-gray-900 leading-tight">{d.personaje_pokemon_ac}</span>
               </div>
+              {/* SR: el rango de la especie. Sin signo, que no es un bono: llega
+                  como "13" o como fracción ("1/2"). */}
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-black text-[#7A200D]">SR</span>
+                <span className="text-base font-bold text-gray-900 leading-tight">{d.pokemon_sr ?? '—'}</span>
+              </div>
             </div>
             <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
             <div className="px-4 py-1.5 space-y-0.5 text-xs text-gray-800">
