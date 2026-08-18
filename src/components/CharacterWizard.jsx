@@ -12,6 +12,24 @@ const FEAT_SKILLED = 10
 const grantsSkilled = (o, b) =>
   Number(o?.origin_feat_id) === FEAT_SKILLED || Number(b?.background_feat_id) === FEAT_SKILLED
 
+// Hay rasgos que traen un bono de terreno: el catálogo lista las opciones en el
+// valor, separadas por coma, y hay que escoger una antes de crear. Igual que
+// Skilled, se pide aquí cuando lo otorga el origen o el background.
+const opcionesDeTerreno = (featBonuses = []) => {
+  const vistos = new Set()
+  const out = []
+  for (const b of featBonuses) {
+    if (String(b?.feats_bonus_type || b?.type || '').trim().toLowerCase() !== 'terrain') continue
+    for (const t of String(b.feats_bonus_valor ?? b.valor ?? '').split(',')) {
+      const limpio = t.trim()
+      if (!limpio || vistos.has(limpio.toLowerCase())) continue
+      vistos.add(limpio.toLowerCase())
+      out.push(limpio)
+    }
+  }
+  return out
+}
+
 const STEPS = ['Nombre', 'Origen', 'Background', 'Stats', 'Iniciales', 'Equipo', 'Detalles']
 
 const STAT_FIELDS = [
@@ -830,6 +848,8 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const [bgSkills,    setBgSkills]    = useState([]) // skills elegidas para feat_bonus skill "any"
   const [skilledChoices, setSkilledChoices] = useState(null)  // { skills, texts } del feat Skilled
   const [skilledPopup,   setSkilledPopup]   = useState(false)
+  const [terrainOpts,    setTerrainOpts]    = useState([])   // terrenos elegibles del rasgo de cuna
+  const [terrainChoice,  setTerrainChoice]  = useState('')
   const [bgSkillPopup, setBgSkillPopup] = useState(false)
   const [pendingBg,   setPendingBg]   = useState(null) // { b, abilityDist }
   const [armorList,    setArmorList]    = useState([])
@@ -1054,6 +1074,24 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   // ¿El origen o el background otorgan Skilled? Entonces hay que elegir sus 3
   // opciones antes de poder crear.
   const needsSkilled = grantsSkilled(origin, background)
+  const featDeCuna = Number(background?.background_feat_id) || Number(origin?.origin_feat_id) || null
+  // Las opciones salen del catálogo del rasgo, no de una lista fija: si mañana
+  // se agrega o quita un terreno, el selector lo refleja solo.
+  // Todo el setState va dentro de la promesa: la regla de lint no distingue el
+  // caso "sin rasgo" de un setState suelto en el efecto, y el resultado es el
+  // mismo. Sin rasgo se resuelve con la lista vacía.
+  useEffect(() => {
+    let vivo = true
+    const cargar = featDeCuna
+      ? apiFetch(`/feats/${featDeCuna}`).then(r => r.json()).then(f => opcionesDeTerreno(f?.feat_bonuses || []))
+      : Promise.resolve([])
+    cargar
+      .then(opts => { if (vivo) { setTerrainOpts(opts); setTerrainChoice('') } })
+      .catch(() => { if (vivo) { setTerrainOpts([]); setTerrainChoice('') } })
+    return () => { vivo = false }
+  }, [featDeCuna])
+  const needsTerrain = terrainOpts.length > 0
+  const terrainListo = !needsTerrain || !!terrainChoice
   const skilledListo = !needsSkilled || !!skilledChoices
   // Las que ya tiene ANTES de Skilled: es lo que el selector marca en verde.
   const profSkillNames = new Set(profSkills.map(s => (s || '').toLowerCase()))
@@ -1107,6 +1145,8 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
           detalles,
           // El backend lo persiste como un feat agregado al personaje
           skilled_choices: needsSkilled ? skilledChoices : null,
+          // El terreno del rasgo de cuna: el backend lo valida y lo persiste
+          terrain_choice: needsTerrain ? terrainChoice : null,
         }),
       })
       if (!res.ok) {
@@ -1403,6 +1443,17 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                   {background?.background_tool_proficiencies_values && (
                     <VRow label="Herramientas" value={background.background_tool_proficiencies_values} />
                   )}
+                  {needsTerrain && (
+                    <div className="flex justify-between items-start gap-3 py-1 border-b border-gray-100">
+                      <span className="text-xs font-semibold text-red-700 uppercase tracking-wide shrink-0">Terreno</span>
+                      <select value={terrainChoice} onChange={e => setTerrainChoice(e.target.value)}
+                        className={`text-sm text-right bg-transparent focus:outline-none ${
+                          terrainChoice ? 'text-gray-700' : 'text-red-600 font-semibold'}`}>
+                        <option value="">Falta elegirlo</option>
+                        {terrainOpts.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </div>
+                  )}
                   {needsSkilled && (
                     <div className="flex justify-between items-start gap-3 py-1 border-b border-gray-100">
                       <span className="text-xs font-semibold text-red-700 uppercase tracking-wide shrink-0">Skilled</span>
@@ -1530,8 +1581,8 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                 {error && <span className="text-xs text-red-600 flex-1 text-center">{error}</span>}
                 <button
                   onClick={handleCreate}
-                  disabled={saving || !skilledListo}
-                  title={skilledListo ? undefined : 'Faltan las elecciones de Skilled'}
+                  disabled={saving || !skilledListo || !terrainListo}
+                  title={!skilledListo ? 'Faltan las elecciones de Skilled' : !terrainListo ? 'Falta elegir el terreno del rasgo' : undefined}
                   className="flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed
                              text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors"
                 >

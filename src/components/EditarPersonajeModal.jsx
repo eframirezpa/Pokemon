@@ -179,16 +179,34 @@ function ArmorOrSelect({ options, selected, onPick, disabled }) {
 }
 
 /* Confirmación de agregado (irreversible) + selección de stats/skills/armadura para bonos que lo requieran */
+// Bono de terreno: el catálogo trae las opciones en el valor, separadas por
+// coma, y el jugador escoge una. Se quitan los repetidos porque el catálogo
+// trae "Swamp" dos veces y saldría duplicado en el selector.
+function analyzeTerrainBonus(b) {
+  if (String(b?.type || '').trim().toLowerCase() !== 'terrain') return null
+  const vistos = new Set()
+  const options = []
+  for (const t of String(b.valor || '').split(',')) {
+    const limpio = t.trim()
+    if (!limpio || vistos.has(limpio.toLowerCase())) continue
+    vistos.add(limpio.toLowerCase())
+    options.push(limpio)
+  }
+  return options.length ? { options } : null
+}
+
 function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, busy, error, onCancel, onConfirm }) {
   const bonuses = feat.feat_bonuses || []
   // Análisis de cada bono (por índice)
   const stats  = bonuses.map(analyzeStatBonus)
   const skillsB = bonuses.map(analyzeSkillBonus)
   const armors = bonuses.map(analyzeArmorProfBonus)
+  const terrains = bonuses.map(analyzeTerrainBonus)
   const [single, setSingle] = useState({})     // stat single: { i: llave }
   const [dist, setDist]     = useState({})     // stat distribute: { i: {key: pts} }
   const [skillSel, setSkillSel] = useState({}) // skill choose por tipo: { kind: [skillNames] }
   const [armorSel, setArmorSel] = useState({}) // armor or: { i: option }
+  const [terrainSel, setTerrainSel] = useState({}) // terreno elegido: { i: option }
 
   // Agrupa los bonos skill/choose por tipo → un solo selector por tipo (N habilidades)
   const skillGroups = {} // kind → [bonusIndex,...]
@@ -210,6 +228,8 @@ function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, bu
     idxs.forEach((bi, j) => { choices[bi] = picks[j] ? [{ llave: picks[j] }] : [] })
   })
   armors.forEach((ap, i) => { if (ap && ap.mode === 'or') choices[i] = armorSel[i] ? [{ llave: armorSel[i] }] : [] })
+  // El terreno viaja como texto suelto: es una sola opción, no una lista
+  terrains.forEach((tr, i) => { if (tr) choices[i] = terrainSel[i] || '' })
   // Textos capturados antes de la confirmación (bonos tipo 'text')
   Object.entries(textChoices).forEach(([bi, arr]) => { choices[bi] = arr })
 
@@ -223,7 +243,8 @@ function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, bu
   const statsResolved  = stats.every((st, i) => bonusResolved(st, statPicks(i)))
   const skillsResolved = Object.entries(skillGroups).every(([kind, idxs]) => (skillSel[kind] || []).length === idxs.length)
   const armorsResolved = armors.every((ap, i) => !ap || ap.mode !== 'or' || !!armorSel[i])
-  const allResolved    = statsResolved && skillsResolved && armorsResolved
+  const terrainsResolved = terrains.every((tr, i) => !tr || !!terrainSel[i])
+  const allResolved    = statsResolved && skillsResolved && armorsResolved && terrainsResolved
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -296,6 +317,25 @@ function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, bu
                 </p>
                 <ArmorOrSelect options={ap.options} selected={armorSel[i]} disabled={busy}
                   onPick={opt => setArmorSel(s => ({ ...s, [i]: opt }))} />
+              </div>
+            )
+          })}
+
+          {/* Terreno del rasgo: una sola opción de la lista del catálogo */}
+          {terrains.map((tr, i) => {
+            if (!tr) return null
+            return (
+              <div key={`terrain-${i}`} className="border border-gray-200 rounded-xl px-3 py-2.5">
+                <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
+                  Elige un terreno
+                </p>
+                <select value={terrainSel[i] || ''} disabled={busy}
+                  onChange={e => setTerrainSel(s => ({ ...s, [i]: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50
+                             focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50">
+                  <option value="">Elegir…</option>
+                  {tr.options.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
               </div>
             )
           })}

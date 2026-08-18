@@ -32,6 +32,30 @@ function analyzeTerrain(b) {
   return { mode: 'choose', value: parseInt(b.valor, 10) || 0 }
 }
 
+// Bono de terreno del entrenador: el catálogo trae las opciones en el valor,
+// separadas por coma, y el jugador escoge una. No se confunde con el de arriba:
+// aquel es de tipo 'attack' sobre las tiradas del Pokémon, este es su propio
+// tipo y lo que se elige es el terreno del rasgo.
+function analyzeTerrainSelect(b) {
+  if (lower(b.type).trim() !== 'terrain') return null
+  const vistos = new Set()
+  const options = []
+  for (const t of String(b.valor || '').split(',')) {
+    const limpio = t.trim()
+    if (!limpio || vistos.has(limpio.toLowerCase())) continue
+    vistos.add(limpio.toLowerCase())
+    options.push(limpio)
+  }
+  return options.length ? { options } : null
+}
+
+// Bono de elemento: el jugador elige un tipo de Pokémon. Las opciones salen de
+// la tabla pokemon_types, no de una lista escrita aquí, para que no haya dos
+// vocabularios para lo mismo.
+function analyzeElement(b) {
+  return lower(b.type).trim() === 'element' ? { mode: 'choose' } : null
+}
+
 // Regla 3: sube el tope de movimientos y, de paso, se aprende uno del learnset.
 function analyzeKnownMoves(b) {
   if (lower(b.type) !== 'known_moves') return null
@@ -114,6 +138,17 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
   const conocidos = new Set((learnedMoves || []).map(m => m.move_id))
   const movesElegibles = (movePool || []).filter(m => !conocidos.has(m.move_id))
   const bonos = bonusList(feat)
+  // Los tipos solo se piden si el rasgo trae un bono de elemento
+  const hayElemento = bonos.some(analyzeElement)
+  const [tiposPk, setTiposPk] = useState([])
+  useEffect(() => {
+    let vivo = true
+    ;(hayElemento
+      ? apiFetch('/types').then(r => r.json()).then(d => (Array.isArray(d) ? d : []).map(t => t.pokemon_types_name).filter(Boolean))
+      : Promise.resolve([])
+    ).then(l => { if (vivo) setTiposPk(l) }).catch(() => { if (vivo) setTiposPk([]) })
+    return () => { vivo = false }
+  }, [hayElemento])
   // Estado de elección por índice: string (stat) o array de nombres (skill)
   const [choices, setChoices] = useState(() => {
     const init = {}
@@ -122,6 +157,8 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
       if (st?.mode === 'choose') init[i] = st.options[0] || ''
       else if (sk?.mode === 'choose') init[i] = []
       else if (analyzeTerrain(b)) init[i] = TERRENOS[0]
+      else if (analyzeTerrainSelect(b)) init[i] = ''
+      else if (analyzeElement(b)) init[i] = ''
       else if (analyzeKnownMoves(b)) init[i] = ''
       // Con una sola pasiva oculta no hay nada que elegir: se toma esa
       else if (analyzeAbility(b)) init[i] = hiddenAbilities.length === 1 ? String(hiddenAbilities[0].ability_id) : ''
@@ -130,13 +167,15 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
   })
 
   const eligible = (b) => analyzeStat(b)?.mode === 'choose' || analyzeSkill(b)?.mode === 'choose'
-    || analyzeTerrain(b) || analyzeKnownMoves(b) || analyzeAbility(b)
+    || analyzeTerrain(b) || analyzeTerrainSelect(b) || analyzeElement(b) || analyzeKnownMoves(b) || analyzeAbility(b)
   const needsChoice = bonos.some(eligible)
   const complete = bonos.every((b, i) => {
     const st = analyzeStat(b); const sk = analyzeSkill(b)
     if (st?.mode === 'choose') return !!choices[i]
     if (sk?.mode === 'choose') return (choices[i] || []).length === 1
     if (analyzeTerrain(b)) return !!choices[i]
+    if (analyzeTerrainSelect(b)) return !!choices[i]
+    if (analyzeElement(b)) return !!choices[i]
     // Sin movimientos elegibles no se bloquea: el feat sigue subiendo el tope
     if (analyzeKnownMoves(b)) return movesElegibles.length === 0 || !!choices[i]
     if (analyzeAbility(b)) return hiddenAbilities.length === 0 || !!choices[i]
@@ -152,6 +191,15 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
       } else if (sk) {
         const llave = sk.mode === 'fixed' ? sk.llave : (choices[i] || [])[0]
         out.push({ type: 'skill', llave, value: sk.kind })
+      } else if (analyzeElement(b)) {
+        // La llave es fija y el valor es el tipo elegido; el backend lo
+        // revalida contra pokemon_types antes de guardarlo.
+        out.push({ type: b.type, llave: 'Tipo', value: choices[i] })
+      } else if (analyzeTerrainSelect(b)) {
+        // No se copia el bono del catálogo: la fila guardada ES la elección.
+        // La llave lleva el terreno y el valor el uso disponible, que arranca
+        // en 1 y se repone en el descanso largo.
+        out.push({ type: 'Terrain', llave: choices[i], value: '1' })
       } else {
         out.push({ type: b.type, llave: b.llave, value: b.valor })
         // Las elecciones que no caben en el propio bono viajan en una fila
@@ -210,6 +258,36 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
                 </div>
               )
             }
+            // Tipo de Pokémon del bono de elemento
+            if (analyzeElement(b)) return (
+              <div key={i}>
+                <label className="block text-xs font-bold text-gray-600 mb-1.5">Elige un tipo</label>
+                <select value={choices[i] || ''}
+                  onChange={e => setChoices(c => ({ ...c, [i]: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50
+                             focus:outline-none focus:ring-2 focus:ring-red-400">
+                  <option value="">Elegir…</option>
+                  {tiposPk.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            )
+
+            // Terreno del rasgo del entrenador: una sola opción de la lista
+            // que trae el catálogo en el valor del bono.
+            const tsel = analyzeTerrainSelect(b)
+            if (tsel) return (
+              <div key={i}>
+                <label className="block text-xs font-bold text-gray-600 mb-1.5">Elige un terreno</label>
+                <select value={choices[i] || ''}
+                  onChange={e => setChoices(c => ({ ...c, [i]: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50
+                             focus:outline-none focus:ring-2 focus:ring-red-400">
+                  <option value="">Elegir…</option>
+                  {tsel.options.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            )
+
             // Regla 6 — el terreno donde vale el bono
             if (analyzeTerrain(b)) return (
               <div key={i}>
@@ -344,7 +422,7 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
   const openAdd = (feat) => {
     const bonos = bonusList(feat)
     const needsChoice = bonos.some(b => analyzeStat(b)?.mode === 'choose' || analyzeSkill(b)?.mode === 'choose'
-      || analyzeTerrain(b) || analyzeKnownMoves(b) || analyzeAbility(b))
+      || analyzeTerrain(b) || analyzeTerrainSelect(b) || analyzeElement(b) || analyzeKnownMoves(b) || analyzeAbility(b))
     if (needsChoice) { setConfirm(feat); return }
     addFeat(feat, bonos.map(b => {
       const st = analyzeStat(b); const sk = analyzeSkill(b)
