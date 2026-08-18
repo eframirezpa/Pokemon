@@ -226,7 +226,10 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
                 onChange={e => setTirada(e.target.value)}
                 placeholder={`Entre ${nDados} y ${maxTirada}`}
                 className="w-full px-3 py-2 text-sm text-center text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
-              <p className="text-[11px] text-gray-500">El resultado se suma a los puntos de golpe, sin pasar del máximo.</p>
+              <p className="text-[11px] text-gray-500">
+                Al resultado se le suma el modificador de CON por cada dado gastado.
+                Todo va a los puntos de golpe, sin pasar del máximo.
+              </p>
             </div>
           )}
 
@@ -251,6 +254,14 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
               ) : (
                 <>
                   <p><span className="font-semibold">{hecho.nombre}</span> recuperó {hecho.curado} PV.</p>
+                  {/* De dónde sale el número: la tirada y lo que puso el CON. Si
+                      el modificador es 0 no se menciona, para no añadir ruido. */}
+                  {hecho.mod_con != null && hecho.mod_con !== 0 && (
+                    <p className="text-[12px] text-gray-600">
+                      Tirada {hecho.tirada} {hecho.bono_con >= 0 ? '+' : '−'} {Math.abs(hecho.bono_con)} de CON
+                      {' '}({hecho.mod_con >= 0 ? '+' : '−'}{Math.abs(hecho.mod_con)} por dado).
+                    </p>
+                  )}
                   <p className="text-[12px] text-gray-600">Queda en {hecho.current_hp}/{hecho.max_hp} · {hecho.dados} dados sin usar.</p>
                 </>
               )}
