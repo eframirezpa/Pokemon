@@ -415,9 +415,14 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
 
   // Ya tomados: los elegidos en esta ventana más los que el Pokémon tiene guardados
   const added = new Set([...feats.map(f => f.feat_id), ...ownedFeatIds])
+  // Los Epic Boon van primero: son lo excepcional del nivel 19 y quedarían
+  // enterrados entre decenas de Origin y General ordenados por nombre.
+  const esBoon = (f) => lower(f.feat_type).trim() === 'epic boon'
   const available = catalog
     .filter(f => Number(f.feat_is_repeatable) === 1 || !added.has(f.feat_id))
     .filter(f => !search || f.feat_name?.toLowerCase().includes(search.toLowerCase()))
+    .slice()
+    .sort((a, b) => (esBoon(b) ? 1 : 0) - (esBoon(a) ? 1 : 0))
 
   const openAdd = (feat) => {
     const bonos = bonusList(feat)
@@ -473,11 +478,18 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
           const tope = topeAlcanzado(f)
           const prereq = featStatus(f)
           const status = tope ? { met: false, reason: tope } : prereq
+          const boon = esBoon(f)
           return (
-            <div key={f.feat_id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50">
+            <div key={f.feat_id} className={`flex items-center justify-between gap-2 px-3 py-2 ${
+              boon ? 'bg-green-50 hover:bg-green-100' : 'hover:bg-gray-50'}`}>
               <button onClick={() => setInfo(f)} title="Ver detalle"
                 className="text-left min-w-0 flex items-center gap-1.5 flex-wrap">
                 <span className="text-sm font-medium text-gray-800 truncate underline decoration-dotted decoration-gray-300 underline-offset-2 hover:text-red-700">{f.feat_name}</span>
+                {boon && (
+                  <span className="text-[9px] font-bold text-green-800 bg-green-100 border border-green-300 rounded px-1 shrink-0">
+                    Epic Boon
+                  </span>
+                )}
                 <ResolvedBonusBadges bonos={displayBonos(previewBonos(f), level)} />
                 {!status.met && <span className="text-[9px] font-bold text-red-700 bg-red-50 border border-red-200 rounded px-1 shrink-0">{status.reason}</span>}
               </button>

@@ -354,6 +354,9 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
   // Un feat cuesta los 2 puntos del ASI, igual que en los Pokémon: o se
   // reparten en características, o se cambian por un rasgo.
   const [featsElegidos, setFeatsElegidos] = useState([])
+  // El rasgo del Epic Boon (nivel 19) va aparte: NO cuesta puntos, es la
+  // feature del nivel, así que no entra en la cuenta del ASI.
+  const [boonElegido, setBoonElegido] = useState([])
   const costeFeat = featsElegidos.length > 0 ? ASI_PUNTOS : 0
   const usados = STAT_KEYS.reduce((s, k) => s + (adds[k] || 0), 0) + costeFeat
   const restantes = ASI_PUNTOS - usados
@@ -393,6 +396,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
     if (has(F.ASI) && restantes !== 0) return `Faltan ${restantes} punto(s) por repartir`
     if (has(F.SPEC) && !specSel) return 'Elige una especialización'
     if (has(F.RESOLVE) && !savSel && (p.saving_disponibles || []).length > 0) return 'Elige una tirada de salvación'
+    if (has(F.BOON) && boonElegido.length === 0) return 'Elige un rasgo'
     if (has(F.PATH) && !pathSel) return 'Elige tu clase'
     // Los bonos de ruta que exigen elegir: solo aplican si ya hay ruta. En el
     // nivel 2 la ruta se está eligiendo ahora, así que los suyos salen del
@@ -419,6 +423,9 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
         if (featsElegidos[0]) {
           body.feat = { feat_id: featsElegidos[0].feat_id, bonos: featsElegidos[0].bonos }
         }
+      }
+      if (has(F.BOON) && boonElegido[0]) {
+        body.boon = { feat_id: boonElegido[0].feat_id, bonos: boonElegido[0].bonos }
       }
       if (has(F.SPEC))    body.specialization_id = Number(specSel)
       if (has(F.RESOLVE) && savSel) body.saving = savSel
@@ -614,19 +621,35 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
           {/* 6, 7 y Pokemon Tracker — solo aviso */}
           {has(F.BOON) && (
             <Bloque titulo="Epic Boon" icon={Award}>
-              <p className="text-sm font-bold text-green-700">¡Felicidades, ganaste Epic Boon! Habla con el DM.</p>
+              <p className="text-sm font-bold text-green-700 mb-2">¡Felicidades, ganaste Epic Boon!</p>
+              <p className="text-xs text-gray-500 mb-2">
+                Elige un rasgo. Los de tipo Epic Boon van primero, sobre fondo verde.
+              </p>
+              <MasterPokemonFeats
+                feats={boonElegido} setFeats={setBoonElegido} level={p.lvl}
+                stats={stats} skills={[]} skillsList={skillsList}
+                tipos="Origin,General,Epic Boon"
+                maxFeats={1} />
             </Bloque>
           )}
-          {has(F.MASTER) && (
-            <Bloque titulo="Master Trainer" icon={Award}>
-              <p className="text-sm font-bold text-green-700">¡Felicidades, ganaste Master Trainer!</p>
+          {/* Features de nivel con contador: el texto lo manda el backend, que
+              es donde vive el catálogo de estas mejoras. */}
+          {(p.feature_nivel || []).map(f => (
+            <Bloque key={f.nombre} titulo={f.nombre} icon={Award}>
+              <p className="text-sm font-bold text-green-700 mb-1.5">¡Felicidades, ganaste {f.nombre}!</p>
+              <p className="text-xs text-gray-600 leading-relaxed">{f.texto}</p>
+              {/* La expertise entra sola al confirmar. Si aún no era proficiente
+                  se le da también la proficiencia: sin ella la expertise no
+                  suma nada, porque duplica un bono que no tiene. */}
+              {f.nombre === 'Pokemon Tracker' && (
+                <p className="mt-2 text-xs font-semibold text-green-700">
+                  {p.animal_handling_prof
+                    ? 'Además ganas Expertise en Animal Handling.'
+                    : 'Además ganas proficiencia y Expertise en Animal Handling.'}
+                </p>
+              )}
             </Bloque>
-          )}
-          {has(F.TRACKER) && (
-            <Bloque titulo="Pokémon Tracker" icon={Award}>
-              <p className="text-sm font-bold text-green-700">¡Felicidades, ganaste Pokémon Tracker!</p>
-            </Bloque>
-          )}
+          ))}
 
           {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
         </div>
