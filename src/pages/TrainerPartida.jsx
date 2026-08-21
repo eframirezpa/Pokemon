@@ -973,7 +973,7 @@ export default function TrainerPartida() {
   const [recursosRasgos, setRecursosRasgos] = useState([]) // rasgos de la ruta ya alcanzados
   const [recursosFeat, setRecursosFeat] = useState([])   // puntos que dan los feats (Lucky Points)
   const [recursoEdit, setRecursoEdit] = useState(null)  // recurso en el lápiz
-  const [dadoBatalla, setDadoBatalla] = useState(null)  // Battle Dice a punto de gastarse
+  const [dadoBatalla, setDadoBatalla] = useState(null)  // recurso de dados a punto de gastarse
   const [recursoVal, setRecursoVal]   = useState(0)
   // Dados de golpe: { actual, maximo }. Van aparte de charData/pokeData porque
   // el panel los muta en vivo y esos objetos se rearman al abrir el control.
@@ -1045,12 +1045,16 @@ export default function TrainerPartida() {
   // Niveles de entrenador pendientes de confirmar. Se persisten, así que
   // sobreviven a una recarga: subir de nivel ocurre en el servidor y el jugador
   // puede no estar mirando cuando pasa.
+  // Si esta recarga falla, la lista se queda con el pendiente que se acaba de
+  // confirmar y la ventana no se reemplaza. Tragarse el error dejaba al jugador
+  // mirando una pantalla que no avanza y sin nada que leer, así que al menos se
+  // deja constancia en la consola.
   const refreshLevelUps = () => {
     if (!personajeId) return
     apiFetch(`/personaje/${personajeId}/improvements`)
       .then(r => r.json())
       .then(d => setLevelUps(Array.isArray(d) ? d : []))
-      .catch(() => {})
+      .catch(e => console.error('No se pudo releer las subidas de nivel:', e))
   }
   // Ganar experiencia o subir de nivel un Pokémon puede subir también al
   // entrenador, porque su nivel se deriva de los niveles de sus Pokémon. Hay
@@ -1124,9 +1128,9 @@ export default function TrainerPartida() {
   // Gastar un punto: optimista y con reconciliación, como los PP
   const gastarRecurso = async (r) => {
     if (r.actual <= 0) return
-    // Los Battle Dice avisan primero qué dado toca tirar: el punto se gasta al
+    // Los recursos de dados avisan primero qué dado toca tirar: el punto se gasta al
     // confirmar, no al pulsar, para que cerrar el aviso no cueste un uso.
-    if (r.tipo === 'battle_dice') { setDadoBatalla(r); return }
+    if (r.tipo === 'dice_resource') { setDadoBatalla(r); return }
     // Los puntos de feat viven en otra tabla y tienen su propia ruta, pero el
     // control es el mismo: se distingue por el `tipo` que trae el recurso.
     // Cada bono dice por su `tipo` a qué ruta escribir: los de feat viven en
@@ -1953,8 +1957,9 @@ export default function TrainerPartida() {
 
       {/* Lápiz de un Extra Point: solo ajusta lo que queda. El máximo se deriva
           del personaje (nivel, proficiencia...) y no se edita a mano. */}
-      {/* Battle Dice: recuerda qué dado tirar. La tirada es física; la app solo
-          lleva la cuenta de los usos. */}
+      {/* Recurso de dados (Battle Dice, Skill Dice...): recuerda qué dado tirar.
+          La tirada es física; la app solo lleva la cuenta de los usos. El título
+          es el nombre del recurso, que cada ruta pone el suyo. */}
       {dadoBatalla && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -1962,7 +1967,8 @@ export default function TrainerPartida() {
           <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between gap-2">
               <h4 className="font-bold text-white text-sm flex items-center gap-2 min-w-0">
-                <Dices size={15} className="text-amber-400 shrink-0" /> Battle Dice
+                <Dices size={15} className="text-amber-400 shrink-0" />
+                <span className="truncate">{dadoBatalla.nombre}</span>
               </h4>
               <button onClick={() => setDadoBatalla(null)} className="text-gray-400 hover:text-white shrink-0">
                 <X size={16} />
@@ -1972,7 +1978,7 @@ export default function TrainerPartida() {
               <p className="text-[11px] text-gray-400 uppercase tracking-widest font-bold mb-1">Tira</p>
               <p className="text-3xl font-black text-amber-300">1{dadoBatalla.dado}</p>
               <p className="mt-2 text-[11px] text-gray-400 leading-relaxed">
-                Súmalo a una tirada de ataque o daño de tu Pokémon, después de tirar.
+                Súmalo a la tirada de tu Pokémon, después de tirarla.
               </p>
               <p className="mt-2 text-[11px] text-gray-500">
                 Te quedan {dadoBatalla.actual} de {dadoBatalla.maximo}

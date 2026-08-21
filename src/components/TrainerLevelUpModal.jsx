@@ -225,7 +225,7 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, statsRuta = {},
             </div>
           )
         }
-        if (r.modo === 'battle_dice') {
+        if (r.modo === 'dice_resource') {
           // Como el recurso normal: no pide nada, se otorga al confirmar. Lo
           // propio suyo es el dado, que sube con los niveles.
           return (
@@ -488,10 +488,19 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
         { method: 'POST', body: JSON.stringify(body) })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
-        setError(j.error || 'No se pudo confirmar'); setBusy(false); return
+        setError(j.error || 'No se pudo confirmar')
+        return
       }
       onConfirmed()
-    } catch { setError('No se pudo confirmar'); setBusy(false) }
+    } catch { setError('No se pudo confirmar') }
+    // El indicador se apaga PASE LO QUE PASE, también al confirmar bien.
+    //
+    // Antes solo se apagaba en los caminos de error, y el de éxito confiaba en
+    // que el padre cerrara o reemplazara esta ventana. Cuando eso no ocurría
+    // -porque la recarga de la lista fallaba, o porque un modulo roto dejaba la
+    // pantalla a medias- el botón se quedaba girando para siempre, sin decir
+    // nada. Apagarlo aquí no molesta si la ventana se va a cerrar igual.
+    finally { setBusy(false) }
   }
 
   return (

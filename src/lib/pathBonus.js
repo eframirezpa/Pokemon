@@ -41,7 +41,7 @@ const campos = (b) => ({
 /**
  * Qué hay que hacer con el bono:
  *   { modo:'stat_choice', valor, target }      el jugador escoge una característica
- *   { modo:'battle_dice', dado, nombre, target } dados de batalla, se otorgan solos
+ *   { modo:'dice_resource', dado, nombre, target } recurso de dados, se otorga solo
  *   { modo:'elegir', valor, cuantas, target }  el jugador escoge N habilidades
  *   { modo:'fija',   valor, llave, target }    la habilidad viene dada
  *   null                                       narrativa: se muestra, no se aplica
@@ -62,15 +62,16 @@ export function clasificarPathBonus(bonus) {
     return { modo: 'stat_choice', valor: Math.abs(parseInt(c.valor, 10) || 1), target: tg }
   }
 
-  // Battle Dice: recurso con dado, que mejora con los niveles. Va antes que el
-  // recurso normal porque su fórmula vive en resource_formula y en prosa, no en
-  // uses_formula, así que la rama de abajo lo descartaría. Mismo criterio que el
+  // Recurso de dados (Battle Dice, Skill Dice...): va antes que el recurso
+  // normal porque su fórmula vive en resource_formula y en prosa, no en
+  // uses_formula, así que la rama de abajo lo descartaría. Se reconoce por
+  // traer dado y nombre propios, no por su llave: mismo criterio que el
   // backend, que es quien lo persiste.
-  if (t === 'resource' && k === 'battle_dice') {
+  if (t === 'resource' && /^d\d+$/i.test(String(c.valor || '').trim()) && (c.recurso || '').trim()) {
     return {
-      modo: 'battle_dice',
+      modo: 'dice_resource',
       dado: String(c.valor || '').trim(),
-      nombre: (c.recurso || '').trim() || 'Battle Dice',
+      nombre: String(c.recurso).trim(),
       target: tg,
     }
   }
