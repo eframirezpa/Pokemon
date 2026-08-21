@@ -17,7 +17,8 @@ import { X, Sword, Check } from 'lucide-react'
 const CARACTERISTICAS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
 const signo = m => (m >= 0 ? `+${m}` : `${m}`)
 
-export default function FormulaAtaqueModal({ move, prof = 0, stats = [], onClose, onAtacar }) {
+export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRuta = { total: 0, detalle: [] },
+                                            onClose, onAtacar }) {
   const profN = Number(prof) || 0
   const modDe = (key) => {
     const s = stats.find(x => String(x.key || '').toUpperCase() === String(key || '').toUpperCase())
@@ -35,6 +36,11 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], onClose
     : [{ clave: 'sin-power', nombre: null, elegible: false }]
 
   const [dados, setDados] = useState({})
+  // Bonus por fila: arranca en lo que da la ruta del entrenador y se puede
+  // ajustar en mesa. Los bonos condicionales de feats (Terrain Adept) NO entran
+  // aquí: dependen de dónde se pelee, y siguen saliendo como recordatorio.
+  const [bonus, setBonus] = useState({})
+  const bonusDe = (clave) => (bonus[clave] === undefined ? String(bonoRuta.total || 0) : bonus[clave])
   // Característica elegida en las filas 'ANY'
   const [elegidas, setElegidas] = useState({})
   // Fila con la que se ataca. Con una sola no hay nada que decidir.
@@ -54,7 +60,8 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], onClose
   }
   const totalDeFila = (f) => {
     const t = dados[f.clave] ?? ''
-    return (t === '' ? 0 : Number(t)) + profN + modDeFila(f)
+    const b = bonusDe(f.clave)
+    return (t === '' ? 0 : Number(t)) + profN + modDeFila(f) + (b === '' ? 0 : Number(b))
   }
 
   const varias = filas.length > 1
@@ -92,6 +99,10 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], onClose
             <span className="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/40 rounded-md px-2 py-1">
               Power Mod
             </span>
+            <span className="text-gray-500 text-sm">+</span>
+            <span className="text-[11px] text-violet-300 bg-violet-500/10 border border-violet-500/40 rounded-md px-2 py-1">
+              Bonus
+            </span>
           </div>
 
           {move?.move_name && (
@@ -110,19 +121,20 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], onClose
               const texto = dados[f.clave] ?? ''
               const n20 = texto === '' ? 0 : Number(texto)
               const mod = modDeFila(f)
-              const total = n20 + profN + mod
+              const extra = bonusDe(f.clave)
+              const total = n20 + profN + mod + (extra === '' ? 0 : Number(extra))
               const critico = n20 === 20
               const activa = f.clave === filaSel
               return (
                 <div key={f.clave}
                   onClick={() => varias && setFilaSel(f.clave)}
-                  className={`flex items-center justify-center gap-1.5 flex-wrap rounded-xl transition-colors ${
+                  className={`flex items-center justify-center gap-0.5 flex-wrap rounded-xl transition-colors ${
                     varias ? `cursor-pointer px-1.5 py-1.5 ${
                       activa ? 'bg-sky-500/10 ring-1 ring-sky-500/50' : 'hover:bg-gray-700/40'}` : ''}`}>
 
                   {/* Marca de la fila elegida, solo cuando hay más de una */}
                   {varias && (
-                    <span className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    <span className={`shrink-0 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
                       activa ? 'border-sky-400 bg-sky-500/30' : 'border-gray-600'}`}>
                       {activa && <Check size={10} className="text-sky-200" />}
                     </span>
@@ -130,7 +142,7 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], onClose
 
                   {/* El nombre del power abre la fila; sin power no hay etiqueta */}
                   {f.nombre && (
-                    <span className="shrink-0 w-10 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                    <span className="shrink-0 w-8 text-[10px] font-black text-gray-400 uppercase tracking-wide">
                       {f.nombre}
                     </span>
                   )}
@@ -139,8 +151,8 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], onClose
                     {critico && (
                       <span className="absolute inset-0 rounded-xl bg-amber-400/40 animate-ping pointer-events-none" />
                     )}
-                    <div className={`relative w-14 h-10 rounded-xl border-2 flex items-center justify-center
-                                     font-black text-lg tabular-nums transition-all ${
+                    <div className={`relative w-11 h-9 rounded-xl border-2 flex items-center justify-center
+                                     font-black text-base tabular-nums transition-all ${
                       critico
                         ? 'bg-amber-500/20 border-amber-400 text-amber-200 shadow-[0_0_20px_rgba(251,191,36,0.7)]'
                         : 'bg-gray-900/60 border-gray-600 text-white'}`}>
@@ -148,28 +160,28 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], onClose
                     </div>
                   </div>
 
-                  <span className="text-gray-500 font-black shrink-0">=</span>
+                  <span className="text-gray-500 font-black shrink-0 text-xs">=</span>
 
-                  <div className="flex items-center gap-1 flex-wrap justify-center">
+                  <div className="flex items-center gap-0.5 flex-wrap justify-center">
                     <input type="number" min={1} max={20} value={texto}
                       onClick={e => e.stopPropagation()}
                       onChange={e => setDado(f.clave, e.target.value)}
                       placeholder="1d20"
-                      className={`shrink-0 w-14 h-10 text-center rounded-xl border-2 bg-gray-900/60 font-black tabular-nums
+                      className={`shrink-0 w-11 h-9 text-center rounded-xl border-2 bg-gray-900/60 font-black tabular-nums
                                   text-white placeholder:text-gray-500 placeholder:font-bold placeholder:text-xs
                                   focus:outline-none focus:ring-2 focus:ring-amber-400/60 transition-colors ${
                         critico ? 'border-amber-400' : 'border-gray-600'}`} />
 
-                    <span className="text-gray-500 font-black shrink-0">+</span>
+                    <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
 
                     {/* PROF: fija, sale del Pokémon */}
-                    <span className="shrink-0 h-10 min-w-[3.25rem] px-1.5 rounded-xl border-2 border-emerald-500/60
+                    <span className="shrink-0 h-9 min-w-[2rem] px-0.5 rounded-xl border-2 border-emerald-500/60
                                      bg-emerald-500/15 text-emerald-200 font-black tabular-nums
                                      flex items-center justify-center" title="Proficiencia del Pokémon">
                       {signo(profN)}
                     </span>
 
-                    <span className="text-gray-500 font-black shrink-0">+</span>
+                    <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
 
                     {/* En ANY la característica la elige el jugador */}
                     {f.elegible ? (
@@ -181,7 +193,7 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], onClose
                           if (varias) setFilaSel(f.clave)
                         }}
                         title="Elige la característica del ataque"
-                        className={`shrink-0 h-10 px-1 rounded-xl border-2 bg-gray-900/60 text-[10px] font-black
+                        className={`shrink-0 h-9 px-0.5 rounded-xl border-2 bg-gray-900/60 text-[9px] font-black
                                     focus:outline-none focus:ring-2 focus:ring-sky-400/50 transition-colors ${
                           elegidas[f.clave] ? 'border-sky-500/60 text-sky-200' : 'border-dashed border-gray-600 text-gray-300'}`}>
                         <option value="">Elegir</option>
@@ -190,13 +202,24 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], onClose
                         ))}
                       </select>
                     ) : (
-                      <span className={`shrink-0 h-10 min-w-[3.25rem] px-1.5 rounded-xl border-2 border-sky-500/60
+                      <span className={`shrink-0 h-9 min-w-[2rem] px-0.5 rounded-xl border-2 border-sky-500/60
                                         bg-sky-500/15 font-black tabular-nums flex items-center justify-center ${
                           mod < 0 ? 'text-red-300' : 'text-sky-200'}`}
                         title={f.nombre ? `Modificador de ${f.nombre}` : 'El movimiento no ataca con ninguna característica'}>
                         {signo(mod)}
                       </span>
                     )}
+
+                    <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
+
+                    <input type="number" value={extra}
+                      onChange={e => setBonus(b => ({ ...b, [f.clave]: e.target.value }))}
+                      title={bonoRuta.detalle.length
+                        ? bonoRuta.detalle.map(d => `Nv ${d.nivel} ${d.nombre}: ${d.valor >= 0 ? '+' : ''}${d.valor}`).join(' · ')
+                        : 'Bonus adicional'}
+                      className={`shrink-0 w-11 h-9 text-center rounded-xl border-2 bg-gray-900/60 font-black tabular-nums
+                                  text-white focus:outline-none focus:ring-2 focus:ring-violet-400/60 transition-colors ${
+                        bonoRuta.total ? 'border-violet-500/60' : 'border-gray-600'}`} />
                   </div>
                 </div>
               )

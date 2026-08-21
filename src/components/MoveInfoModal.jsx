@@ -116,7 +116,7 @@ export default function MoveInfoModal({ m, onClose, theme = 'dark', attackBonos 
                       a.feat ? 'underline decoration-dotted decoration-current/40 underline-offset-2' : ''}`}>
                       {a.feat_name}
                     </p>
-                    <p className={`text-xs font-black leading-tight ${t.factValue}`}>Att+{a.valor}</p>
+                    <p className={`text-xs font-black leading-tight ${t.factValue}`}>Atk+{a.valor}</p>
                     {a.terreno && (
                       <p className={`text-[9px] leading-tight ${t.subText || t.factLabel}`}>{a.terreno}</p>
                     )}

@@ -157,8 +157,66 @@ function FilaRecurso({ r, onManage, onSpend, onFeat }) {
   )
 }
 
+// Rasgos de la ruta, plegados en un acordeón.
+//
+// Antes iban todos desplegados y en un entrenador de nivel alto la pestaña se
+// volvía un muro de texto. Cada solapa dice de un vistazo qué se ganó y cuándo
+// ("Nv 2 · Hobbyist"), y el detalle solo aparece si se pide.
+//
+// La lista llega ya filtrada por el backend: solo los niveles alcanzados, así
+// que aquí no hay nada que decidir sobre eso.
+function AcordeonPath({ rasgos, className = '' }) {
+  const [abierto, setAbierto] = useState(null)
+  if (!rasgos.length) return null
+  return (
+    <div className={className}>
+      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Trainer Path</p>
+      <div className="space-y-1">
+        {rasgos.map(f => {
+          const open = abierto === f.nivel
+          return (
+            <div key={f.nivel} className="bg-gray-700/50 rounded-lg overflow-hidden">
+              <button onClick={() => setAbierto(open ? null : f.nivel)}
+                className="w-full flex items-center gap-1.5 px-2 py-1.5 text-left hover:bg-gray-700 transition-colors">
+                <ChevronDown size={13}
+                  className={`shrink-0 text-gray-400 transition-transform ${open ? '' : '-rotate-90'}`} />
+                <span className="text-[9px] font-bold text-white bg-gray-600 rounded px-1.5 py-0.5 shrink-0">
+                  Nv {f.nivel}
+                </span>
+                <span className="text-xs font-bold text-white truncate min-w-0">{f.nombre}</span>
+              </button>
+              {open && (
+                <div className="px-2 pb-2 pl-[1.9rem]">
+                  {f.descripcion && (
+                    <p className="text-[11px] text-gray-400 leading-relaxed">{f.descripcion}</p>
+                  )}
+                  {/* Bonos del catálogo de ese nivel: "key : value", o solo la
+                      llave cuando el valor viene vacío. */}
+                  {(f.bonos || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {f.bonos.map(b => (
+                        <span key={b.id}
+                          className="text-[10px] font-bold text-gray-200 bg-gray-700/60 border border-gray-600 rounded px-1.5 py-0.5">
+                          {b.key}{b.value ? <> : <span className="text-green-300">{b.value}</span></> : null}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {!f.descripcion && (f.bonos || []).length === 0 && (
+                    <p className="text-[11px] text-gray-500 italic">Sin detalle.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, onAtaque = null, recursosFeat = [],
-                       elementos = [], tiposPokemon = [], onCambiarElemento, weaponProfs = null, attackBonos = [], recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
+                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -174,6 +232,9 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
   const [dado, setDado] = useState('')
   const [skillSel, setSkillSel] = useState(null)
   const [conProf, setConProf] = useState(false)
+  // Bonus: arranca en lo que dé la ruta y se puede tocar. Es texto para poder
+  // distinguir "vacío" de 0 mientras se escribe.
+  const [bonus, setBonus] = useState('')
   const [eligiendoSkill, setEligiendoSkill] = useState(false)
 
 
@@ -236,6 +297,7 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
               <button onClick={() => {
                   setTabPanel('skills')
                   setDado(''); setSkillSel(null); setConProf(false); setEligiendoSkill(false)
+                  setBonus(String(bonoRuta.total || 0))
                   // El panel está centrado y su altura depende del contenido, así
                   // que el borde solo se sabe midiendo en el momento de abrir.
                   setVerFormula(Math.max(0, Math.round(panelRef.current?.getBoundingClientRect().top ?? 0)))
@@ -472,7 +534,7 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                 propia pestaña con los de target 'trainer'. */}
             {tabPanel === 'path' && recursosPokemon && (
               <div className="space-y-1">
-                {recursosPokemon.length === 0 && recursosTrainer.length === 0 && recursosFeat.length === 0 && elementos.length === 0 && recursosRasgos.length === 0 && (
+                {recursosPokemon.length === 0 && recursosTrainer.length === 0 && recursosFeat.length === 0 && elementos.length === 0 && attackBonos.length === 0 && recursosRasgos.length === 0 && (
                   <p className="text-[11px] text-gray-500 italic">Tu ruta no le da nada a este Pokémon.</p>
                 )}
 
@@ -490,22 +552,44 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                     onFeat={setFeatInfo} />
                 ))}
 
-                {/* Bonos de elemento: el tipo se cambia aquí mismo y se guarda
-                    al instante, no hay nada que confirmar. */}
+                {/* Bonos de ataque por terreno (Terrain Adept). Van aquí además
+                    de junto a cada movimiento: en la pestaña se ven de un
+                    vistazo, sin abrir el detalle de un movimiento. */}
+                {attackBonos.map(a => (
+                  <div key={`atk-${a.pf_id}`} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
+                    <button onClick={() => a.feat && setFeatInfo(a.feat)} title={`Ver ${a.feat_name}`}
+                      className="min-w-0 text-left text-white text-xs font-medium truncate hover:text-amber-300 transition-colors">
+                      {a.feat_name}
+                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {a.terreno && (
+                        <span className="text-[10px] font-black uppercase tracking-wide text-gray-300
+                                         bg-gray-800 border border-gray-600 rounded-md px-1.5 py-1">
+                          {a.terreno}
+                        </span>
+                      )}
+                      <span className="text-[10px] font-black tabular-nums text-emerald-300
+                                       bg-emerald-500/10 border border-emerald-500/40 rounded-md px-1.5 py-1">
+                        Atk+{a.valor}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Bonos de elemento: solo lectura. El tipo se cambia volviendo
+                    a tomar el feat, que es repetible; poder editarlo aquí sería
+                    un segundo camino para lo mismo. */}
                 {elementos.map(el => (
                   <div key={`el-${el.id}`} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
                     <button onClick={() => setFeatInfo(el.feat)} title={`Ver ${el.nombre}`}
                       className="min-w-0 text-left text-white text-xs font-medium truncate hover:text-amber-300 transition-colors">
                       {el.nombre}
                     </button>
-                    <select value={el.valor || ''} onChange={e => onCambiarElemento?.(el, e.target.value)}
-                      title="Tipo elegido"
-                      className={`shrink-0 text-[10px] font-black uppercase tracking-wide rounded-md px-1.5 py-1
-                                  bg-gray-800 border transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400/60 ${
-                        el.valor ? 'border-gray-600 text-gray-200' : 'border-dashed border-red-500/60 text-red-400'}`}>
-                      <option value="">Elegir…</option>
-                      {tiposPokemon.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                    <span className={`shrink-0 text-[10px] font-black uppercase tracking-wide rounded-md px-1.5 py-1
+                                      bg-gray-800 border ${
+                      el.valor ? 'border-gray-600 text-gray-200' : 'border-dashed border-red-500/60 text-red-400'}`}>
+                      {el.valor || 'Sin elegir'}
+                    </span>
                   </div>
                 ))}
                 {/* Mismo control que los Extra Points del entrenador: lápiz para
@@ -517,16 +601,7 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                 {/* Los rasgos de la ruta, los mismos que ve el entrenador. Se
                     muestran sea cual sea la ruta: pueden traer algo que aplique
                     al Pokémon aunque no otorgue puntos. */}
-                {recursosRasgos.length > 0 && (
-                  <div className="mt-2 border-t border-gray-700 pt-2 space-y-2">
-                    {recursosRasgos.map(f => (
-                      <div key={f.nivel}>
-                        <p className="text-[11px] font-bold text-amber-300">{f.nombre}</p>
-                        {f.descripcion && <p className="text-[11px] text-gray-400">{f.descripcion}</p>}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <AcordeonPath rasgos={recursosRasgos} className="mt-2 border-t border-gray-700 pt-2" />
               </div>
             )}
 
@@ -559,33 +634,9 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
             )}
 
             {/* Rasgos de la ruta ya alcanzados, debajo de los botones */}
-            {recursosRasgos.length > 0 && (
-              <div className={`space-y-2 ${recursos.length > 0 ? 'mt-2 border-t border-gray-700 pt-2' : ''}`}>
-                {recursosRasgos.map(f => (
-                  <div key={f.nivel}>
-                    <div className="flex items-baseline gap-1.5 flex-wrap">
-                      <span className="text-[9px] font-bold text-white bg-gray-600 rounded px-1.5 py-0.5 shrink-0">Nv {f.nivel}</span>
-                      <span className="text-xs font-bold text-white">{f.nombre}</span>
-                    </div>
-                    {f.descripcion && (
-                      <p className="text-[11px] text-gray-400 leading-relaxed mt-0.5">{f.descripcion}</p>
-                    )}
-                    {/* Bonos del catálogo de ese nivel: "key : value", o solo la
-                        llave cuando el valor viene vacío. */}
-                    {(f.bonos || []).length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {f.bonos.map(b => (
-                          <span key={b.id}
-                            className="text-[10px] font-bold text-gray-200 bg-gray-700/60 border border-gray-600 rounded px-1.5 py-0.5">
-                            {b.key}{b.value ? <> : <span className="text-green-300">{b.value}</span></> : null}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <AcordeonPath rasgos={recursosRasgos}
+              className={recursos.length > 0 || recursosFeat.length > 0 ? 'mt-2 border-t border-gray-700 pt-2' : ''} />
+
               </div>
             )}
 
@@ -609,7 +660,7 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                           condición hay que comprobarla en cada tirada. El
                           detalle dice cuál es. */}
                       {attackBonos.length > 0 && (
-                        <span title={attackBonos.map(a => `${a.feat_name}: Att+${a.valor}${a.terreno ? ` (${a.terreno})` : ''}`).join(' · ')}
+                        <span title={attackBonos.map(a => `${a.feat_name}: Atk+${a.valor}${a.terreno ? ` (${a.terreno})` : ''}`).join(' · ')}
                           className="shrink-0 w-2 h-2 rounded-full bg-red-500 ring-2 ring-red-500/30" />
                       )}
                       <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
@@ -703,6 +754,10 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                 <span className="text-[11px] text-emerald-300 bg-emerald-500/10 border border-dashed border-emerald-500/50 rounded-md px-2 py-1">
                   +2 If weapon prof
                 </span>
+                <span className="text-gray-500 text-sm">+</span>
+                <span className="text-[11px] text-violet-300 bg-violet-500/10 border border-violet-500/40 rounded-md px-2 py-1">
+                  Bonus
+                </span>
               </div>
               <p className="mt-3 text-[11px] text-gray-400 text-center leading-relaxed">
                 El modificador sale de la habilidad que uses, en la pestaña Skills.
@@ -715,22 +770,23 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                 const n20 = dado === '' ? 0 : Number(dado)
                 const modSkill = skillSel ? Number(skillSel.mod) || 0 : 0
                 const bonoProf = conProf ? 2 : 0
+                const extra = bonus === '' ? 0 : Number(bonus)
                 // Un modificador negativo resta, así que el total puede bajar del dado.
-                const total = n20 + modSkill + bonoProf
+                const total = n20 + modSkill + bonoProf + extra
                 const critico = n20 === 20
                 const signo = m => (m >= 0 ? `+${m}` : `${m}`)
                 return (
                   <div className="mt-4 border-t border-gray-700 pt-4">
                     {/* El lado derecho va en su propio grupo: si no cabe, la fila
                         se parte después del '=' y no por la mitad de la suma. */}
-                    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                    <div className="flex items-center justify-center gap-0.5 flex-wrap">
                       {/* Total. En un 20 natural se enciende y late. */}
                       <div className="relative shrink-0">
                         {critico && (
                           <span className="absolute inset-0 rounded-xl bg-amber-400/40 animate-ping pointer-events-none" />
                         )}
-                        <div className={`relative w-14 h-10 rounded-xl border-2 flex items-center justify-center
-                                         font-black text-lg tabular-nums transition-all ${
+                        <div className={`relative w-11 h-9 rounded-xl border-2 flex items-center justify-center
+                                         font-black text-base tabular-nums transition-all ${
                           critico
                             ? 'bg-amber-500/20 border-amber-400 text-amber-200 shadow-[0_0_20px_rgba(251,191,36,0.7)]'
                             : 'bg-gray-900/60 border-gray-600 text-white'}`}>
@@ -738,9 +794,9 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                         </div>
                       </div>
 
-                      <span className="text-gray-500 font-black shrink-0">=</span>
+                      <span className="text-gray-500 font-black shrink-0 text-xs">=</span>
 
-                      <div className="flex items-center gap-1 flex-wrap justify-center">
+                      <div className="flex items-center gap-0.5 flex-wrap justify-center">
                       {/* El dado. El texto gris de fondo es el placeholder: se va
                           en cuanto se escribe. */}
                       <input type="number" min={1} max={20} value={dado}
@@ -752,18 +808,18 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                           setDado(String(Math.max(1, Math.min(20, n))))
                         }}
                         placeholder="1d20"
-                        className={`shrink-0 w-14 h-10 text-center rounded-xl border-2 bg-gray-900/60 font-black tabular-nums
+                        className={`shrink-0 w-11 h-9 text-center rounded-xl border-2 bg-gray-900/60 font-black tabular-nums
                                     text-white placeholder:text-gray-500 placeholder:font-bold placeholder:text-xs
                                     focus:outline-none focus:ring-2 focus:ring-amber-400/60 transition-colors ${
                           critico ? 'border-amber-400' : 'border-gray-600'}`} />
 
-                      <span className="text-gray-500 font-black shrink-0">+</span>
+                      <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
 
                       {/* Sin elegir dice Skill; elegido, muestra su modificador y
                           sigue abriendo la lista para poder cambiarlo. */}
                       <button onClick={() => setEligiendoSkill(v => !v)}
                         title={skillSel ? `${skillSel.name} (${skillSel.ability})` : 'Elegir habilidad'}
-                        className={`shrink-0 h-10 min-w-[3.25rem] px-1.5 rounded-xl border-2 font-black tabular-nums
+                        className={`shrink-0 h-9 min-w-[2rem] px-0.5 rounded-xl border-2 font-black tabular-nums
                                     transition-colors ${
                           skillSel
                             ? `bg-sky-500/15 border-sky-500/60 ${modSkill < 0 ? 'text-red-300' : 'text-sky-200'}`
@@ -771,15 +827,29 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                         {skillSel ? signo(modSkill) : 'Skill'}
                       </button>
 
-                      <span className="text-gray-500 font-black shrink-0">+</span>
+                      <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
 
                       <select value={conProf ? 'si' : 'no'} onChange={e => setConProf(e.target.value === 'si')}
-                        className={`shrink-0 h-10 px-1 rounded-xl border-2 bg-gray-900/60 text-[10px] font-black
+                        className={`shrink-0 h-9 px-0.5 rounded-xl border-2 bg-gray-900/60 text-[9px] font-black
                                     focus:outline-none focus:ring-2 focus:ring-emerald-400/50 transition-colors ${
                           conProf ? 'border-emerald-500/60 text-emerald-200' : 'border-gray-600 text-gray-300'}`}>
                         <option value="no">No prof</option>
                         <option value="si">Prof +2</option>
                       </select>
+
+                      <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
+
+                      {/* Bonus: lo que da la ruta, editable para ajustarlo en
+                          mesa. Los bonos condicionales de feats NO entran aquí:
+                          dependen de dónde se pelee y los suma el jugador. */}
+                      <input type="number" value={bonus}
+                        onChange={e => setBonus(e.target.value)}
+                        title={bonoRuta.detalle.length
+                          ? bonoRuta.detalle.map(d => `Nv ${d.nivel} ${d.nombre}: ${d.valor >= 0 ? '+' : ''}${d.valor}`).join(' · ')
+                          : 'Bonus adicional'}
+                        className={`shrink-0 w-11 h-9 text-center rounded-xl border-2 bg-gray-900/60 font-black tabular-nums
+                                    text-white focus:outline-none focus:ring-2 focus:ring-violet-400/60 transition-colors ${
+                          bonoRuta.total ? 'border-violet-500/60' : 'border-gray-600'}`} />
                       </div>
                     </div>
 
@@ -900,7 +970,6 @@ export default function TrainerPartida() {
   const [recursosTitulo, setRecursosTitulo] = useState('Trainer')
   const [recursosRasgos, setRecursosRasgos] = useState([]) // rasgos de la ruta ya alcanzados
   const [recursosFeat, setRecursosFeat] = useState([])   // puntos que dan los feats (Lucky Points)
-  const [tiposPokemon, setTiposPokemon] = useState([])   // nombres de pokemon_types, para los bonos de elemento
   const [recursoEdit, setRecursoEdit] = useState(null)  // recurso en el lápiz
   const [recursoVal, setRecursoVal]   = useState(0)
   // Dados de golpe: { actual, maximo }. Van aparte de charData/pokeData porque
@@ -1048,46 +1117,22 @@ export default function TrainerPartida() {
       method: 'PATCH', body: JSON.stringify({ en_juego: enJuego }),
     }).catch(() => {})
 
-  // Los tipos de Pokémon salen de la tabla y no cambian en toda la partida, así
-  // que se piden una vez y se reutilizan en todos los bonos de elemento.
-  useEffect(() => {
-    let vivo = true
-    apiFetch('/types').then(r => r.json())
-      .then(d => { if (vivo) setTiposPokemon((Array.isArray(d) ? d : []).map(t => t.pokemon_types_name).filter(Boolean)) })
-      .catch(() => { if (vivo) setTiposPokemon([]) })
-    return () => { vivo = false }
-  }, [])
-
-  // Guarda el tipo elegido y refresca lo que se ve al lado
-  const cambiarElemento = async (el, valor) => {
-    if (!valor || !pokemonInvocado) return
-    const antes = el.valor
-    setPokeData(p => p && ({ ...p, feat_elementos: (p.feat_elementos || []).map(x => x.id === el.id ? { ...x, valor } : x) }))
-    try {
-      const res = await apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}/feat-element/${el.id}`,
-        { method: 'PUT', body: JSON.stringify({ valor }) })
-      const j = await res.json()
-      if (!res.ok) throw new Error(j.error || 'rechazado')
-      setPokeData(p => p && ({ ...p, feat_elementos: (p.feat_elementos || []).map(x => x.id === el.id ? { ...x, valor: j.valor } : x) }))
-    } catch {
-      // Si el servidor lo rechaza se vuelve a lo que había, para no dejar en
-      // pantalla un tipo que no se guardó.
-      setPokeData(p => p && ({ ...p, feat_elementos: (p.feat_elementos || []).map(x => x.id === el.id ? { ...x, valor: antes } : x) }))
-    }
-  }
-
   // Abrir control del jugador (personaje) — carga HP/exhaust/dsts/dstf
   // Gastar un punto: optimista y con reconciliación, como los PP
   const gastarRecurso = async (r) => {
     if (r.actual <= 0) return
     // Los puntos de feat viven en otra tabla y tienen su propia ruta, pero el
     // control es el mismo: se distingue por el `tipo` que trae el recurso.
-    const esFeat = r.tipo === 'feat'
-    const setLista = esFeat ? setRecursosFeat : setRecursos
-    const ruta = esFeat ? 'feat-resource' : 'path-resource'
+    // Cada bono dice por su `tipo` a qué ruta escribir: los de feat viven en
+    // personaje_feat_bonus, el Tracker en una columna del personaje, y el resto
+    // son los Extra Points de la ruta.
+    const propio = r.tipo === 'feat' || r.tipo === 'feature'
+    const setLista = propio ? setRecursosFeat : setRecursos
+    const ruta = r.tipo === 'feature' ? `feature/${r.clave}`
+      : r.tipo === 'feat' ? `feat-resource/${r.id}` : `path-resource/${r.id}`
     setLista(prev => prev.map(x => x.id === r.id ? { ...x, actual: x.actual - 1 } : x))
     try {
-      const res = await apiFetch(`/personaje/${personajeId}/${ruta}/${r.id}`,
+      const res = await apiFetch(`/personaje/${personajeId}/${ruta}`,
         { method: 'PATCH', body: JSON.stringify({ cantidad: 1 }) })
       const j = await res.json()
       if (res.ok) setLista(prev => prev.map(x => x.id === r.id ? { ...x, actual: j.actual } : x))
@@ -1099,7 +1144,12 @@ export default function TrainerPartida() {
     if (!recursoEdit) return
     const tipo = recursoEdit.tipo || 'path'
     try {
-      if (tipo === 'feat') {
+      if (tipo === 'feature') {
+        const res = await apiFetch(`/personaje/${personajeId}/feature/${recursoEdit.clave}`,
+          { method: 'PUT', body: JSON.stringify({ actual: recursoVal }) })
+        const j = await res.json()
+        if (res.ok) setRecursosFeat(prev => prev.map(x => x.id === recursoEdit.id ? { ...x, actual: j.actual, maximo: j.maximo } : x))
+      } else if (tipo === 'feat') {
         const res = await apiFetch(`/personaje/${personajeId}/feat-resource/${recursoEdit.id}`,
           { method: 'PUT', body: JSON.stringify({ actual: recursoVal }) })
         const j = await res.json()
@@ -1214,6 +1264,8 @@ export default function TrainerPartida() {
         init: dexMod,
         speeds: d.personaje_speed != null ? [['Speed', `${d.personaje_speed} ft`]] : [],
         exhaust: d.personaje_exahust_lvl ?? 0, dsts: d.personaje_dsts ?? 0, dstf: d.personaje_dstf ?? 0,
+        // Bono de ataque de su ruta, para el campo Bonus de la fórmula
+        attack_bonus_path: d.attack_bonus_path || { total: 0, detalle: [] },
       })
       setHdTrainer({ actual: d.personaje_hit_dice_left ?? 0, maximo: d.hit_dice_pool ?? 0 })
       setRecursosFeat(Array.isArray(d.feat_recursos) ? d.feat_recursos : [])
@@ -1314,6 +1366,8 @@ export default function TrainerPartida() {
         attack_bonos: d.feat_efectos?.attack_bonos || [],
         // Bonos de elemento: el tipo elegido, que se cambia desde la pestaña Bonus
         feat_elementos: Array.isArray(d.feat_elementos) ? d.feat_elementos : [],
+        // Bono de ataque que le da la ruta de su entrenador
+        attack_bonus_path: d.attack_bonus_path || { total: 0, detalle: [] },
         // Iniciativa: el modificador de DEX, igual que el entrenador. Se
         // calcula al leer y no se guarda, así ya viene con la naturaleza, los
         // bonos de feats y el tope por nivel que aplica statVal. La columna
@@ -1529,6 +1583,7 @@ export default function TrainerPartida() {
           move={formulaMove}
           prof={pokeData?.prof}
           stats={pokeData?.stats || []}
+          bonoRuta={pokeData?.attack_bonus_path || { total: 0, detalle: [] }}
           onClose={() => { setFormulaMove(null); setPoderAtaque(null) }}
           onAtacar={(poder) => { const m = formulaMove; setPoderAtaque(poder); setFormulaMove(null); abrirPP(m, poder) }}
         />
@@ -1858,6 +1913,7 @@ export default function TrainerPartida() {
           weaponProfs={charProfs}
           initial={charData}
           skills={charSkills}
+          bonoRuta={charData.attack_bonus_path || { total: 0, detalle: [] }}
           recursos={recursos}
           recursosTitulo={recursosTitulo}
           recursosRasgos={recursosRasgos}
@@ -1934,8 +1990,6 @@ export default function TrainerPartida() {
           recursosTrainer={recursos}
           recursosFeat={recursosFeat}
           elementos={pokeData.feat_elementos || []}
-          tiposPokemon={tiposPokemon}
-          onCambiarElemento={cambiarElemento}
           onSpendRecurso={gastarRecurso}
           onManageRecurso={r => { setRecursoEdit(r); setRecursoVal(r.actual) }}
           initial={pokeData}
