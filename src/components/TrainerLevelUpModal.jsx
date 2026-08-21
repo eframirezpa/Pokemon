@@ -165,7 +165,7 @@ function DetallePath({ path }) {
 
 /* Bonos de ruta del nivel: los que exigen elegir muestran el selector, los
    fijos anuncian la skill, y el resto son narrativa (solo se listan). */
-function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, preview, bondPreview, specs2, specSel2, setSpecSel2, yaProf = new Set() }) {
+function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, statsRuta = {}, setStatsRuta, preview, bondPreview, specs2, specSel2, setSpecSel2, yaProf = new Set() }) {
   const toggle = (bonusId, cuantas, nombre) => setElegidas(prev => {
     const act = prev[bonusId] || []
     if (act.includes(nombre)) return { ...prev, [bonusId]: act.filter(x => x !== nombre) }
@@ -198,6 +198,40 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, preview, bondPr
           return (
             <div key={b.path_bonus_id} className="text-xs bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
               <span className="font-bold text-green-800">{r.nombre}</span>
+              <span className="text-gray-500"> · puntos gastables, los verás en tu panel</span>
+            </div>
+          )
+        }
+        if (r.modo === 'stat_choice') {
+          const sel = statsRuta[b.path_bonus_id] || ''
+          return (
+            <div key={b.path_bonus_id} className="border border-gray-200 rounded-lg px-2.5 py-2">
+              <p className="text-xs font-bold text-gray-700 mb-1.5">
+                Elige una característica
+                <span className="text-gray-500 font-normal">
+                  {' '}· +{r.valor} para {TARGET_BONO[r.target] || legible(r.target)}
+                </span>
+              </p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {STAT_KEYS.map(k => (
+                  <button key={k} onClick={() => setStatsRuta(v => ({ ...v, [b.path_bonus_id]: k }))}
+                    className={`text-xs font-bold px-2 py-2 rounded-lg border transition-colors ${
+                      sel === k ? 'bg-green-600 border-green-600 text-white'
+                                : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                    {STAT_LABEL[k]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        }
+        if (r.modo === 'battle_dice') {
+          // Como el recurso normal: no pide nada, se otorga al confirmar. Lo
+          // propio suyo es el dado, que sube con los niveles.
+          return (
+            <div key={b.path_bonus_id} className="text-xs bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
+              <span className="font-bold text-green-800">{r.nombre}</span>
+              <span className="text-gray-700"> · {r.dado}</span>
               <span className="text-gray-500"> · puntos gastables, los verás en tu panel</span>
             </div>
           )
@@ -283,6 +317,19 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, preview, bondPr
             </div>
           )
         }
+        // Solo 'elegir' pide habilidades. Antes este era el caso POR DEFECTO, y
+        // cualquier modo que el modal no conociera acababa aquí pidiéndolas: un
+        // bono de Battle Dice mostraba un selector de habilidades que no venía a
+        // cuento. Un modo desconocido se muestra ahora como narrativa, que es lo
+        // mismo que se hace cuando no hay regla.
+        if (r.modo !== 'elegir') {
+          return (
+            <div key={b.path_bonus_id} className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
+              <span className="font-semibold text-gray-700">{describirPathBonus(b).texto}</span>
+              <span className="text-gray-400"> — lo lleva el DM</span>
+            </div>
+          )
+        }
         const sel = elegidas[b.path_bonus_id] || []
         return (
           <div key={b.path_bonus_id} className="border border-gray-200 rounded-lg px-2.5 py-2">
@@ -357,6 +404,8 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
   // El rasgo del Epic Boon (nivel 19) va aparte: NO cuesta puntos, es la
   // feature del nivel, así que no entra en la cuenta del ASI.
   const [boonElegido, setBoonElegido] = useState([])
+  // Característica elegida en los bonos de ruta que la piden: { bonus_id: 'dex' }
+  const [statsRuta, setStatsRuta] = useState({})
   const costeFeat = featsElegidos.length > 0 ? ASI_PUNTOS : 0
   const usados = STAT_KEYS.reduce((s, k) => s + (adds[k] || 0), 0) + costeFeat
   const restantes = ASI_PUNTOS - usados
@@ -407,6 +456,8 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
       const n = (pathSkills[b.path_bonus_id] || []).length
       if (n !== r.cuantas) return `Elige ${r.cuantas} habilidad(es) del rasgo de ruta`
     }
+    const pideStat = bonosDelNivel.find(b => b.regla?.modo === 'stat_choice')
+    if (pideStat && !statsRuta[pideStat.path_bonus_id]) return 'Elige una característica'
     if (bonosDelNivel.some(b => b.regla?.modo === 'spec_extra') && !pathSpec) {
       return 'Elige la especialización del rasgo de ruta'
     }
@@ -431,6 +482,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
       if (has(F.RESOLVE) && savSel) body.saving = savSel
       if (has(F.PATH))    body.path_id = Number(pathSel)
       if (Object.keys(pathSkills).length) body.path_skills = pathSkills
+      if (Object.keys(statsRuta).length) body.path_stats = statsRuta
       if (pathSpec) body.path_specialization_id = Number(pathSpec)
       const res = await apiFetch(`/personaje/${personajeId}/improvements/${p.id}/confirm`,
         { method: 'POST', body: JSON.stringify(body) })
@@ -579,7 +631,8 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
                 <div className="mt-3 border-t border-gray-100 pt-3">
                   <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Lo que ganas ahora</p>
                   <BonosDeRuta bonos={bonosDelNivel} skillsList={skillsList}
-                    elegidas={pathSkills} setElegidas={setPathSkills} preview={p.stab_preview} bondPreview={p.bond_preview}
+                    elegidas={pathSkills} setElegidas={setPathSkills} statsRuta={statsRuta} setStatsRuta={setStatsRuta}
+                    preview={p.stab_preview} bondPreview={p.bond_preview}
                     specs2={specs} specSel2={pathSpec} setSpecSel2={setPathSpec} yaProf={yaProf} />
                 </div>
               )}
@@ -609,7 +662,8 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
                   {bonosDelNivel.length > 0 && (
                     <div className="mt-2">
                       <BonosDeRuta bonos={bonosDelNivel} skillsList={skillsList}
-                        elegidas={pathSkills} setElegidas={setPathSkills} preview={p.stab_preview} bondPreview={p.bond_preview}
+                        elegidas={pathSkills} setElegidas={setPathSkills} statsRuta={statsRuta} setStatsRuta={setStatsRuta}
+                        preview={p.stab_preview} bondPreview={p.bond_preview}
                     specs2={specs} specSel2={pathSpec} setSpecSel2={setPathSpec} yaProf={yaProf} />
                     </div>
                   )}

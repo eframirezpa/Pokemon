@@ -40,6 +40,8 @@ const campos = (b) => ({
 
 /**
  * Qué hay que hacer con el bono:
+ *   { modo:'stat_choice', valor, target }      el jugador escoge una característica
+ *   { modo:'battle_dice', dado, nombre, target } dados de batalla, se otorgan solos
  *   { modo:'elegir', valor, cuantas, target }  el jugador escoge N habilidades
  *   { modo:'fija',   valor, llave, target }    la habilidad viene dada
  *   null                                       narrativa: se muestra, no se aplica
@@ -51,6 +53,26 @@ export function clasificarPathBonus(bonus) {
   // Especialización extra: la identifica la LLAVE
   if (k === 'specialization') {
     return { modo: 'spec_extra', cuantas: Math.max(1, Math.floor(Number(c.valor) || 1)), target: tg }
+  }
+  // Característica a elegir para todos los Pokémon (Ace Trainer, nivel 9).
+  // Solo con los targets que la aplicación sabe resolver: la ruta Pokémon
+  // Breeder tiene el mismo bono para 'hatched_pokemon', que no llevamos.
+  if (t === 'ability_score_increase' && k === 'chosen_ability_score'
+      && (tg === 'trainer' || tg === 'all_pokemon')) {
+    return { modo: 'stat_choice', valor: Math.abs(parseInt(c.valor, 10) || 1), target: tg }
+  }
+
+  // Battle Dice: recurso con dado, que mejora con los niveles. Va antes que el
+  // recurso normal porque su fórmula vive en resource_formula y en prosa, no en
+  // uses_formula, así que la rama de abajo lo descartaría. Mismo criterio que el
+  // backend, que es quien lo persiste.
+  if (t === 'resource' && k === 'battle_dice') {
+    return {
+      modo: 'battle_dice',
+      dado: String(c.valor || '').trim(),
+      nombre: (c.recurso || '').trim() || 'Battle Dice',
+      target: tg,
+    }
   }
   // Recurso del entrenador: uses_formula nombra la columna del máximo. Sin ella
   // la fórmula está en prosa y queda fuera, igual que en el backend.

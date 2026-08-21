@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff, ArrowRight, BedDouble } from 'lucide-react'
+import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, ChevronUp, ChevronDown, Pencil, PencilOff, ArrowRight, BedDouble, Dices } from 'lucide-react'
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
 import CharacterSheet from '../components/CharacterSheet'
@@ -543,7 +543,8 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                     lo que es solo del Pokémon no aparece en el panel del
                     entrenador. */}
                 {recursosTrainer.map(r => (
-                  <FilaRecurso key={`t-${r.id}`} r={r} onManage={onManageRecurso} onSpend={onSpendRecurso} />
+                  <FilaRecurso key={`t-${r.id}`} r={r} onManage={onManageRecurso} onSpend={onSpendRecurso}
+                    onFeat={setFeatInfo} />
                 ))}
                 {/* Los que dan los feats del entrenador (Lucky Points): son
                     suyos igual que los de ruta, así que van con ellos. */}
@@ -623,7 +624,8 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
             ) : (
               <div className="space-y-1">
                 {recursos.map(r => (
-                  <FilaRecurso key={r.id} r={r} onManage={onManageRecurso} onSpend={onSpendRecurso} />
+                  <FilaRecurso key={r.id} r={r} onManage={onManageRecurso} onSpend={onSpendRecurso}
+                    onFeat={setFeatInfo} />
                 ))}
                 {/* Los que dan sus feats, junto a los de la ruta */}
                 {recursosFeat.map(r => (
@@ -971,6 +973,7 @@ export default function TrainerPartida() {
   const [recursosRasgos, setRecursosRasgos] = useState([]) // rasgos de la ruta ya alcanzados
   const [recursosFeat, setRecursosFeat] = useState([])   // puntos que dan los feats (Lucky Points)
   const [recursoEdit, setRecursoEdit] = useState(null)  // recurso en el lápiz
+  const [dadoBatalla, setDadoBatalla] = useState(null)  // Battle Dice a punto de gastarse
   const [recursoVal, setRecursoVal]   = useState(0)
   // Dados de golpe: { actual, maximo }. Van aparte de charData/pokeData porque
   // el panel los muta en vivo y esos objetos se rearman al abrir el control.
@@ -1121,6 +1124,9 @@ export default function TrainerPartida() {
   // Gastar un punto: optimista y con reconciliación, como los PP
   const gastarRecurso = async (r) => {
     if (r.actual <= 0) return
+    // Los Battle Dice avisan primero qué dado toca tirar: el punto se gasta al
+    // confirmar, no al pulsar, para que cerrar el aviso no cueste un uso.
+    if (r.tipo === 'battle_dice') { setDadoBatalla(r); return }
     // Los puntos de feat viven en otra tabla y tienen su propia ruta, pero el
     // control es el mismo: se distingue por el `tipo` que trae el recurso.
     // Cada bono dice por su `tipo` a qué ruta escribir: los de feat viven en
@@ -1138,6 +1144,21 @@ export default function TrainerPartida() {
       if (res.ok) setLista(prev => prev.map(x => x.id === r.id ? { ...x, actual: j.actual } : x))
       else setLista(prev => prev.map(x => x.id === r.id ? { ...x, actual: j.actual ?? r.actual } : x))
     } catch { setLista(prev => prev.map(x => x.id === r.id ? { ...x, actual: r.actual } : x)) }
+  }
+
+  // Confirmado el aviso: se gasta como cualquier otro recurso de ruta
+  const usarDadoBatalla = async () => {
+    const r = dadoBatalla
+    setDadoBatalla(null)
+    if (!r || r.actual <= 0) return
+    setRecursos(prev => prev.map(x => x.id === r.id ? { ...x, actual: x.actual - 1 } : x))
+    try {
+      const res = await apiFetch(`/personaje/${personajeId}/path-resource/${r.id}`,
+        { method: 'PATCH', body: JSON.stringify({ cantidad: 1 }) })
+      const j = await res.json()
+      setRecursos(prev => prev.map(x => x.id === r.id
+        ? { ...x, actual: res.ok ? j.actual : (j.actual ?? r.actual) } : x))
+    } catch { setRecursos(prev => prev.map(x => x.id === r.id ? { ...x, actual: r.actual } : x)) }
   }
 
   const guardarRecurso = async () => {
@@ -1932,6 +1953,41 @@ export default function TrainerPartida() {
 
       {/* Lápiz de un Extra Point: solo ajusta lo que queda. El máximo se deriva
           del personaje (nivel, proficiencia...) y no se edita a mano. */}
+      {/* Battle Dice: recuerda qué dado tirar. La tirada es física; la app solo
+          lleva la cuenta de los usos. */}
+      {dadoBatalla && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget) setDadoBatalla(null) }}>
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between gap-2">
+              <h4 className="font-bold text-white text-sm flex items-center gap-2 min-w-0">
+                <Dices size={15} className="text-amber-400 shrink-0" /> Battle Dice
+              </h4>
+              <button onClick={() => setDadoBatalla(null)} className="text-gray-400 hover:text-white shrink-0">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-4 py-4 text-center">
+              <p className="text-[11px] text-gray-400 uppercase tracking-widest font-bold mb-1">Tira</p>
+              <p className="text-3xl font-black text-amber-300">1{dadoBatalla.dado}</p>
+              <p className="mt-2 text-[11px] text-gray-400 leading-relaxed">
+                Súmalo a una tirada de ataque o daño de tu Pokémon, después de tirar.
+              </p>
+              <p className="mt-2 text-[11px] text-gray-500">
+                Te quedan {dadoBatalla.actual} de {dadoBatalla.maximo}
+              </p>
+              <button onClick={usarDadoBatalla}
+                className="mt-4 w-full flex items-center justify-center gap-1.5 h-10 rounded-xl
+                           text-xs font-black uppercase tracking-widest text-white transition-colors
+                           bg-red-600 hover:bg-red-700">
+                <Dices size={14} /> Gastar punto
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {recursoEdit && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
           onClick={e => { if (e.target === e.currentTarget) setRecursoEdit(null) }}>
