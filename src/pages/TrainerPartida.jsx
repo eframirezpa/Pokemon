@@ -230,12 +230,15 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
   // Calculadora del ataque (solo entrenador). El dado se guarda como texto para
   // poder distinguir "vacío" de 0 y que el placeholder siga a la vista.
   const [dado, setDado] = useState('')
-  const [skillSel, setSkillSel] = useState(null)
+  // El modificador de la fórmula sale de un STAT (crudo, sin proficiencia de
+  // skill), no de una habilidad: la lista y el cálculo salen de v.stats, la
+  // misma fuente que pinta la pestaña Stats.
+  const [statSel, setStatSel] = useState(null)
   const [conProf, setConProf] = useState(false)
   // Bonus: arranca en lo que dé la ruta y se puede tocar. Es texto para poder
   // distinguir "vacío" de 0 mientras se escribe.
   const [bonus, setBonus] = useState('')
-  const [eligiendoSkill, setEligiendoSkill] = useState(false)
+  const [eligiendoStat, setEligiendoStat] = useState(false)
 
 
   if (!v) return null
@@ -290,13 +293,13 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
               </div>
             )}
 
-            {/* Recordatorio de cómo se tira un ataque con habilidad. Lleva a
-                las habilidades porque el modificador que pide la fórmula está
+            {/* Recordatorio de cómo se tira un ataque con stat. Lleva a la
+                pestaña Stats porque el modificador que pide la fórmula está
                 justo ahí: se abre la pestaña y encima el detalle. */}
-            {recursos && skills.length > 0 && (
+            {recursos && (v.stats || []).length > 0 && (
               <button onClick={() => {
-                  setTabPanel('skills')
-                  setDado(''); setSkillSel(null); setConProf(false); setEligiendoSkill(false)
+                  setTabPanel('stats')
+                  setDado(''); setStatSel(null); setConProf(false); setEligiendoStat(false)
                   setBonus(String(bonoRuta.total || 0))
                   // El panel está centrado y su altura depende del contenido, así
                   // que el borde solo se sabe midiendo en el momento de abrir.
@@ -750,7 +753,7 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                 </span>
                 <span className="text-gray-500 text-sm">+</span>
                 <span className="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/40 rounded-md px-2 py-1">
-                  Skill Mod
+                  Stat Mod
                 </span>
                 <span className="text-gray-500 text-sm">+</span>
                 <span className="text-[11px] text-emerald-300 bg-emerald-500/10 border border-dashed border-emerald-500/50 rounded-md px-2 py-1">
@@ -762,19 +765,19 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                 </span>
               </div>
               <p className="mt-3 text-[11px] text-gray-400 text-center leading-relaxed">
-                El modificador sale de la habilidad que uses, en la pestaña Skills.
+                El modificador sale del stat que elijas, en la pestaña Stats.
               </p>
 
               {/* Calculadora, solo en el panel del entrenador: es quien ataca con
                   habilidad. El total se recalcula solo; no hay botón de calcular
                   porque no hay nada que confirmar. */}
-              {recursos && skills.length > 0 && (() => {
+              {recursos && (v.stats || []).length > 0 && (() => {
                 const n20 = dado === '' ? 0 : Number(dado)
-                const modSkill = skillSel ? Number(skillSel.mod) || 0 : 0
+                const modStat = statSel ? Number(statSel.mod) || 0 : 0
                 const bonoProf = conProf ? 2 : 0
                 const extra = bonus === '' ? 0 : Number(bonus)
                 // Un modificador negativo resta, así que el total puede bajar del dado.
-                const total = n20 + modSkill + bonoProf + extra
+                const total = n20 + modStat + bonoProf + extra
                 const critico = n20 === 20
                 const signo = m => (m >= 0 ? `+${m}` : `${m}`)
                 return (
@@ -817,16 +820,16 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
 
                       <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
 
-                      {/* Sin elegir dice Skill; elegido, muestra su modificador y
+                      {/* Sin elegir dice Stat; elegido, muestra su modificador y
                           sigue abriendo la lista para poder cambiarlo. */}
-                      <button onClick={() => setEligiendoSkill(v => !v)}
-                        title={skillSel ? `${skillSel.name} (${skillSel.ability})` : 'Elegir habilidad'}
+                      <button onClick={() => setEligiendoStat(v => !v)}
+                        title={statSel ? statSel.key : 'Elegir stat'}
                         className={`shrink-0 h-9 min-w-[2rem] px-0.5 rounded-xl border-2 font-black tabular-nums
                                     transition-colors ${
-                          skillSel
-                            ? `bg-sky-500/15 border-sky-500/60 ${modSkill < 0 ? 'text-red-300' : 'text-sky-200'}`
+                          statSel
+                            ? `bg-sky-500/15 border-sky-500/60 ${modStat < 0 ? 'text-red-300' : 'text-sky-200'}`
                             : 'bg-gray-900/60 border-gray-600 border-dashed text-gray-300 hover:border-gray-500 text-xs'}`}>
-                        {skillSel ? signo(modSkill) : 'Skill'}
+                        {statSel ? signo(modStat) : 'Stat'}
                       </button>
 
                       <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
@@ -875,39 +878,29 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                       </button>
                     )}
 
-                    {skillSel && !eligiendoSkill && (
+                    {statSel && !eligiendoStat && (
                       <p className="mt-2 text-center text-[11px] text-gray-400 truncate">
-                        {skillSel.name} <span className="text-gray-500">({skillSel.ability})</span>
+                        {statSel.key}
                       </p>
                     )}
 
-                    {/* Los modificadores ya traen dentro la proficiencia y el
-                        experto, así que el número de la lista es el que se suma. */}
-                    {eligiendoSkill && (
-                      <div className="mt-3 max-h-48 overflow-y-auto grid grid-cols-2 gap-1 pr-0.5">
-                        {skills.map(sk => (
-                          <button key={sk.name}
-                            onClick={() => { setSkillSel(sk); setEligiendoSkill(false) }}
+                    {/* Modificador crudo del stat (mismo que la pestaña Stats):
+                        sin proficiencia de skill, sin bono de tirada de salvación. */}
+                    {eligiendoStat && (
+                      <div className="mt-3 grid grid-cols-3 gap-1 pr-0.5">
+                        {(v.stats || []).map(st => (
+                          <button key={st.key}
+                            onClick={() => { setStatSel(st); setEligiendoStat(false) }}
                             className={`flex items-center justify-between gap-1.5 rounded-lg px-2 py-1.5 min-w-0 text-left
                                         transition-colors ${
-                              skillSel?.name === sk.name
+                              statSel?.key === st.key
                                 ? 'bg-sky-500/20 ring-1 ring-sky-500/60'
                                 : 'bg-gray-700/50 hover:bg-gray-700'}`}>
-                            <div className="flex items-center gap-1 min-w-0">
-                              <span className="text-white text-xs font-medium truncate">{sk.name}</span>
-                              <span className="text-[10px] text-gray-400 shrink-0">({sk.ability})</span>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              {sk.expert
-                                ? <span className="text-[9px] font-bold text-white bg-blue-700 rounded px-1 py-0.5">Ex</span>
-                                : sk.pref
-                                  ? <span className="text-[9px] font-bold text-white bg-green-600 rounded px-1 py-0.5">Pr</span>
-                                  : null}
-                              <span className={`text-xs font-black tabular-nums w-7 text-right ${
-                                sk.mod < 0 ? 'text-red-400' : 'text-white'}`}>
-                                {signo(Number(sk.mod) || 0)}
-                              </span>
-                            </div>
+                            <span className="text-white text-xs font-medium truncate">{st.key}</span>
+                            <span className={`text-xs font-black tabular-nums w-7 text-right ${
+                              st.mod < 0 ? 'text-red-400' : 'text-white'}`}>
+                              {signo(Number(st.mod) || 0)}
+                            </span>
                           </button>
                         ))}
                       </div>
