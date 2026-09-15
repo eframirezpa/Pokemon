@@ -846,6 +846,28 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                   Bonus
                 </span>
               </div>
+              {/* Move DC: la misma fórmula que Attack, solo que el 1d20 se
+                  reemplaza por un 8 fijo. Reutiliza el mismo Stat/prof/Bonus ya
+                  elegidos arriba, no son controles aparte. */}
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-2 font-black">
+                <span className="text-gray-300 text-sm">Move DC</span>
+                <span className="text-gray-500 text-sm">=</span>
+                <span className="text-[11px] text-rose-300 bg-rose-500/10 border border-rose-500/40 rounded-md px-2 py-1">
+                  8
+                </span>
+                <span className="text-gray-500 text-sm">+</span>
+                <span className="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/40 rounded-md px-2 py-1">
+                  Stat Mod
+                </span>
+                <span className="text-gray-500 text-sm">+</span>
+                <span className="text-[11px] text-emerald-300 bg-emerald-500/10 border border-dashed border-emerald-500/50 rounded-md px-2 py-1">
+                  +2 If weapon prof
+                </span>
+                <span className="text-gray-500 text-sm">+</span>
+                <span className="text-[11px] text-violet-300 bg-violet-500/10 border border-violet-500/40 rounded-md px-2 py-1">
+                  Bonus
+                </span>
+              </div>
               <p className="mt-3 text-[11px] text-gray-400 text-center leading-relaxed">
                 El modificador sale del stat que elijas, en la pestaña Stats.
               </p>
@@ -860,6 +882,9 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                 const extra = bonus === '' ? 0 : Number(bonus)
                 // Un modificador negativo resta, así que el total puede bajar del dado.
                 const total = n20 + modStat + bonoProf + extra
+                // Move DC: no se tira, el término del d20 es un 8 fijo. Usa el
+                // mismo Stat, la misma proficiencia y el mismo Bonus de arriba.
+                const totalDC = 8 + modStat + bonoProf + extra
                 const critico = n20 === 20
                 const signo = m => (m >= 0 ? `+${m}` : `${m}`)
                 return (
@@ -937,6 +962,44 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                         className={`shrink-0 w-11 h-9 text-center rounded-xl border-2 bg-gray-900/60 font-black tabular-nums
                                     text-white focus:outline-none focus:ring-2 focus:ring-violet-400/60 transition-colors ${
                           bonoRuta.total ? 'border-violet-500/60' : 'border-gray-600'}`} />
+                      </div>
+                    </div>
+
+                    {/* Fila de Move DC: mismo layout que Attack, pero de solo
+                        lectura -Stat, prof y Bonus ya se eligieron arriba-,
+                        con el 8 fijo en vez del dado. */}
+                    <div className="mt-2 flex items-center justify-center gap-0.5 flex-wrap">
+                      <div className="w-11 h-9 rounded-xl border-2 flex items-center justify-center
+                                      font-black text-base tabular-nums bg-gray-900/60 border-gray-600 text-white">
+                        {totalDC}
+                      </div>
+                      <span className="text-gray-500 font-black shrink-0 text-xs">=</span>
+                      <div className="flex items-center gap-0.5 flex-wrap justify-center">
+                        <span className="shrink-0 w-11 h-9 rounded-xl border-2 border-rose-500/60 bg-rose-500/15
+                                         text-rose-200 font-black tabular-nums flex items-center justify-center"
+                          title="La Move DC no se tira: es un valor fijo">
+                          8
+                        </span>
+                        <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
+                        <span className={`shrink-0 h-9 min-w-[2rem] px-0.5 rounded-xl border-2 font-black tabular-nums
+                                          flex items-center justify-center ${
+                          statSel
+                            ? `bg-sky-500/15 border-sky-500/60 ${modStat < 0 ? 'text-red-300' : 'text-sky-200'}`
+                            : 'bg-gray-900/60 border-gray-600 border-dashed text-gray-300 text-xs'}`}>
+                          {statSel ? signo(modStat) : '—'}
+                        </span>
+                        <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
+                        <span className={`shrink-0 h-9 px-1 rounded-xl border-2 font-black tabular-nums text-[9px]
+                                          flex items-center justify-center ${
+                          conProf ? 'border-emerald-500/60 text-emerald-200' : 'border-gray-600 text-gray-300'}`}>
+                          {conProf ? '+2' : '+0'}
+                        </span>
+                        <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
+                        <span className={`shrink-0 w-11 h-9 rounded-xl border-2 font-black tabular-nums
+                                          flex items-center justify-center ${
+                          bonoRuta.total ? 'border-violet-500/60 text-violet-200' : 'border-gray-600 text-gray-300'}`}>
+                          {signo(extra)}
+                        </span>
                       </div>
                     </div>
 
