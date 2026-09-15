@@ -114,6 +114,83 @@ const MOVE_TYPE_COLORS = {
   Dark:'#705848', Steel:'#B8B8D0', Fairy:'#EE99AC', Typeless:'#9CA3AF',
 }
 
+// El color de tipo ya existe para los movimientos (mayúscula inicial); las
+// especialidades traen el nombre del tipo en minúscula, así que se normaliza
+// antes de buscarlo.
+const colorDeTipoPokemon = (nombre) => {
+  const n = String(nombre || '').trim()
+  if (!n) return null
+  const clave = n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()
+  return MOVE_TYPE_COLORS[clave] || '#9CA3AF'
+}
+
+// Especialidades del entrenador, en un acordeón como el de Trainer Path: cada
+// una aplica a un tipo de Pokémon (la insignia de color) y trae su propio
+// bono, ya sea de característica o de proficiencia en una skill.
+function AcordeonEspecialidades({ especialidades, className = '' }) {
+  const [abierto, setAbierto] = useState(null)
+  if (!especialidades.length) return null
+  return (
+    <div className={className}>
+      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Especialidades</p>
+      <div className="space-y-1">
+        {especialidades.map(sp => {
+          const id = sp.specialization_id
+          const open = abierto === id
+          const tipo = sp.specialization_pokemon_type_name
+          const colorTipo = colorDeTipoPokemon(tipo)
+          const tieneStat = !!sp.specialization_ability_score_increase
+          const tieneSkill = !!sp.specialization_skill_proficiency
+          return (
+            <div key={id} className="bg-gray-700/50 rounded-lg overflow-hidden">
+              <button onClick={() => setAbierto(open ? null : id)}
+                className="w-full flex items-center gap-1.5 px-2 py-1.5 text-left hover:bg-gray-700 transition-colors">
+                <ChevronDown size={13}
+                  className={`shrink-0 text-gray-400 transition-transform ${open ? '' : '-rotate-90'}`} />
+                {tipo && (
+                  <span className="text-[9px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
+                    style={{ backgroundColor: colorTipo }}>
+                    {tipo}
+                  </span>
+                )}
+                <span className="text-xs font-bold text-white truncate min-w-0">{sp.specialization_name}</span>
+              </button>
+              {open && (
+                <div className="px-2 pb-2 pl-[1.9rem]">
+                  {sp.specialization_description && (
+                    <p className="text-[11px] text-gray-400 leading-relaxed">{sp.specialization_description}</p>
+                  )}
+                  {(tieneStat || tieneSkill) && (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {tieneStat && (
+                        <span className="text-[10px] font-bold text-gray-200 bg-gray-700/60 border border-gray-600 rounded px-1.5 py-0.5">
+                          {String(sp.specialization_ability_score_increase).toUpperCase()}{' '}
+                          <span className="text-green-300">+{sp.specialization_ability_score_increase_value ?? 1}</span>
+                        </span>
+                      )}
+                      {tieneSkill && (
+                        <span className="text-[10px] font-bold text-gray-200 bg-gray-700/60 border border-gray-600 rounded px-1.5 py-0.5">
+                          {sp.specialization_skill_proficiency}
+                          {Number(sp.specialization_grants_expertise_if_proficient) === 1 && (
+                            <span className="text-blue-300"> · exp. si ya eres prof</span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {!sp.specialization_description && !tieneStat && !tieneSkill && (
+                    <p className="text-[11px] text-gray-500 italic">Sin detalle.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // Panel de control (HP + exhaust/dsts/dstf + movimientos). Persiste cada cambio vía onPersist.
 // Un recurso gastable: lápiz para ajustar lo que queda y flecha roja para
 // gastar de a uno. El máximo se deriva del personaje y no se edita a mano.
@@ -216,7 +293,7 @@ function AcordeonPath({ rasgos, className = '' }) {
 }
 
 function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, onAtaque = null, recursosFeat = [],
-                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
+                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -622,7 +699,7 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
             {/* Pestaña Path del entrenador: los Extra Points de su ruta */}
             {recursos && (
               <div className={`${tabPanel !== 'moves' ? 'hidden' : ''}`}>
-            {recursos.length === 0 && recursosFeat.length === 0 && recursosRasgos.length === 0 ? (
+            {recursos.length === 0 && recursosFeat.length === 0 && recursosRasgos.length === 0 && especialidades.length === 0 ? (
               <p className="text-[11px] text-gray-500 italic">Sin nada por ahora.</p>
             ) : (
               <div className="space-y-1">
@@ -641,6 +718,11 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
             {/* Rasgos de la ruta ya alcanzados, debajo de los botones */}
             <AcordeonPath rasgos={recursosRasgos}
               className={recursos.length > 0 || recursosFeat.length > 0 ? 'mt-2 border-t border-gray-700 pt-2' : ''} />
+
+            {/* Especialidades del entrenador, mismo formato que Trainer Path */}
+            <AcordeonEspecialidades especialidades={especialidades}
+              className={recursos.length > 0 || recursosFeat.length > 0 || recursosRasgos.length > 0
+                ? 'mt-2 border-t border-gray-700 pt-2' : ''} />
 
               </div>
             )}
@@ -964,6 +1046,7 @@ export default function TrainerPartida() {
   const [recursos, setRecursos]       = useState([])    // Extra Points de la ruta
   const [recursosTitulo, setRecursosTitulo] = useState('Trainer')
   const [recursosRasgos, setRecursosRasgos] = useState([]) // rasgos de la ruta ya alcanzados
+  const [especialidades, setEspecialidades] = useState([]) // especialidades del entrenador
   const [recursosFeat, setRecursosFeat] = useState([])   // puntos que dan los feats (Lucky Points)
   const [recursoEdit, setRecursoEdit] = useState(null)  // recurso en el lápiz
   const [dadoBatalla, setDadoBatalla] = useState(null)  // recurso de dados a punto de gastarse
@@ -1271,6 +1354,7 @@ export default function TrainerPartida() {
       setRecursos(Array.isArray(d.path_recursos) ? d.path_recursos : [])
       setRecursosTitulo(d.path?.path_name || 'Trainer')
       setCharSkills(skillsTrainer)
+      setEspecialidades(Array.isArray(d.specializations) ? d.specializations : [])
       setCharData({
         stats: statsTrainer,
         hp: cur, hpMax: max,
@@ -1947,6 +2031,7 @@ export default function TrainerPartida() {
           recursos={recursos}
           recursosTitulo={recursosTitulo}
           recursosRasgos={recursosRasgos}
+          especialidades={especialidades}
           onSpendBond={gastarBond}
           onManageBond={abrirLapizBond}
           onSpendRecurso={gastarRecurso}
