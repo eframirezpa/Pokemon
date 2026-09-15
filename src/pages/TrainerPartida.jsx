@@ -1413,28 +1413,36 @@ export default function TrainerPartida() {
     finally { setCargandoPanel(null) }
   }
 
-  // Movimiento cuya fórmula se está resolviendo, antes de llegar a los PP, y el
-  // poder que salió de ella: se anuncia junto con los PP gastados.
+  // Movimiento cuya fórmula se está resolviendo, antes de llegar a los PP, y lo
+  // que salió de ella: se anuncia junto con los PP gastados. Un movimiento
+  // puede dar las dos cosas a la vez (ataque físico + DC de salvación), así
+  // que van por separado y no como un único "poder".
   const [formulaMove, setFormulaMove] = useState(null)
-  const [poderAtaque, setPoderAtaque] = useState(null)
+  const [ataqueLanzado, setAtaqueLanzado] = useState(null)
+  const [dificultadLanzada, setDificultadLanzada] = useState(null)
 
   // Lanzar movimiento del Pokémon invocado → animación de ataque (como el master)
   // Al pulsar la flecha se abre el popup para elegir cuántos PP gastar
-  const abrirPP = (m, poder = null) => {
+  const abrirPP = (m, ataque = null, dificultad = null) => {
     // Struggle y demás movimientos de PP ilimitado no gastan nada: se lanzan directo
-    if ((Number(m.personaje_pokemon_moves_max_pp) || 0) === 0) { lanzar(m, poder, 0); return }
+    if ((Number(m.personaje_pokemon_moves_max_pp) || 0) === 0) { lanzar(m, ataque, dificultad, 0); return }
     setPpMove(m); setPpCantidad(1); setPpError('')
   }
 
-  // Al lanzar, primero la fórmula del ataque y solo después los PP. Cerrarla sin
-  // continuar cancela el lanzamiento: no se gasta nada.
-  const abrirFormulaAtaque = (m) => setFormulaMove(m)
+  // Al lanzar, primero la fórmula (si el movimiento tiene alguna) y solo después
+  // los PP. Un movimiento sin move_attack_scope ni move_save_attribute no tiene
+  // nada que calcular, así que se salta la ventana de fórmula por completo.
+  const abrirFormulaAtaque = (m) => {
+    const tieneFormula = !!String(m?.move_attack_scope || '').trim() || !!String(m?.move_save_attribute || '').trim()
+    if (!tieneFormula) { abrirPP(m); return }
+    setFormulaMove(m)
+  }
 
   // Dispara el ataque y arranca el cooldown
-  const lanzar = (m, poder = null, pp = 0) => {
+  const lanzar = (m, ataque = null, dificultad = null, pp = 0) => {
     partidaApiRef.current?.sendAttack?.({
       pokemonName: pokeData?.name || 'Pokémon', moveName: m.move_name, type: m.move_type, hidden: false,
-      poder, pp,
+      ataque, dificultad, pp,
     })
     setCastCooldown(true)
     if (castTimer.current) clearTimeout(castTimer.current)
@@ -1495,7 +1503,7 @@ export default function TrainerPartida() {
         }))
       }
       setPpMove(null)
-      lanzar(m, poderAtaque, maxPP > 0 ? ppCantidad : 0)
+      lanzar(m, ataqueLanzado, dificultadLanzada, maxPP > 0 ? ppCantidad : 0)
     } catch { setPpError('No se pudo gastar los PP') } finally { setPpBusy(false) }
   }
 
@@ -1609,8 +1617,12 @@ export default function TrainerPartida() {
           prof={pokeData?.prof}
           stats={pokeData?.stats || []}
           bonoRuta={pokeData?.attack_bonus_path || { total: 0, detalle: [] }}
-          onClose={() => { setFormulaMove(null); setPoderAtaque(null) }}
-          onAtacar={(poder) => { const m = formulaMove; setPoderAtaque(poder); setFormulaMove(null); abrirPP(m, poder) }}
+          onClose={() => { setFormulaMove(null); setAtaqueLanzado(null); setDificultadLanzada(null) }}
+          onAtacar={(ataque, dificultad) => {
+            const m = formulaMove
+            setAtaqueLanzado(ataque); setDificultadLanzada(dificultad)
+            setFormulaMove(null); abrirPP(m, ataque, dificultad)
+          }}
         />
       )}
 

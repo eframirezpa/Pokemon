@@ -58,11 +58,13 @@ export function usePartidaPresence(partidaId, userInfo) {
     // Si el Pokémon está oculto, los jugadores (no master) no ven su nombre
     const isMaster = userInfoRef.current?.role === 'master'
     const displayName = (payload.hidden && !isMaster) ? 'el pokemon' : payload.pokemonName
-    // El poder y los PP solo vienen del panel del jugador, que es donde se
-    // resuelve la fórmula. Los ataques del máster siguen sin ellos, así que el
-    // paréntesis solo aparece cuando hay algo que contar.
+    // El ataque, la dificultad y los PP solo vienen del panel del jugador, que es
+    // donde se resuelve la fórmula. Un movimiento puede traer las dos cosas a la
+    // vez (golpe físico + salvación) o ninguna, así que cada una aparece solo si
+    // hubo algo que calcular. Los ataques del máster siguen sin nada de esto.
     const detalle = []
-    if (payload.poder != null) detalle.push(`poder ${payload.poder}`)
+    if (payload.ataque != null) detalle.push(`Ataque ${payload.ataque}`)
+    if (payload.dificultad != null) detalle.push(`Dificultad ${payload.dificultad}`)
     if (Number(payload.pp) > 0) detalle.push(`${payload.pp} PP`)
     pushLog(`${displayName} usó ${payload.moveName}${detalle.length ? ` (${detalle.join(', ')})` : ''}`, 'master')
     setLastAttack({ ...payload, id: Date.now() })
