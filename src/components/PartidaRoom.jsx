@@ -4,7 +4,7 @@ import {
   LogOut, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff, Info, Search,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
   Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star, Globe, NotebookPen,
-  ArrowRightLeft, AlertTriangle,
+  ArrowRightLeft, AlertTriangle, Backpack,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
@@ -14,6 +14,7 @@ import MoveInfoModal from './MoveInfoModal'
 import CharacterSheet from './CharacterSheet'
 import { PokemonDetailView } from './PokemonBox'
 import PartidaInfoPanel from './PartidaInfoPanel'
+import CrearItemModal from './CrearItemModal'
 import EdicionJugadoresPanel from './EdicionJugadoresPanel'
 import MapaModal from './MapaModal'
 import NotasModal from './NotasModal'
@@ -722,6 +723,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [logOpen, setLogOpen]       = useState(true)
   const [showPokedex, setShowPokedex] = useState(false)
   const [showInfo, setShowInfo]     = useState(false)   // personajes registrados (solo master)
+  const [showCrearItem, setShowCrearItem] = useState(false)   // agregar item (solo master)
   const [inspectCharId, setInspectCharId] = useState(null) // ficha de personaje abierta desde el party (master)
   const [masterMoveInfo, setMasterMoveInfo] = useState(null) // detalle de un movimiento del panel del master
   const [inspectMasterPoke, setInspectMasterPoke] = useState(null) // detalle de un Pokémon del master en el campo
@@ -1399,6 +1401,19 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           </button>
         )}
 
+        {/* Botón flotante — agregar item (solo master) */}
+        {isMaster && (
+          <button
+            onClick={() => setShowCrearItem(true)}
+            className="fixed left-3 top-40 z-30 flex items-center justify-center w-10 h-10
+                       rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                       border border-gray-600 transition-all"
+            title="Agregar item"
+          >
+            <Backpack size={18} />
+          </button>
+        )}
+
         {/* Center — master panel + content + activity log */}
         <div className="flex flex-col flex-1 overflow-hidden">
 
@@ -1592,6 +1607,11 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       {/* Ventana de personajes registrados (solo master) */}
       {showInfo && isMaster && (
         <PartidaInfoPanel partidaId={id} onClose={() => setShowInfo(false)} />
+      )}
+
+      {/* Crear item (solo master) */}
+      {showCrearItem && isMaster && (
+        <CrearItemModal onClose={() => setShowCrearItem(false)} />
       )}
 
       {masterMoveInfo && <MoveInfoModal m={masterMoveInfo} theme="dark" onClose={() => setMasterMoveInfo(null)} />}
