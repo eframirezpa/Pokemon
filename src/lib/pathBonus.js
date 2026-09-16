@@ -88,6 +88,9 @@ export function clasificarPathBonus(bonus) {
     return { modo: 'max_sr', valor: String(Math.max(1, Math.abs(parseInt(c.valor, 10) || 1))), target: tg }
   }
   if (t === 'stab_bonus') return { modo: 'stab', valor: '1', target: 'all_pokemon' }
+  // Attack +N: el +N a la tirada de ataque ya lo aplica ataqueDeRuta. El daño
+  // no tiene dónde sumarse solo, así que va aparte, informativo.
+  if (t === 'attack_bonus') return { modo: 'attack_bonus', valor: parseInt(c.valor, 10) || 0, target: tg }
 
   if (t !== 'skill_proficiency' && t !== 'skill_expertise') return null
   const v = t === 'skill_expertise' ? 'expert' : 'prof'
@@ -131,6 +134,14 @@ export function describirPathBonus(bonus) {
   }
   if (r?.modo === 'stab') {
     return { texto: 'STAB por tus especializaciones', detalle: '+1 por cada especialización cuyo tipo coincida', target: tg, aplica: true }
+  }
+  if (r?.modo === 'attack_bonus') {
+    const signo = r.valor >= 0 ? '+' : ''
+    return {
+      texto: `Attack ${signo}${r.valor}, Damage ${signo}${r.valor}`,
+      detalle: `${quien ? `Para ${quien.toLowerCase()}. ` : ''}El daño es informativo: no se suma solo, hay que aplicarlo al declarar el golpe.`,
+      target: tg, aplica: true,
+    }
   }
   if (r?.modo === 'fija') {
     return {

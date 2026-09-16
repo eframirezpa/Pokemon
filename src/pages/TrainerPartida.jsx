@@ -268,14 +268,30 @@ function AcordeonPath({ rasgos, className = '' }) {
                     <p className="text-[11px] text-gray-400 leading-relaxed">{f.descripcion}</p>
                   )}
                   {/* Bonos del catálogo de ese nivel: "key : value", o solo la
-                      llave cuando el valor viene vacío. */}
+                      llave cuando el valor viene vacío. Attack +N es la
+                      excepción: el daño no tiene dónde sumarse solo, así que
+                      se muestra aparte como recordatorio, aunque solo el
+                      ataque se aplique de verdad. */}
                   {(f.bonos || []).length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {f.bonos.map(b => (
-                        <span key={b.id}
-                          className="text-[10px] font-bold text-gray-200 bg-gray-700/60 border border-gray-600 rounded px-1.5 py-0.5">
-                          {b.key}{b.value ? <> : <span className="text-green-300">{b.value}</span></> : null}
-                        </span>
+                        String(b.type || '').toLowerCase() === 'attack_bonus'
+                          ? (
+                            <span key={b.id} className="contents">
+                              <span className="text-[10px] font-bold text-gray-200 bg-gray-700/60 border border-gray-600 rounded px-1.5 py-0.5">
+                                Attack <span className="text-green-300">{b.value}</span>
+                              </span>
+                              <span className="text-[10px] font-bold text-gray-200 bg-gray-700/60 border border-gray-600 rounded px-1.5 py-0.5">
+                                Damage <span className="text-green-300">{b.value}</span>
+                              </span>
+                            </span>
+                          )
+                          : (
+                            <span key={b.id}
+                              className="text-[10px] font-bold text-gray-200 bg-gray-700/60 border border-gray-600 rounded px-1.5 py-0.5">
+                              {b.key}{b.value ? <> : <span className="text-green-300">{b.value}</span></> : null}
+                            </span>
+                          )
                       ))}
                     </div>
                   )}
