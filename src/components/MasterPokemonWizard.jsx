@@ -144,6 +144,9 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
   const [tag, setTag]         = useState('')
   const [genero, setGenero]   = useState('N')
   const [nature, setNature]   = useState(null)
+  const [heldItems, setHeldItems] = useState([])   // catálogo: item_type 'held item' o 'berry'
+  const [heldItemOn, setHeldItemOn] = useState(false)
+  const [heldItem, setHeldItem]     = useState(null) // { item_id, item_name }
   const [type1, setType1]     = useState(null)   // ids
   const [type2, setType2]     = useState(null)
   const [hp, setHp]           = useState(0)
@@ -173,6 +176,8 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
     apiFetch('/types').then(r => r.json()).then(d => setTypes(Array.isArray(d) ? d : [])).catch(() => {})
     apiFetch('/skills').then(r => r.json()).then(d => setSkillsList(Array.isArray(d) ? d : (d.data ?? []))).catch(() => {})
     apiFetch('/natures?limit=100').then(r => r.json()).then(d => setNatures(Array.isArray(d) ? d : (d.data ?? []))).catch(() => {})
+    apiFetch('/items?type=held item,berry&limit=200').then(r => r.json())
+      .then(d => setHeldItems(Array.isArray(d) ? d : (d.data ?? []))).catch(() => setHeldItems([]))
     // Solo para conocer el nombre de Struggle (movimiento fijo)
     apiFetch(`/moves/${STRUGGLE_ID}`).then(r => r.json())
       .then(m => setStruggle(m && m.move_id ? m : null)).catch(() => {})
@@ -195,6 +200,9 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
         nature_effect_increase: d.nature_effect_increase, nature_effect_increase_value: d.nature_effect_increase_value,
         nature_effect_decrease: d.nature_effect_decrease, nature_effect_decrease_value: d.nature_effect_decrease_value,
       } : null)
+      setHeldItemOn(!!d.personaje_pokemon_held_item)
+      setHeldItem(d.personaje_pokemon_held_item
+        ? { item_id: d.personaje_pokemon_held_item, item_name: d.held_item_name } : null)
       setType1(d.personaje_pokemon_type_1 ?? null); setType2(d.personaje_pokemon_type_2 ?? null)
       const lvl = Number(d.pokemon_level) || 1
       setLevel(lvl)
@@ -343,6 +351,13 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
     setNature(newNat)
   }
 
+  // Al marcar la casilla se sortea un item de una vez (editable después con
+  // el select); al desmarcarla el Pokémon se queda sin nada.
+  const toggleHeldItem = (checked) => {
+    setHeldItemOn(checked)
+    setHeldItem(checked ? (heldItems.length ? pick(heldItems) : null) : null)
+  }
+
   // El usuario edita el score MOSTRADO (con tope). Guardamos el mostrado y el raw (sin naturaleza).
   const setStat = (k, v) => {
     if (v === '') { setStats(s => ({ ...s, [k]: '' })); return }
@@ -384,6 +399,7 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
         // En blanco viaja vacío y el backend aplica el DEFAULT de la tabla
         pokemon_tag: tag.trim(),
         genero, id_nature: nature?.nature_id ?? null, id_bond: DEFAULT_BOND, is_shiny: false,
+        held_item_id: heldItemOn ? (heldItem?.item_id ?? null) : null,
         type_1: type1, type_2: type2,
         hp: Number(hp) || 0,
         stats: Object.fromEntries(STAT_FIELDS.map(([k]) => [k, Number(stats[k]) || 0])),
@@ -560,6 +576,32 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
               </select>
               <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
+          </div>
+
+          {/* Held Item: opcional, un solo objeto (held item o berry). Al
+              marcarlo se sortea uno; el select de abajo permite cambiarlo. */}
+          <div>
+            <label className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500">
+              <input type="checkbox" checked={heldItemOn} onChange={e => toggleHeldItem(e.target.checked)}
+                className="w-3.5 h-3.5 accent-red-600" />
+              Held Item
+              {heldItemOn && heldItem && (
+                <span className="normal-case font-semibold text-gray-700 tracking-normal">— {heldItem.item_name}</span>
+              )}
+            </label>
+            {heldItemOn && (
+              <div className="relative mt-1.5">
+                <select value={heldItem?.item_id ?? ''}
+                  onChange={e => setHeldItem(heldItems.find(i => String(i.item_id) === e.target.value) || null)}
+                  className="appearance-none w-full pl-3 pr-8 py-2 text-sm border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-400">
+                  <option value="">Elegir…</option>
+                  {heldItems.map(i => (
+                    <option key={i.item_id} value={i.item_id}>{i.item_name} ({i.item_type})</option>
+                  ))}
+                </select>
+                <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+            )}
           </div>
 
           {/* Stats */}
