@@ -133,7 +133,7 @@ function SkillPickMany({ skills, proficientNames, kind, count, chosen, onToggle 
 
 /* Modal de confirmación: elecciones (stat 'x or y', skill 'any') con los controles del lápiz */
 function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], learnedMoves = [],
-                      hiddenAbilities = [], onCancel, onConfirm }) {
+                      hiddenAbilities = [], elementosExcluidos = [], onCancel, onConfirm }) {
   // Regla 3: solo se ofrecen los del learnset que aún no sabe
   const conocidos = new Set((learnedMoves || []).map(m => m.move_id))
   const movesElegibles = (movePool || []).filter(m => !conocidos.has(m.move_id))
@@ -258,19 +258,29 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
                 </div>
               )
             }
-            // Tipo de Pokémon del bono de elemento
-            if (analyzeElement(b)) return (
-              <div key={i}>
-                <label className="block text-xs font-bold text-gray-600 mb-1.5">Elige un tipo</label>
-                <select value={choices[i] || ''}
-                  onChange={e => setChoices(c => ({ ...c, [i]: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50
-                             focus:outline-none focus:ring-2 focus:ring-red-400">
-                  <option value="">Elegir…</option>
-                  {tiposPk.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-            )
+            // Tipo de Pokémon del bono de elemento. Cada toma es un tipo
+            // distinto (Elemental Adept es repetible y las tomas se acumulan,
+            // no se pisan), así que ninguno de los ya elegidos -en tomas
+            // previas o en otra que se esté agregando ahora mismo- se ofrece.
+            if (analyzeElement(b)) {
+              const excluidos = new Set(elementosExcluidos.map(lower))
+              const opcionesTipo = tiposPk.filter(t => !excluidos.has(lower(t)))
+              return (
+                <div key={i}>
+                  <label className="block text-xs font-bold text-gray-600 mb-1.5">Elige un tipo</label>
+                  <select value={choices[i] || ''}
+                    onChange={e => setChoices(c => ({ ...c, [i]: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50
+                               focus:outline-none focus:ring-2 focus:ring-red-400">
+                    <option value="">Elegir…</option>
+                    {opcionesTipo.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  {elementosExcluidos.length > 0 && (
+                    <p className="text-[11px] text-gray-400 mt-1">Ya tienes {elementosExcluidos.join(', ')}; elige uno distinto.</p>
+                  )}
+                </div>
+              )
+            }
 
             // Terreno del rasgo del entrenador: una sola opción de la lista
             // que trae el catálogo en el valor del bono.
@@ -379,7 +389,7 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
 // donde viene este componente; el ASI del entrenador le pasa 'Origin,General'.
 export default function MasterPokemonFeats({ feats, setFeats, level, stats, skills, skillsList,
   maxFeats = Infinity, ownedFeatIds = [], movePool = [], learnedMoves = [], hiddenAbilities = [],
-  tipos = 'Pokemon', maxMovesActual = null }) {
+  tipos = 'Pokemon', maxMovesActual = null, elementosExcluidos = [] }) {
   const [catalog, setCatalog] = useState([])
   const [search, setSearch]   = useState('')
   const [confirm, setConfirm] = useState(null)
@@ -393,6 +403,17 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
   // Skills en los que el Pokémon ya es proficiente (para colorear el picker como el lápiz)
   const proficientNames = new Set()
   for (const s of (skills || [])) if (s.pref || s.expert) proficientNames.add(lower(s.skill_name))
+
+  // Tipos de Elemental Adept ya elegidos: los que vengan explícitos (la
+  // ventana de subida de nivel, que guarda las tomas anteriores aparte) MÁS
+  // los que ya estén entre los `feats` de esta misma pantalla -el
+  // creador/editor del master no separa "antes" de "ahora", todo vive en el
+  // mismo arreglo-. Son VARIOS, no uno solo: con dos o más Elemental Adept ya
+  // agregados en esta misma ventana, cada uno aporta el suyo.
+  const elementosYaElegidos = [
+    ...elementosExcluidos,
+    ...feats.flatMap(f => (f.bonos || []).filter(x => lower(x.type) === 'element').map(x => x.value)),
+  ].filter(Boolean)
 
   // Un feat repetible puede llegar a su tope y entonces ya no aporta nada:
   // tomarlo sería tirar la mejora del nivel. Extra Move dice en el catálogo que
@@ -506,7 +527,7 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
 
       {confirm && (
         <ConfirmFeat feat={confirm} skillsList={skillsList} proficientNames={proficientNames} level={level}
-          movePool={movePool} learnedMoves={learnedMoves} hiddenAbilities={hiddenAbilities}
+          movePool={movePool} learnedMoves={learnedMoves} hiddenAbilities={hiddenAbilities} elementosExcluidos={elementosYaElegidos}
           onCancel={() => setConfirm(null)} onConfirm={(bonos) => addFeat(confirm, bonos)} />
       )}
       {info && <FeatInfoModal feat={info} theme="light" onClose={() => setInfo(null)} />}

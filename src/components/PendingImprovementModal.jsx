@@ -203,6 +203,13 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
     if (t === 'stat' && prevFeatAdd[llave] !== undefined) prevFeatAdd[llave] += Number(b.value) || 0
   }
 
+  // Elemental Adept ya entrenado: cada toma anterior trae su propio tipo
+  // elegido (lib/pokemon_feats.js ya no las pisa entre sí, se acumulan), así
+  // que hay que juntarlos TODOS, no quedarse con el primero que aparezca.
+  const elementosPrevios = (pending.feats || [])
+    .flatMap(f => (f.bonos || []).filter(x => (x.type || '').toLowerCase() === 'element').map(x => x.value))
+    .filter(Boolean)
+
   const baseVal = k => (Number(st[`pokemon_${k}`]) || 0) + (Number(st[`pokemon_${k}_bonus`]) || 0)
   const trainedVal = k => Math.min(baseVal(k) + adds[k], cap) // valor que se guarda (base + puntos)
 
@@ -291,6 +298,7 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
           hiddenAbilities={pending.hidden_abilities || []}
           maxMovesActual={pending.max_moves ?? null}
           ownedFeatIds={pending.owned_feat_ids || []}
+          elementosExcluidos={elementosPrevios}
           maxFeats={feats.length > 0 ? 1 : (remaining >= 2 ? 1 : 0)} />
         {feats.length === 0 && remaining < 2 && (
           <p className="text-[11px] text-gray-400 italic">Necesitas 2 puntos libres para entrenar un feat.</p>
