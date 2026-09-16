@@ -255,6 +255,10 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
       setTag(t => t || pv?.pokemon_tag_default || '')
       // naturaleza al azar (editable después)
       const nat = natures.length ? pick(natures) : null
+      // 10% de nacer con un held item; si no toca, se queda igual que hoy
+      // (nada marcado, el máster lo agrega a mano si quiere).
+      const conHeldItem = Math.random() < 0.10
+      const heldPick = conHeldItem && heldItems.length ? pick(heldItems) : null
       // género al azar entre los posibles de la especie
       const [f, m] = (pk.pokemon_gender || '0:0').split(':').map(Number)
       const gOpt = [...(f > 0 ? ['F'] : []), ...(m > 0 ? ['M'] : [])]
@@ -272,6 +276,7 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
       setApodo(pk.pokemon_name || '')
       setGenero(gOpt.length ? pick(gOpt) : 'N')
       setNature(nat)
+      setHeldItemOn(conHeldItem); setHeldItem(heldPick)
       setType1(tid(pk.pokemon_type_1)); setType2(tid(pk.pokemon_type_2))
       setLevel(pv.level); setLevelDiff(pv.level - pv.min_level)
       setProficiency(pv.proficiency); setExperiencia(pv.experiencia)
