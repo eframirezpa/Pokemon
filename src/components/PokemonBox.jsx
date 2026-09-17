@@ -197,6 +197,20 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                 <span className="text-xs font-semibold text-gray-600">{nature.nature_name}</span>
               </div>
             )}
+            {/* Objeto que lleva encima. Solo lo traen los del máster: los del
+                entrenador llevan los suyos en su propia tabla y se gestionan
+                desde el maletín del cinturón. */}
+            {d.held_item_name && (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                {d.held_item_sprite && (
+                  <img src={d.held_item_sprite} alt="" className="w-5 h-5 object-contain shrink-0"
+                    onError={e => { e.currentTarget.style.display = 'none' }} />
+                )}
+                <span className="text-[11px] font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5">
+                  {d.held_item_name}
+                </span>
+              </div>
+            )}
             {/* Acción */}
             {(onAction || onInvoke) && (
               <div className="flex items-center gap-2 mt-2">
