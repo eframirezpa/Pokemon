@@ -752,7 +752,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin } = usePartidaPresence(id, userInfo)
 
   // ── Atrapar Pokémon: pokébolas del trainer, panel de lanzamiento y animación ──
   const [pokeballs, setPokeballs]   = useState([])   // items tipo pokeball con cantidad > 0
@@ -768,6 +768,35 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       .catch(() => setPokeballs([]))
   }, [isMaster, personajeId])
   useEffect(() => { loadPokeballs() }, [loadPokeballs])
+
+  // ── Pin de la party en el mapa ──
+  // El broadcast solo alcanza a quien ya está conectado, así que al entrar se
+  // consulta el guardado: es lo que hace que siga ahí tras recargar la página.
+  useEffect(() => {
+    if (!id) return
+    apiFetch(`/partida/${id}/mapa-pin`).then(r => r.json())
+      .then(d => setMapaPin(d?.pin ?? null))
+      .catch(() => {})
+  }, [id, setMapaPin])
+
+  // Fijar, mover o quitar el pin (solo el máster). Se pinta al instante, se
+  // guarda y se difunde; si el guardado falla, se deshace y no queda un pin
+  // fantasma que solo ve quien lo puso.
+  const cambiarMapaPin = useCallback(async (pin) => {
+    const previo = mapaPin
+    sendMapaPin(pin)
+    try {
+      const res = await apiFetch(`/partida/${id}/mapa-pin`, { method: 'PATCH', body: JSON.stringify({ pin }) })
+      if (!res.ok) throw new Error()
+      const d = await res.json()
+      // Se adopta el pin ya normalizado por el servidor, pero solo aquí: lo que
+      // difiere es el campo del mapa, que nadie dibuja, así que volver a
+      // difundirlo sería un mensaje de más por cada clic.
+      setMapaPin(d?.pin ?? null)
+    } catch {
+      sendMapaPin(previo)
+    }
+  }, [id, mapaPin, sendMapaPin, setMapaPin])
 
   // Sin personaje o siendo master no hay captura, aunque queden datos de antes
   const hasPokeballs = !isMaster && personajeId != null && pokeballs.length > 0
@@ -1362,18 +1391,18 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           <Users size={18} />
         </button>
 
-        {/* Botón flotante — mapa de la región (jugadores) */}
-        {!isMaster && (
-          <button
-            onClick={() => setShowMapa(true)}
-            className="fixed left-3 top-28 z-40 flex items-center justify-center w-10 h-10
-                       rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                       border border-gray-600 transition-all"
-            title="Mapa"
-          >
-            <Globe size={18} />
-          </button>
-        )}
+        {/* Botón flotante — mapa de la región. Lo ven todos: los jugadores para
+            mirar dónde está la party, el máster para moverla. Al máster le toca
+            más abajo porque arriba ya tiene sus dos botones. */}
+        <button
+          onClick={() => setShowMapa(true)}
+          className={`fixed left-3 z-40 flex items-center justify-center w-10 h-10
+                     rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                     border border-gray-600 transition-all ${isMaster ? 'top-52' : 'top-28'}`}
+          title={isMaster ? 'Mapa · fijar el pin de la party' : 'Mapa'}
+        >
+          <Globe size={18} />
+        </button>
 
         {/* Botón flotante — notas (jugador con personaje) */}
         {!isMaster && personajeId != null && (
@@ -1599,7 +1628,10 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       )}
 
       {/* Mapa de la región */}
-      {showMapa && <MapaModal onClose={() => setShowMapa(false)} />}
+      {showMapa && (
+        <MapaModal onClose={() => setShowMapa(false)}
+          pin={mapaPin} editable={isMaster} onPinChange={isMaster ? cambiarMapaPin : null} />
+      )}
 
       {/* Notas del jugador */}
       {showNotas && personajeId != null && <NotasModal personajeId={personajeId} onClose={() => setShowNotas(false)} />}

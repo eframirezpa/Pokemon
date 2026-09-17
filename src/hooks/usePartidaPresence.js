@@ -21,6 +21,10 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [eventIntroAt, setEventIntroAt] = useState(0) // secuencia de textos al iniciar el evento
   const [hitAt, setHitAt] = useState(0) // aviso de "Rave reclamó 1 HP"
   const [healAt, setHealAt] = useState(0) // aviso de "Rave otorgó 1 HP"
+  // Pin de la party en el mapa. A diferencia del resto de esto, está guardado en
+  // la partida: el broadcast solo adelanta el cambio a quien ya está dentro, y
+  // quien entra después lo recibe igual al consultar la partida.
+  const [mapaPin, setMapaPin] = useState(null)
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
@@ -166,6 +170,9 @@ export function usePartidaPresence(partidaId, userInfo) {
       .on('broadcast', { event: 'heal_flash' }, () => {
         setHealAt(Date.now())
       })
+      .on('broadcast', { event: 'mapa_pin' }, ({ payload }) => {
+        setMapaPin(payload?.pin ?? null)
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           subscribedRef.current = true
@@ -298,5 +305,12 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'heal_flash', payload: {} })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash }
+  // Difunde el pin ya guardado. Quien lo mueve es el máster, y el guardado corre
+  // por su cuenta: aquí solo se avisa a los que están conectados.
+  const sendMapaPin = useCallback((pin) => {
+    setMapaPin(pin ?? null)
+    channelRef.current?.send({ type: 'broadcast', event: 'mapa_pin', payload: { pin: pin ?? null } })
+  }, [])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin }
 }
