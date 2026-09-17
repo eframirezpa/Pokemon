@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Pencil, Power, Users, LogIn, Cat } from 'lucide-react'
+import { Plus, Pencil, Power, Users, LogIn, Cat, UserPlus } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch, API_BASE_URL } from '../api'
 import PartidaForm from '../components/PartidaForm'
 import PartidaUsuariosPanel from '../components/PartidaUsuariosPanel'
 import PartidaPresentacion from '../components/PartidaPresentacion'
 import MasterPokemonPanel from '../components/MasterPokemonPanel'
+import MasterNpcPanel from '../components/MasterNpcPanel'
 
 function SpriteImg({ src }) {
   if (!src) return <div className="w-16 h-16 bg-gray-100 rounded-lg" />
@@ -92,6 +93,7 @@ export default function DashboardMaster() {
   const [usersPartida, setUsersPartida]   = useState(null)
   const [presentacion, setPresentacion]   = useState(null)
   const [showPokemon, setShowPokemon]     = useState(false)
+  const [showNpc, setShowNpc]             = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -156,6 +158,13 @@ export default function DashboardMaster() {
           >
             <Cat size={16} /> Pokémones
           </button>
+          <button
+            onClick={() => setShowNpc(true)}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white
+                       px-4 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm"
+          >
+            <UserPlus size={16} /> Agregar NPC
+          </button>
         </div>
       </div>
 
@@ -211,6 +220,8 @@ export default function DashboardMaster() {
           onClose={() => setUsersPartida(null)}
         />
       )}
+      {showNpc && <MasterNpcPanel onClose={() => setShowNpc(false)} />}
+
       {showPokemon && (
         <MasterPokemonPanel onClose={() => setShowPokemon(false)} />
       )}

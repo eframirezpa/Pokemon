@@ -14,7 +14,8 @@ import MoveInfoModal from './MoveInfoModal'
 import CharacterSheet from './CharacterSheet'
 import { PokemonDetailView } from './PokemonBox'
 import PartidaInfoPanel from './PartidaInfoPanel'
-import CrearItemModal from './CrearItemModal'
+import MasterItemsModal from './MasterItemsModal'
+import MasterNpcPicker from './MasterNpcPicker'
 import EdicionJugadoresPanel from './EdicionJugadoresPanel'
 import MapaModal from './MapaModal'
 import NotasModal from './NotasModal'
@@ -162,6 +163,129 @@ function PokemonHpCard({ p, onPokeball = null, ballSprite = null }) {
         {/* Sin hit points: el trainer ve la barra y su color, no las cifras */}
       </div>
     </div>
+    </div>
+  )
+}
+
+/* Tarjeta de un NPC para el jugador: mientras esté oculto no dice ni quién es
+   ni cómo va de vida, igual que un Pokémon del campo sin revelar. */
+function NpcHpCard({ n }) {
+  const pct    = hpPct(n)
+  const hidden = !!n.hidden
+  const bleedClass = pct <= 20 ? 'animate-bleed-red' : pct <= 50 ? 'animate-bleed-yellow' : 'bg-gray-100'
+  return (
+    <div className={`flex items-center gap-3 border-2 border-gray-700 rounded-2xl shadow-xl p-2.5 w-64 ${bleedClass}`}>
+      {hidden ? (
+        <div className="w-16 h-16 rounded-xl shrink-0 border border-gray-300 bg-white flex items-center justify-center">
+          <MysteryMark />
+        </div>
+      ) : (
+        <img src={`/avatars/${n.avatar}`} alt={n.name}
+          className="w-16 h-16 object-cover bg-white rounded-xl shrink-0 border border-gray-300"
+          onError={e => { e.currentTarget.style.opacity = '0.2' }} />
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-bold text-gray-900 text-sm truncate">{hidden ? '???' : n.name}</span>
+          <span className="text-xs font-bold text-gray-700 shrink-0">Lv.{hidden ? '??' : n.level}</span>
+        </div>
+        <div className="flex items-center gap-1.5 mt-2">
+          <span className="text-[9px] font-black text-amber-600">HP</span>
+          {hidden ? (
+            <span className="text-[10px] font-bold text-gray-700">???</span>
+          ) : (
+            <div className="flex-1 h-2 bg-gray-300 rounded-full overflow-hidden border border-gray-400">
+              <div className="h-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: hpColor(pct) }} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* Tarjeta de un NPC en el panel del master: vida, ojo para revelarlo y ataque */
+function MasterNpcCard({ npc, onHp, onRemove, onToggleHidden, onAttack }) {
+  return (
+    <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-lg self-start">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <img src={`/avatars/${npc.avatar}`} alt=""
+            className="w-9 h-9 rounded-lg object-cover bg-gray-700 shrink-0"
+            onError={e => { e.currentTarget.style.opacity = '0.3' }} />
+          <div className="min-w-0">
+            <p className="text-white font-bold text-sm truncate">{npc.name}</p>
+            <p className="text-[10px] text-gray-400">Lv.{npc.level}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={() => onToggleHidden(npc.uid)}
+            className={`transition-colors ${npc.hidden ? 'text-amber-400 hover:text-amber-300' : 'text-gray-500 hover:text-white'}`}
+            title={npc.hidden ? 'Revelar a los jugadores' : 'Ocultar a los jugadores'}>
+            {npc.hidden ? <Eye size={16} /> : <EyeOff size={16} />}
+          </button>
+          <button onClick={() => onRemove(npc.uid)} className="text-gray-500 hover:text-red-400 transition-colors" title="Quitar">
+            <X size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 mt-3">
+        <button onClick={() => onHp(npc.uid, -1)}
+          className="w-8 h-8 shrink-0 rounded-lg bg-gray-700 hover:bg-red-600 flex items-center justify-center text-white transition-colors">
+          <Minus size={15} />
+        </button>
+        <div className="flex-1">
+          <div className="w-full h-2.5 rounded-full bg-gray-700 overflow-hidden">
+            <div className="h-full rounded-full transition-all"
+              style={{ width: `${hpPct(npc)}%`, backgroundColor: hpColor(hpPct(npc)) }} />
+          </div>
+          <p className="text-center text-[11px] font-bold text-white mt-1">HP {npc.hp_current}/{npc.hp_max}</p>
+        </div>
+        <button onClick={() => onHp(npc.uid, 1)}
+          className="w-8 h-8 shrink-0 rounded-lg bg-gray-700 hover:bg-green-600 flex items-center justify-center text-white transition-colors">
+          <Plus size={15} />
+        </button>
+      </div>
+
+      <button onClick={() => onAttack(npc)}
+        className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 bg-gray-700 hover:bg-red-600
+                   text-gray-200 hover:text-white text-xs font-bold rounded-lg transition-colors">
+        <Swords size={14} /> Atacar
+      </button>
+    </div>
+  )
+}
+
+/* Sección de NPC invocados, debajo de la de Pokémon */
+function MasterNpcFieldPanel({ npcs, max, onAdd, onHp, onRemove, onToggleHidden, onAttack }) {
+  const full = npcs.length >= max
+  const [collapsed, setCollapsed] = useState(false)
+  return (
+    <div className="shrink-0 flex flex-col px-4 pt-2">
+      <div className="flex items-stretch gap-2">
+        <button onClick={onAdd} disabled={full}
+          className="shrink-0 flex-1 flex items-center justify-center gap-1.5 py-2 bg-gray-800 hover:bg-gray-700
+                     disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800
+                     border border-gray-700 text-gray-200 text-xs font-semibold rounded-xl transition-colors">
+          <Plus size={15} /> NPC <span className="text-gray-400">({npcs.length}/{max})</span>
+        </button>
+        <button onClick={() => setCollapsed(c => !c)} disabled={npcs.length === 0}
+          title={collapsed ? 'Expandir NPC invocados' : 'Comprimir NPC invocados'}
+          className="shrink-0 w-10 flex items-center justify-center bg-gray-800 hover:bg-gray-700
+                     disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800
+                     border border-gray-700 text-gray-300 rounded-xl transition-colors">
+          <ChevronDown size={16} className={`transition-transform duration-300 ${collapsed ? '-rotate-90' : ''}`} />
+        </button>
+      </div>
+      {!collapsed && npcs.length > 0 && (
+        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 overflow-auto resize-y content-start max-h-[75vh]">
+          {npcs.map(n => (
+            <MasterNpcCard key={n.uid} npc={n} onHp={onHp} onRemove={onRemove}
+              onToggleHidden={onToggleHidden} onAttack={onAttack} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -722,8 +846,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [showNotas, setShowNotas]   = useState(false)
   const [logOpen, setLogOpen]       = useState(true)
   const [showPokedex, setShowPokedex] = useState(false)
+  const [showNpcPicker, setShowNpcPicker] = useState(false)
   const [showInfo, setShowInfo]     = useState(false)   // personajes registrados (solo master)
-  const [showCrearItem, setShowCrearItem] = useState(false)   // agregar item (solo master)
+  const [showItems, setShowItems] = useState(false)   // catálogo de items (solo master)
   const [inspectCharId, setInspectCharId] = useState(null) // ficha de personaje abierta desde el party (master)
   const [masterMoveInfo, setMasterMoveInfo] = useState(null) // detalle de un movimiento del panel del master
   const [inspectMasterPoke, setInspectMasterPoke] = useState(null) // detalle de un Pokémon del master en el campo
@@ -752,7 +877,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, activeNpcs, sendNpcs, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin } = usePartidaPresence(id, userInfo)
 
   // ── Atrapar Pokémon: pokébolas del trainer, panel de lanzamiento y animación ──
   const [pokeballs, setPokeballs]   = useState([])   // items tipo pokeball con cantidad > 0
@@ -1044,6 +1169,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   // No tiene que ver con el cinturón (ese sigue en 6): el selector ofrece toda
   // su colección, así que este número es solo cuántos caben en la mesa.
   const MAX_POKEMON = 20
+  // Los NPC son gente, no un equipo: caben menos en la mesa que los Pokémon.
+  const MAX_NPC = 10
 
   const [attackFx, setAttackFx] = useState(null)
 
@@ -1210,6 +1337,57 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   }
 
   const handleRemove = (uid) => sendPokemons(activePokemons.filter(p => p.uid !== uid))
+
+  // ── NPC del máster en el campo ──
+  // Salen ocultos, como los Pokémon: los jugadores ven una silueta hasta que el
+  // máster los revele.
+  const handlePickNpc = (npc) => {
+    setShowNpcPicker(false)
+    if (activeNpcs.length >= MAX_NPC) return
+    sendNpcs([...activeNpcs, {
+      uid:          `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      master_npc_id: npc.id_master_npc,
+      name:         npc.master_npc_apodo,
+      level:        Number(npc.master_npc_level) || 1,
+      hp_max:       Number(npc.master_npc_hp) || 0,
+      hp_current:   Number(npc.master_npc_current_hp ?? npc.master_npc_hp) || 0,
+      avatar:       npc.master_npc_avatar,
+      hidden:       true,
+    }])
+  }
+
+  const updateNpc = (uid, patch) =>
+    sendNpcs(activeNpcs.map(n => (n.uid === uid ? { ...n, ...patch } : n)))
+
+  // La vida se guarda además de difundirse: un NPC herido sigue herido al
+  // recargar o al volver a invocarlo, igual que un Pokémon del máster.
+  const handleNpcHp = (uid, delta) => {
+    const n = activeNpcs.find(x => x.uid === uid)
+    if (!n) return
+    const nuevo = Math.max(0, Math.min(n.hp_max, n.hp_current + delta))
+    updateNpc(uid, { hp_current: nuevo })
+    if (n.master_npc_id != null) {
+      apiFetch(`/master/npc/${n.master_npc_id}/combate`, {
+        method: 'PATCH', body: JSON.stringify({ current_hp: nuevo }),
+      }).catch(() => {})
+    }
+  }
+
+  const handleNpcToggleHidden = (uid) => {
+    const n = activeNpcs.find(x => x.uid === uid)
+    if (!n) return
+    const ahoraOculto = !n.hidden
+    updateNpc(uid, { hidden: ahoraOculto })
+    if (!ahoraOculto) sendActivity(`${n.name} entró en escena`)
+  }
+
+  const handleNpcRemove = (uid) => sendNpcs(activeNpcs.filter(n => n.uid !== uid))
+
+  // Mientras siga oculto no se delata quién atacó, solo que alguien lo hizo
+  const handleNpcAttack = (npc) => {
+    if (!npc) return
+    sendActivity(npc.hidden ? 'Un jugador ha atacado' : `El jugador ${npc.name} ha atacado`)
+  }
 
   const handleCast = (pokemon, moveName, moveType) => {
     if (!pokemon) return
@@ -1430,14 +1608,14 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           </button>
         )}
 
-        {/* Botón flotante — agregar item (solo master) */}
+        {/* Botón flotante — catálogo de items (solo master) */}
         {isMaster && (
           <button
-            onClick={() => setShowCrearItem(true)}
+            onClick={() => setShowItems(true)}
             className="fixed left-3 top-40 z-30 flex items-center justify-center w-10 h-10
                        rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
                        border border-gray-600 transition-all"
-            title="Agregar item"
+            title="Items"
           >
             <Backpack size={18} />
           </button>
@@ -1464,6 +1642,15 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onMoveInfo={setMasterMoveInfo}
                 onInspect={setInspectMasterPoke}
               />
+              <MasterNpcFieldPanel
+                npcs={activeNpcs}
+                max={MAX_NPC}
+                onAdd={() => setShowNpcPicker(true)}
+                onHp={handleNpcHp}
+                onRemove={handleNpcRemove}
+                onToggleHidden={handleNpcToggleHidden}
+                onAttack={handleNpcAttack}
+              />
               <EdicionJugadoresPanel partidaId={id} presentes={presentes} partyVersion={partyUpdatedAt} onAfterChange={sendPartyUpdate} />
               <EventosPanel onBackground={sendBackground} partidaId={id} onUnlock={startEvent}
                 counterCfg={counterCfg} counters={counters} onCounter={changeCounter}
@@ -1489,13 +1676,16 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 style={{ backgroundImage: `url("${background}")` }} />
             )}
 
-            {/* Tarjetas de vida de los Pokémon — parte superior derecha (trainer/espectador) */}
-            {!isMaster && activePokemons.length > 0 && (
+            {/* Tarjetas de vida — parte superior derecha (trainer/espectador).
+                Pokémon y NPC comparten la misma columna: así se apilan solos y
+                no hay que calcularle la altura a nadie. */}
+            {!isMaster && (activePokemons.length > 0 || activeNpcs.length > 0) && (
               <div className={`absolute top-4 right-4 z-10 flex gap-2 origin-top-right ${isPhone ? 'scale-[0.65]' : 'scale-100'} ${isPhoneLandscape ? 'flex-row-reverse' : 'flex-col'}`}>
                 {activePokemons.map(p => (
                   <PokemonHpCard key={p.uid} p={p}
                     onPokeball={hasPokeballs && !p.inBall ? openThrowPanel : null} ballSprite={ballIcon} />
                 ))}
+                {activeNpcs.map(n => <NpcHpCard key={n.uid} n={n} />)}
               </div>
             )}
 
@@ -1641,9 +1831,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         <PartidaInfoPanel partidaId={id} onClose={() => setShowInfo(false)} />
       )}
 
-      {/* Crear item (solo master) */}
-      {showCrearItem && isMaster && (
-        <CrearItemModal onClose={() => setShowCrearItem(false)} />
+      {/* Catálogo de items (solo master): buscar, crear y corregir */}
+      {showItems && isMaster && (
+        <MasterItemsModal onClose={() => setShowItems(false)} />
       )}
 
       {masterMoveInfo && <MoveInfoModal m={masterMoveInfo} theme="dark" onClose={() => setMasterMoveInfo(null)} />}
@@ -1775,6 +1965,16 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             <PokemonDetailView endpoint={`/master/pokemon/${inspectMasterPoke}`} master onBack={() => setInspectMasterPoke(null)} />
           </div>
         </div>
+      )}
+
+      {/* Selección del NPC que sale al campo */}
+      {showNpcPicker && (
+        <MasterNpcPicker
+          disabled={activeNpcs.length >= MAX_NPC}
+          usedIds={activeNpcs.map(n => n.master_npc_id).filter(v => v != null)}
+          onPick={handlePickNpc}
+          onClose={() => setShowNpcPicker(false)}
+        />
       )}
 
       {/* Modal Pokédex — selección del master */}

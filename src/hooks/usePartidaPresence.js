@@ -8,6 +8,9 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [log,       setLog]               = useState([])
   const [masterMessage, setMasterMessage] = useState(DEFAULT_MASTER_MESSAGE)
   const [activePokemons, setActivePokemons] = useState([])
+  // NPC invocados por el máster. Viven en la difusión igual que los Pokémon del
+  // campo: lo único que se guarda de ellos es la vida, en su propia tabla.
+  const [activeNpcs, setActiveNpcs] = useState([])
   const [lastAttack,    setLastAttack]    = useState(null)
   const [partyUpdatedAt, setPartyUpdatedAt] = useState(0)
   const [invocados, setInvocados] = useState({}) // personaje_id → id_personaje_pokemon invocado
@@ -30,6 +33,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const userInfoRef = useRef(userInfo)
   const messageRef  = useRef(DEFAULT_MASTER_MESSAGE)
   const pokemonRef  = useRef([])
+  const npcRef      = useRef([])
   const backgroundRef = useRef(null)
   const eventActiveRef = useRef(false)
   const countersRef = useRef({ up: 0, down: 0 })
@@ -95,6 +99,7 @@ export function usePartidaPresence(partidaId, userInfo) {
         if (userInfoRef.current?.role === 'master') {
           channel.send({ type: 'broadcast', event: 'master_message', payload: { text: messageRef.current } })
           channel.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemons: pokemonRef.current } })
+          channel.send({ type: 'broadcast', event: 'npc_update', payload: { npcs: npcRef.current } })
           channel.send({ type: 'broadcast', event: 'background_update', payload: { background: backgroundRef.current } })
           channel.send({ type: 'broadcast', event: 'event_state', payload: { active: eventActiveRef.current } })
           channel.send({ type: 'broadcast', event: 'counters_update', payload: countersRef.current })
@@ -119,6 +124,11 @@ export function usePartidaPresence(partidaId, userInfo) {
         const list = Array.isArray(payload?.pokemons) ? payload.pokemons : []
         pokemonRef.current = list
         setActivePokemons(list)
+      })
+      .on('broadcast', { event: 'npc_update' }, ({ payload }) => {
+        const list = Array.isArray(payload?.npcs) ? payload.npcs : []
+        npcRef.current = list
+        setActiveNpcs(list)
       })
       .on('broadcast', { event: 'attack' }, ({ payload }) => {
         applyAttack(payload)
@@ -203,6 +213,13 @@ export function usePartidaPresence(partidaId, userInfo) {
     pokemonRef.current = list
     setActivePokemons(list)
     channelRef.current?.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemons: list } })
+  }, [])
+
+  const sendNpcs = useCallback((npcs) => {
+    const list = Array.isArray(npcs) ? npcs : []
+    npcRef.current = list
+    setActiveNpcs(list)
+    channelRef.current?.send({ type: 'broadcast', event: 'npc_update', payload: { npcs: list } })
   }, [])
 
   const sendAttack = useCallback((payload) => {
@@ -312,5 +329,5 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'mapa_pin', payload: { pin: pin ?? null } })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin }
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, activeNpcs, sendNpcs, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin }
 }
