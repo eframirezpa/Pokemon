@@ -69,7 +69,211 @@ function FeatRow({ label, feat, onClick }) {
   )
 }
 
-export default function CharacterSheet({ id, onClose, partyVersion = 0, onChanged }) {
+/* ── Ficha narrativa ────────────────────────────────────────────────────────
+   Versión de la hoja para la partida del entrenador. Ahí el panel de combate ya
+   muestra HP, AC, atributos, habilidades, saves, items y armas, así que
+   repetirlo aquí obligaba a leer dos veces lo mismo y dejaba enterrado lo único
+   que SOLO vive en la ficha: de dónde viene el personaje y qué lo mueve.
+   La hoja completa se sigue usando donde no hay panel de combate al lado: el
+   lobby y la inspección del máster. */
+
+function SeccionNarrativa({ titulo, children }) {
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-2">
+        <h4 className="text-[11px] font-black uppercase tracking-widest text-gray-400 shrink-0">{titulo}</h4>
+        <span className="flex-1 h-px bg-gray-200" />
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/* Texto de historia: la etiqueta encima y el texto debajo. La fila clásica lo
+   alinea a la derecha en un renglón, que para un párrafo no se lee. */
+function Parrafo({ label, children }) {
+  return (
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-wide text-red-700 mb-0.5">{label}</p>
+      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line break-words">{children}</p>
+    </div>
+  )
+}
+
+/* Nombre que abre su propio detalle (rasgo, ruta, especialidad) */
+function Enlace({ children, onClick, title }) {
+  return (
+    <button onClick={onClick} title={title}
+      className="text-left text-sm font-bold text-gray-900 underline decoration-dotted decoration-gray-400
+                 underline-offset-2 hover:text-red-700 transition-colors">
+      {children}
+    </button>
+  )
+}
+
+function Tarjeta({ etiqueta, children }) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-gray-50/60 px-3 py-2.5">
+      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-0.5">{etiqueta}</p>
+      {children}
+    </div>
+  )
+}
+
+function TarjetaCuna({ etiqueta, nombre, descripcion, feat, onFeat }) {
+  return (
+    <Tarjeta etiqueta={etiqueta}>
+      <p className="text-sm font-bold text-gray-900 leading-tight">{nombre || '—'}</p>
+      {descripcion && <p className="mt-1 text-[11px] text-gray-500 leading-relaxed">{descripcion}</p>}
+      {feat && (
+        <p className="mt-1.5 text-xs text-gray-500">
+          Rasgo:{' '}
+          <button onClick={() => onFeat(feat)} title="Ver detalle del rasgo"
+            className="font-bold text-gray-800 underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-red-700 transition-colors">
+            {feat.feat_name}
+          </button>
+        </p>
+      )}
+    </Tarjeta>
+  )
+}
+
+function FichaNarrativa({ data, profs, feats, featMet, onFeat, onPath, onSpec, onToggleFeat }) {
+  const specs = data.specializations || []
+  // Ideales, falencias, conexiones y los detalles libres del personaje son todos
+  // lo mismo -una etiqueta y un texto-, así que se pintan de una sola forma.
+  const historia = [
+    ['Ideales',    data.personaje_ideales],
+    ['Falencias',  data.personaje_falencias],
+    ['Conexiones', data.personaje_conexiones],
+    ...(data.details || []).map(d => [d.nombre_personaje_detail, d.descripcion_personaje_detail]),
+  ].filter(([, texto]) => String(texto ?? '').trim())
+
+  return (
+    <>
+      <SeccionNarrativa titulo="Origen y trasfondo">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <TarjetaCuna etiqueta="Origen" nombre={data.origin_name}
+            descripcion={data.origin_description} feat={data.origin_feat} onFeat={onFeat} />
+          <TarjetaCuna etiqueta="Background" nombre={data.background_name}
+            descripcion={data.background_description} feat={data.background_feat} onFeat={onFeat} />
+        </div>
+      </SeccionNarrativa>
+
+      {(data.path || specs.length > 0) && (
+        <SeccionNarrativa titulo="Camino">
+          <div className="space-y-2">
+            {data.path && (
+              <Tarjeta etiqueta="Trainer Path">
+                <Enlace onClick={() => onPath(data.path)} title="Ver detalle de la ruta">
+                  {data.path.path_name}
+                </Enlace>
+                {data.path.path_full_description && (
+                  <p className="mt-1 text-[11px] text-gray-500 leading-relaxed line-clamp-3">
+                    {data.path.path_full_description}
+                  </p>
+                )}
+                {(data.path_bonos || []).length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {data.path_bonos.map(b => (
+                      <span key={b.id}
+                        className={`text-[10px] font-bold rounded px-1.5 py-0.5 border ${
+                          (b.value || '').toLowerCase() === 'expert'
+                            ? 'text-blue-700 bg-blue-50 border-blue-200'
+                            : 'text-green-700 bg-green-50 border-green-200'}`}
+                        title={`Nivel ${b.level}${(b.target || '') !== 'trainer' ? ` · ${b.target}` : ''}`}>
+                        {b.llave}{(b.value || '').toLowerCase() === 'expert' ? ' exp' : ''}
+                        {(b.target || '') === 'all_pokemon' && <span className="font-normal"> (pkmn)</span>}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </Tarjeta>
+            )}
+            {specs.map(s => (
+              <Tarjeta key={s.specialization_id} etiqueta="Especialidad">
+                <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                  <Enlace onClick={() => onSpec(s)} title="Ver detalle de la especialidad">
+                    {s.specialization_name}
+                  </Enlace>
+                  {s.specialization_pokemon_type_name && (
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500 shrink-0">
+                      {s.specialization_pokemon_type_name}
+                    </span>
+                  )}
+                </div>
+                {s.specialization_description && (
+                  <p className="mt-1 text-[11px] text-gray-500 leading-relaxed">{s.specialization_description}</p>
+                )}
+                {(s.bonos || []).length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1"><ResolvedBonusBadges bonos={s.bonos} /></div>
+                )}
+              </Tarjeta>
+            ))}
+          </div>
+        </SeccionNarrativa>
+      )}
+
+      {feats.length > 0 && (
+        <SeccionNarrativa titulo="Rasgos">
+          <div className="space-y-1.5">
+            {feats.map(f => {
+              const met = featMet(f)
+              return (
+                <div key={f.personaje_feat_id}
+                  className={`flex items-center justify-between gap-2 rounded-xl border border-gray-200 px-3 py-2 ${met ? '' : 'opacity-60'}`}>
+                  <div className="min-w-0">
+                    <Enlace onClick={() => onFeat(f)} title="Ver detalle del rasgo">{f.feat_name}</Enlace>
+                    {!met && (
+                      <p className="text-[10px] font-bold text-amber-700 mt-0.5">No cumple prerequisitos</p>
+                    )}
+                  </div>
+                  {/* El interruptor es la única función que solo vive aquí: un
+                      rasgo gastado se apaga y sus bonos dejan de contar. */}
+                  <button onClick={() => onToggleFeat(f)}
+                    title={f.personaje_feat_is_available ? 'Marcar como no disponible' : 'Marcar como disponible'}
+                    className={`shrink-0 flex items-center gap-1.5 text-[10px] font-bold rounded-full border px-2 py-1 transition-colors ${
+                      f.personaje_feat_is_available
+                        ? 'text-green-700 bg-green-50 border-green-300 hover:bg-green-100'
+                        : 'text-amber-800 bg-yellow-50 border-yellow-300 hover:bg-yellow-100'}`}>
+                    {f.personaje_feat_is_available
+                      ? <><Check size={11} strokeWidth={3} /> Activado</>
+                      : <><Clock size={11} /> No disponible</>}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </SeccionNarrativa>
+      )}
+
+      {profs.tools.length > 0 && (
+        <SeccionNarrativa titulo="Herramientas">
+          <div className="flex flex-wrap gap-1.5">
+            {profs.tools.map(t => (
+              <span key={t.name}
+                className="text-xs font-semibold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg px-2 py-1">
+                {t.name}
+              </span>
+            ))}
+          </div>
+        </SeccionNarrativa>
+      )}
+
+      <SeccionNarrativa titulo="Historia">
+        {historia.length === 0 ? (
+          <p className="text-xs text-gray-400 italic">Sin notas narrativas todavía.</p>
+        ) : (
+          <div className="space-y-2.5">
+            {historia.map(([label, texto], i) => <Parrafo key={i} label={label}>{texto}</Parrafo>)}
+          </div>
+        )}
+      </SeccionNarrativa>
+    </>
+  )
+}
+
+export default function CharacterSheet({ id, onClose, partyVersion = 0, onChanged, narrativo = false }) {
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
   const [showDetalles, setShowDetalles] = useState(false)
@@ -242,6 +446,11 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
           <div className="flex items-baseline gap-2 min-w-0">
             <h3 className="font-bold text-gray-900 truncate">{data?.nombre_personaje || 'Personaje'}</h3>
             {data && <span className="text-sm font-semibold text-gray-500 shrink-0">Nivel {data.personaje_level ?? 1}</span>}
+            {/* Los pokelvls solo se ven en la ficha: el panel de combate no los
+                lleva, así que en la vista narrativa suben a la cabecera. */}
+            {data && narrativo && (
+              <span className="text-xs font-semibold text-gray-400 shrink-0">{data.personaje_pokelvls ?? 0} poke lvs</span>
+            )}
             {data && <span className="text-sm font-bold text-green-700 shrink-0">{(data.pokedollars_personaje || 0).toLocaleString()} ₽</span>}
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 shrink-0 ml-2"><X size={18} /></button>
@@ -253,6 +462,11 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
           </div>
         ) : !data ? (
           <div className="py-20 text-center text-gray-400 text-sm">No se pudo cargar el personaje.</div>
+        ) : narrativo ? (
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+            <FichaNarrativa data={data} profs={profs} feats={extraFeatsVisibles} featMet={featMet}
+              onFeat={setFeatInfo} onPath={setPathInfo} onSpec={setSpecInfo} onToggleFeat={toggleFeat} />
+          </div>
         ) : (
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
             {/* HP (barra de solo lectura) + AC + Prof */}

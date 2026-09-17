@@ -2022,7 +2022,7 @@ export default function TrainerPartida() {
       {/* Hoja del personaje */}
       {showChar && personajeId && (
         <CharacterSheet id={personajeId} onClose={() => setShowChar(false)}
-          partyVersion={partyVersion}
+          partyVersion={partyVersion} narrativo
           onChanged={() => partidaApiRef.current?.sendPartyUpdate?.()} />
       )}
 
