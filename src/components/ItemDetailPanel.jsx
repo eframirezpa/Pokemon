@@ -9,6 +9,7 @@ const TYPE_COLORS = {
   'medicine':     { bg: '#F85888', text: '#fff', label: 'Medicina'    },
   'pokeball':     { bg: '#C03028', text: '#fff', label: 'Pokéball'    },
   'trainer gear': { bg: '#F08030', text: '#fff', label: 'Equipo'      },
+  'Proyectil':    { bg: '#F8D030', text: '#fff', label: 'Proyectil'   },
 }
 
 function TypeBadge({ type }) {

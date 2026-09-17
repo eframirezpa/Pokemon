@@ -12,6 +12,7 @@ const ITEM_TYPES = [
   { value: 'medicine',     label: 'Medicina',        bg: '#F85888' },
   { value: 'pokeball',     label: 'Pokéball',        bg: '#C03028' },
   { value: 'trainer gear', label: 'Equipo',          bg: '#F08030' },
+  { value: 'Proyectil',    label: 'Proyectil',       bg: '#F8D030' },
 ]
 const clampQty = v => Math.min(MAX_ITEM_QTY, Math.max(MIN_ITEM_QTY, Math.floor(Number(v)) || MIN_ITEM_QTY))
 const typeBg = t => ITEM_TYPES.find(x => x.value === t)?.bg || '#9CA3AF'
@@ -286,7 +287,7 @@ export default function Mochila({ personajeId, onClose }) {
                   <PackagePlus size={15} /> Agregar
                 </button>
               </div>
-              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+              <div className="flex flex-wrap gap-1.5 pb-1">
                 <button onClick={() => setType('')}
                   className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
                     typeFilter === '' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>

@@ -3,7 +3,7 @@ import { X, ChevronDown, Check, CheckCircle2 } from 'lucide-react'
 import { apiFetch } from '../api'
 import PokeballSpinner from './PokeballSpinner'
 
-const TIPOS = ['berry', 'pokeball', 'held item', 'evolution', 'trainer gear', 'Event Item', 'medicine']
+const TIPOS = ['berry', 'pokeball', 'held item', 'evolution', 'trainer gear', 'Event Item', 'medicine', 'Proyectil']
 
 /* Popup para que el máster cree un item nuevo desde la mochila de la partida */
 export default function CrearItemModal({ onClose, onCreated }) {
