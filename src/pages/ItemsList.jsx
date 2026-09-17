@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, X, ChevronLeft, ChevronRight, Pencil, Plus } from 'lucide-react'
 import ItemDetailPanel from '../components/ItemDetailPanel'
 import { apiFetch } from '../api'
 
@@ -36,7 +36,16 @@ function SkeletonRow() {
   )
 }
 
-export default function ItemsList({ title = 'Items', onPick = null, excludeType = '' }) {
+/**
+ * Listado de items con buscador, filtros por tipo y paginación.
+ *
+ * La usan tres pantallas: el catálogo del home, el selector de la mochila
+ * (`onPick`) y el panel del máster en la partida, que además edita (`onEdit`) y
+ * crea (`onAdd`). `refreshKey` es para esa última: al crear o editar un item,
+ * el padre cambia el número y la lista se vuelve a pedir.
+ */
+export default function ItemsList({ title = 'Items', onPick = null, excludeType = '',
+                                    onEdit = null, onAdd = null, refreshKey = 0 }) {
   const [items, setItems]               = useState([])
   const [total, setTotal]               = useState(0)
   const [loading, setLoading]           = useState(true)
@@ -72,7 +81,7 @@ export default function ItemsList({ title = 'Items', onPick = null, excludeType 
       .then(d => { setItems(d.data ?? []); setTotal(d.total ?? 0) })
       .catch(() => setItems([]))
       .finally(() => setLoading(false))
-  }, [debouncedSearch, selectedType, page, excludeType])
+  }, [debouncedSearch, selectedType, page, excludeType, refreshKey])
 
   const totalPages = Math.ceil(total / LIMIT)
   const fromItem   = total === 0 ? 0 : (page - 1) * LIMIT + 1
@@ -83,11 +92,20 @@ export default function ItemsList({ title = 'Items', onPick = null, excludeType 
   const Header = (
     <div className="px-4 pt-5 pb-3 border-b border-gray-200 bg-white shrink-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">{title}</h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {loading ? 'Cargando...' : `Mostrando ${fromItem}–${toItem} de ${total}`}
-          </p>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-gray-900">{title}</h1>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {loading ? 'Cargando...' : `Mostrando ${fromItem}–${toItem} de ${total}`}
+            </p>
+          </div>
+          {onAdd && (
+            <button onClick={onAdd}
+              className="shrink-0 flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white
+                         text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors">
+              <Plus size={15} /> Agregar
+            </button>
+          )}
         </div>
         <div className="relative w-full sm:w-64">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -134,6 +152,7 @@ export default function ItemsList({ title = 'Items', onPick = null, excludeType 
             <th className="py-3 px-4 font-medium">Nombre</th>
             <th className="py-3 px-3 font-medium">Tipo</th>
             <th className="py-3 px-3 font-medium hidden sm:table-cell">Costo</th>
+            {onEdit && <th className="py-3 px-3 font-medium w-10"><span className="sr-only">Editar</span></th>}
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
@@ -141,7 +160,7 @@ export default function ItemsList({ title = 'Items', onPick = null, excludeType 
             ? Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)
             : items.length === 0
               ? (
-                <tr><td colSpan={3} className="py-16 text-center text-gray-400">
+                <tr><td colSpan={onEdit ? 4 : 3} className="py-16 text-center text-gray-400">
                   <div className="flex flex-col items-center gap-2">
                     <span className="text-4xl">🎒</span>
                     <span className="text-sm">No se encontraron ítems</span>
@@ -166,6 +185,15 @@ export default function ItemsList({ title = 'Items', onPick = null, excludeType 
                     <td className="py-2 px-3 hidden sm:table-cell text-gray-600 tabular-nums">
                       {item.item_cost != null ? `${item.item_cost.toLocaleString()} po` : '—'}
                     </td>
+                    {onEdit && (
+                      <td className="py-2 px-3">
+                        {/* stopPropagation: la fila entera abre el detalle */}
+                        <button onClick={e => { e.stopPropagation(); onEdit(item) }} title={`Editar ${item.item_name}`}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                          <Pencil size={15} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 )
               })
