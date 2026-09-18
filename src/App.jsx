@@ -1,29 +1,35 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
+import LoadingOverlay from './components/LoadingOverlay'
 import Home from './pages/Home'
-import PokemonList from './pages/PokemonList'
-import PokemonDetail from './pages/PokemonDetail'
-import ItemsList from './pages/ItemsList'
-import NaturesList from './pages/NaturesList'
-import FeatsList from './pages/FeatsList'
-import BackgroundsList from './pages/BackgroundsList'
-import OriginsList from './pages/OriginsList'
-import SpecializationsList from './pages/SpecializationsList'
-import PathsList from './pages/PathsList'
-import BondsList from './pages/BondsList'
-import ArmorTypesList from './pages/ArmorTypesList'
-import WeaponTypesList from './pages/WeaponTypesList'
-import WeaponPropertiesList from './pages/WeaponPropertiesList'
-import MovesList from './pages/MovesList'
-import DashboardMaster from './pages/DashboardMaster'
-import DashboardTrainer from './pages/DashboardTrainer'
-import DashboardEspectador from './pages/DashboardEspectador'
-import TrainerPartida from './pages/TrainerPartida'
-import MasterPartida from './pages/MasterPartida'
-import EspectadorPartida from './pages/EspectadorPartida'
-import PartidaLobby from './pages/PartidaLobby'
 import IntroDev from './components/IntroDev'
+
+// Todo lo demás va perezoso: cada página se baja en su propio chunk solo
+// cuando se visita, en vez de sumarse al bundle inicial. Home y el shell
+// (Layout/ProtectedRoute/IntroDev) van eager porque los pisa cualquier visita.
+const PokemonList          = lazy(() => import('./pages/PokemonList'))
+const PokemonDetail        = lazy(() => import('./pages/PokemonDetail'))
+const ItemsList            = lazy(() => import('./pages/ItemsList'))
+const NaturesList          = lazy(() => import('./pages/NaturesList'))
+const FeatsList            = lazy(() => import('./pages/FeatsList'))
+const BackgroundsList      = lazy(() => import('./pages/BackgroundsList'))
+const OriginsList          = lazy(() => import('./pages/OriginsList'))
+const SpecializationsList  = lazy(() => import('./pages/SpecializationsList'))
+const PathsList            = lazy(() => import('./pages/PathsList'))
+const BondsList            = lazy(() => import('./pages/BondsList'))
+const ArmorTypesList       = lazy(() => import('./pages/ArmorTypesList'))
+const WeaponTypesList      = lazy(() => import('./pages/WeaponTypesList'))
+const WeaponPropertiesList = lazy(() => import('./pages/WeaponPropertiesList'))
+const MovesList            = lazy(() => import('./pages/MovesList'))
+const DashboardMaster      = lazy(() => import('./pages/DashboardMaster'))
+const DashboardTrainer     = lazy(() => import('./pages/DashboardTrainer'))
+const DashboardEspectador  = lazy(() => import('./pages/DashboardEspectador'))
+const TrainerPartida       = lazy(() => import('./pages/TrainerPartida'))
+const MasterPartida        = lazy(() => import('./pages/MasterPartida'))
+const EspectadorPartida    = lazy(() => import('./pages/EspectadorPartida'))
+const PartidaLobby         = lazy(() => import('./pages/PartidaLobby'))
 
 export default function App() {
   return (
@@ -31,8 +37,8 @@ export default function App() {
       {/* Atajo de desarrollo: ?intro=1 reproduce el intro sobre cualquier
           pantalla. En produccion la rama es falsa y desaparece del bundle. */}
       {import.meta.env.DEV && <IntroDev />}
+      <Suspense fallback={<LoadingOverlay label="Cargando" />}>
       <Routes>
-
         {/* Páginas con header/footer */}
         <Route element={<Layout />}>
           <Route index element={<Home />} />
@@ -79,6 +85,7 @@ export default function App() {
         } />
 
       </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }
