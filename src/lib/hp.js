@@ -1,7 +1,7 @@
 // HP efectivo del personaje: la vida guardada es solo la base (6 + healing de origen/background).
 // Al mostrarla se le suma el modificador de CON y los bonos de healing de feats y especialidades.
 // Los feats que no cumplen prerequisitos no aportan nada (misma regla que el resto de bonos).
-import { featPrereqStatus, buildPrereqContext } from './featPrereq'
+import { featPrereqStatus, buildPrereqContext } from './featPrereq.js'
 
 const norm = s => (s ?? '').toLowerCase()
 
