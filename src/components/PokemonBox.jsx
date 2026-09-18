@@ -9,6 +9,7 @@ import FeatInfoModal from './FeatInfoModal'
 import PokeballSpinner from './PokeballSpinner'
 import LoadingOverlay from './LoadingOverlay'
 import HeldItemsModal from './HeldItemsModal'
+import ItemDetailPanel from './ItemDetailPanel'
 
 const TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -76,6 +77,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
   const [moveInfo, setMoveInfo] = useState(null) // movimiento cuyo detalle se muestra
   const [abilityInfo, setAbilityInfo] = useState(null) // pasiva cuyo detalle se muestra
   const [featInfo, setFeatInfo] = useState(null) // feat cuyo detalle se muestra
+  const [itemDetailId, setItemDetailId] = useState(null) // held item cuyo detalle se muestra
   const url = endpoint || `/personaje/${personajeId}/pokemon/${idpp}`
 
   useEffect(() => {
@@ -201,15 +203,17 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                 entrenador llevan los suyos en su propia tabla y se gestionan
                 desde el maletín del cinturón. */}
             {d.held_item_name && (
-              <div className="flex items-center gap-1.5 mt-1.5">
+              <button onClick={() => setItemDetailId(d.personaje_pokemon_held_item)} title="Ver detalle del item"
+                className="flex items-center gap-1.5 mt-1.5 hover:opacity-80 transition-opacity">
                 {d.held_item_sprite && (
                   <img src={d.held_item_sprite} alt="" className="w-5 h-5 object-contain shrink-0"
                     onError={e => { e.currentTarget.style.display = 'none' }} />
                 )}
-                <span className="text-[11px] font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5">
+                <span className="text-[11px] font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5
+                                 underline decoration-dotted decoration-gray-400 underline-offset-2">
                   {d.held_item_name}
                 </span>
-              </div>
+              </button>
             )}
             {/* Acción */}
             {(onAction || onInvoke) && (
@@ -436,6 +440,16 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
         </div>
       )}
       {featInfo && <FeatInfoModal feat={featInfo} theme="light" onClose={() => setFeatInfo(null)} />}
+
+      {/* Detalle del held item */}
+      {itemDetailId != null && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={e => { if (e.target === e.currentTarget) setItemDetailId(null) }}>
+          <div className="bg-white rounded-2xl w-full max-w-sm h-[70vh] shadow-2xl overflow-hidden">
+            <ItemDetailPanel id={itemDetailId} onClose={() => setItemDetailId(null)} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
