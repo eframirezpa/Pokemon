@@ -29,13 +29,20 @@ export function AuraInspirado({ size }) {
   )
 }
 
-/** El signo de información que abre el aviso, arriba del avatar inspirado. */
-export function InspiradoInfoButton({ size, onClick }) {
+/**
+ * El signo de información que abre el aviso.
+ *
+ * `overlay` (por defecto) lo flota encima de un avatar: necesita un ancestro
+ * `relative` y un contenedor ya del tamaño del avatar. Con `overlay={false}`
+ * es un botón normal, para meterlo en una fila junto a otros -como el de la
+ * fórmula del panel de combate-, sin posicionarse por su cuenta.
+ */
+export function InspiradoInfoButton({ size, onClick, overlay = true }) {
   return (
-    <button onClick={onClick} title="¿Qué es esto?"
-      className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-10 flex items-center justify-center
-                 rounded-full bg-amber-500 text-gray-900 border border-amber-300 shadow
-                 hover:bg-amber-400 transition-colors"
+    <button onClick={onClick} title="Estás inspirado"
+      className={`${overlay ? 'absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-10' : 'shrink-0'}
+                 flex items-center justify-center rounded-full bg-amber-500 text-gray-900
+                 border border-amber-300 shadow hover:bg-amber-400 transition-colors`}
       style={{ width: size, height: size }}>
       <Info size={Math.round(size * 0.68)} strokeWidth={3} />
     </button>

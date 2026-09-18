@@ -260,7 +260,7 @@ function AcordeonPath({ rasgos, className = '' }) {
 }
 
 function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, onAtaque = null, recursosFeat = [],
-                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond }) {
+                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond, inspirado = false, onInspiradoInfo = null }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -358,6 +358,12 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
                     último dígito de "12/12". Ahí se queda solo la espada. */}
                 <span className="text-[10px] font-black tracking-wide max-[359px]:hidden">F(x)</span>
               </button>
+            )}
+
+            {/* Punto de inspiración: junto al botón de fórmula, no flotando
+                sobre el avatar -de ahí solo queda el aura-. */}
+            {inspirado && onInspiradoInfo && (
+              <InspiradoInfoButton size={26} overlay={false} onClick={onInspiradoInfo} />
             )}
 
             {/* Grupo pegado al borde derecho, bajo la X de cerrar: los objetos
@@ -1898,11 +1904,10 @@ export default function TrainerPartida() {
               <EstadoTrigger size={estadoIconSize} onClick={() => setEstadosPopup('trainer')} title="Estados del entrenador" />
               <div className="flex flex-col items-center gap-1">
                 <div className="relative">
-                  {/* Aura + aviso: solo mientras el master lo tenga marcado como inspirado */}
+                  {/* El aviso (el signo de información) vive en el panel de
+                      combate, junto al botón de fórmula; aquí solo queda el
+                      aura, que se ve tanto en este icono como en la party. */}
                   {isInspirado && <AuraInspirado size={isMonitor ? 66 : 44} />}
-                  {isInspirado && (
-                    <InspiradoInfoButton size={estadoIconSize} onClick={() => setShowInspiradoInfo(true)} />
-                  )}
                   <button onClick={openTrainerControl} className="relative transition-transform hover:scale-105" title="Controlar jugador">
                     {/* data-throw-origin: PartidaRoom lo mide para lanzar la pokébola desde aquí */}
                     <img src={user.avatar_face_url} alt="Jugador" data-throw-origin="1"
@@ -2142,6 +2147,8 @@ export default function TrainerPartida() {
           onSpendHitDice={() => gastarDado('hd-trainer')}
           onManageHitDice={() => abrirLapizDados('hd-trainer')}
           personajeId={personajeId}
+          inspirado={isInspirado}
+          onInspiradoInfo={() => setShowInspiradoInfo(true)}
           onPersist={persistChar}
           onClose={closeControl}
         />
