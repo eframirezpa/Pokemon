@@ -4,7 +4,7 @@ import {
   LogOut, ChevronDown, Users, Send, Plus, Minus, X, Eye, EyeOff, Info, Search,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
   Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star, Globe, NotebookPen,
-  ArrowRightLeft, AlertTriangle, Backpack,
+  ArrowRightLeft, AlertTriangle, Backpack, Dices,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
@@ -16,6 +16,9 @@ import { PokemonDetailView } from './PokemonBox'
 import PartidaInfoPanel from './PartidaInfoPanel'
 import MasterItemsModal from './MasterItemsModal'
 import MasterNpcPicker from './MasterNpcPicker'
+import IniciativaPanel from './IniciativaPanel'
+import IniciativaTirada from './IniciativaTirada'
+import BarraTurno from './BarraTurno'
 import EdicionJugadoresPanel from './EdicionJugadoresPanel'
 import MapaModal from './MapaModal'
 import NotasModal from './NotasModal'
@@ -847,6 +850,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [logOpen, setLogOpen]       = useState(true)
   const [showPokedex, setShowPokedex] = useState(false)
   const [showNpcPicker, setShowNpcPicker] = useState(false)
+  const [showIniciativa, setShowIniciativa] = useState(false)
+  const [turnoBusy, setTurnoBusy] = useState(false)
   const [showInfo, setShowInfo]     = useState(false)   // personajes registrados (solo master)
   const [showItems, setShowItems] = useState(false)   // catálogo de items (solo master)
   const [inspectCharId, setInspectCharId] = useState(null) // ficha de personaje abierta desde el party (master)
@@ -877,7 +882,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, activeNpcs, sendNpcs, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, activeNpcs, sendNpcs, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa } = usePartidaPresence(id, userInfo)
 
   // ── Atrapar Pokémon: pokébolas del trainer, panel de lanzamiento y animación ──
   const [pokeballs, setPokeballs]   = useState([])   // items tipo pokeball con cantidad > 0
@@ -903,6 +908,28 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       .then(d => setMapaPin(d?.pin ?? null))
       .catch(() => {})
   }, [id, setMapaPin])
+
+  // El orden de turno se consulta al entrar por lo mismo que el pin: el
+  // broadcast solo alcanza a quien ya estaba conectado.
+  useEffect(() => {
+    if (!id) return
+    apiFetch(`/partida/${id}/iniciativa`).then(r => r.json())
+      .then(d => setIniciativa(d?.iniciativa ?? null))
+      .catch(() => {})
+  }, [id, setIniciativa])
+
+  // Terminar el turno propio. La regla de quién puede la aplica el servidor;
+  // aquí solo se difunde lo que respondió.
+  const terminarTurno = useCallback(async () => {
+    setTurnoBusy(true)
+    try {
+      const res = await apiFetch(`/partida/${id}/iniciativa/turno`, {
+        method: 'PATCH', body: JSON.stringify({ direccion: 'siguiente' }),
+      })
+      if (res.ok) sendIniciativa((await res.json())?.iniciativa ?? null)
+    } catch { /* si falla, el turno sigue donde estaba */ }
+    finally { setTurnoBusy(false) }
+  }, [id, sendIniciativa])
 
   // Fijar, mover o quitar el pin (solo el máster). Se pinta al instante, se
   // guarda y se difunde; si el guardado falla, se deshace y no queda un pin
@@ -1555,6 +1582,14 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         )
       })()}
 
+      {/* Turno en curso: lo ve toda la mesa mientras dure el combate */}
+      {iniciativa?.estado === 'activa' && (
+        <div className="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-40 max-w-[92vw]">
+          <BarraTurno iniciativa={iniciativa} userId={user?.user_id}
+            onTerminar={terminarTurno} busy={turnoBusy} />
+        </div>
+      )}
+
       {/* Main layout */}
       <div className="relative flex flex-1 overflow-hidden">
 
@@ -1605,6 +1640,30 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             title="Personajes registrados"
           >
             <Info size={18} />
+          </button>
+        )}
+
+        {/* Botón flotante — iniciativa (solo master) */}
+        {isMaster && (
+          <button
+            onClick={() => {
+              // Los nombres de personaje se piden aquí: la presencia solo trae
+              // el del usuario, y en la ronda debe salir el del personaje.
+              apiFetch(`/personaje/party?id_partida=${id}`).then(r => r.json())
+                .then(d => {
+                  const m = {}
+                  for (const c of (Array.isArray(d) ? d : [])) m[String(c.id_personaje)] = c.nombre_personaje
+                  setNombresPersonaje(m)
+                }).catch(() => {})
+              setShowIniciativa(true)
+            }}
+            className={`fixed left-3 top-64 z-40 flex items-center justify-center w-10 h-10
+                       rounded-full shadow-lg border transition-all ${
+                       iniciativa ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-400'
+                                  : 'bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600'}`}
+            title={iniciativa ? 'Iniciativa en curso' : 'Pedir iniciativa'}
+          >
+            <Dices size={18} />
           </button>
         )}
 
@@ -1965,6 +2024,20 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             <PokemonDetailView endpoint={`/master/pokemon/${inspectMasterPoke}`} master onBack={() => setInspectMasterPoke(null)} />
           </div>
         </div>
+      )}
+
+      {/* Le sale sola a quien aún no ha tirado */}
+      {iniciativa?.estado === 'pidiendo'
+        && (iniciativa.participantes || []).some(p => p.user_id === user?.user_id && !p.listo) && (
+        <IniciativaTirada partidaId={id} personajeId={personajeId} esMaster={isMaster}
+          onListo={(ini) => sendIniciativa(ini)} />
+      )}
+
+      {showIniciativa && isMaster && (
+        <IniciativaPanel partidaId={id} iniciativa={iniciativa} presentes={presentes}
+          nombresPersonaje={nombresPersonaje}
+          onCambio={(ini) => sendIniciativa(ini)}
+          onClose={() => setShowIniciativa(false)} />
       )}
 
       {/* Selección del NPC que sale al campo */}

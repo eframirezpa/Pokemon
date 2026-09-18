@@ -28,12 +28,16 @@ export function usePartidaPresence(partidaId, userInfo) {
   // la partida: el broadcast solo adelanta el cambio a quien ya está dentro, y
   // quien entra después lo recibe igual al consultar la partida.
   const [mapaPin, setMapaPin] = useState(null)
+  // Orden de turno. Como el pin, está guardado en la partida: el broadcast solo
+  // adelanta el cambio, y quien entre o recargue lo recibe al consultarla.
+  const [iniciativa, setIniciativa] = useState(null)
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
   const messageRef  = useRef(DEFAULT_MASTER_MESSAGE)
   const pokemonRef  = useRef([])
   const npcRef      = useRef([])
+  const iniciativaRef = useRef(null)
   const backgroundRef = useRef(null)
   const eventActiveRef = useRef(false)
   const countersRef = useRef({ up: 0, down: 0 })
@@ -100,6 +104,7 @@ export function usePartidaPresence(partidaId, userInfo) {
           channel.send({ type: 'broadcast', event: 'master_message', payload: { text: messageRef.current } })
           channel.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemons: pokemonRef.current } })
           channel.send({ type: 'broadcast', event: 'npc_update', payload: { npcs: npcRef.current } })
+          channel.send({ type: 'broadcast', event: 'iniciativa', payload: { iniciativa: iniciativaRef.current } })
           channel.send({ type: 'broadcast', event: 'background_update', payload: { background: backgroundRef.current } })
           channel.send({ type: 'broadcast', event: 'event_state', payload: { active: eventActiveRef.current } })
           channel.send({ type: 'broadcast', event: 'counters_update', payload: countersRef.current })
@@ -182,6 +187,10 @@ export function usePartidaPresence(partidaId, userInfo) {
       })
       .on('broadcast', { event: 'mapa_pin' }, ({ payload }) => {
         setMapaPin(payload?.pin ?? null)
+      })
+      .on('broadcast', { event: 'iniciativa' }, ({ payload }) => {
+        iniciativaRef.current = payload?.iniciativa ?? null
+        setIniciativa(payload?.iniciativa ?? null)
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -324,10 +333,17 @@ export function usePartidaPresence(partidaId, userInfo) {
 
   // Difunde el pin ya guardado. Quien lo mueve es el máster, y el guardado corre
   // por su cuenta: aquí solo se avisa a los que están conectados.
+  // Difunde el orden ya guardado; quien lo cambia se encarga de persistirlo
+  const sendIniciativa = useCallback((ini) => {
+    iniciativaRef.current = ini ?? null
+    setIniciativa(ini ?? null)
+    channelRef.current?.send({ type: 'broadcast', event: 'iniciativa', payload: { iniciativa: ini ?? null } })
+  }, [])
+
   const sendMapaPin = useCallback((pin) => {
     setMapaPin(pin ?? null)
     channelRef.current?.send({ type: 'broadcast', event: 'mapa_pin', payload: { pin: pin ?? null } })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, activeNpcs, sendNpcs, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin }
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, activeNpcs, sendNpcs, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa }
 }
