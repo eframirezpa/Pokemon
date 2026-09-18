@@ -1829,7 +1829,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           <div className={`shrink-0 border-t border-gray-700 bg-gray-800/60 flex flex-col transition-all duration-300 ${logOpen ? 'h-40' : 'h-9'}`}>
             <div className="flex items-center justify-between px-4 pt-2 pb-1 shrink-0">
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                Actividad de la partida
+                Actividad
               </p>
               <button
                 onClick={() => setLogOpen(o => !o)}
