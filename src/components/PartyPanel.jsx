@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { X, Users } from 'lucide-react'
 import { apiFetch } from '../api'
+import { EstadosChips } from './EstadosControl'
+import { AuraInspirado } from './InspiradoAura'
 import LoadingOverlay from './LoadingOverlay'
 
 const hpPct   = (cur, max) => Math.max(0, Math.min(100, Math.round(((cur ?? max ?? 0) / (max || 1)) * 100)))
@@ -56,6 +58,9 @@ function PartyPokemon({ p, hideHp, onClick }) {
       <div className="flex-1 min-w-0">
         <p className="font-bold text-gray-900 text-xs truncate">{p.pokemon_apodo}</p>
         <HpBar cur={p.pokemon_current_hp} max={p.pokemon_hp} showNumbers={!hideHp} />
+        {/* Debajo de la barra: junto al nombre no cabía más con el sprite y
+            los MiniStat al lado. */}
+        <EstadosChips estados={p.personaje_pokemon_estados} size="chico" />
       </div>
       <div className="flex flex-col gap-0.5 shrink-0">
         <MiniStat label="EXH"  value={p.personaje_pokemon_exahust_lvl} />
@@ -80,14 +85,23 @@ export function PlayerCard({ char: c, pres, invId, hideHp, onCharClick, onPokemo
           title={onCharClick ? 'Ver ficha del personaje' : undefined}
           className={`flex items-center gap-2 rounded-xl p-2 border-2 border-gray-700 shrink-0 w-60 ${bleedClass(pct)}
             ${onCharClick ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
-          <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-300 bg-gray-200 shrink-0 flex items-center justify-center">
-            {pres?.avatar_face_url
-              ? <img src={pres.avatar_face_url} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
-              : <span className="text-sm font-black text-gray-600">{initials}</span>}
+          <div className="relative shrink-0">
+            {/* El aura va afuera del círculo: el círculo recorta con
+                overflow-hidden y se comería el resplandor, que es más
+                grande que el avatar a propósito. */}
+            {c.personaje_inspirado && <AuraInspirado size={48} />}
+            <div className="relative w-12 h-12 rounded-full overflow-hidden border border-gray-300 bg-gray-200 flex items-center justify-center">
+              {pres?.avatar_face_url
+                ? <img src={pres.avatar_face_url} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
+                : <span className="text-sm font-black text-gray-600">{initials}</span>}
+            </div>
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-gray-900 text-sm truncate">{c.nombre_personaje || 'Sin nombre'}</p>
             <HpBar cur={c.personaje_current_hp} max={c.personaje_hp} showNumbers={!hideHp} />
+            {/* Debajo de la barra: junto al nombre no cabía más con el avatar
+                y los MiniStat al lado. */}
+            <EstadosChips estados={c.personaje_estados} size="chico" />
           </div>
           <div className="flex flex-col gap-0.5 shrink-0">
             <MiniStat label="EXH"  value={c.personaje_exahust_lvl} />

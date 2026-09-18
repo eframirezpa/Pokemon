@@ -146,6 +146,22 @@ body {
   animation: pokeball-spin 1s linear infinite;
 }
 
+/* Aura del punto de inspiración: un brillo dorado detrás del avatar. Menos
+   "llama de DBZ" y más resplandor de vela -lento y sutil-, para que se note
+   sin competir con el resto del panel. */
+/* El translate(-50%,-50%) que centra el aura va DENTRO del keyframe: una
+   animación de transform reemplaza el valor entero, no lo combina con el que
+   venga puesto por style en línea. Sin esto el centrado se perdía en cuanto
+   arrancaba la animación y el aura quedaba corrida medio ancho hacia abajo
+   y a la derecha. */
+@keyframes aura-inspirado {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.9);  opacity: 0.45; }
+  50%      { transform: translate(-50%, -50%) scale(1.12); opacity: 0.8; }
+}
+.animate-aura-inspirado {
+  animation: aura-inspirado 3.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-pokeball-idle { animation: none; }
   .animate-pokeball-throw { animation-duration: 0.3s; }
@@ -153,4 +169,5 @@ body {
   /* Esta no se detiene: es el único indicio de que algo está pasando.
      Se frena, que es lo que pide la preferencia sin dejar el icono mudo. */
   .animate-pokeball-spin { animation-duration: 2.4s; }
+  .animate-aura-inspirado { animation: none; opacity: 0.6; }
 }

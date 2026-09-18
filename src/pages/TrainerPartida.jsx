@@ -23,63 +23,14 @@ import ItemsPanel from '../components/ItemsPanel'
 import WeaponPanel from '../components/WeaponPanel'
 import HeldItemsModal from '../components/HeldItemsModal'
 import { buildProfs } from '../lib/profs'
+import { construirSkillsTrainer } from '../lib/trainerStats'
+import { EstadoTrigger, EstadosChips, EstadosPopup } from '../components/EstadosControl'
+import { AuraInspirado, InspiradoInfoButton, InspiradoInfoPopup } from '../components/InspiradoAura'
 import PokeballSpinner from '../components/PokeballSpinner'
 import PokeballIcon from '../components/PokeballIcon'
 import LoadingOverlay from '../components/LoadingOverlay'
 
 
-/* Habilidades del entrenador para el panel de Jugador (y el modificador de DEX
-   ya con bonos, que reusa el AC), con los mismos bonos que
-   aplica la ficha: feats, especializaciones y ruta. Se calcula aquí y no se
-   importa de CharacterSheet porque allí va entretejido con el render. */
-function construirSkillsTrainer(d) {
-  const norm = x => (x ?? '').toLowerCase()
-  const statAdd = {}, skProf = new Set(), skExpert = new Set(), savingProf = new Set()
-
-  const acumular = (bonos) => {
-    for (const b of (bonos || [])) {
-      const t = norm(b.type), k = norm(b.llave), v = norm(b.value)
-      if (t === 'stat') statAdd[k] = (statAdd[k] || 0) + (Number(b.value) || 0)
-      else if (t === 'skill') { if (v === 'expert' || v === 'exp') skExpert.add(k); else if (v === 'prof') skProf.add(k) }
-      else if (t === 'saving') savingProf.add(k)
-    }
-  }
-  for (const f of (d.extra_feats || [])) acumular(f.bonos)
-  for (const sp of (d.specializations || [])) acumular(sp.bonos)
-  // El origen y el background también otorgan salvaciones (p. ej. Frostborn)
-  for (const f of [d.origin_feat, d.background_feat]) acumular(f?.bonos)
-  // Los bonos de ruta con target all_pokemon son para los Pokémon, no para él
-  acumular((d.path_bonos || []).filter(b => norm(b.target) === 'trainer'))
-
-  const st = d.stats || {}
-  const modOf = k => Math.floor(
-    ((Number(st[`personaje_${k}`]) || 0) + (Number(st[`personaje_${k}_bonus`]) || 0) + (statAdd[k] || 0) - 10) / 2)
-  const prof = Number(d.personaje_prof) || 2
-
-  const skills = (Array.isArray(d.skills) ? d.skills : []).map(s => {
-    const nombre = norm(s.skill_name)
-    let pref = !!s.personaje_skill_pref, expert = !!s.personaje_skill_expert
-    if (skProf.has(nombre)) pref = true
-    if (skExpert.has(nombre)) { if (pref) expert = true; else pref = true }
-    return {
-      name: s.skill_name,
-      ability: s.skill_related_ability,
-      pref, expert,
-      mod: modOf(norm(s.skill_related_ability)) + (pref ? prof : 0) + (expert ? prof : 0),
-    }
-  })
-  // El modificador de DEX sale de aquí porque ya tiene aplicados los bonos de
-  // feats y especialidades; lo necesita el cálculo del AC.
-  // Proficiencia en la tirada de salvación: el booleano de personaje_stats más
-  // las que otorgan los feats. Misma condición que el check verde de la ficha.
-  const stats = ['str','dex','con','int','wis','cha'].map(k => ({
-    key: k.toUpperCase(),
-    valor: (Number(st[`personaje_${k}`]) || 0) + (Number(st[`personaje_${k}_bonus`]) || 0) + (statAdd[k] || 0),
-    mod: modOf(k),
-    prof: !!st[`personaje_stats_${k}_prof`] || savingProf.has(k),
-  }))
-  return { skills, dexMod: modOf('dex'), stats }
-}
 
 /* AC del entrenador con la MISMA regla que la ficha: base de la armadura más el
    modificador de DEX, topado por la armadura (Medium Armor Master sube ese tope
@@ -511,6 +462,7 @@ function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, 
               </div>
             ))}
           </div>
+
         </div>
 
         {/* Movimientos (mismo comportamiento que el panel del master).
@@ -1117,10 +1069,14 @@ export default function TrainerPartida() {
   const [showPC, setShowPC]           = useState(false)
   const [showEdit, setShowEdit]       = useState(false)
   const [isEditable, setIsEditable]   = useState(false) // personaje_is_editable (lo controla el master)
+  const [isInspirado, setIsInspirado] = useState(false) // personaje_inspirado (lo activa el master)
+  const [showInspiradoInfo, setShowInspiradoInfo] = useState(false)
   const [pending, setPending]         = useState([])    // mejoras de nivel por confirmar (secuencial)
   const [renames, setRenames]         = useState([])    // Pokémon recibidos pendientes de renombrar
   const [levelUps, setLevelUps]       = useState([])    // niveles de entrenador por confirmar
   const [charSkills, setCharSkills]   = useState([])    // habilidades del entrenador
+  const [charEstados, setCharEstados] = useState(null)  // estados alterados del entrenador
+  const [pokeEstados, setPokeEstados] = useState(null)  // ...y los del Pokémon abierto
   const [charNombre, setCharNombre]   = useState('')    // nombre del personaje, no del usuario
   const [recursos, setRecursos]       = useState([])    // Extra Points de la ruta
   const [recursosTitulo, setRecursosTitulo] = useState('Trainer')
@@ -1162,6 +1118,12 @@ export default function TrainerPartida() {
   const [fight, setFight] = useState({ active: false, players: [] }) // modo lucha
   // Monitor (PC/escritorio con mouse) → iconos más grandes
   const [isMonitor, setIsMonitor] = useState(() => typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches)
+  // Mitad del tamaño del avatar (66px en monitor, 44px normal), para la carita
+  // que abre el selector. Los iconos que aparecen debajo del avatar son la
+  // mitad de ESTE tamaño: se leen como una marca discreta, no como otro botón.
+  const estadoIconSize = isMonitor ? 33 : 22
+  const estadoChipSize = estadoIconSize / 2
+  const [estadosPopup, setEstadosPopup] = useState(null) // 'trainer' | 'pokemon' | null
   useEffect(() => {
     const mq = window.matchMedia('(hover: hover) and (pointer: fine)')
     const onChange = () => setIsMonitor(mq.matches)
@@ -1170,12 +1132,16 @@ export default function TrainerPartida() {
   }, [])
 
 
-  // Lee si el personaje es editable (lo activa el master). Se re-consulta al recibir party_update.
+  // Lee si el personaje es editable y si está inspirado (lo activa el master).
+  // Se re-consulta al recibir party_update.
   useEffect(() => {
     if (!personajeId) return
     apiFetch(`/personaje/${personajeId}`)
       .then(r => r.json())
-      .then(d => setIsEditable(!!d?.personaje_is_editable))
+      .then(d => {
+        setIsEditable(!!d?.personaje_is_editable)
+        setIsInspirado(!!d?.personaje_inspirado)
+      })
       .catch(() => {})
   }, [personajeId, partyVersion])
 
@@ -1231,9 +1197,13 @@ export default function TrainerPartida() {
   // Un usuario puede tener varios personajes en la misma partida (el lobby los lista
   // para elegir), así que cuando no hay elección guardada NO se puede adivinar: antes
   // se tomaba el primero de la lista y cargaba el personaje equivocado.
-  // La clave lleva sufijo v2 para descartar las elecciones que guardó esa versión.
+  // La clave lleva el usuario: sin él, dos cuentas en el mismo navegador
+  // compartían la elección y la segunda cargaba el personaje de la primera
+  // -y lo anunciaba así en la partida, con su nombre-. El v3 descarta las
+  // elecciones que guardó la clave compartida.
   useEffect(() => {
-    const storeKey = `trainer_personaje_v2_${id}`
+    if (!user?.user_id) return
+    const storeKey = `trainer_personaje_v3_${user.user_id}_${id}`
     if (stateId) { localStorage.setItem(storeKey, String(stateId)); return }
 
     const stored = localStorage.getItem(storeKey)
@@ -1253,7 +1223,7 @@ export default function TrainerPartida() {
         navigate(`/partida-lobby/${id}`, { replace: true, state: { nombre: nombrePartida } })
       })
       .catch(() => {})
-  }, [id, stateId, navigate, nombrePartida])
+  }, [id, stateId, navigate, nombrePartida, user?.user_id])
 
   // Restaura el Pokémon invocado tras una recarga: se persiste en personaje_pokemon_is_in_game
   useEffect(() => {
@@ -1400,6 +1370,20 @@ export default function TrainerPartida() {
   // el panel que estuviera abierto sigue en pantalla, con la pokébola girando
   // encima. Antes se cambiaba de panel al empezar y la ventana se quedaba en
   // blanco todo lo que tardara el servidor.
+  // Los estados se guardan al vuelo y se avisa a la party: el resto de la mesa
+  // los ve sin recargar nada.
+  const guardarEstados = async (destino, lista) => {
+    const texto = lista.join(',') || null
+    if (destino === 'trainer') setCharEstados(texto); else setPokeEstados(texto)
+    const url = destino === 'trainer'
+      ? `/personaje/${personajeId}/estados`
+      : `/personaje/${personajeId}/pokemon/${pokemonInvocado}/estados`
+    try {
+      await apiFetch(url, { method: 'PATCH', body: JSON.stringify({ estados: lista }) })
+      partidaApiRef.current?.sendPartyUpdate?.()
+    } catch { /* si falla, se corrige al volver a abrir el panel */ }
+  }
+
   const openTrainerControl = async () => {
     setCargandoPanel('trainer')
     try {
@@ -1426,6 +1410,7 @@ export default function TrainerPartida() {
 
       // Ya está todo calculado: recién aquí se hace el cambio, de una sola vez.
       setCharNombre(d.nombre_personaje || '')
+      setCharEstados(d.personaje_estados ?? null)
       setCharProfs(profsTrainer)
       setRecursosRasgos(rasgos)
       // Recursos de la ruta y su título: el nombre del path, o "Trainer"
@@ -1462,6 +1447,7 @@ export default function TrainerPartida() {
     setCargandoPanel('pokemon')
     try {
       const d = await apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}`).then(r => r.json())
+      setPokeEstados(d.personaje_pokemon_estados ?? null)
       const moves = Array.isArray(d.moves) ? d.moves : []
 
       // Habilidades con su modificador: misma fórmula que el detalle del Pokémon
@@ -1903,18 +1889,41 @@ export default function TrainerPartida() {
             y por debajo de los modales, que empiezan en z-50. */}
         {!hideBottomIcons && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[48] flex items-end justify-center gap-10">
+          {/* Carita de estados + avatar: la carita queda a la izquierda del
+              entrenador y a la derecha del Pokémon, pero los estados ya
+              puestos se centran solo bajo su propio avatar, no bajo el par
+              carita+avatar completo. */}
           {user?.avatar_face_url && (
-            <button onClick={openTrainerControl} className="transition-transform hover:scale-105" title="Controlar jugador">
-              {/* data-throw-origin: PartidaRoom lo mide para lanzar la pokébola desde aquí */}
-              <img src={user.avatar_face_url} alt="Jugador" data-throw-origin="1"
-                className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
-            </button>
+            <div className="flex items-end gap-1.5">
+              <EstadoTrigger size={estadoIconSize} onClick={() => setEstadosPopup('trainer')} title="Estados del entrenador" />
+              <div className="flex flex-col items-center gap-1">
+                <div className="relative">
+                  {/* Aura + aviso: solo mientras el master lo tenga marcado como inspirado */}
+                  {isInspirado && <AuraInspirado size={isMonitor ? 66 : 44} />}
+                  {isInspirado && (
+                    <InspiradoInfoButton size={estadoIconSize} onClick={() => setShowInspiradoInfo(true)} />
+                  )}
+                  <button onClick={openTrainerControl} className="relative transition-transform hover:scale-105" title="Controlar jugador">
+                    {/* data-throw-origin: PartidaRoom lo mide para lanzar la pokébola desde aquí */}
+                    <img src={user.avatar_face_url} alt="Jugador" data-throw-origin="1"
+                      className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
+                  </button>
+                </div>
+                <EstadosChips estados={charEstados} iconPx={estadoChipSize} />
+              </div>
+            </div>
           )}
           {pokemonInvocado && invocadoSprite && (
-            <button onClick={openPokemonControl} className="transition-transform hover:scale-105" title="Controlar Pokémon">
-              <img src={invocadoSprite} alt="Pokémon invocado"
-                className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
-            </button>
+            <div className="flex items-end gap-1.5">
+              <div className="flex flex-col items-center gap-1">
+                <button onClick={openPokemonControl} className="transition-transform hover:scale-105" title="Controlar Pokémon">
+                  <img src={invocadoSprite} alt="Pokémon invocado"
+                    className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
+                </button>
+                <EstadosChips estados={pokeEstados} iconPx={estadoChipSize} />
+              </div>
+              <EstadoTrigger size={estadoIconSize} onClick={() => setEstadosPopup('pokemon')} title="Estados del Pokémon" />
+            </div>
           )}
         </div>
         )}
@@ -2018,6 +2027,20 @@ export default function TrainerPartida() {
           </div>
         </>
       )}
+
+      {/* Estados alterados: se ponen y se quitan a mano, y los ve la mesa
+          entera en el panel de party. */}
+      {estadosPopup && (
+        <EstadosPopup
+          titulo={estadosPopup === 'trainer' ? 'Estados del entrenador' : 'Estados del Pokémon'}
+          estados={estadosPopup === 'trainer' ? charEstados : pokeEstados}
+          onChange={(l) => guardarEstados(estadosPopup, l)}
+          onClose={() => setEstadosPopup(null)}
+        />
+      )}
+
+      {/* Aviso del punto de inspiración */}
+      {showInspiradoInfo && <InspiradoInfoPopup onClose={() => setShowInspiradoInfo(false)} />}
 
       {/* Hoja del personaje */}
       {showChar && personajeId && (
