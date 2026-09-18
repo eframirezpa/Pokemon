@@ -31,6 +31,12 @@ export function usePartidaPresence(partidaId, userInfo) {
   // Orden de turno. Como el pin, está guardado en la partida: el broadcast solo
   // adelanta el cambio, y quien entre o recargue lo recibe al consultarla.
   const [iniciativa, setIniciativa] = useState(null)
+  // Intercambio de iniciativa (Alert / Alert Pokemon): propuesta pendiente que
+  // me llega, y la respuesta a la que yo mandé. Es puro broadcast efímero, no
+  // se guarda en la partida -si alguien recarga a mitad, la propuesta se
+  // pierde y hay que repetirla, que es lo de menos para algo de un segundo-.
+  const [swapPropuesta, setSwapPropuesta] = useState(null) // { deClave, deNombre, deTotal, aClave, aTotal } o null
+  const [swapRespuesta, setSwapRespuesta] = useState(null) // { deClave, aClave, aceptado, at }
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
@@ -192,6 +198,14 @@ export function usePartidaPresence(partidaId, userInfo) {
         iniciativaRef.current = payload?.iniciativa ?? null
         setIniciativa(payload?.iniciativa ?? null)
       })
+      .on('broadcast', { event: 'iniciativa_swap_propuesta' }, ({ payload }) => {
+        const miClave = `u${userInfoRef.current?.user_id}`
+        if (payload?.aClave === miClave) setSwapPropuesta(payload)
+      })
+      .on('broadcast', { event: 'iniciativa_swap_respuesta' }, ({ payload }) => {
+        const miClave = `u${userInfoRef.current?.user_id}`
+        if (payload?.paraClave === miClave) setSwapRespuesta({ ...payload, at: Date.now() })
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           subscribedRef.current = true
@@ -345,5 +359,18 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'mapa_pin', payload: { pin: pin ?? null } })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, activeNpcs, sendNpcs, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa }
+  // Propone el intercambio de iniciativa (Alert / Alert Pokemon) a otro
+  // participante. Puro aviso: el intercambio de verdad no se aplica hasta que
+  // el otro acepta y su cliente llama al endpoint.
+  const sendSwapPropuesta = useCallback((payload) => {
+    channelRef.current?.send({ type: 'broadcast', event: 'iniciativa_swap_propuesta', payload })
+  }, [])
+
+  // Responde una propuesta (aceptar o rechazar). paraClave es quien la mandó,
+  // que es quien tiene que reaccionar a la respuesta.
+  const sendSwapRespuesta = useCallback((payload) => {
+    channelRef.current?.send({ type: 'broadcast', event: 'iniciativa_swap_respuesta', payload })
+  }, [])
+
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, activeNpcs, sendNpcs, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
 }

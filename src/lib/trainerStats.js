@@ -52,3 +52,34 @@ export function construirSkillsTrainer(d) {
   }))
   return { skills, dexMod: modOf('dex'), stats }
 }
+
+/**
+ * Modificador de una característica de un Pokémon del entrenador, con sus
+ * bonos de feats aplicados y topado por nivel (20, o 22 desde nivel 20). Es
+ * la misma fórmula que arma el panel de combate para leer `d` de
+ * `/personaje/:id/pokemon/:idpp` — vive aparte porque también la necesita la
+ * tirada de iniciativa cuando se elige tirar con el Pokémon invocado en vez
+ * de con el entrenador.
+ */
+export function statModPokemon(d, key) {
+  const stats = d.stats || {}
+  const nivel = Number(d.pokemon_level) || 1
+  const conFeats = (d.feats || []).length > 0
+  const statAdd = {}
+  if (conFeats) for (const f of (d.feats || [])) for (const b of (f.bonos || [])) {
+    if ((b.type || '').toLowerCase() !== 'stat') continue
+    const llave = (b.llave || '').toLowerCase()
+    statAdd[llave] = (statAdd[llave] || 0) + (Number(b.value) || 0)
+  }
+  const crudo = (Number(stats[`pokemon_${key}`]) || 0) + (Number(stats[`pokemon_${key}_bonus`]) || 0) + (statAdd[key] || 0)
+  const valor = conFeats ? Math.min(crudo, nivel >= 20 ? 22 : 20) : crudo
+  return Math.floor((valor - 10) / 2)
+}
+
+/** ¿El entrenador o el Pokémon tiene este feat? Se compara por feat_name_id
+ *  (el slug del catálogo, p. ej. 'alert'/'alert_p'), no por el id numérico:
+ *  es el mismo criterio que ya usa item_name_id, más legible y estable que
+ *  un id que solo tiene sentido mirando la tabla. */
+export function tieneFeat(feats, nameId) {
+  return (feats || []).some(f => (f.feat_name_id || '').toLowerCase() === nameId)
+}
