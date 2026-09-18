@@ -16,14 +16,6 @@ body {
   min-height: 100vh;
 }
 
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
 @keyframes attack-burst {
   0%   { transform: scale(0.4); opacity: 0; }
   25%  { transform: scale(1.15); opacity: 1; }

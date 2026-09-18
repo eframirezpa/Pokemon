@@ -116,7 +116,7 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
           )}
         </div>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         <button onClick={() => handleTypeSelect('')}
           className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
             selectedType === '' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>

@@ -42,7 +42,8 @@ export default function MasterItemsModal({ onClose }) {
       {editando && (
         <EditarItemModal item={editando}
           onClose={() => setEditando(null)}
-          onSaved={() => { setEditando(null); recargar() }} />
+          onSaved={() => { setEditando(null); recargar() }}
+          onDeleted={() => { setEditando(null); recargar() }} />
       )}
     </div>
   )

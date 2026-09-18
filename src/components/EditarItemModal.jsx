@@ -1,24 +1,31 @@
 import { useState } from 'react'
-import { X, ChevronDown, Check } from 'lucide-react'
+import { X, ChevronDown, Check, Trash2 } from 'lucide-react'
 import { apiFetch } from '../api'
 import PokeballSpinner from './PokeballSpinner'
 import { TIPOS_ITEM as TIPOS } from '../lib/itemTypes'
 
 /**
- * Corrige un item del catálogo desde la mochila del máster.
+ * Corrige (o borra) un item del catálogo desde la mochila del máster.
  *
- * El nombre se muestra pero no se edita: es único y con él se referencian los
- * items repartidos por la partida, así que renombrarlo aquí cambiaría algo que
- * ya está en mochilas y Pokémon.
+ * El nombre se puede corregir: en la mochila y en los Pokémon el item se
+ * referencia por su id, nunca por el nombre, así que renombrarlo no rompe
+ * nada ya repartido por la partida.
+ *
+ * Borrar sí puede fallar a propósito: si el item ya está en alguna mochila,
+ * equipado en un Pokémon, o pedido por un background o una plantilla del
+ * máster, el backend lo rechaza (409) para no dejar esas referencias
+ * apuntando a nada. El mensaje que devuelve ya dice dónde está en uso.
  */
-export default function EditarItemModal({ item, onClose, onSaved }) {
+export default function EditarItemModal({ item, onClose, onSaved, onDeleted }) {
+  const [nombre, setNombre] = useState(item.item_name || '')
   const [tipo, setTipo] = useState(item.item_type || TIPOS[0])
   const [precio, setPrecio] = useState(item.item_cost == null ? '' : String(item.item_cost))
   const [descripcion, setDescripcion] = useState(item.item_description || '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [confirmandoBorrado, setConfirmandoBorrado] = useState(false)
 
-  const valido = tipo && precio.trim() !== '' && descripcion.trim()
+  const valido = nombre.trim() && tipo && precio.trim() !== '' && descripcion.trim()
 
   const guardar = async () => {
     if (!valido || busy) return
@@ -26,13 +33,33 @@ export default function EditarItemModal({ item, onClose, onSaved }) {
     try {
       const res = await apiFetch(`/items/${item.item_id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ item_type: tipo, item_cost: Number(precio), item_description: descripcion.trim() }),
+        body: JSON.stringify({
+          item_name: nombre.trim(), item_type: tipo, item_cost: Number(precio), item_description: descripcion.trim(),
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'No se pudo editar el item')
       onSaved?.(data)
     } catch (e) {
       setError(e.message || 'No se pudo editar el item')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const borrar = async () => {
+    if (busy) return
+    setBusy(true); setError('')
+    try {
+      const res = await apiFetch(`/items/${item.item_id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'No se pudo borrar el item')
+      }
+      onDeleted?.(item.item_id)
+    } catch (e) {
+      setError(e.message || 'No se pudo borrar el item')
+      setConfirmandoBorrado(false)
     } finally {
       setBusy(false)
     }
@@ -51,6 +78,11 @@ export default function EditarItemModal({ item, onClose, onSaved }) {
         </div>
 
         <div className="px-5 py-4 space-y-3 overflow-y-auto">
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Nombre</label>
+            <input type="text" value={nombre} onChange={e => setNombre(e.target.value)}
+              className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+          </div>
           <div>
             <label className="block text-xs font-bold text-gray-600 mb-1">Tipo de item</label>
             <div className="relative">
@@ -75,13 +107,35 @@ export default function EditarItemModal({ item, onClose, onSaved }) {
           {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
         </div>
 
-        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
-          <button onClick={onClose} disabled={busy}
-            className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
-          <button onClick={guardar} disabled={busy || !valido}
-            className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
-            {busy ? <PokeballSpinner size={15} /> : <Check size={15} />} Guardar
-          </button>
+        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between gap-2 shrink-0">
+          {confirmandoBorrado ? (
+            <>
+              <span className="text-xs font-semibold text-gray-600">¿Borrar «{item.item_name}»?</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => setConfirmandoBorrado(false)} disabled={busy}
+                  className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
+                <button onClick={borrar} disabled={busy}
+                  className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+                  {busy ? <PokeballSpinner size={15} /> : <Trash2 size={15} />} Sí, borrar
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setConfirmandoBorrado(true)} disabled={busy} title="Borrar item"
+                className="flex items-center gap-1.5 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-40 px-3 py-1.5 rounded-lg transition-colors">
+                <Trash2 size={15} /> Borrar
+              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={onClose} disabled={busy}
+                  className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
+                <button onClick={guardar} disabled={busy || !valido}
+                  className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+                  {busy ? <PokeballSpinner size={15} /> : <Check size={15} />} Guardar
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

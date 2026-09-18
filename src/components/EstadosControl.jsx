@@ -51,9 +51,9 @@ export function EstadoTrigger({ size = 22, onClick, title = 'Estados' }) {
   return (
     <button onClick={onClick} title={title}
       className="flex items-center justify-center rounded-full bg-gray-800/90 border border-gray-600
-                 hover:border-amber-400 hover:bg-gray-700 transition-colors shrink-0"
+                 hover:border-amber-400 hover:bg-gray-700 transition-colors shrink-0 text-yellow-400"
       style={{ width: size, height: size, fontSize: Math.round(size * 0.62), lineHeight: 1 }}>
-      🤮
+      ☣
     </button>
   )
 }
