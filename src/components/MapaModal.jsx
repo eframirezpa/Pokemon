@@ -23,8 +23,10 @@ function PinParty({ x, y, label, zoom, editable }) {
             {label}
           </span>
         )}
-        <MapPin size={45} strokeWidth={2.5}
-          className={`text-red-500 drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)] ${editable ? 'animate-pulse' : ''}`}
+        {/* 60% más chico en mobile (18px de los 45px de escritorio): a ese tamaño
+            de pantalla el pin tapaba demasiado mapa. */}
+        <MapPin strokeWidth={2.5}
+          className={`w-[18px] h-[18px] sm:w-[45px] sm:h-[45px] text-red-500 drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)] ${editable ? 'animate-pulse' : ''}`}
           fill="rgba(239,68,68,0.35)" />
       </div>
     </div>
