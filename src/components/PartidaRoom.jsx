@@ -55,7 +55,40 @@ const TYPE_ICONS = {
   Steel: Shield,   Fairy: Wand2,
 }
 
-
+/**
+ * Arma la entrada de un Pokémon del campo a partir de su detalle
+ * (`/master/pokemon/:id`). La usan tanto invocar uno nuevo como rehidratar
+ * el campo guardado al conectarse -misma forma en los dos casos, solo cambia
+ * de dónde salen `uid`/`hidden`/`inBall`-.
+ */
+function construirEntradaPokemon(d, { uid, master_pokemon_id, hidden, inBall }) {
+  const moves = (d.moves || []).map(m => ({ ...m, name: m.move_name, type: m.move_type || null }))
+  // Healing de feats (ej. Tough 'N per lvl') sumado a la vida
+  const lvl = d.pokemon_level || 1
+  let healing = 0
+  for (const f of (d.feats || [])) for (const b of (f.bonos || [])) {
+    if ((b.type || '').toLowerCase() !== 'healing') continue
+    const m = /(\d+)\s*per\s*l/i.exec(b.value || '')
+    healing += m ? Number(m[1]) * lvl : (Number(b.value) || 0)
+  }
+  return {
+    uid,
+    master_pokemon_id,
+    pokemon_id:  d.id_pokemon,
+    name:        d.pokemon_apodo || d.pokemon_name,
+    type1:       d.type_1_name || null,
+    type2:       d.type_2_name || null,
+    sr:          d.pokemon_sr || null,
+    level:       lvl,
+    hp_max:      (d.pokemon_hp ?? 0) + healing,
+    hp_current:  (d.pokemon_current_hp ?? d.pokemon_hp ?? 0) + healing,
+    healing,
+    sprite:      d.pokemon_media_sprite || d.pokemon_media_main,
+    moves,
+    hidden,
+    ...(inBall ? { inBall: true } : {}),
+  }
+}
 
 
 export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null, onPartyVersion = null }) {
@@ -102,7 +135,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, activeNpcs, sendNpcs, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
 
   // ── Atrapar Pokémon: pokébolas del trainer, panel de lanzamiento y animación ──
   const [pokeballs, setPokeballs]   = useState([])   // items tipo pokeball con cantidad > 0
@@ -419,6 +452,41 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   // Los NPC son gente, no un equipo: caben menos en la mesa que los Pokémon.
   const MAX_NPC = 10
 
+  // Rehidrata el campo (quién está invocado, oculto, en la pokébola) desde la
+  // BD al entrar o recargar: antes solo sobrevivía si algún otro conectado se
+  // lo reenviaba por presencia al volver a unirse, y si el máster estaba solo
+  // se perdía seguro. Se hace local -setPokemonsLocal/setNpcsLocal- y no con
+  // sendPokemons/sendNpcs: cada conectado lo lee de la misma BD, difundirlo de
+  // vuelta sería puro eco.
+  useEffect(() => {
+    if (!id) return
+    let cancelado = false
+    apiFetch(`/partida/${id}/campo`).then(r => r.json()).then(async (data) => {
+      if (cancelado) return
+      setNpcsLocal((data.npcs || []).map(n => ({
+        uid:          String(n.id_campo),
+        master_npc_id: n.id_master_npc,
+        name:         n.master_npc_apodo,
+        level:        Number(n.master_npc_level) || 1,
+        hp_max:       Number(n.master_npc_hp) || 0,
+        hp_current:   Number(n.master_npc_current_hp ?? n.master_npc_hp) || 0,
+        avatar:       n.master_npc_avatar,
+        hidden:       n.hidden,
+      })))
+
+      const pokemones = await Promise.all((data.pokemones || []).map(async (c) => {
+        try {
+          const d = await apiFetch(`/master/pokemon/${c.id_master_pokemon}`).then(r => r.json())
+          return construirEntradaPokemon(d, {
+            uid: String(c.id_campo), master_pokemon_id: c.id_master_pokemon, hidden: c.hidden, inBall: c.in_ball,
+          })
+        } catch { return null }
+      }))
+      if (!cancelado) setPokemonsLocal(pokemones.filter(Boolean))
+    }).catch(() => {})
+    return () => { cancelado = true }
+  }, [id, setPokemonsLocal, setNpcsLocal])
+
   const [attackFx, setAttackFx] = useState(null)
 
   useEffect(() => {
@@ -438,36 +506,19 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     setShowPokedex(false)
     if (activePokemons.length >= MAX_POKEMON) return
     try {
+      // Se registra en la BD primero: si ya está en el campo o se llegó al
+      // tope (puede pasar por una carrera entre dos pestañas del máster), el
+      // 201 no llega y no se agrega nada a medias.
+      const campoRes = await apiFetch(`/partida/${id}/campo/pokemon`, {
+        method: 'POST', body: JSON.stringify({ id_master_pokemon: mp.id_master_pokemon }),
+      })
+      if (!campoRes.ok) return
+      const campo = await campoRes.json()
+
       const d = await apiFetch(`/master/pokemon/${mp.id_master_pokemon}`).then(r => r.json())
-      // Se guarda el movimiento completo: el detalle del panel lo necesita.
-      // name/type se mantienen como alias de lo que ya usaba la tarjeta.
-      const moves = (d.moves || []).map(m => ({ ...m, name: m.move_name, type: m.move_type || null }))
-
-      // Healing de feats (ej. Tough 'N per lvl') sumado a la vida
-      const lvl = d.pokemon_level || 1
-      let healing = 0
-      for (const f of (d.feats || [])) for (const b of (f.bonos || [])) {
-        if ((b.type || '').toLowerCase() !== 'healing') continue
-        const m = /(\d+)\s*per\s*l/i.exec(b.value || '')
-        healing += m ? Number(m[1]) * lvl : (Number(b.value) || 0)
-      }
-
-      const nuevo = {
-        uid:         `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        master_pokemon_id: mp.id_master_pokemon,
-        pokemon_id:  d.id_pokemon,
-        name:        d.pokemon_apodo || d.pokemon_name,
-        type1:       mp.type_1_name || null,
-        type2:       mp.type_2_name || null,
-        sr:          d.pokemon_sr || null,   // de la especie: para la experiencia al atraparlo
-        level:       lvl,
-        hp_max:      (d.pokemon_hp ?? 0) + healing,
-        hp_current:  (d.pokemon_current_hp ?? d.pokemon_hp ?? 0) + healing,
-        healing,     // bono de feats: se resta al persistir, la BD guarda el HP crudo
-        sprite:      d.pokemon_media_sprite || d.pokemon_media_main,
-        moves,
-        hidden:      true,
-      }
+      const nuevo = construirEntradaPokemon(d, {
+        uid: String(campo.id_campo), master_pokemon_id: mp.id_master_pokemon, hidden: campo.hidden,
+      })
       sendPokemons([...activePokemons, nuevo])
 
       const text = 'Apareció un pokémon salvaje'
@@ -499,6 +550,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     if (!p) return
     const nowHidden = !p.hidden
     updatePokemon(uid, { hidden: nowHidden })
+    apiFetch(`/partida/${id}/campo/${uid}`, { method: 'PATCH', body: JSON.stringify({ hidden: nowHidden }) }).catch(() => {})
     if (!nowHidden) {
       // Se revela el Pokémon → mostrar el nombre real
       const text = `Apareció un ${p.name} salvaje`
@@ -580,27 +632,39 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const handleToggleBall = (uid) => {
     const p = activePokemons.find(x => x.uid === uid)
     if (!p) return
-    updatePokemon(uid, { inBall: !p.inBall })
+    const nuevo = !p.inBall
+    updatePokemon(uid, { inBall: nuevo })
+    apiFetch(`/partida/${id}/campo/${uid}`, { method: 'PATCH', body: JSON.stringify({ in_ball: nuevo }) }).catch(() => {})
   }
 
-  const handleRemove = (uid) => sendPokemons(activePokemons.filter(p => p.uid !== uid))
+  const handleRemove = (uid) => {
+    sendPokemons(activePokemons.filter(p => p.uid !== uid))
+    apiFetch(`/partida/${id}/campo/${uid}`, { method: 'DELETE' }).catch(() => {})
+  }
 
   // ── NPC del máster en el campo ──
   // Salen ocultos, como los Pokémon: los jugadores ven una silueta hasta que el
   // máster los revele.
-  const handlePickNpc = (npc) => {
+  const handlePickNpc = async (npc) => {
     setShowNpcPicker(false)
     if (activeNpcs.length >= MAX_NPC) return
-    sendNpcs([...activeNpcs, {
-      uid:          `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      master_npc_id: npc.id_master_npc,
-      name:         npc.master_npc_apodo,
-      level:        Number(npc.master_npc_level) || 1,
-      hp_max:       Number(npc.master_npc_hp) || 0,
-      hp_current:   Number(npc.master_npc_current_hp ?? npc.master_npc_hp) || 0,
-      avatar:       npc.master_npc_avatar,
-      hidden:       true,
-    }])
+    try {
+      const res = await apiFetch(`/partida/${id}/campo/npc`, {
+        method: 'POST', body: JSON.stringify({ id_master_npc: npc.id_master_npc }),
+      })
+      if (!res.ok) return
+      const campo = await res.json()
+      sendNpcs([...activeNpcs, {
+        uid:          String(campo.id_campo),
+        master_npc_id: npc.id_master_npc,
+        name:         npc.master_npc_apodo,
+        level:        Number(npc.master_npc_level) || 1,
+        hp_max:       Number(npc.master_npc_hp) || 0,
+        hp_current:   Number(npc.master_npc_current_hp ?? npc.master_npc_hp) || 0,
+        avatar:       npc.master_npc_avatar,
+        hidden:       campo.hidden,
+      }])
+    } catch { /* noop */ }
   }
 
   const updateNpc = (uid, patch) =>
@@ -625,10 +689,14 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     if (!n) return
     const ahoraOculto = !n.hidden
     updateNpc(uid, { hidden: ahoraOculto })
+    apiFetch(`/partida/${id}/campo/${uid}`, { method: 'PATCH', body: JSON.stringify({ hidden: ahoraOculto }) }).catch(() => {})
     if (!ahoraOculto) sendActivity(`${n.name} entró en escena`)
   }
 
-  const handleNpcRemove = (uid) => sendNpcs(activeNpcs.filter(n => n.uid !== uid))
+  const handleNpcRemove = (uid) => {
+    sendNpcs(activeNpcs.filter(n => n.uid !== uid))
+    apiFetch(`/partida/${id}/campo/${uid}`, { method: 'DELETE' }).catch(() => {})
+  }
 
   // Mientras siga oculto no se delata quién atacó, solo que alguien lo hizo
   const handleNpcAttack = (npc) => {

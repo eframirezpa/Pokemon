@@ -245,6 +245,22 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'npc_update', payload: { npcs: list } })
   }, [])
 
+  // Para rehidratar el campo desde la BD al conectarse: deja el estado local
+  // (y el ref, que es lo que se reenvía a quien se una después) sin volver a
+  // difundirlo -cada cliente lo lee de la misma fuente, avisar a los demás
+  // sería puro ruido repetido-.
+  const setPokemonsLocal = useCallback((pokemons) => {
+    const list = Array.isArray(pokemons) ? pokemons : []
+    pokemonRef.current = list
+    setActivePokemons(list)
+  }, [])
+
+  const setNpcsLocal = useCallback((npcs) => {
+    const list = Array.isArray(npcs) ? npcs : []
+    npcRef.current = list
+    setActiveNpcs(list)
+  }, [])
+
   const sendAttack = useCallback((payload) => {
     applyAttack(payload) // efecto/registro local inmediato (broadcast no se envía a sí mismo)
     channelRef.current?.send({ type: 'broadcast', event: 'attack', payload })
@@ -372,5 +388,5 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'iniciativa_swap_respuesta', payload })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, activeNpcs, sendNpcs, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
 }
