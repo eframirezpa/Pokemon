@@ -162,7 +162,7 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
           {paso === 'confirma' && (
             <div className="space-y-4">
               <p className="text-sm text-gray-800">
-                ¿El {tipo === 'long' ? 'long' : 'short'} rest está aprobado por el DM?
+                ¿El {tipo === 'long' ? 'long' : 'short'} rest se encuentra aprobado por el DM?
               </p>
               <div className="flex gap-2">
                 <button onClick={() => confirmarDM(true)}
