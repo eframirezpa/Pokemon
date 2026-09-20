@@ -19,8 +19,8 @@ function MiniStat({ label, value, tone }) {
       : 'border-gray-400 bg-white text-gray-900'
   return (
     <div className={`border rounded px-1 py-0.5 text-center leading-none ${cls}`}>
-      <p className="text-[5px] font-black uppercase">{label}</p>
-      <p className="text-[8px] font-black">{value ?? 0}</p>
+      <p className="text-[4px] font-black uppercase">{label}</p>
+      <p className="text-[7px] font-black">{value ?? 0}</p>
     </div>
   )
 }
@@ -31,21 +31,22 @@ function HpBar({ cur, max, showNumbers = true }) {
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-1">
-        <span className="text-[6px] font-black text-amber-600">HP</span>
-        <div className="flex-1 h-1.5 bg-gray-300 rounded-full overflow-hidden border border-gray-400">
+        <span className="text-[5px] font-black text-amber-600">HP</span>
+        <div className="flex-1 h-[5px] bg-gray-300 rounded-full overflow-hidden border border-gray-400">
           <div className="h-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: hpColor(pct) }} />
         </div>
       </div>
       {/* Los trainers ven la barra y su color, pero no los hit points */}
-      {showNumbers && <p className="text-right text-[6px] font-bold text-gray-700 leading-none mt-0.5">{c}/{max}</p>}
+      {showNumbers && <p className="text-right text-[5px] font-bold text-gray-700 leading-none mt-0.5">{c}/{max}</p>}
     </div>
   )
 }
 
 /* Tarjeta de un Pokémon del cinturón (estilo del Pokémon que invoca el master).
-   Todo un 30% más chico que el tamaño original -tarjeta, letras, iconos-,
-   menos los estados: esos EstadosChips de abajo siguen en su tamaño de
-   siempre, a propósito. */
+   Todo un 30% más chico que el tamaño original -tarjeta, letras, iconos-, y
+   luego otro 10% más sobre eso (168px→151px, 34px→31px...), menos los
+   estados: esos EstadosChips de abajo siguen en su tamaño de siempre, a
+   propósito. */
 function PartyPokemon({ p, hideHp, onClick }) {
   const pct    = hpPct(p.pokemon_current_hp, p.pokemon_hp)
   const sprite = (p.pokemon_is_shiny && p.pokemon_media_sprite_shiny)
@@ -53,13 +54,13 @@ function PartyPokemon({ p, hideHp, onClick }) {
     : (p.pokemon_media_sprite || p.pokemon_media_main)
   return (
     <div onClick={onClick} title={onClick ? 'Ver detalle del Pokémon' : undefined}
-      className={`flex items-center gap-1.5 border border-gray-700 rounded-lg p-1.5 shrink-0 w-[168px] ${bleedClass(pct)}
+      className={`flex items-center gap-[5px] border border-gray-700 rounded-[7px] p-[5px] shrink-0 w-[151px] ${bleedClass(pct)}
         ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
       <img src={sprite} alt={p.pokemon_apodo}
-        className="w-[34px] h-[34px] object-contain bg-white rounded-md shrink-0 border border-gray-300"
+        className="w-[31px] h-[31px] object-contain bg-white rounded-[5px] shrink-0 border border-gray-300"
         onError={e => { e.target.style.opacity = '0.2' }} />
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-gray-900 text-[8px] truncate">{p.pokemon_apodo}</p>
+        <p className="font-bold text-gray-900 text-[7px] truncate">{p.pokemon_apodo}</p>
         <HpBar cur={p.pokemon_current_hp} max={p.pokemon_hp} showNumbers={!hideHp} />
         {/* Debajo de la barra: junto al nombre no cabía más con el sprite y
             los MiniStat al lado. */}
@@ -75,7 +76,8 @@ function PartyPokemon({ p, hideHp, onClick }) {
 }
 
 /* Tarjeta de un jugador + su Pokémon invocado (estilo party, reutilizable).
-   Mismo criterio que PartyPokemon: todo un 30% más chico salvo los estados. */
+   Mismo criterio que PartyPokemon: 30% más chico y luego otro 10% más,
+   salvo los estados. */
 export function PlayerCard({ char: c, pres, invId, hideHp, onCharClick, onPokemonClick }) {
   const pct = hpPct(c.personaje_current_hp, c.personaje_hp)
   const initials = (pres?.user_name ?? '?').slice(0, 2).toUpperCase()
@@ -83,25 +85,25 @@ export function PlayerCard({ char: c, pres, invId, hideHp, onCharClick, onPokemo
     ? (c.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(invId))
     : null
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
-      <div className="flex items-stretch gap-1.5 overflow-x-auto">
+    <div className="bg-gray-800 border border-gray-700 rounded-[7px] p-[7px]">
+      <div className="flex items-stretch gap-[5px] overflow-x-auto">
         <div onClick={onCharClick ? () => onCharClick(c) : undefined}
           title={onCharClick ? 'Ver ficha del personaje' : undefined}
-          className={`flex items-center gap-1.5 rounded-lg p-1.5 border border-gray-700 shrink-0 w-[168px] ${bleedClass(pct)}
+          className={`flex items-center gap-[5px] rounded-[7px] p-[5px] border border-gray-700 shrink-0 w-[151px] ${bleedClass(pct)}
             ${onCharClick ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
           <div className="relative shrink-0">
             {/* El aura va afuera del círculo: el círculo recorta con
                 overflow-hidden y se comería el resplandor, que es más
                 grande que el avatar a propósito. */}
-            {c.personaje_inspirado && <AuraInspirado size={34} />}
-            <div className="relative w-[34px] h-[34px] rounded-full overflow-hidden border border-gray-300 bg-gray-200 flex items-center justify-center">
+            {c.personaje_inspirado && <AuraInspirado size={31} />}
+            <div className="relative w-[31px] h-[31px] rounded-full overflow-hidden border border-gray-300 bg-gray-200 flex items-center justify-center">
               {pres?.avatar_face_url
                 ? <img src={pres.avatar_face_url} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
-                : <span className="text-[10px] font-black text-gray-600">{initials}</span>}
+                : <span className="text-[9px] font-black text-gray-600">{initials}</span>}
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-gray-900 text-[10px] truncate">{c.nombre_personaje || 'Sin nombre'}</p>
+            <p className="font-bold text-gray-900 text-[9px] truncate">{c.nombre_personaje || 'Sin nombre'}</p>
             <HpBar cur={c.personaje_current_hp} max={c.personaje_hp} showNumbers={!hideHp} />
             {/* Debajo de la barra: junto al nombre no cabía más con el avatar
                 y los MiniStat al lado. */}
