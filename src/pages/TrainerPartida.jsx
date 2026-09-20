@@ -25,6 +25,7 @@ import PokeballSpinner from '../components/PokeballSpinner'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { acDelTrainer, ICONO_REDONDO } from '../lib/trainerCombatShared'
 import { CombatePanel } from '../components/partida/CombatePanel'
+import PokemonSummonFx from '../components/PokemonSummonFx'
 
 export default function TrainerPartida() {
   const { id }   = useParams()
@@ -83,6 +84,17 @@ export default function TrainerPartida() {
   const [partyVersion, setPartyVersion] = useState(0)   // cambia cuando el master actualiza la party
   const [pokemonInvocado, setPokemonInvocado] = useState(null) // id_personaje_pokemon
   const [invocadoSprite, setInvocadoSprite]   = useState(null)
+  // Efecto de invocación (destello + rayo + partículas): solo el momento en
+  // que el jugador ELIGE un Pokémon del cinturón, no al restaurarlo de una
+  // recarga -ahí no hay "instante de invocación" que animar, ya estaba en
+  // campo-. `key` fuerza a que se vuelva a montar si se invoca dos veces
+  // seguidas con el mismo sprite.
+  const [summonFx, setSummonFx] = useState(null) // { sprite, key } o null
+  useEffect(() => {
+    if (!summonFx) return
+    const t = setTimeout(() => setSummonFx(null), 1300)
+    return () => clearTimeout(t)
+  }, [summonFx])
   const [openControl, setOpenControl] = useState(null) // 'trainer' | 'pokemon' | null (solo uno a la vez)
   const [cargandoPanel, setCargandoPanel] = useState(null) // panel que se está pidiendo, o null
   const [charProfs, setCharProfs] = useState(null) // proficiencias del entrenador (de /full)
@@ -1050,6 +1062,7 @@ export default function TrainerPartida() {
             setPokemonInvocado(idpp)
             setInvocadoSprite(sprite)
             setShowBelt(false)
+            setSummonFx({ sprite, key: Date.now() })
           }}
           onMoved={(idpp) => {
             // Si se envió al computador el Pokémon invocado, se limpia el invocado
@@ -1088,6 +1101,8 @@ export default function TrainerPartida() {
       {cargandoPanel && (
         <LoadingOverlay label={cargandoPanel === 'trainer' ? 'Entrenador' : 'Pokémon'} />
       )}
+
+      {summonFx && <PokemonSummonFx key={summonFx.key} sprite={summonFx.sprite} />}
 
       {/* Control del jugador */}
       {openControl === 'trainer' && charData && (
