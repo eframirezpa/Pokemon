@@ -4,6 +4,8 @@ import { apiFetch } from '../api'
 import { healingBase } from '../lib/hp'
 import SkilledModal from './SkilledModal'
 import PokeballSpinner from './PokeballSpinner'
+import { ResolvedBonusBadges } from './featBonoBadges'
+import { specPreviewBonos } from '../lib/specBonus'
 
 // Skilled no tiene filas en feats_bonus: su forma son 3 elecciones entre
 // proficiencias de skill y textos de 'Tool Prof'. Se pide aquí cuando lo otorga
@@ -30,7 +32,7 @@ const opcionesDeTerreno = (featBonuses = []) => {
   return out
 }
 
-const STEPS = ['Nombre', 'Origen', 'Background', 'Stats', 'Iniciales', 'Equipo', 'Detalles']
+const STEPS = ['Nombre', 'Origen', 'Background', 'Stats', 'Iniciales', 'Especialidad', 'Equipo', 'Detalles']
 
 const STAT_FIELDS = [
   { key: 'personaje_dex', label: 'DEX', name: 'Dexterity',    desc: 'Agilidad, reflejos, equilibrio, sigilo, precisión, coordinación y reacción ante peligro.' },
@@ -579,7 +581,6 @@ function BackgroundStep({ selected, selectedSkills, onSelect }) {
   )
 }
 
-/* ── Paso 5: valores iniciales ── */
 function IniRow({ label, value }) {
   return (
     <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
@@ -589,15 +590,62 @@ function IniRow({ label, value }) {
   )
 }
 
-function IniciativesStep({ hpBonus = 0, conMod = 0, skills, iniSkills, setIniSkills, onMount }) {
+/* ── Paso 6: especialidad (a nivel 1 se elige una; mismos bonos que en el lápiz) ── */
+function SpecStep({ specs, loading, valor, onPick }) {
+  const [busca, setBusca] = useState('')
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-gray-400">
+        <PokeballSpinner size={18} className="mr-2" /> Cargando especialidades...
+      </div>
+    )
+  }
+  const lista = specs.filter(s => !busca || s.specialization_name?.toLowerCase().includes(busca.toLowerCase()))
+  return (
+    <div className="max-w-md mx-auto py-2">
+      <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Especialidad</p>
+      <p className="text-[11px] text-gray-400 mb-2">Elige 1 especialidad. Da un bono de atributo y expertise en una habilidad, y potencia a tus Pokémon de su tipo.</p>
+      <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar especialidad..."
+        className="w-full mb-2 px-3 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+      <div className="border border-gray-200 rounded-xl divide-y divide-gray-100">
+        {lista.length === 0 ? (
+          <p className="text-xs text-gray-400 italic px-3 py-3">Sin especialidades disponibles.</p>
+        ) : lista.map(s => {
+          const sel = String(valor) === String(s.specialization_id)
+          return (
+            <button key={s.specialization_id} onClick={() => onPick(sel ? null : s)}
+              className={`w-full text-left flex items-center justify-between gap-2 px-3 py-2 transition-colors ${sel ? 'bg-red-50' : 'hover:bg-gray-50'}`}>
+              <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
+                <span className={`text-sm font-medium ${sel ? 'text-red-700' : 'text-gray-800'}`}>{s.specialization_name}</span>
+                {s.specialization_pokemon_type_name && (
+                  <span className="text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded px-1 shrink-0">
+                    {s.specialization_pokemon_type_name}
+                  </span>
+                )}
+                <ResolvedBonusBadges bonos={specPreviewBonos(s)} />
+              </div>
+              <span className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${sel ? 'border-red-600 bg-red-600' : 'border-gray-300'}`}>
+                {sel && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ── Paso 5: valores iniciales ── */
+function IniciativesStep({ hpBonus = 0, conMod = 0, skills, iniSkills, setIniSkills, previas, onMount }) {
   useEffect(() => { onMount() }, []) // al entrar: agrega Animal Handling al prof in
 
   // Lo que se persiste es la base (6 + healing horneado), pero lo que se muestra
   // es el total con el que nace el personaje, que le suma el modificador de CON.
   const hp = 6 + hpBonus + conMod
   const opciones = skills.filter(s => s.skill_name !== 'Animal Handling')
+  const yaTiene = (name) => previas.has((name || '').toLowerCase())
   const toggle = (name) => setIniSkills(cur =>
-    cur.includes(name) ? cur.filter(x => x !== name) : (cur.length < 2 ? [...cur, name] : cur)
+    cur.includes(name) ? cur.filter(x => x !== name) : (cur.length < 2 && !yaTiene(name) ? [...cur, name] : cur)
   )
 
   return (
@@ -612,16 +660,22 @@ function IniciativesStep({ hpBonus = 0, conMod = 0, skills, iniSkills, setIniSki
           <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Skill Proficiencies adicionales</p>
           <span className={`text-xs font-bold ${iniSkills.length === 2 ? 'text-green-600' : 'text-gray-400'}`}>{iniSkills.length}/2</span>
         </div>
-        <p className="text-[11px] text-gray-400 mb-2">Elige 2 habilidades.</p>
+        <p className="text-[11px] text-gray-400 mb-2">
+          Elige 2 habilidades. En verde claro, las que ya tienes; en verde, las que vas a elegir.
+        </p>
         <div className="grid grid-cols-2 gap-1.5">
           {opciones.map(s => {
             const sel = iniSkills.includes(s.skill_name)
+            const previa = yaTiene(s.skill_name)
             return (
-              <button key={s.skill_id} onClick={() => toggle(s.skill_name)}
+              <button key={s.skill_id} onClick={() => toggle(s.skill_name)} disabled={previa}
+                title={previa ? 'Ya tienes esta proficiencia' : undefined}
                 className={`flex items-center justify-between gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                  sel ? 'bg-red-600 border-red-600 text-white' : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'}`}>
+                  previa ? 'bg-green-100 border-green-200 text-green-800 cursor-not-allowed'
+                  : sel ? 'bg-green-600 border-green-600 text-white'
+                  : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'}`}>
                 <span className="truncate">{s.skill_name}</span>
-                {sel && <Check size={12} className="shrink-0" />}
+                {(sel || previa) && <Check size={12} className="shrink-0" />}
               </button>
             )
           })}
@@ -835,7 +889,10 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const [nombre,      setNombre]      = useState('')
   const [stats,       setStats]       = useState(EMPTY_STATS)
   const [statsMode,   setStatsMode]   = useState(null) // 'azar' | 'predeterminados'
-  const [iniSkills,   setIniSkills]   = useState([]) // 2 skill proficiencies iniciales
+  const [specList,    setSpecList]    = useState([])
+  const [specLoading, setSpecLoading] = useState(true)
+  const [spec,        setSpec]        = useState(null) // especialización elegida
+  const [iniSkillsRaw, setIniSkills]   = useState([]) // 2 skill proficiencies iniciales
   const [animalHandling, setAnimalHandling] = useState(false) // prof base al entrar a Iniciales
   const [equipoChoice, setEquipoChoice] = useState(null) // paquete elegido (361/362/363)
   const [pokedollarsRoll, setPokedollarsRoll] = useState('') // resultado 4d4
@@ -863,6 +920,11 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const [error,       setError]       = useState('')
 
   useEffect(() => {
+    apiFetch('/specializations?limit=200').then(r => r.json()).then(d => setSpecList(d.data ?? []))
+      .catch(() => {}).finally(() => setSpecLoading(false))
+  }, [])
+
+  useEffect(() => {
     apiFetch('/skills').then(r => r.json()).then(d => setSkillsList(Array.isArray(d) ? d : [])).catch(() => {})
     apiFetch('/armor-types?limit=200').then(r => r.json()).then(d => setArmorList(Array.isArray(d.data) ? d.data : [])).catch(() => {})
     apiFetch('/weapon-types?limit=500').then(r => r.json()).then(d => setWeaponList(Array.isArray(d.data) ? d.data : [])).catch(() => {})
@@ -876,14 +938,6 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
       ? [...statVals].sort((a, b) => a - b).join() === [...STANDARD_ARRAY].sort((a, b) => a - b).join()
       : false
 
-  const canNext =
-    step === 0 ? nombre.trim().length > 0 :
-    step === 1 ? !!origin :
-    step === 2 ? !!background :
-    step === 3 ? statsValid :
-    step === 4 ? iniSkills.length === 2 :
-    step === 5 ? (equipoChoice !== null && pokedollarsRoll !== '' && Number(pokedollarsRoll) > 0) :
-    detalles.length >= MIN_DETALLES // Detalles (último)
   const isLast  = step === STEPS.length - 1
 
   const isAnyOrigin = (o) =>
@@ -985,8 +1039,13 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   for (const k of Object.keys(bgStats)) {
     if (k in EMPTY_STATS) bonus[k] = (bonus[k] || 0) + bgStats[k]
   }
+  // El bono de la especialidad se muestra pero no entra en `bonus`: el backend
+  // lo persiste como bono de la especialidad, no como stats_bonus.
+  const specStatKey = spec?.specialization_ability_score_increase
+    ? `personaje_${spec.specialization_ability_score_increase.toLowerCase().slice(0, 3)}` : null
   const displayStats = Object.fromEntries(
-    Object.keys(EMPTY_STATS).map(k => [k, stats[k] + (bonus[k] || 0)])
+    Object.keys(EMPTY_STATS).map(k => [k, stats[k] + (bonus[k] || 0)
+      + (k === specStatKey ? Number(spec.specialization_ability_score_increase_value ?? 1) : 0)])
   )
 
   // Modifier por habilidad: FLOOR((Ability Score - 10) / 2), sobre la base asignada
@@ -1058,18 +1117,40 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   }
 
   // Skill proficiencies: origen + background (+ feat_bonus) + iniciales
-  const profSkills = [
+  const profSkillsPrevias = [
     ...(origin ? [origin.origin_skill_proficiencies_value_1] : []),
     ...originFeatProfSkills,
     ...(background ? [background.background_skill_proficiencies_value_1, background.background_skill_proficiencies_value_2] : []),
     ...bgFeatProfSkills,
     ...(animalHandling ? ['Animal Handling'] : []),
-    ...iniSkills,
     // Las skills elegidas dentro de Skilled NO van aquí: quedan como bono del
     // feat, igual que cuando se agrega por lápiz. La hoja hace el OR entre
     // personaje_skill_pref y las skills de los feats, así que se ven igual y
     // no queda el mismo dato en dos sitios.
   ].filter(Boolean)
+
+  // Lo que ya tiene ANTES de elegir las 2 iniciales: origen, background y Skilled. La
+  // especialidad va DESPUÉS a propósito: su expertise puede caer en una skill que ya se tiene. El paso Iniciales las pinta y no deja repetirlas.
+  const profPrevias = new Set([
+    ...profSkillsPrevias.map(s => s.toLowerCase()),
+    ...(skilledChoices?.skills || []).map(s => (s || '').toLowerCase()),
+  ])
+  // Si cambiar origen/background vuelve "previa" una inicial ya
+  // elegida, deja de contar: no puede quedar la misma proficiencia dos veces.
+  const iniSkills = iniSkillsRaw.filter(n => !profPrevias.has(n.toLowerCase()))
+
+  const profSkills = [...profSkillsPrevias, ...iniSkills]
+
+
+  const canNext =
+    step === 0 ? nombre.trim().length > 0 :
+    step === 1 ? !!origin :
+    step === 2 ? !!background :
+    step === 3 ? statsValid :
+    step === 4 ? iniSkills.length === 2 :
+    step === 5 ? !!spec :
+    step === 6 ? (equipoChoice !== null && pokedollarsRoll !== '' && Number(pokedollarsRoll) > 0) :
+    detalles.length >= MIN_DETALLES // Detalles (último)
 
   // ¿El origen o el background otorgan Skilled? Entonces hay que elegir sus 3
   // opciones antes de poder crear.
@@ -1103,6 +1184,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
   const profSkillsVisibles = new Set([
     ...profSkillNames,
     ...(skilledChoices?.skills || []).map(s => (s || '').toLowerCase()),
+    ...(spec?.specialization_skill_proficiency ? [spec.specialization_skill_proficiency.toLowerCase()] : []),
   ])
 
   const handleCreate = async () => {
@@ -1137,6 +1219,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
           personaje_hp: hitPoints,
           saving_throw_prof: 'CHA',
           prof_skills: profSkills,
+          specialization_id: spec?.specialization_id ?? null,
           pokedollars,
           equipo,
           ideales: narrativa.ideales,
@@ -1237,10 +1320,12 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
               skills={skillsList}
               iniSkills={iniSkills}
               setIniSkills={setIniSkills}
+              previas={profPrevias}
               onMount={() => setAnimalHandling(true)}
             />
           )}
-          {step === 5 && (
+          {step === 5 && <SpecStep specs={specList} loading={specLoading} valor={spec?.specialization_id ?? ''} onPick={setSpec} />}
+          {step === 6 && (
             <EquipoStep
               choice={equipoChoice}
               setChoice={setEquipoChoice}
@@ -1248,7 +1333,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
               setRoll={setPokedollarsRoll}
             />
           )}
-          {step === 6 && <DetallesStep detalles={detalles} setDetalles={setDetalles} narrativa={narrativa} setNarrativa={setNarrativa} />}
+          {step === 7 && <DetallesStep detalles={detalles} setDetalles={setDetalles} narrativa={narrativa} setNarrativa={setNarrativa} />}
         </div>
 
         {/* Footer */}
@@ -1438,6 +1523,7 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                 {/* General */}
                 <div>
                   <VRow label="Nombre"      value={nombre} />
+                  <VRow label="Especialidad" value={spec?.specialization_name} />
                   <VRow label="Origen"      value={origin?.origin_name} />
                   <VRow label="Background"  value={background?.background_name} />
                   {background?.background_tool_proficiencies_values && (
@@ -1498,6 +1584,8 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                     if (!(key in displayModifiers)) return null
                     let v = displayModifiers[key]
                     if (profSet.has((sk.skill_name || '').toLowerCase())) v += PROF_INICIAL
+                    // La especialidad da expertise: el bono de proficiencia cuenta doble
+                    if ((spec?.specialization_skill_proficiency || '').toLowerCase() === (sk.skill_name || '').toLowerCase()) v += PROF_INICIAL
                     return v
                   }
                   const half = Math.ceil(skillsList.length / 2)
@@ -1516,9 +1604,10 @@ export default function CharacterWizard({ idPartida, onClose, onCreated }) {
                               {col.map((sk, i) => {
                                 const v = skillVal(sk)
                                 const pref = profSet.has((sk.skill_name || '').toLowerCase())
+                                const expert = (spec?.specialization_skill_proficiency || '').toLowerCase() === (sk.skill_name || '').toLowerCase()
                                 return (
                                   <div key={i} className="flex items-center gap-1.5">
-                                    <ReadCheck checked={false} />
+                                    <ReadCheck checked={expert} />
                                     <ReadCheck checked={pref} />
                                     <span className={`w-7 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
                                       v != null && v < 0 ? 'text-red-600' : 'text-gray-900'}`}>

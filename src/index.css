@@ -203,7 +203,18 @@ body {
   animation: summon-pokemon 0.7s 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+/* Luz del terreno: las franjas recorren una vuelta del patrón y vuelven a
+   empezar sin salto, como un cilindro girando. */
+@keyframes terreno-giro {
+  from { background-position: 0 0; }
+  to   { background-position: var(--tile, 8px) 0; }
+}
+.animate-terreno-giro {
+  animation: terreno-giro 1.6s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .animate-terreno-giro { animation: none; }
   .animate-pokeball-idle { animation: none; }
   .animate-pokeball-throw { animation-duration: 0.3s; }
   .animate-pokeball-wobble { animation: none; }

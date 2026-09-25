@@ -28,6 +28,7 @@ import PokeballSpinner from './PokeballSpinner'
 import { POKEBALL_SPRITE, TYPE_COLORS, COUNTER_EVENTS, TONE } from '../lib/partidaShared'
 import { PokemonHpCard, NpcHpCard } from './partida/PokemonHpCard'
 import { MasterNpcFieldPanel } from './partida/MasterNpcFieldPanel'
+import { TerrenosMasivoPanel } from './partida/TerrenosMasivoPanel'
 import { MasterPokemonFieldPanel } from './partida/MasterPokemonFieldPanel'
 import { MasterSendMessage } from './partida/MasterSendMessage'
 import { EventosPanel } from './partida/EventosPanel'
@@ -98,6 +99,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const logEndRef   = useRef(null)
 
   const [showParty, setShowParty]   = useState(false)
+  const [terrenoTick, setTerrenoTick] = useState(0) // el máster no recibe su propio party_update
   const [showMapa, setShowMapa]     = useState(false)
   const [showNotas, setShowNotas]   = useState(false)
   const [logOpen, setLogOpen]       = useState(true)
@@ -135,7 +137,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
+  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
 
   // ── Atrapar Pokémon: pokébolas del trainer, panel de lanzamiento y animación ──
   const [pokeballs, setPokeballs]   = useState([])   // items tipo pokeball con cantidad > 0
@@ -163,13 +165,16 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   }, [id, setMapaPin])
 
   // El orden de turno se consulta al entrar por lo mismo que el pin: el
-  // broadcast solo alcanza a quien ya estaba conectado.
+  // broadcast solo alcanza a quien ya estaba conectado. setIniciativaLocal
+  // (y no el setIniciativa a secas) porque también tiene que dejar bien
+  // iniciativaRef: si no, el master que recarga reenvía un "vacío" viejo en
+  // cuanto otro se conecta, y le borra la barra de turno a los entrenadores.
   useEffect(() => {
     if (!id) return
     apiFetch(`/partida/${id}/iniciativa`).then(r => r.json())
-      .then(d => setIniciativa(d?.iniciativa ?? null))
+      .then(d => setIniciativaLocal(d?.iniciativa ?? null))
       .catch(() => {})
-  }, [id, setIniciativa])
+  }, [id, setIniciativaLocal])
 
   // Terminar el turno propio. La regla de quién puede la aplica el servidor;
   // aquí solo se difunde lo que respondió.
@@ -998,7 +1003,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onToggleHidden={handleNpcToggleHidden}
                 onAttack={handleNpcAttack}
               />
-              <EdicionJugadoresPanel partidaId={id} presentes={presentes} partyVersion={partyUpdatedAt} onAfterChange={sendPartyUpdate} />
+              <TerrenosMasivoPanel partidaId={id} onAfterChange={() => { sendPartyUpdate(); setTerrenoTick(t => t + 1) }} />
+              <EdicionJugadoresPanel partidaId={id} presentes={presentes} partyVersion={`${partyUpdatedAt}-${terrenoTick}`}
+                invocados={invocados} onAfterChange={sendPartyUpdate} />
               <EventosPanel onBackground={sendBackground} partidaId={id} onUnlock={startEvent}
                 counterCfg={counterCfg} counters={counters} onCounter={changeCounter}
                 onLuchar={(players) => sendFight(players.map(p => ({ id_personaje: p.id_personaje, nombre: p.nombre_personaje || 'Sin nombre', user_id: p.user_id })))}
@@ -1155,7 +1162,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           partidaId={id}
           presentes={presentes}
           selfUserId={user?.user_id}
-          partyVersion={partyUpdatedAt}
+          partyVersion={`${partyUpdatedAt}-${terrenoTick}`}
           hideHp={!isMaster}
           invocados={invocados}
           onClose={() => setShowParty(false)}

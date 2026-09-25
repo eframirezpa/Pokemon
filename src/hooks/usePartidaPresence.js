@@ -370,6 +370,19 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'iniciativa', payload: { iniciativa: ini ?? null } })
   }, [])
 
+  // Para rehidratar desde la BD al conectarse (mismo motivo que
+  // setPokemonsLocal/setNpcsLocal): si esto NO actualizara también el ref, el
+  // master que recarga se queda con iniciativaRef.current en null aunque su
+  // pantalla muestre bien la ronda -el ref solo lo tocaban sendIniciativa y el
+  // handler de broadcast, nunca esta rehidratación-. La próxima vez que
+  // alguien se conectara, el "reenvío al que se une" (líneas de arriba) le
+  // mandaba ese null a toda la mesa y le borraba la barra de turno a los
+  // entrenadores. Bug real, visto en una partida en curso el 2026-09-20.
+  const setIniciativaLocal = useCallback((ini) => {
+    iniciativaRef.current = ini ?? null
+    setIniciativa(ini ?? null)
+  }, [])
+
   const sendMapaPin = useCallback((pin) => {
     setMapaPin(pin ?? null)
     channelRef.current?.send({ type: 'broadcast', event: 'mapa_pin', payload: { pin: pin ?? null } })
@@ -388,5 +401,5 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'iniciativa_swap_respuesta', payload })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
+  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa, setIniciativaLocal, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
 }

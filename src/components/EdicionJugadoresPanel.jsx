@@ -5,26 +5,47 @@ import { apiFetch } from '../api'
 /* Panel del master (acordeón) para editar jugadores conectados.
    Por ahora solo muestra el listado + un check que representa personaje_is_editable.
    onAfterChange: se llama tras cambiar el flag (para avisar a los trainers vía party_update). */
-export default function EdicionJugadoresPanel({ partidaId, presentes = [], partyVersion, onAfterChange }) {
+/* Selector de terreno: "Ninguno" o alguno del catálogo */
+function SelectTerreno({ value, terrenos, onChange, disabled }) {
+  return (
+    <select value={value || ''} onChange={e => onChange(e.target.value || null)} disabled={disabled}
+      title="Terreno"
+      className="text-[11px] text-gray-100 bg-gray-700 border border-gray-600 rounded-md px-1.5 py-0.5 max-w-[8.5rem]
+                 focus:outline-none focus:ring-1 focus:ring-amber-400 disabled:opacity-50">
+      <option value="">Sin terreno</option>
+      {terrenos.map(t => <option key={t} value={t}>{t}</option>)}
+    </select>
+  )
+}
+
+export default function EdicionJugadoresPanel({ partidaId, presentes = [], partyVersion, onAfterChange, invocados = {} }) {
   const [open, setOpen] = useState(false)
   const [editable, setEditable] = useState({}) // personaje_id → bool
   const [inspirado, setInspirado] = useState({}) // personaje_id → bool
   const [nombres, setNombres] = useState({})   // personaje_id → nombre del personaje
   const [saving, setSaving] = useState(null)    // personaje_id que se está guardando
+  const [terrenos, setTerrenos] = useState([])  // catálogo de terrenos
+  const [party, setParty] = useState({})        // personaje_id → { terreno, pokemons }
+
+  useEffect(() => {
+    apiFetch('/partida/terrenos').then(r => r.json()).then(d => setTerrenos(Array.isArray(d) ? d : [])).catch(() => {})
+  }, [])
 
   const reload = useCallback(() => {
     return apiFetch(`/personaje/party?id_partida=${partidaId}`)
       .then(r => r.json())
       .then(list => {
-        const map = {}, insp = {}, nom = {}
+        const map = {}, insp = {}, nom = {}, par = {}
         for (const c of (Array.isArray(list) ? list : [])) {
           map[String(c.id_personaje)] = !!c.personaje_is_editable
           insp[String(c.id_personaje)] = !!c.personaje_inspirado
           nom[String(c.id_personaje)] = c.nombre_personaje
+          par[String(c.id_personaje)] = { terreno: c.personaje_terreno ?? null, pokemons: c.pokemons || [] }
         }
         setEditable(map)
         setInspirado(insp)
         setNombres(nom)
+        setParty(par)
       })
       .catch(() => {})
   }, [partidaId])
@@ -81,6 +102,26 @@ export default function EdicionJugadoresPanel({ partidaId, presentes = [], party
     }
   }
 
+  // Terreno del entrenador o de su Pokémon: optimista, y se revierte si falla.
+  const ponerTerreno = async (tipo, personaje_id, idpp, terreno) => {
+    const key = String(personaje_id)
+    const antes = party
+    setParty(prev => {
+      const c = prev[key]; if (!c) return prev
+      return { ...prev, [key]: tipo === 'personaje'
+        ? { ...c, terreno }
+        : { ...c, pokemons: c.pokemons.map(p => String(p.id_personaje_pokemon) === String(idpp) ? { ...p, personaje_pokemon_terreno: terreno } : p) } }
+    })
+    try {
+      const ruta = tipo === 'personaje' ? `personaje/${personaje_id}` : `pokemon/${idpp}`
+      const res = await apiFetch(`/partida/${partidaId}/terreno/${ruta}`, { method: 'PATCH', body: JSON.stringify({ terreno }) })
+      if (!res.ok) throw new Error()
+      onAfterChange?.()
+    } catch {
+      setParty(antes)
+    }
+  }
+
   return (
     <div className="shrink-0 px-4 pt-3">
       <button onClick={() => setOpen(o => !o)}
@@ -98,14 +139,21 @@ export default function EdicionJugadoresPanel({ partidaId, presentes = [], party
             const key = String(p.personaje_id)
             const on = !!editable[key]
             const insp = !!inspirado[key]
+            const datos = party[key]
+            const invId = key in invocados ? invocados[key] : p.pokemon_invocado
+            const pokemon = invId != null
+              ? (datos?.pokemons || []).find(x => String(x.id_personaje_pokemon) === String(invId)) : null
             return (
-              <div key={key} className="flex items-center justify-between gap-2 px-3 py-2">
+              <div key={key}>
+              <div className="flex items-center justify-between gap-x-2 gap-y-1.5 px-3 py-2 flex-wrap">
                 {/* Se muestra el nombre del personaje; el del usuario solo como
                     respaldo mientras carga el listado de la partida. */}
                 <span className="text-sm text-gray-100 truncate">
                   {nombres[key] || p.user_name || 'Jugador'}
                 </span>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+                  <SelectTerreno value={datos?.terreno} terrenos={terrenos} disabled={!datos}
+                    onChange={t => ponerTerreno('personaje', p.personaje_id, null, t)} />
                   <label className="flex items-center gap-1.5 cursor-pointer select-none">
                     <span className="text-[10px] font-bold text-gray-400 uppercase">Editable</span>
                     <button onClick={() => toggle(p.personaje_id)} disabled={saving === `${p.personaje_id}-editable`}
@@ -125,6 +173,18 @@ export default function EdicionJugadoresPanel({ partidaId, presentes = [], party
                     </button>
                   </label>
                 </div>
+              </div>
+              {/* El Pokémon invocado, justo debajo de su entrenador */}
+              {pokemon && (
+                <div className="flex items-center justify-between gap-2 pl-7 pr-3 py-1.5 bg-gray-900/30">
+                  <span className="text-xs text-gray-300 truncate">
+                    <span className="text-gray-500 mr-1">↳</span>
+                    {pokemon.pokemon_apodo} <span className="text-gray-500">({nombres[key] || p.user_name || 'Jugador'})</span>
+                  </span>
+                  <SelectTerreno value={pokemon.personaje_pokemon_terreno} terrenos={terrenos}
+                    onChange={t => ponerTerreno('pokemon', p.personaje_id, pokemon.id_personaje_pokemon, t)} />
+                </div>
+              )}
               </div>
             )
           })}

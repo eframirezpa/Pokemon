@@ -4,6 +4,7 @@ import { apiFetch } from '../api'
 import { EstadosChips } from './EstadosControl'
 import { AuraInspirado } from './InspiradoAura'
 import LoadingOverlay from './LoadingOverlay'
+import TerrenoPiso from './TerrenoPiso'
 
 const hpPct   = (cur, max) => Math.max(0, Math.min(100, Math.round(((cur ?? max ?? 0) / (max || 1)) * 100)))
 const hpColor = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
@@ -56,9 +57,12 @@ function PartyPokemon({ p, hideHp, onClick }) {
     <div onClick={onClick} title={onClick ? 'Ver detalle del Pokémon' : undefined}
       className={`flex items-center gap-[5px] border border-gray-700 rounded-[7px] p-[5px] shrink-0 w-[151px] ${bleedClass(pct)}
         ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
-      <img src={sprite} alt={p.pokemon_apodo}
-        className="w-[31px] h-[31px] object-contain bg-white rounded-[5px] shrink-0 border border-gray-300"
-        onError={e => { e.target.style.opacity = '0.2' }} />
+      <div className="flex flex-col items-center gap-[2px] shrink-0">
+        <img src={sprite} alt={p.pokemon_apodo}
+          className="w-[31px] h-[31px] object-contain bg-white rounded-[5px] border border-gray-300"
+          onError={e => { e.target.style.opacity = '0.2' }} />
+        <TerrenoPiso terreno={p.personaje_pokemon_terreno} width={31} />
+      </div>
       <div className="flex-1 min-w-0">
         <p className="font-bold text-gray-900 text-[7px] truncate">{p.pokemon_apodo}</p>
         <HpBar cur={p.pokemon_current_hp} max={p.pokemon_hp} showNumbers={!hideHp} />
@@ -91,7 +95,8 @@ export function PlayerCard({ char: c, pres, invId, hideHp, onCharClick, onPokemo
           title={onCharClick ? 'Ver ficha del personaje' : undefined}
           className={`flex items-center gap-[5px] rounded-[7px] p-[5px] border border-gray-700 shrink-0 w-[151px] ${bleedClass(pct)}
             ${onCharClick ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
-          <div className="relative shrink-0">
+          <div className="flex flex-col items-center gap-[2px] shrink-0">
+          <div className="relative">
             {/* El aura va afuera del círculo: el círculo recorta con
                 overflow-hidden y se comería el resplandor, que es más
                 grande que el avatar a propósito. */}
@@ -101,6 +106,8 @@ export function PlayerCard({ char: c, pres, invId, hideHp, onCharClick, onPokemo
                 ? <img src={pres.avatar_face_url} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
                 : <span className="text-[9px] font-black text-gray-600">{initials}</span>}
             </div>
+          </div>
+          <TerrenoPiso terreno={c.personaje_terreno} width={31} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-gray-900 text-[9px] truncate">{c.nombre_personaje || 'Sin nombre'}</p>

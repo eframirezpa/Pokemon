@@ -19,8 +19,9 @@ import PokeballsIcon from '../components/PokeballsIcon'
 import HeldItemsModal from '../components/HeldItemsModal'
 import { buildProfs } from '../lib/profs'
 import { construirSkillsTrainer } from '../lib/trainerStats'
-import { EstadoTrigger, EstadosChips, EstadosPopup } from '../components/EstadosControl'
+import { EstadosChips, EstadosPopup } from '../components/EstadosControl'
 import { AuraInspirado, InspiradoInfoPopup } from '../components/InspiradoAura'
+import TerrenoPiso from '../components/TerrenoPiso'
 import PokeballSpinner from '../components/PokeballSpinner'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { acDelTrainer, ICONO_REDONDO } from '../lib/trainerCombatShared'
@@ -110,6 +111,7 @@ export default function TrainerPartida() {
   // mitad de ESTE tamaño: se leen como una marca discreta, no como otro botón.
   const estadoIconSize = isMonitor ? 33 : 22
   const estadoChipSize = estadoIconSize / 2
+  const [miParty, setMiParty] = useState(null) // mi entrada en la party: trae los terrenos
   const [estadosPopup, setEstadosPopup] = useState(null) // 'trainer' | 'pokemon' | null
   useEffect(() => {
     const mq = window.matchMedia('(hover: hover) and (pointer: fine)')
@@ -131,6 +133,27 @@ export default function TrainerPartida() {
       })
       .catch(() => {})
   }, [personajeId, partyVersion])
+
+  // Terreno propio y del Pokémon invocado: lo pone el máster, así que se relee
+  // con cada party_update. Sale de la party porque ahí ya vienen los dos.
+  useEffect(() => {
+    if (!personajeId || !id) return
+    apiFetch(`/personaje/party?id_partida=${id}`)
+      .then(r => r.json())
+      .then(list => {
+        const yo = Array.isArray(list) ? list.find(c => String(c.id_personaje) === String(personajeId)) ?? null : null
+        setMiParty(yo)
+        // Los estados también salen de aquí: sin esto solo se cargaban al abrir
+        // el panel de combate, y tras un refresco quedaban ocultos hasta entonces.
+        setCharEstados(yo?.personaje_estados ?? null)
+        const pk = (yo?.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(pokemonInvocado))
+        setPokeEstados(pk?.personaje_pokemon_estados ?? null)
+      })
+      .catch(() => {})
+  }, [personajeId, id, partyVersion, pokemonInvocado])
+  const terrenoTrainer = miParty?.personaje_terreno ?? null
+  const terrenoPokemon = (miParty?.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(pokemonInvocado))?.personaje_pokemon_terreno ?? null
+  const avatarPx = isMonitor ? 66 : 44
 
   // Mejoras pendientes por subida de nivel: se muestran al entrar y tras subir experiencia
   const refreshPending = () => {
@@ -876,14 +899,12 @@ export default function TrainerPartida() {
             y por debajo de los modales, que empiezan en z-50. */}
         {!hideBottomIcons && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[48] flex items-end justify-center gap-10">
-          {/* Carita de estados + avatar: la carita queda a la izquierda del
-              entrenador y a la derecha del Pokémon, pero los estados ya
-              puestos se centran solo bajo su propio avatar, no bajo el par
-              carita+avatar completo. */}
+          {/* Los estados puestos van encima de cada avatar; el botón para
+              cambiarlos vive en el panel de combate, junto al de fórmula. */}
           {user?.avatar_face_url && (
             <div className="flex items-end gap-1.5">
-              <EstadoTrigger size={estadoIconSize} onClick={() => setEstadosPopup('trainer')} title="Estados del entrenador" />
               <div className="flex flex-col items-center gap-1">
+                <EstadosChips estados={charEstados} iconPx={estadoChipSize} />
                 <div className="relative">
                   {/* El aviso (el signo de información) vive en el panel de
                       combate, junto al botón de fórmula; aquí solo queda el
@@ -895,20 +916,20 @@ export default function TrainerPartida() {
                       className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
                   </button>
                 </div>
-                <EstadosChips estados={charEstados} iconPx={estadoChipSize} />
+                <TerrenoPiso terreno={terrenoTrainer} width={avatarPx} reservar={!!(terrenoTrainer || terrenoPokemon)} />
               </div>
             </div>
           )}
           {pokemonInvocado && invocadoSprite && (
             <div className="flex items-end gap-1.5">
               <div className="flex flex-col items-center gap-1">
+                <EstadosChips estados={pokeEstados} iconPx={estadoChipSize} />
                 <button onClick={openPokemonControl} className="transition-transform hover:scale-105" title="Controlar Pokémon">
                   <img src={invocadoSprite} alt="Pokémon invocado"
                     className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
                 </button>
-                <EstadosChips estados={pokeEstados} iconPx={estadoChipSize} />
+                <TerrenoPiso terreno={terrenoPokemon} width={avatarPx} reservar={!!(terrenoTrainer || terrenoPokemon)} />
               </div>
-              <EstadoTrigger size={estadoIconSize} onClick={() => setEstadosPopup('pokemon')} title="Estados del Pokémon" />
             </div>
           )}
         </div>
@@ -1133,6 +1154,8 @@ export default function TrainerPartida() {
           personajeId={personajeId}
           inspirado={isInspirado}
           onInspiradoInfo={() => setShowInspiradoInfo(true)}
+          onEstados={() => setEstadosPopup('trainer')}
+          estadosTitle="Estados del entrenador"
           onPersist={persistChar}
           onClose={closeControl}
         />
@@ -1231,6 +1254,8 @@ export default function TrainerPartida() {
           switchLabel="Ir al entrenador"
           onSwitch={openTrainerControl}
           onHeldItems={() => setHeldOpen(true)}
+          onEstados={() => setEstadosPopup('pokemon')}
+          estadosTitle="Estados del Pokémon"
           attackBonos={pokeData.attack_bonos || []}
           recursosTrainer={recursos}
           recursosFeat={recursosFeat}

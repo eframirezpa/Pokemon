@@ -7,6 +7,7 @@ import TypeEffectivenessView from '../TypeEffectivenessView'
 import ItemsPanel from '../ItemsPanel'
 import WeaponPanel from '../WeaponPanel'
 import { InspiradoInfoButton } from '../InspiradoAura'
+import { EstadoTrigger } from '../EstadosControl'
 import { ICONO_REDONDO } from '../../lib/trainerCombatShared'
 
 const hpColorPct = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
@@ -213,7 +214,7 @@ function AcordeonPath({ rasgos, className = '' }) {
 }
 
 export function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, onAtaque = null, recursosFeat = [],
-                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond, inspirado = false, onInspiradoInfo = null }) {
+                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond, inspirado = false, onInspiradoInfo = null, onEstados = null, estadosTitle = 'Estados' }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -318,6 +319,9 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
             {inspirado && onInspiradoInfo && (
               <InspiradoInfoButton size={26} overlay={false} onClick={onInspiradoInfo} />
             )}
+
+            {/* Estados alterados: a la derecha del botón de fórmula */}
+            {onEstados && <EstadoTrigger size={26} onClick={onEstados} title={estadosTitle} />}
 
             {/* Grupo pegado al borde derecho, bajo la X de cerrar: los objetos
                 equipados y, a su derecha, el salto al otro panel. ml-auto va en
