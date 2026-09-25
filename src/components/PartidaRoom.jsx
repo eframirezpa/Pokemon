@@ -980,7 +980,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
               convivía con la zona de contenido de abajo, que para el master queda
               vacía (todo lo suyo es !isMaster) y aun así se llevaba el alto sobrante. */}
           {isMaster && (
-            <div className="flex-1 overflow-y-auto pb-3">
+            <div className="flex-1 overflow-y-auto pb-3 pl-14">
               <MasterPokemonFieldPanel
                 pokemons={activePokemons}
                 max={MAX_POKEMON}
