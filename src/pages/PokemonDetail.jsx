@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react'
 import { apiFetch } from '../api'
+import { claveMove } from '../lib/moveName'
 
 /* ─────────────────── helpers ─────────────────── */
 const TYPE_COLORS = {
@@ -117,7 +118,7 @@ function MoveRow({ move }) {
 function MovesSection({ title, moveNames, movesMap }) {
   const [open, setOpen] = useState(false)
   if (!moveNames || moveNames.length === 0) return null
-  const moves = moveNames.map(n => movesMap[n.toLowerCase()]).filter(Boolean)
+  const moves = moveNames.map(n => movesMap[claveMove(n)]).filter(Boolean)
 
   return (
     <div className="mb-4">
@@ -274,7 +275,7 @@ export default function PokemonDetail() {
         setEvols(Array.isArray(evolData) ? evolData : (evolData.value ?? []))
         const movMap = {}
         for (const m of (movData.data ?? [])) {
-          movMap[m.move_name.toLowerCase()] = m
+          movMap[claveMove(m.move_name)] = m
         }
         setMovesMap(movMap)
         const tmMap = {}

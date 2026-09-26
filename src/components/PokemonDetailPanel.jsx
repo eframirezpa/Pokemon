@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { X, Sparkles, ChevronRight, ChevronLeft, ExternalLink, Check } from 'lucide-react'
 import { apiFetch } from '../api'
 import MoveInfoModal from './MoveInfoModal'
+import { claveMove } from '../lib/moveName'
 
 /* ── helpers (mismos que PokemonDetail) ── */
 const TYPE_COLORS = {
@@ -61,7 +62,7 @@ function TypeRow({ label, types }) {
 function MovesSection({ title, moveNames, movesMap, onMoveClick }) {
   const [open, setOpen] = useState(false)
   if (!moveNames?.length) return null
-  const moves = moveNames.map(n => movesMap[n.toLowerCase()]).filter(Boolean)
+  const moves = moveNames.map(n => movesMap[claveMove(n)]).filter(Boolean)
   return (
     <div className="mb-3">
       <button onClick={() => setOpen(o => !o)}
@@ -192,7 +193,7 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose, 
       setPk(pkData)
       setEvols(Array.isArray(evolData) ? evolData : (evolData.value ?? []))
       const mm = {}
-      for (const m of (movData.data ?? [])) mm[m.move_name.toLowerCase()] = m
+      for (const m of (movData.data ?? [])) mm[claveMove(m.move_name)] = m
       setMoves(mm)
       const tm = {}
       for (const t of (tmData.data ?? [])) tm[t.tm_number] = t
