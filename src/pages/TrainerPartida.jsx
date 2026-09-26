@@ -111,6 +111,7 @@ export default function TrainerPartida() {
   // mitad de ESTE tamaño: se leen como una marca discreta, no como otro botón.
   const estadoIconSize = isMonitor ? 33 : 22
   const estadoChipSize = estadoIconSize / 2
+  const [tickParty, setTickParty] = useState(0) // fuerza releer mi party (estados, terreno) tras usar un item
   const [miParty, setMiParty] = useState(null) // mi entrada en la party: trae los terrenos
   const [estadosPopup, setEstadosPopup] = useState(null) // 'trainer' | 'pokemon' | null
   useEffect(() => {
@@ -150,7 +151,7 @@ export default function TrainerPartida() {
         setPokeEstados(pk?.personaje_pokemon_estados ?? null)
       })
       .catch(() => {})
-  }, [personajeId, id, partyVersion, pokemonInvocado])
+  }, [personajeId, id, partyVersion, pokemonInvocado, tickParty])
   const terrenoTrainer = miParty?.personaje_terreno ?? null
   const terrenoPokemon = (miParty?.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(pokemonInvocado))?.personaje_pokemon_terreno ?? null
   const avatarPx = isMonitor ? 66 : 44
@@ -450,6 +451,46 @@ export default function TrainerPartida() {
     } catch { /* si falla, se queda donde estaba en vez de dejar el hueco */ }
     finally { setCargandoPanel(null) }
   }
+
+  // Tras usar un item (HP o PP): avisa a la party y, si fue sobre mi Pokémon
+  // invocado, relee sus movimientos y HP. El panel los tenía cargados al abrirse
+  // y no los volvía a pedir, así que los PP recuperados solo se veían al recargar.
+  const alCurar = (_r, obj) => {
+    partidaApiRef.current?.sendPartyUpdate?.()
+    setTickParty(t => t + 1)
+    if (obj?.tipo !== 'pokemon' || String(obj.id_personaje) !== String(personajeId)
+        || String(obj.id_personaje_pokemon) !== String(pokemonInvocado)) return
+    apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}`).then(r => r.json())
+      .then(d => setPokeData(p => p && ({
+        ...p,
+        moves: Array.isArray(d.moves) ? d.moves : p.moves,
+        hp: d.pokemon_current_hp ?? p.hpMax ?? p.hp,
+      })))
+      .catch(() => {})
+  }
+
+  // Si otro jugador (o el máster) cura o cambia mis HP/PP mientras tengo un panel
+  // abierto, ese panel sigue con lo que cargó al abrirse. Cada party_update relee
+  // solo el HP (del entrenador) o los PP y el HP (del Pokémon) del panel abierto.
+  const controlRef = useRef({ openControl: null, pokemonInvocado: null })
+  useEffect(() => { controlRef.current = { openControl, pokemonInvocado } })
+  useEffect(() => {
+    if (!personajeId || !partyVersion) return
+    const { openControl: abierto, pokemonInvocado: idpp } = controlRef.current
+    if (abierto === 'trainer') {
+      apiFetch(`/personaje/${personajeId}`).then(r => r.json())
+        .then(d => setCharData(p => p && ({ ...p, hp: d?.personaje_current_hp ?? p.hpMax ?? p.hp })))
+        .catch(() => {})
+    } else if (abierto === 'pokemon' && idpp) {
+      apiFetch(`/personaje/${personajeId}/pokemon/${idpp}`).then(r => r.json())
+        .then(d => setPokeData(p => p && ({
+          ...p,
+          moves: Array.isArray(d.moves) ? d.moves : p.moves,
+          hp: d.pokemon_current_hp ?? p.hpMax ?? p.hp,
+        })))
+        .catch(() => {})
+    }
+  }, [partyVersion, personajeId])
 
   // Abrir control del Pokémon invocado
   const openPokemonControl = async () => {
@@ -1155,6 +1196,9 @@ export default function TrainerPartida() {
           inspirado={isInspirado}
           onInspiradoInfo={() => setShowInspiradoInfo(true)}
           onEstados={() => setEstadosPopup('trainer')}
+          partidaId={id}
+          getPresentes={() => partidaApiRef.current?.getPresentes?.() ?? []}
+          onCurado={alCurar}
           estadosTitle="Estados del entrenador"
           onPersist={persistChar}
           onClose={closeControl}
@@ -1277,6 +1321,9 @@ export default function TrainerPartida() {
           onSpendHitDice={() => gastarDado('hd-poke')}
           onManageHitDice={() => abrirLapizDados('hd-poke')}
           personajeId={personajeId}
+          partidaId={id}
+          getPresentes={() => partidaApiRef.current?.getPresentes?.() ?? []}
+          onCurado={alCurar}
           onPersist={persistPoke}
           onReturn={returnPokemon}
           onClose={closeControl}

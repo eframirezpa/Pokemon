@@ -9,6 +9,7 @@ import IntroDev from './components/IntroDev'
 // Todo lo demás va perezoso: cada página se baja en su propio chunk solo
 // cuando se visita, en vez de sumarse al bundle inicial. Home y el shell
 // (Layout/ProtectedRoute/IntroDev) van eager porque los pisa cualquier visita.
+import ErrorBoundary from './components/ErrorBoundary'
 const PokemonList          = lazy(() => import('./pages/PokemonList'))
 const PokemonDetail        = lazy(() => import('./pages/PokemonDetail'))
 const ItemsList            = lazy(() => import('./pages/ItemsList'))
@@ -37,6 +38,7 @@ export default function App() {
       {/* Atajo de desarrollo: ?intro=1 reproduce el intro sobre cualquier
           pantalla. En produccion la rama es falsa y desaparece del bundle. */}
       {import.meta.env.DEV && <IntroDev />}
+      <ErrorBoundary>
       <Suspense fallback={<LoadingOverlay label="Cargando" />}>
       <Routes>
         {/* Páginas con header/footer */}
@@ -86,6 +88,7 @@ export default function App() {
 
       </Routes>
       </Suspense>
+      </ErrorBoundary>
     </BrowserRouter>
   )
 }

@@ -214,7 +214,7 @@ function AcordeonPath({ rasgos, className = '' }) {
 }
 
 export function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, onAtaque = null, recursosFeat = [],
-                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond, inspirado = false, onInspiradoInfo = null, onEstados = null, estadosTitle = 'Estados' }) {
+                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond, inspirado = false, onInspiradoInfo = null, onEstados = null, estadosTitle = 'Estados', partidaId = null, onCurado = null, getPresentes = null }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -619,7 +619,14 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
 
             {/* Items del entrenador: equipo y medicinas, para gastarlos en mesa */}
             {tabPanel === 'items' && personajeId && (
-              <ItemsPanel personajeId={personajeId} />
+              <ItemsPanel personajeId={personajeId} partidaId={partidaId} getPresentes={getPresentes}
+                onCurado={(r, obj) => {
+                  // Si se curó a sí mismo, este panel aún tiene el HP anterior
+                  if (obj.tipo === 'personaje' && String(obj.id_personaje) === String(personajeId)) {
+                    setV(cur => ({ ...cur, hp: r.hp }))
+                  }
+                  onCurado?.(r, obj)
+                }} />
             )}
 
             {/* Arma equipada del entrenador */}

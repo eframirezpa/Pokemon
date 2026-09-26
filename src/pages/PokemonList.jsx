@@ -4,6 +4,7 @@ import PokemonDetailPanel from '../components/PokemonDetailPanel'
 import { apiFetch } from '../api'
 
 const LIMIT = 20
+const SIZES = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan']
 
 const TYPE_COLORS = {
   Normal:   { bg: '#A8A878', dark: false }, Fire:     { bg: '#F08030', dark: false },
@@ -50,6 +51,7 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
   const [search, setSearch]             = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedType, setSelectedType] = useState('')
+  const [selectedSize, setSelectedSize] = useState('')
   const [page, setPage]                 = useState(1)
   const [types, setTypes]               = useState([])
   const [selectedId, setSelectedId]     = useState(null)
@@ -59,7 +61,7 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
   useEffect(() => { onReadyRef.current = onReady })
 
   useEffect(() => {
-    apiFetch('/types').then(r => r.json()).then(d => setTypes(d.value ?? [])).catch(() => {})
+    apiFetch('/types').then(r => r.json()).then(d => setTypes(Array.isArray(d) ? d : (d.value ?? []))).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -73,11 +75,17 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
     setPage(1)
   }
 
+  const handleSizeSelect = (size) => {
+    setSelectedSize(prev => prev === size ? '' : size)
+    setPage(1)
+  }
+
   useEffect(() => {
     setLoading(true)
     const params = new URLSearchParams({ limit: LIMIT, offset: (page - 1) * LIMIT })
     if (debouncedSearch) params.set('search', debouncedSearch)
     if (selectedType)    params.set('type',   selectedType)
+    if (selectedSize)    params.set('size',   selectedSize)
     if (starter)         params.set('starter', '1')
     apiFetch(`/pokemon?${params}`)
       .then(r => r.json())
@@ -86,7 +94,7 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
       // onReadyRef y no onReady: si quien nos monta pasa una función nueva en
       // cada render, tenerla como dependencia relanzaría la consulta en bucle.
       .finally(() => { setLoading(false); onReadyRef.current?.() })
-  }, [debouncedSearch, selectedType, page, starter])
+  }, [debouncedSearch, selectedType, selectedSize, page, starter])
 
   const totalPages = Math.ceil(total / LIMIT)
   const fromItem   = total === 0 ? 0 : (page - 1) * LIMIT + 1
@@ -116,7 +124,7 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
           )}
         </div>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex flex-wrap gap-2">
         <button onClick={() => handleTypeSelect('')}
           className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
             selectedType === '' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
@@ -133,6 +141,21 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
             </button>
           )
         })}
+      </div>
+      {/* Talla: segunda fila, debajo de los tipos */}
+      <div className="flex flex-wrap gap-2 mt-2">
+        <button onClick={() => handleSizeSelect('')}
+          className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+            selectedSize === '' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
+          Todas las tallas
+        </button>
+        {SIZES.map(sz => (
+          <button key={sz} onClick={() => handleSizeSelect(sz)}
+            className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+              selectedSize === sz ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
+            {sz}
+          </button>
+        ))}
       </div>
     </div>
   )
