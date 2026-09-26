@@ -455,8 +455,14 @@ export default function TrainerPartida() {
   // Tras usar un item (HP o PP): avisa a la party y, si fue sobre mi Pokémon
   // invocado, relee sus movimientos y HP. El panel los tenía cargados al abrirse
   // y no los volvía a pedir, así que los PP recuperados solo se veían al recargar.
-  const alCurar = (_r, obj) => {
+  const alCurar = (r, obj, item) => {
     partidaApiRef.current?.sendPartyUpdate?.()
+    // Al log de la partida: quién usó qué, sobre quién y con qué resultado
+    const efecto = r.tipoEfecto === 'estado' ? `curó ${(r.curados || []).join(', ')}`
+      : r.tipoEfecto === 'pp' ? `restauró ${r.restaurado} PP${r.movimientos > 1 ? ` (${r.movimientos} movimientos)` : ''}`
+      : `recuperó ${r.curado} HP`
+    partidaApiRef.current?.registrar?.(
+      `${charNombre || 'Un entrenador'} usó ${item?.item_name || 'un item'} en ${r.objetivo}: ${efecto}`)
     setTickParty(t => t + 1)
     if (obj?.tipo !== 'pokemon' || String(obj.id_personaje) !== String(personajeId)
         || String(obj.id_personaje_pokemon) !== String(pokemonInvocado)) return

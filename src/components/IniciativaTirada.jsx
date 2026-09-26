@@ -44,7 +44,9 @@ export default function IniciativaTirada({ partidaId, personajeId, esMaster, pok
       .then(d => {
         if (cancelado) return
         const { dexMod } = construirSkillsTrainer(d)
-        const conAlert = tieneFeat(d.extra_feats, 'alert')
+        // Alert puede venir de un feat agregado o de la cuna (origen/background, p. ej.
+        // Pilot): esos no están en extra_feats, los otorga el origen y se leen aparte.
+        const conAlert = tieneFeat([...(d.extra_feats || []), d.origin_feat, d.background_feat].filter(Boolean), 'alert')
         const prof = Number(d.personaje_prof) || 0
         setTrainerInfo({ mod: dexMod + (conAlert ? prof : 0), conAlert, prof })
       })

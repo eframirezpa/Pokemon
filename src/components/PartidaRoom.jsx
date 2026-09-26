@@ -437,6 +437,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       // Anuncio de partida: el mensaje del DM, la línea de actividad y el aviso
       // central. Los tres juntos son lo que hace el máster al entregar un
       // Pokémon, y las acciones del trainer deben verse igual.
+      // Solo la línea del log de actividad, sin el aviso central para toda la mesa
+      registrar: (texto) => sendActivity(texto),
       anunciar: (texto, trainer, pokemon) => {
         sendMasterMessage(texto)
         sendActivity(texto)

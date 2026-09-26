@@ -620,12 +620,12 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
             {/* Items del entrenador: equipo y medicinas, para gastarlos en mesa */}
             {tabPanel === 'items' && personajeId && (
               <ItemsPanel personajeId={personajeId} partidaId={partidaId} getPresentes={getPresentes}
-                onCurado={(r, obj) => {
+                onCurado={(r, obj, item) => {
                   // Si se curó a sí mismo, este panel aún tiene el HP anterior
                   if (obj.tipo === 'personaje' && String(obj.id_personaje) === String(personajeId)) {
                     setV(cur => ({ ...cur, hp: r.hp }))
                   }
-                  onCurado?.(r, obj)
+                  onCurado?.(r, obj, item)
                 }} />
             )}
 

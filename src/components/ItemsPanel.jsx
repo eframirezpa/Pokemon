@@ -118,7 +118,7 @@ export default function ItemsPanel({ personajeId, partidaId = null, onCurado = n
         : j.tipoEfecto === 'pp'
         ? `${j.objetivo} recuperó ${j.restaurado} PP`
         : `${j.objetivo} recuperó ${j.curado} HP`)
-      onCurado?.(j, objetivo)
+      onCurado?.(j, objetivo, usando)
       setUsando(null)
     } catch { setError('No se pudo usar el item') }
     finally { setBusy(false) }
