@@ -10,6 +10,8 @@ import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import PartyPanel, { PlayerCard } from './PartyPanel'
+import LoadingOverlay from './LoadingOverlay'
+import PokemonList from '../pages/PokemonList'
 import MoveInfoModal from './MoveInfoModal'
 import CharacterSheet from './CharacterSheet'
 import { PokemonDetailView } from './PokemonBox'
@@ -113,6 +115,13 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [masterMoveInfo, setMasterMoveInfo] = useState(null) // detalle de un movimiento del panel del master
   const [inspectMasterPoke, setInspectMasterPoke] = useState(null) // detalle de un Pokémon del master en el campo
   const [inspectPoke, setInspectPoke]     = useState(null) // { personajeId, idpp } detalle de pokémon (master)
+  // Pokédex abierta desde un Pokémon ya revelado en el campo (trainer/espectador):
+  // pokemon_id de la especie a mostrar. pokedexInspectListo evita el parpadeo
+  // en blanco mientras PokemonList hace su primera consulta, igual que la
+  // Pokédex normal del trainer.
+  const [pokedexInspectId, setPokedexInspectId] = useState(null)
+  const [pokedexInspectLevel, setPokedexInspectLevel] = useState(null) // nivel de ESE ejemplar, para la XP al atrapar
+  const [pokedexInspectListo, setPokedexInspectListo] = useState(false)
   // Detecta celular (no tablet) y su orientación
   const detectDevice = () => {
     if (typeof window === 'undefined') return { phone: false, phoneLandscape: false }
@@ -1039,7 +1048,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
               <div className={`absolute top-4 right-4 z-10 flex gap-2 origin-top-right ${isPhone ? 'scale-[0.65]' : 'scale-100'} ${isPhoneLandscape ? 'flex-row-reverse' : 'flex-col'}`}>
                 {activePokemons.map(p => (
                   <PokemonHpCard key={p.uid} p={p}
-                    onPokeball={hasPokeballs && !p.inBall ? openThrowPanel : null} ballSprite={ballIcon} />
+                    onPokeball={hasPokeballs && !p.inBall ? openThrowPanel : null} ballSprite={ballIcon}
+                    onPokedex={!p.hidden && !p.inBall ? () => { setPokedexInspectListo(false); setPokedexInspectLevel(p.level); setPokedexInspectId(p.pokemon_id) } : null} />
                 ))}
                 {activeNpcs.map(n => <NpcHpCard key={n.uid} n={n} />)}
               </div>
@@ -1364,6 +1374,38 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           onPick={handlePickPokemon}
           onClose={() => setShowPokedex(false)}
         />
+      )}
+
+      {/* Pokédex de un Pokémon invocado por el máster (trainer/espectador): se
+          abre con su ficha de especie ya puesta, igual que si se hubiera
+          buscado a mano. Se monta oculta -invisible mantiene el componente
+          vivo, que es lo que hace falta para que consulte- y la pokébola tapa
+          mientras tanto, igual que la Pokédex normal del trainer. */}
+      {pokedexInspectId != null && (
+        <>
+          {!pokedexInspectListo && (
+            <LoadingOverlay label="Pokédex" onClose={() => setPokedexInspectId(null)} z="z-[75]" />
+          )}
+          <div
+            className={`fixed inset-0 z-[70] flex items-center justify-center p-4 ${
+              pokedexInspectListo ? '' : 'invisible pointer-events-none'}`}
+            style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+            onClick={e => { if (e.target === e.currentTarget) setPokedexInspectId(null) }}
+          >
+            <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl">
+              <button
+                onClick={() => setPokedexInspectId(null)}
+                className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center
+                           rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+                title="Cerrar"
+              >
+                <X size={18} />
+              </button>
+              <PokemonList title="Pokédex" moveDetail initialSelectedId={pokedexInspectId} initialInvokedLevel={pokedexInspectLevel}
+                onReady={() => setPokedexInspectListo(true)} />
+            </div>
+          </div>
+        </>
       )}
     </div>
   )

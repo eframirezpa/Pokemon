@@ -1,8 +1,9 @@
+import { Smartphone } from 'lucide-react'
 import { POKEBALL_SPRITE, hpPct, hpColor } from '../../lib/partidaShared'
 import { TypeBadge, MysteryMark } from './TypeBadge'
 
 /* Tarjeta de vida del Pokémon — vista de trainer/espectador (con imagen) */
-export function PokemonHpCard({ p, onPokeball = null, ballSprite = null }) {
+export function PokemonHpCard({ p, onPokeball = null, ballSprite = null, onPokedex = null }) {
   const pct    = hpPct(p)
   const hidden = !!p.hidden
 
@@ -25,17 +26,32 @@ export function PokemonHpCard({ p, onPokeball = null, ballSprite = null }) {
 
   return (
     <div className="flex items-center gap-2">
-    {/* Pokébola para intentar atrapar — solo si el trainer tiene alguna */}
-    {onPokeball && (
-      <button onClick={() => onPokeball(p)} title={`Lanzar pokébola a ${hidden ? 'este Pokémon' : p.name}`}
-        data-throw-target={p.uid}
-        className="shrink-0 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-400 rounded-full">
-        <img src={ballSprite} alt="Lanzar pokébola"
-          className="w-9 h-9 object-contain animate-pokeball-idle drop-shadow-md"
-          onError={e => { e.target.style.opacity = '0.3' }} />
-      </button>
+    {(onPokeball || onPokedex) && (
+      <div className="flex flex-col items-center gap-1.5 shrink-0">
+        {/* Pokébola para intentar atrapar — solo si el trainer tiene alguna */}
+        {onPokeball && (
+          <button onClick={() => onPokeball(p)} title={`Lanzar pokébola a ${hidden ? 'este Pokémon' : p.name}`}
+            data-throw-target={p.uid}
+            className="transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-400 rounded-full">
+            <img src={ballSprite} alt="Lanzar pokébola"
+              className="w-9 h-9 object-contain animate-pokeball-idle drop-shadow-md"
+              onError={e => { e.target.style.opacity = '0.3' }} />
+          </button>
+        )}
+        {/* Ver en la Pokédex — solo cuando ya se reveló de qué especie es */}
+        {onPokedex && (
+          <button onClick={() => onPokedex(p)} title={`Ver a ${p.name} en la Pokédex`}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700
+                       border border-gray-600 text-gray-200 shadow-md transition-colors">
+            <Smartphone size={16} />
+          </button>
+        )}
+      </div>
     )}
-    <div className={`flex items-center gap-3 border-2 border-gray-700 rounded-2xl shadow-xl p-2.5 w-64 ${bleedClass}`}>
+    <div onClick={onPokedex ? () => onPokedex(p) : undefined}
+      title={onPokedex ? `Ver a ${p.name} en la Pokédex` : undefined}
+      className={`flex items-center gap-3 border-2 border-gray-700 rounded-2xl shadow-xl p-2.5 w-64 ${bleedClass}
+        ${onPokedex ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
       {/* Sprite */}
       {hidden ? (
         <div className="w-16 h-16 rounded-xl shrink-0 border border-gray-300 bg-white flex items-center justify-center">

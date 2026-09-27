@@ -6,6 +6,7 @@ import SkilledModal from './SkilledModal'
 import PokeballSpinner from './PokeballSpinner'
 import { ResolvedBonusBadges } from './featBonoBadges'
 import { specPreviewBonos } from '../lib/specBonus'
+import SpecializationInfoModal from './SpecializationInfoModal'
 
 // Skilled no tiene filas en feats_bonus: su forma son 3 elecciones entre
 // proficiencias de skill y textos de 'Tool Prof'. Se pide aquí cuando lo otorga
@@ -593,6 +594,7 @@ function IniRow({ label, value }) {
 /* ── Paso 6: especialidad (a nivel 1 se elige una; mismos bonos que en el lápiz) ── */
 function SpecStep({ specs, loading, valor, onPick }) {
   const [busca, setBusca] = useState('')
+  const [specInfo, setSpecInfo] = useState(null) // especialidad cuyo detalle se muestra
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-400">
@@ -613,24 +615,31 @@ function SpecStep({ specs, loading, valor, onPick }) {
         ) : lista.map(s => {
           const sel = String(valor) === String(s.specialization_id)
           return (
-            <button key={s.specialization_id} onClick={() => onPick(sel ? null : s)}
-              className={`w-full text-left flex items-center justify-between gap-2 px-3 py-2 transition-colors ${sel ? 'bg-red-50' : 'hover:bg-gray-50'}`}>
-              <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
-                <span className={`text-sm font-medium ${sel ? 'text-red-700' : 'text-gray-800'}`}>{s.specialization_name}</span>
+            <div key={s.specialization_id}
+              className={`w-full flex items-center justify-between gap-2 px-3 py-2 transition-colors ${sel ? 'bg-red-50' : 'hover:bg-gray-50'}`}>
+              <button onClick={() => onPick(sel ? null : s)} className="min-w-0 flex-1 text-left flex items-center gap-1.5 flex-wrap">
+                <span onClick={e => { e.stopPropagation(); setSpecInfo(s) }} title="Ver detalle"
+                  className={`text-sm font-medium underline decoration-dotted underline-offset-2 ${sel ? 'text-red-700 decoration-red-300' : 'text-gray-800 decoration-gray-300'} hover:text-red-700`}>
+                  {s.specialization_name}
+                </span>
                 {s.specialization_pokemon_type_name && (
                   <span className="text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded px-1 shrink-0">
                     {s.specialization_pokemon_type_name}
                   </span>
                 )}
                 <ResolvedBonusBadges bonos={specPreviewBonos(s)} />
-              </div>
-              <span className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${sel ? 'border-red-600 bg-red-600' : 'border-gray-300'}`}>
+              </button>
+              <button onClick={() => onPick(sel ? null : s)}
+                className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${sel ? 'border-red-600 bg-red-600' : 'border-gray-300'}`}>
                 {sel && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-              </span>
-            </button>
+              </button>
+            </div>
           )
         })}
       </div>
+      {specInfo && (
+        <SpecializationInfoModal spec={specInfo} bonos={specPreviewBonos(specInfo)} onClose={() => setSpecInfo(null)} />
+      )}
     </div>
   )
 }

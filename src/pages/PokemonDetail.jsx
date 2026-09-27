@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react'
 import { apiFetch } from '../api'
 import { claveMove } from '../lib/moveName'
+import { xpAlAtrapar } from '../lib/xpAtrapar'
 
 /* ─────────────────── helpers ─────────────────── */
 const TYPE_COLORS = {
@@ -450,6 +451,7 @@ export default function PokemonDetail() {
           {/* Info card */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
             <InfoRow label="N.°"        value={`#${String(pk.pokemon_number).padStart(4, '0')}`} />
+            <InfoRow label="XP al atrapar" value={xpAlAtrapar(pk.pokemon_min_level, pk.pokemon_sr)?.toLocaleString()} />
             <InfoRow label="Talla"      value={pk.pokemon_size} />
             <InfoRow label="SR"         value={pk.pokemon_sr} />
             <InfoRow label="Nivel mín." value={pk.pokemon_min_level} />

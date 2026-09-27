@@ -44,7 +44,7 @@ function SkeletonRow() {
 // partida) para no enseñarla vacía mientras carga; a ese le basta con la
 // primera y las siguientes le dan igual. Opcional: como página suelta nadie lo
 // pasa y no cambia nada.
-export default function PokemonList({ title = 'Pokémon', onPick = null, starter = false, onChoose = null, moveDetail = false, onReady = null }) {
+export default function PokemonList({ title = 'Pokémon', onPick = null, starter = false, onChoose = null, moveDetail = false, onReady = null, initialSelectedId = null, initialInvokedLevel = null }) {
   const [pokemon, setPokemon]           = useState([])
   const [total, setTotal]               = useState(0)
   const [loading, setLoading]           = useState(true)
@@ -54,7 +54,11 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
   const [selectedSize, setSelectedSize] = useState('')
   const [page, setPage]                 = useState(1)
   const [types, setTypes]               = useState([])
-  const [selectedId, setSelectedId]     = useState(null)
+  // Abre ya con el detalle de una especie puesto (p. ej. desde el Pokémon que
+  // el máster invocó en la mesa). Quien monta esto con un id fijo lo hace
+  // dentro de un modal que se remonta entero al reabrir, así que basta con
+  // el valor inicial: no hace falta un efecto para seguir cambios.
+  const [selectedId, setSelectedId]     = useState(initialSelectedId)
 
   const debounceRef = useRef(null)
   const onReadyRef  = useRef(onReady)
@@ -256,7 +260,8 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
         {/* Panel de detalle – izquierda */}
         {selectedId && (
           <div className="w-[420px] shrink-0 border-r border-gray-200 flex flex-col overflow-hidden bg-white">
-            <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} onChoose={onChoose} moveDetail={moveDetail} />
+            <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} onChoose={onChoose} moveDetail={moveDetail}
+              invokedLevel={selectedId === initialSelectedId ? initialInvokedLevel : null} />
           </div>
         )}
 
@@ -289,7 +294,8 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
               <div className="flex justify-center pt-3 pb-1 shrink-0">
                 <div className="w-10 h-1 bg-gray-300 rounded-full" />
               </div>
-              <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} onChoose={onChoose} moveDetail={moveDetail} />
+              <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} onChoose={onChoose} moveDetail={moveDetail}
+              invokedLevel={selectedId === initialSelectedId ? initialInvokedLevel : null} />
             </div>
           </div>
         )}

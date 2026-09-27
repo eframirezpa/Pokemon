@@ -4,6 +4,7 @@ import { X, Sparkles, ChevronRight, ChevronLeft, ExternalLink, Check } from 'luc
 import { apiFetch } from '../api'
 import MoveInfoModal from './MoveInfoModal'
 import { claveMove } from '../lib/moveName'
+import { xpAlAtrapar } from '../lib/xpAtrapar'
 
 /* ── helpers (mismos que PokemonDetail) ── */
 const TYPE_COLORS = {
@@ -161,7 +162,7 @@ function TmSection({ tmNumbers, tmsMap }) {
 }
 
 /* ── main component ── */
-export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose, moveDetail = false }) {
+export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose, moveDetail = false, invokedLevel = null }) {
   const navigate  = useNavigate()
   const [pk,       setPk]      = useState(null)
   const [evols,    setEvols]   = useState([])
@@ -355,21 +356,39 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose, 
         <div className="px-4 py-4 space-y-4">
 
           {/* Basic info */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
-            {[
-              ['Talla',      pk.pokemon_size],
-              ['SR',         pk.pokemon_sr],
-              ['Nivel mín.', pk.pokemon_min_level],
-              ['Grupo huevo',pk.pokemon_egg_group],
-              ['Género',     genderLabel(pk.pokemon_gender)],
-              ['Bioma',      pk.pokemon_habitat_biomes],
-            ].filter(([,v]) => v).map(([l, v]) => (
-              <div key={l} className="flex justify-between py-0.5 border-b border-gray-100 col-span-1">
-                <span className="text-[#7A200D] font-semibold uppercase tracking-wide text-[10px]">{l}</span>
-                <span className="text-gray-700 text-right">{v}</span>
-              </div>
-            ))}
-          </div>
+          {(() => {
+            // Al navegar (ej. a una evolución) esto sigue mostrando la especie
+            // que se está viendo, no la del Pokémon invocado: invokedLevel solo
+            // aplica mientras el detalle abierto es el suyo (lo filtra quien
+            // lo pasa, PokemonList).
+            const nivel = invokedLevel ?? pk.pokemon_min_level
+            const xp = xpAlAtrapar(nivel, pk.pokemon_sr)
+            return (
+              <>
+                {xp != null && (
+                  <div className="flex justify-between py-0.5 border-b border-gray-100 text-xs">
+                    <span className="text-[#7A200D] font-semibold uppercase tracking-wide text-[10px]">XP al atrapar</span>
+                    <span className="text-gray-700 text-right">{xp.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                  {[
+                    ['Talla',      pk.pokemon_size],
+                    ['SR',         pk.pokemon_sr],
+                    [invokedLevel != null ? 'Nivel' : 'Nivel mín.', nivel],
+                    ['Grupo huevo',pk.pokemon_egg_group],
+                    ['Género',     genderLabel(pk.pokemon_gender)],
+                    ['Bioma',      pk.pokemon_habitat_biomes],
+                  ].filter(([,v]) => v).map(([l, v]) => (
+                    <div key={l} className="flex justify-between py-0.5 border-b border-gray-100 col-span-1">
+                      <span className="text-[#7A200D] font-semibold uppercase tracking-wide text-[10px]">{l}</span>
+                      <span className="text-gray-700 text-right">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )
+          })()}
 
           {/* Flavor text */}
           {pk.pokemon_description && (
