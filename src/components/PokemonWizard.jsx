@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, ChevronLeft, ChevronDown, Venus, Mars, Check, Sparkles } from 'lucide-react'
 import PokemonList from '../pages/PokemonList'
 import { apiFetch } from '../api'
+import { claveMove } from '../lib/moveName'
 import TypeEffectivenessView from './TypeEffectivenessView'
 
 const STEPS = ['Básicos', 'Stats', 'Iniciales', 'Movimientos', 'Pasivas', 'Confirmación']
@@ -187,7 +188,7 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
       .then(d => {
         const list = Array.isArray(d.data) ? d.data : []
         const map = {}
-        for (const m of list) map[m.move_name.toLowerCase()] = m
+        for (const m of list) map[claveMove(m.move_name)] = m
         setMovesMap(map)
         setStruggle(list.find(m => m.move_id === STRUGGLE_ID) || null)
       })
@@ -384,7 +385,7 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
             const nombres = splitList(pokemon.pokemon_moves_start)
             const seen = new Set()
             const moves = nombres
-              .map(n => movesMap[n.toLowerCase()])
+              .map(n => movesMap[claveMove(n)])
               .filter(m => m && m.move_id !== STRUGGLE_ID && !seen.has(m.move_id) && seen.add(m.move_id))
             return (
               <div className="max-w-lg mx-auto py-2">
@@ -427,7 +428,7 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
             )
           })()}
           {step === 5 && (() => {
-            const startMoves = splitList(pokemon.pokemon_moves_start).map(n => movesMap[n.toLowerCase()]).filter(Boolean)
+            const startMoves = splitList(pokemon.pokemon_moves_start).map(n => movesMap[claveMove(n)]).filter(Boolean)
             const chosen = [struggle, ...startMoves.filter(m => selectedMoves.includes(m.move_id))].filter(Boolean)
             const speeds = [1, 2, 3, 4]
               .map(i => pokemon[`pokemon_speed_${i}_name`] && `${pokemon[`pokemon_speed_${i}_value`]} ${pokemon[`pokemon_speed_${i}_name`]}`)
