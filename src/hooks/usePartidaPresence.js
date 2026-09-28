@@ -1,7 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { apiFetch } from '../api'
 
 const DEFAULT_MASTER_MESSAGE = '¡Bienvenido a la partida entrenador!'
+
+// Texto de un ataque para el registro. Aparte de applyAttack (que lo pinta en
+// vivo) porque persistir necesita las DOS versiones -pública y real- a la vez,
+// no la que le tocó ver a quien lo originó.
+const formatAttackText = (payload, displayName) => {
+  const detalle = []
+  if (payload.ataque != null) detalle.push(`Ataque ${payload.ataque}`)
+  if (payload.dificultad != null) detalle.push(`Dificultad ${payload.dificultad}`)
+  if (Number(payload.pp) > 0) detalle.push(`${payload.pp} PP`)
+  return `${displayName} usó ${payload.moveName}${detalle.length ? ` (${detalle.join(', ')})` : ''}`
+}
 
 export function usePartidaPresence(partidaId, userInfo) {
   const [presentes, setPresentes]         = useState([])
@@ -70,21 +82,32 @@ export function usePartidaPresence(partidaId, userInfo) {
     setLog(prev => [...prev, { text, role, time: new Date().toISOString() }])
   }, [])
 
+  // Deja el registro tal como llegó de la BD al conectarse. Sin ref que
+  // reenviar a quien se una después -a diferencia del campo o la
+  // iniciativa-: cada cliente lo trae de la misma fuente al entrar, así que
+  // avisar a los demás sería puro ruido repetido.
+  const setLogLocal = useCallback((entries) => {
+    setLog(Array.isArray(entries) ? entries : [])
+  }, [])
+
+  // Guarda una línea en la BD para que sobreviva a un refresco o una
+  // reconexión. La escribe solo quien origina la acción (sendActivity o
+  // sendAttack, llamadas una vez por quien la dispara), nunca quien la recibe
+  // por broadcast -si no, cada persona conectada duplicaría la fila-.
+  const persistLog = useCallback((texto, texto_master, role) => {
+    if (!partidaId) return
+    apiFetch(`/partida/${partidaId}/log`, {
+      method: 'POST', body: JSON.stringify({ texto, texto_master, role }),
+    }).catch(() => { /* si falla, la mesa lo sigue viendo por broadcast; solo se pierde del historial */ })
+  }, [partidaId])
+
   // Registra el ataque en la actividad y dispara el efecto visual
   const applyAttack = useCallback((payload) => {
     if (!payload?.moveName) return
     // Si el Pokémon está oculto, los jugadores (no master) no ven su nombre
     const isMaster = userInfoRef.current?.role === 'master'
     const displayName = (payload.hidden && !isMaster) ? 'el pokemon' : payload.pokemonName
-    // El ataque, la dificultad y los PP solo vienen del panel del jugador, que es
-    // donde se resuelve la fórmula. Un movimiento puede traer las dos cosas a la
-    // vez (golpe físico + salvación) o ninguna, así que cada una aparece solo si
-    // hubo algo que calcular. Los ataques del máster siguen sin nada de esto.
-    const detalle = []
-    if (payload.ataque != null) detalle.push(`Ataque ${payload.ataque}`)
-    if (payload.dificultad != null) detalle.push(`Dificultad ${payload.dificultad}`)
-    if (Number(payload.pp) > 0) detalle.push(`${payload.pp} PP`)
-    pushLog(`${displayName} usó ${payload.moveName}${detalle.length ? ` (${detalle.join(', ')})` : ''}`, 'master')
+    pushLog(formatAttackText(payload, displayName), 'master')
     setLastAttack({ ...payload, id: Date.now() })
   }, [pushLog])
 
@@ -264,12 +287,23 @@ export function usePartidaPresence(partidaId, userInfo) {
   const sendAttack = useCallback((payload) => {
     applyAttack(payload) // efecto/registro local inmediato (broadcast no se envía a sí mismo)
     channelRef.current?.send({ type: 'broadcast', event: 'attack', payload })
-  }, [applyAttack])
+    // Se guardan las dos versiones del texto -no la que le tocó ver a quien
+    // originó el ataque-, para que quien lea el historial después vea lo que
+    // le corresponde según su propio rol (ver partida_log.service.js).
+    if (payload?.moveName) {
+      persistLog(
+        formatAttackText(payload, payload.hidden ? 'el pokemon' : payload.pokemonName),
+        payload.hidden ? formatAttackText(payload, payload.pokemonName) : null,
+        'master',
+      )
+    }
+  }, [applyAttack, persistLog])
 
   const sendActivity = useCallback((text, role = 'master') => {
     pushLog(text, role) // registro local inmediato
     channelRef.current?.send({ type: 'broadcast', event: 'activity', payload: { text, role } })
-  }, [pushLog])
+    persistLog(text, null, role)
+  }, [pushLog, persistLog])
 
   // Avisa a los demás que cambió el estado de la party (para que re-consulten)
   const sendPartyUpdate = useCallback(() => {
@@ -401,5 +435,5 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'iniciativa_swap_respuesta', payload })
   }, [])
 
-  return { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa, setIniciativaLocal, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
+  return { presentes, log, setLogLocal, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa, setIniciativaLocal, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
 }

@@ -146,7 +146,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
+  const { presentes, log, setLogLocal, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
 
   // ── Atrapar Pokémon: pokébolas del trainer, panel de lanzamiento y animación ──
   const [pokeballs, setPokeballs]   = useState([])   // items tipo pokeball con cantidad > 0
@@ -184,6 +184,17 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       .then(d => setIniciativaLocal(d?.iniciativa ?? null))
       .catch(() => {})
   }, [id, setIniciativaLocal])
+
+  // Historial de actividad: se persiste desde 2026-09-28, así que se trae al
+  // conectarse (server ya lo devuelve masajeado según el rol de quien pide).
+  // Sin ref que reenviar a quien se una después: cada cliente lo consulta
+  // solo, no hace falta que nadie se lo reenvíe por broadcast.
+  useEffect(() => {
+    if (!id) return
+    apiFetch(`/partida/${id}/log`).then(r => r.json())
+      .then(d => setLogLocal(Array.isArray(d) ? d.map(e => ({ text: e.texto, role: e.role, time: e.time })) : []))
+      .catch(() => {})
+  }, [id, setLogLocal])
 
   // Terminar el turno propio. La regla de quién puede la aplica el servidor;
   // aquí solo se difunde lo que respondió.
