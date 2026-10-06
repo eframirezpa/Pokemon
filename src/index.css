@@ -213,7 +213,17 @@ body {
   animation: terreno-giro 1.6s linear infinite;
 }
 
+/* Botón Evolucionar cuando el Pokémon ya puede: un brillo que respira */
+@keyframes evo-lista {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.0); }
+  50%      { box-shadow: 0 0 10px 2px rgba(59, 130, 246, 0.75); }
+}
+.animate-evo-lista {
+  animation: evo-lista 1.8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .animate-evo-lista { animation: none; box-shadow: 0 0 6px 1px rgba(59, 130, 246, 0.6); }
   .animate-terreno-giro { animation: none; }
   .animate-pokeball-idle { animation: none; }
   .animate-pokeball-throw { animation-duration: 0.3s; }

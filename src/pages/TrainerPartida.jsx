@@ -498,6 +498,22 @@ export default function TrainerPartida() {
     }
   }, [partyVersion, personajeId])
 
+  // Tras evolucionar un Pokémon: se anuncia a la mesa (queda en el registro),
+  // se avisa a la party y, si es el que está en el campo, se cambia su imagen
+  // y se recarga su panel abierto.
+  const alEvolucionar = (r, p) => {
+    const dm = r.confirmadas_dm?.length ? ` (confirmado por el DM: ${r.confirmadas_dm.join(', ')})` : ''
+    partidaApiRef.current?.anunciar?.(
+      `¡${p.pokemon_apodo} de ${charNombre || 'el entrenador'} evolucionó a ${r.a}!${dm}`,
+      charNombre || 'Entrenador', r.a)
+    partidaApiRef.current?.sendPartyUpdate?.()
+    trasEventoPokemon()
+    if (String(p.id_personaje_pokemon) === String(pokemonInvocado)) {
+      setInvocadoSprite(r.sprite)
+      if (openControl === 'pokemon') openPokemonControl()
+    }
+  }
+
   // Abrir control del Pokémon invocado
   const openPokemonControl = async () => {
     if (!pokemonInvocado) return
@@ -756,7 +772,7 @@ export default function TrainerPartida() {
     <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion}>
       {/* Mejora obligatoria por subida de nivel (una a la vez, no se puede cerrar) */}
       {pending.length > 0 && personajeId && (
-        <PendingImprovementModal personajeId={personajeId} pending={pending[0]} onConfirmed={trasEventoPokemon} />
+        <PendingImprovementModal key={`${pending[0].id}-${pending[0].name}`} personajeId={personajeId} pending={pending[0]} onConfirmed={trasEventoPokemon} onEvolved={alEvolucionar} />
       )}
 
       {/* Gestión de PP: edita máximo y actual, se persiste solo al confirmar */}
@@ -1121,6 +1137,7 @@ export default function TrainerPartida() {
           mode="belt"
           editable={isEditable}
           onExpAdded={trasEventoPokemon}
+          onEvolved={alEvolucionar}
           nombrePersonaje={charNombre}
           onAnuncio={(texto, trainer, pokemon) => partidaApiRef.current?.anunciar?.(texto, trainer, pokemon)}
           onClose={() => setShowBelt(false)}
@@ -1145,7 +1162,7 @@ export default function TrainerPartida() {
 
       {/* Femputadora — Pokémon almacenados */}
       {showPC && personajeId && (
-        <PokemonBox personajeId={personajeId} partidaId={id} getConectados={() => partidaApiRef.current?.getPresentes?.() ?? []} mode="pc" editable={isEditable} onExpAdded={trasEventoPokemon}
+        <PokemonBox personajeId={personajeId} partidaId={id} getConectados={() => partidaApiRef.current?.getPresentes?.() ?? []} mode="pc" editable={isEditable} onExpAdded={trasEventoPokemon} onEvolved={alEvolucionar}
           onMoved={() => { refreshRenames(); partidaApiRef.current?.sendPartyUpdate?.() }}
           nombrePersonaje={charNombre}
           onAnuncio={(texto, trainer, pokemon) => partidaApiRef.current?.anunciar?.(texto, trainer, pokemon)}

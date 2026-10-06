@@ -10,6 +10,7 @@ import PokeballSpinner from './PokeballSpinner'
 import LoadingOverlay from './LoadingOverlay'
 import HeldItemsModal from './HeldItemsModal'
 import ItemDetailPanel from './ItemDetailPanel'
+import EvolucionModal from './EvolucionModal'
 
 const TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -521,7 +522,7 @@ function AddExpModal({ personajeId, pokemon, onClose, onDone }) {
   )
 }
 
-export default function PokemonBox({ personajeId, partidaId = null, getConectados = null, mode, editable = false, onClose, onInvoke, onMoved, onExpAdded, nombrePersonaje = null, onAnuncio = null, onSwitchMode = null }) {
+export default function PokemonBox({ personajeId, partidaId = null, getConectados = null, mode, editable = false, onClose, onInvoke, onMoved, onExpAdded, nombrePersonaje = null, onAnuncio = null, onSwitchMode = null, onEvolved = null }) {
   const isBelt = mode === 'belt'
   const title    = isBelt ? 'Cinturón' : 'Femputadora'
   const subtitle = isBelt ? 'Pokémones en tu equipo' : 'Pokémones almacenados'
@@ -567,6 +568,8 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
         .filter(c => ids.has(String(c.id_personaje)) && String(c.id_personaje) !== String(personajeId))))
       .catch(() => setTrainers([]))
   }
+
+  const [evoFor, setEvoFor] = useState(null) // Pokémon con la ventana de evolución abierta
 
   const load = () => {
     setLoading(true)
@@ -840,13 +843,18 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                           {p.pokemon_tag}
                         </span>
                       )}
-                      {/* Evolución: todavía sin funcionalidad. Va deshabilitado, así
-                          que tampoco abre el detalle al pulsarlo. */}
-                      <button type="button" disabled title="Evolucionar (próximamente)"
-                        className="mt-1 max-w-full text-[9px] font-black uppercase tracking-wide text-white rounded px-1.5 py-1
-                                   bg-gradient-to-r from-red-600 to-blue-600 opacity-60 cursor-not-allowed">
-                        Evolucionar
-                      </button>
+                      {/* Evolución: solo si la especie tiene alguna. Brilla cuando ya
+                          alcanzó el nivel de alguna (el resto de condiciones las
+                          revisa la ventana al abrirse). */}
+                      {p.tiene_evolucion && (
+                        <button type="button" onClick={e => { e.stopPropagation(); setEvoFor(p) }}
+                          title={p.evolucion_lista ? '¡Puede evolucionar!' : 'Ver evoluciones'}
+                          className={`mt-1 max-w-full text-[9px] font-black uppercase tracking-wide text-white rounded px-1.5 py-1
+                                     bg-gradient-to-r from-red-600 to-blue-600 hover:brightness-110 transition
+                                     ${p.evolucion_lista ? 'animate-evo-lista' : 'opacity-70'}`}>
+                          Evolucionar
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -855,6 +863,12 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
           </>
         )}
       </div>
+
+      {evoFor && (
+        <EvolucionModal personajeId={personajeId} pokemon={evoFor}
+          onClose={() => { setEvoFor(null); load() }}
+          onEvolved={(r) => onEvolved?.(r, evoFor)} />
+      )}
 
       {/* Liberar Pokémon — primera advertencia */}
       {releaseFor && !releaseSure && (
