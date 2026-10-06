@@ -40,11 +40,12 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
   const idpp = pokemon.id_personaje_pokemon
   const [data, setData]       = useState(null)
   const [error, setError]     = useState('')
-  const [paso, setPaso]       = useState('elegir') // elegir | puntos | pasiva | resumen
+  const [paso, setPaso]       = useState('elegir') // elegir | puntos | pasiva | movimientos | resumen
   const [sel, setSel]         = useState(null)     // opción elegida
   const [confirmadas, setConfirmadas] = useState(() => new Set())
   const [adds, setAdds]       = useState({})
   const [pasiva, setPasiva]   = useState(null)
+  const [moves, setMoves]     = useState([])       // ids de los movimientos que tendrá al evolucionar
   const [busy, setBusy]       = useState(false)
   const [posponerSeguro, setPosponerSeguro] = useState(false)
   const [fx, setFx]           = useState(null)     // efecto al evolucionar
@@ -68,7 +69,15 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
   const gastados = Object.values(adds).reduce((a, v) => a + (v || 0), 0)
   const manualesOk = sel ? sel.condiciones.every((c, i) => c.cumple !== null || confirmadas.has(i)) : false
 
-  const elegir = (o) => { setSel(o); setConfirmadas(new Set()); setAdds({}); setPasiva(null); setError('') }
+  // Arranca con los que ya sabe: si no quiere cambiar nada, basta con seguir
+  const elegir = (o) => {
+    setSel(o); setConfirmadas(new Set()); setAdds({}); setPasiva(null); setError('')
+    setMoves((data?.movimientos_actuales || []).slice(0, data?.max_moves || 4).map(m => m.move_id))
+  }
+  const maxMoves = data?.max_moves || 4
+  const toggleMove = (id) => setMoves(prev => prev.includes(id)
+    ? prev.filter(x => x !== id)
+    : (prev.length < maxMoves ? [...prev, id] : prev))
   const toggleConf = (i) => setConfirmadas(prev => { const s = new Set(prev); if (s.has(i)) s.delete(i); else s.add(i); return s })
   const sumar = (k, d) => setAdds(prev => {
     const v = (prev[k] || 0) + d
@@ -77,25 +86,18 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
     return { ...prev, [k]: v }
   })
 
-  const siguiente = () => {
-    setError('')
-    if (paso === 'elegir') setPaso(debe > 0 ? 'puntos' : (sel.conserva_pasiva ? 'resumen' : 'pasiva'))
-    else if (paso === 'puntos') setPaso(sel.conserva_pasiva ? 'resumen' : 'pasiva')
-    else if (paso === 'pasiva') setPaso('resumen')
-  }
-  const atras = () => {
-    setError('')
-    if (paso === 'resumen') setPaso(sel.conserva_pasiva ? (debe > 0 ? 'puntos' : 'elegir') : 'pasiva')
-    else if (paso === 'pasiva') setPaso(debe > 0 ? 'puntos' : 'elegir')
-    else setPaso('elegir')
-  }
+  // Los pasos que tocan según la opción: sin puntos no hay reparto, y si
+  // conserva su habilidad no hay que elegir otra.
+  const pasos = sel ? ['elegir', ...(debe > 0 ? ['puntos'] : []), ...(sel.conserva_pasiva ? [] : ['pasiva']), 'movimientos', 'resumen'] : ['elegir']
+  const siguiente = () => { setError(''); setPaso(pasos[Math.min(pasos.indexOf(paso) + 1, pasos.length - 1)]) }
+  const atras = () => { setError(''); setPaso(pasos[Math.max(pasos.indexOf(paso) - 1, 0)]) }
 
   const evolucionar = async () => {
     setBusy(true); setError('')
     try {
       const res = await apiFetch(`/personaje/${personajeId}/pokemon/${idpp}/evolucion`, {
         method: 'POST',
-        body: JSON.stringify({ evolution_id: sel.evolution_id, stat_adds: adds, id_abilitie: pasiva, confirmadas: [...confirmadas] }),
+        body: JSON.stringify({ evolution_id: sel.evolution_id, stat_adds: adds, id_abilitie: pasiva, confirmadas: [...confirmadas], move_ids: moves }),
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) { setError(j.error || 'No se pudo evolucionar'); return }
@@ -117,7 +119,8 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
   const puedeSeguir =
     paso === 'elegir' ? !!sel && sel.disponible && manualesOk :
     paso === 'puntos' ? gastados === debe :
-    paso === 'pasiva' ? pasiva != null : true
+    paso === 'pasiva' ? pasiva != null :
+    paso === 'movimientos' ? moves.length > 0 && moves.length <= maxMoves : true
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -229,7 +232,49 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
             </>
           )}
 
-          {/* 4. Resumen */}
+          {/* 4. Movimientos: los que ya sabe y los nuevos de la forma evolucionada */}
+          {paso === 'movimientos' && (() => {
+            const fila = (m, nuevo) => {
+              const on = moves.includes(m.move_id)
+              const lleno = !on && moves.length >= maxMoves
+              return (
+                <button key={m.move_id} onClick={() => toggleMove(m.move_id)} disabled={lleno}
+                  className={`w-full text-left flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5 transition-colors
+                    ${on ? 'bg-green-100 border-green-300' : 'border-gray-200 hover:border-gray-300'} ${lleno ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                  <span className="min-w-0 flex items-center gap-1.5">
+                    <span className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${on ? 'bg-green-600 border-green-600' : 'border-gray-300'}`}>
+                      {on && <Check size={11} className="text-white" strokeWidth={3} />}
+                    </span>
+                    <span className="text-sm font-semibold text-gray-800 truncate">{m.move_name}</span>
+                    {nuevo && <span className="text-[9px] font-black uppercase text-blue-700 bg-blue-50 border border-blue-200 rounded px-1 shrink-0">Nuevo</span>}
+                  </span>
+                  <span className="text-[11px] text-gray-500 shrink-0">{m.move_type}{Number(m.move_pp) > 0 ? ` · ${m.move_pp} PP` : ''}</span>
+                </button>
+              )
+            }
+            return (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-600">Elige sus movimientos. Struggle se conserva siempre.</p>
+                  <span className={`text-xs font-bold ${moves.length ? 'text-green-600' : 'text-gray-400'}`}>{moves.length}/{maxMoves}</span>
+                </div>
+                <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 pt-1">Los que ya sabe</p>
+                <div className="space-y-1.5">
+                  {(data.movimientos_actuales || []).length === 0
+                    ? <p className="text-xs text-gray-400 italic">No sabe ningún movimiento.</p>
+                    : data.movimientos_actuales.map(m => fila(m, false))}
+                </div>
+                <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 pt-2">Nuevos de {sel.destino.nombre}</p>
+                <div className="space-y-1.5">
+                  {sel.movimientos_nuevos.length === 0
+                    ? <p className="text-xs text-gray-400 italic">No aprende movimientos nuevos a este nivel.</p>
+                    : sel.movimientos_nuevos.map(m => fila(m, true))}
+                </div>
+              </>
+            )
+          })()}
+
+          {/* 5. Resumen */}
           {paso === 'resumen' && (() => {
             const item = sel.condiciones.find(c => c.tipo === 'item' && c.cumple === true)
             const mejoras = STATS.filter(([k]) => adds[k]).map(([k, l]) => `${l} +${adds[k]}`)
@@ -256,7 +301,8 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
                 {sel.destino.skills && fila('Skills', sel.destino.skills)}
                 {!sel.conserva_pasiva && fila('Habilidad', sel.pasivas_elegibles.find(a => a.id === pasiva)?.nombre)}
                 {item && fila('Se consume', item.valor)}
-                <p className="text-[11px] text-gray-500 mt-2">Conserva los movimientos que ya sabe.</p>
+                {fila('Movimientos', [...(data.movimientos_actuales || []), ...sel.movimientos_nuevos]
+                  .filter(m => moves.includes(m.move_id)).map(m => m.move_name).join(', '))}
               </div>
             )
           })()}
