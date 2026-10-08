@@ -4,7 +4,6 @@ import { apiFetch } from '../api'
 import MasterPokemonFeats from './MasterPokemonFeats'
 import MoveInfoModal from './MoveInfoModal'
 import PokeballSpinner from './PokeballSpinner'
-import EvolucionModal from './EvolucionModal'
 
 const STAT_KEYS = ['dex', 'str', 'con', 'int', 'wis', 'cha']
 const STAT_LABEL = { dex: 'DEX', str: 'STR', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' }
@@ -325,24 +324,10 @@ function AsiFlow({ personajeId, pending, onConfirmed, hpRoll, hpValid }) {
 }
 
 /* Ventana obligatoria de mejora por subida de nivel (no se puede cerrar sin confirmar) */
-export default function PendingImprovementModal({ personajeId, pending, onConfirmed, onEvolved = null }) {
+export default function PendingImprovementModal({ personajeId, pending, onConfirmed }) {
   // La tirada del dado se pide en todos los niveles y viaja con el confirmar del flujo
   const diceMax = Number(pending.hit_dice_max) || 0
   const [hpRoll, setHpRoll] = useState('')
-  // Regla de poke5e: si puede evolucionar en este nivel, evoluciona antes de
-  // recibir las mejoras. La tirada de HP y el pool de movimientos salen de la
-  // especie actual, así que evolucionar primero los deja con la forma nueva.
-  const [puedeEvolucionar, setPuedeEvolucionar] = useState(false)
-  const [evolucionando, setEvolucionando] = useState(false)
-  const [revision, setRevision] = useState(0) // se revisa otra vez al cerrar la ventana (pudo posponer)
-  useEffect(() => {
-    let vivo = true
-    apiFetch(`/personaje/${personajeId}/pokemon/${pending.id_personaje_pokemon}/evolucion`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (vivo) setPuedeEvolucionar(!!d?.opciones?.some(o => o.disponible)) })
-      .catch(() => {})
-    return () => { vivo = false }
-  }, [personajeId, pending.id_personaje_pokemon, revision])
   const rollNum = Math.floor(Number(hpRoll))
   const hpValid = Number.isFinite(rollNum) && hpRoll !== '' && rollNum >= 1 && (diceMax === 0 || rollNum <= diceMax)
 
@@ -357,15 +342,6 @@ export default function PendingImprovementModal({ personajeId, pending, onConfir
           </div>
         </div>
         <div className="px-5 pt-3 pb-2 shrink-0 space-y-2">
-          {puedeEvolucionar && (
-            <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-              <p className="text-xs text-blue-900">Este Pokémon puede evolucionar. Según las reglas, evoluciona antes de aplicar las mejoras de este nivel.</p>
-              <button onClick={() => setEvolucionando(true)}
-                className="shrink-0 text-[10px] font-black uppercase tracking-wide text-white rounded px-2 py-1 bg-gradient-to-r from-red-600 to-blue-600 hover:brightness-110">
-                Evolucionar
-              </button>
-            </div>
-          )}
           <HpRollField dice={pending.hit_dice} max={diceMax} value={hpRoll} onChange={setHpRoll} />
           <div className="rounded-xl bg-green-100 border border-green-300 text-green-800 font-bold text-sm px-4 py-3 text-center">
             {greenText(pending.type)}
@@ -375,12 +351,6 @@ export default function PendingImprovementModal({ personajeId, pending, onConfir
           ? <AsiFlow personajeId={personajeId} pending={pending} onConfirmed={onConfirmed} hpRoll={rollNum} hpValid={hpValid} />
           : <MovesFlow personajeId={personajeId} pending={pending} onConfirmed={onConfirmed} hpRoll={rollNum} hpValid={hpValid} />}
       </div>
-      {evolucionando && (
-        <EvolucionModal personajeId={personajeId}
-          pokemon={{ id_personaje_pokemon: pending.id_personaje_pokemon, pokemon_apodo: pending.apodo }}
-          onClose={() => { setEvolucionando(false); setRevision(v => v + 1) }}
-          onEvolved={(r) => onEvolved?.(r, { id_personaje_pokemon: pending.id_personaje_pokemon, pokemon_apodo: pending.apodo })} />
-      )}
     </div>
   )
 }

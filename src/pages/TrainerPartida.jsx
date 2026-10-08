@@ -10,6 +10,7 @@ import Equipamiento from '../components/Equipamiento'
 import PokemonBox from '../components/PokemonBox'
 import FormulaAtaqueModal from '../components/FormulaAtaqueModal'
 import PendingImprovementModal from '../components/PendingImprovementModal'
+import EvolucionModal from '../components/EvolucionModal'
 import EditarPersonajeModal from '../components/EditarPersonajeModal'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
@@ -40,6 +41,7 @@ export default function TrainerPartida() {
   const [showPokedex, setShowPokedex] = useState(false)
   const [pokedexListo, setPokedexListo] = useState(false) // primera consulta resuelta
   const [showChar, setShowChar]       = useState(false)
+  const [evoAuto, setEvoAuto]         = useState(null) // Pokémon cuya evolución se ofrece al terminar sus mejoras de nivel
   const [showMochila, setShowMochila] = useState(false)
   const [showEquip, setShowEquip]     = useState(false)
   const [showBelt, setShowBelt]       = useState(false)
@@ -514,6 +516,18 @@ export default function TrainerPartida() {
     }
   }
 
+  // Tras confirmar una mejora de nivel. El DM pidió que primero se apliquen
+  // las mejoras y después la evolución: el servidor no deja evolucionar
+  // mientras quede alguna pendiente, así que si ya la ofrece disponible es que
+  // era la última, y se abre la ventana sola. Cerrarla no cuenta como posponer.
+  const trasMejora = async (idpp) => {
+    trasEventoPokemon()
+    try {
+      const d = await apiFetch(`/personaje/${personajeId}/pokemon/${idpp}/evolucion`).then(r => (r.ok ? r.json() : null))
+      if (d?.opciones?.some(o => o.disponible)) setEvoAuto({ id_personaje_pokemon: idpp, pokemon_apodo: d.apodo })
+    } catch { /* sin ventana: queda el botón del cinturón */ }
+  }
+
   // Abrir control del Pokémon invocado
   const openPokemonControl = async () => {
     if (!pokemonInvocado) return
@@ -772,7 +786,13 @@ export default function TrainerPartida() {
     <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion}>
       {/* Mejora obligatoria por subida de nivel (una a la vez, no se puede cerrar) */}
       {pending.length > 0 && personajeId && (
-        <PendingImprovementModal key={`${pending[0].id}-${pending[0].name}`} personajeId={personajeId} pending={pending[0]} onConfirmed={trasEventoPokemon} onEvolved={alEvolucionar} />
+        <PendingImprovementModal key={pending[0].id} personajeId={personajeId} pending={pending[0]}
+          onConfirmed={() => trasMejora(pending[0].id_personaje_pokemon)} />
+      )}
+      {evoAuto && (
+        <EvolucionModal personajeId={personajeId} pokemon={evoAuto}
+          onClose={() => setEvoAuto(null)}
+          onEvolved={(r) => alEvolucionar(r, evoAuto)} />
       )}
 
       {/* Gestión de PP: edita máximo y actual, se persiste solo al confirmar */}

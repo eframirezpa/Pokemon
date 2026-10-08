@@ -142,6 +142,11 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
               <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-900">Pospusiste la evolución en este nivel. Podrás evolucionar cuando suba de nivel.</p>
             </div>
+          ) : data.mejoras_pendientes && paso === 'elegir' ? (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
+              <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-900">Primero aplica las mejoras de subida de nivel de este Pokémon; después podrás evolucionarlo.</p>
+            </div>
           ) : null}
 
           {/* 1. Elegir evolución */}
