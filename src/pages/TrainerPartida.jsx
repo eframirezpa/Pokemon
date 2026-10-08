@@ -519,7 +519,8 @@ export default function TrainerPartida() {
   // Tras confirmar una mejora de nivel. El DM pidió que primero se apliquen
   // las mejoras y después la evolución: el servidor no deja evolucionar
   // mientras quede alguna pendiente, así que si ya la ofrece disponible es que
-  // era la última, y se abre la ventana sola. Cerrarla no cuenta como posponer.
+  // era la última, y se abre la ventana sola. Cerrarla o posponer no bloquea:
+  // se puede evolucionar después desde el cinturón.
   const trasMejora = async (idpp) => {
     trasEventoPokemon()
     try {

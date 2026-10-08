@@ -33,7 +33,8 @@ function Condicion({ c, confirmada, onToggle }) {
 /**
  * Evolución de un Pokémon del entrenador. Pasos: elegir a qué evoluciona
  * (con sus condiciones), repartir los puntos de stat, elegir habilidad si la
- * actual no existe en la forma nueva, y confirmar o posponer. El servidor
+ * actual no existe en la forma nueva, y confirmar. Posponer es solo cerrar:
+ * se puede volver a abrir desde el botón cuando se quiera. El servidor
  * revalida todo; aquí solo se guía al jugador.
  */
 export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolved }) {
@@ -47,7 +48,6 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
   const [pasiva, setPasiva]   = useState(null)
   const [moves, setMoves]     = useState([])       // ids de los movimientos que tendrá al evolucionar
   const [busy, setBusy]       = useState(false)
-  const [posponerSeguro, setPosponerSeguro] = useState(false)
   const [fx, setFx]           = useState(null)     // efecto al evolucionar
 
   useEffect(() => {
@@ -107,15 +107,6 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
     } catch { setError('No se pudo evolucionar') } finally { setBusy(false) }
   }
 
-  const posponer = async () => {
-    setBusy(true); setError('')
-    try {
-      const res = await apiFetch(`/personaje/${personajeId}/pokemon/${idpp}/evolucion/posponer`, { method: 'POST' })
-      if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error || 'No se pudo posponer'); return }
-      onClose()
-    } catch { setError('No se pudo posponer') } finally { setBusy(false) }
-  }
-
   const puedeSeguir =
     paso === 'elegir' ? !!sel && sel.disponible && manualesOk :
     paso === 'puntos' ? gastados === debe :
@@ -137,12 +128,7 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {!data ? null : data.pospuesta && paso === 'elegir' ? (
-            <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
-              <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-900">Pospusiste la evolución en este nivel. Podrás evolucionar cuando suba de nivel.</p>
-            </div>
-          ) : data.mejoras_pendientes && paso === 'elegir' ? (
+          {data?.mejoras_pendientes && paso === 'elegir' ? (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
               <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-900">Primero aplica las mejoras de subida de nivel de este Pokémon; después podrás evolucionarlo.</p>
@@ -156,9 +142,9 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
             const activa = sel?.evolution_id === o.evolution_id
             return (
               <div key={o.evolution_id}
-                onClick={() => !data.pospuesta && o.soportada && elegir(o)}
+                onClick={() => o.soportada && elegir(o)}
                 className={`rounded-xl border p-3 transition-colors ${activa ? 'border-red-500 bg-red-50' : 'border-gray-200'}
-                  ${!data.pospuesta && o.soportada ? 'cursor-pointer hover:border-red-300' : 'opacity-70'}`}>
+                  ${o.soportada ? 'cursor-pointer hover:border-red-300' : 'opacity-70'}`}>
                 <div className="flex items-center gap-3">
                   <img src={o.destino.sprite} alt={o.destino.nombre} className="w-14 h-14 object-contain shrink-0"
                     onError={e => { e.target.style.opacity = '0.2' }} />
@@ -312,12 +298,6 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
             )
           })()}
 
-          {posponerSeguro && (
-            <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
-              <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-900">Si pospones, no podrás evolucionar hasta que suba otro nivel. Pulsa de nuevo para confirmar.</p>
-            </div>
-          )}
           {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
         </div>
 
@@ -327,10 +307,12 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
               <button onClick={atras} disabled={busy} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 px-2 py-1.5">
                 <ChevronLeft size={15} /> Atrás
               </button>
-            ) : data && !data.pospuesta && data.opciones.some(o => o.soportada) && (
-              <button onClick={() => posponerSeguro ? posponer() : setPosponerSeguro(true)} disabled={busy}
+            ) : (
+              // Posponer = no ahora: no bloquea nada, se puede evolucionar
+              // después desde el botón mientras se cumplan las condiciones
+              <button onClick={onClose} disabled={busy}
                 className="text-sm font-semibold text-amber-700 hover:text-amber-800 px-2 py-1.5">
-                {posponerSeguro ? '¿Posponer?' : 'Posponer evolución'}
+                Posponer
               </button>
             )}
           </div>
