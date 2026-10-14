@@ -67,6 +67,13 @@ export function usePartidaPresence(partidaId, userInfo) {
   const pokemonRef  = useRef([])
   const npcRef      = useRef([])
   const iniciativaRef = useRef(null)
+  // ¿Ya se cargó el campo / la iniciativa? El máster que vuelve a entrar
+  // recibe el evento de presencia ANTES de que termine de leerlos de la BD: si
+  // reenviara sus refs en ese momento, mandaría listas vacías y le borraría el
+  // campo a los entrenadores hasta que refrescaran. Solo se reenvía lo cargado.
+  const pokemonListoRef = useRef(false)
+  const npcListoRef = useRef(false)
+  const iniciativaListaRef = useRef(false)
   const backgroundRef = useRef(null)
   const eventActiveRef = useRef(false)
   const countersRef = useRef({ up: 0, down: 0 })
@@ -144,9 +151,9 @@ export function usePartidaPresence(partidaId, userInfo) {
         // Si soy el master, reenvío el estado actual para los que recién entran
         if (userInfoRef.current?.role === 'master') {
           channel.send({ type: 'broadcast', event: 'master_message', payload: { text: messageRef.current } })
-          channel.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemons: pokemonRef.current } })
-          channel.send({ type: 'broadcast', event: 'npc_update', payload: { npcs: npcRef.current } })
-          channel.send({ type: 'broadcast', event: 'iniciativa', payload: { iniciativa: iniciativaRef.current } })
+          if (pokemonListoRef.current) channel.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemons: pokemonRef.current } })
+          if (npcListoRef.current) channel.send({ type: 'broadcast', event: 'npc_update', payload: { npcs: npcRef.current } })
+          if (iniciativaListaRef.current) channel.send({ type: 'broadcast', event: 'iniciativa', payload: { iniciativa: iniciativaRef.current } })
           channel.send({ type: 'broadcast', event: 'background_update', payload: { background: backgroundRef.current } })
           channel.send({ type: 'broadcast', event: 'event_state', payload: { active: eventActiveRef.current } })
           channel.send({ type: 'broadcast', event: 'counters_update', payload: countersRef.current })
@@ -170,11 +177,13 @@ export function usePartidaPresence(partidaId, userInfo) {
       .on('broadcast', { event: 'pokemon_update' }, ({ payload }) => {
         const list = Array.isArray(payload?.pokemons) ? payload.pokemons : []
         pokemonRef.current = list
+        pokemonListoRef.current = true
         setActivePokemons(list)
       })
       .on('broadcast', { event: 'npc_update' }, ({ payload }) => {
         const list = Array.isArray(payload?.npcs) ? payload.npcs : []
         npcRef.current = list
+        npcListoRef.current = true
         setActiveNpcs(list)
       })
       .on('broadcast', { event: 'attack' }, ({ payload }) => {
@@ -246,6 +255,7 @@ export function usePartidaPresence(partidaId, userInfo) {
       })
       .on('broadcast', { event: 'iniciativa' }, ({ payload }) => {
         iniciativaRef.current = payload?.iniciativa ?? null
+        iniciativaListaRef.current = true
         setIniciativa(payload?.iniciativa ?? null)
       })
       .on('broadcast', { event: 'iniciativa_swap_propuesta' }, ({ payload }) => {
@@ -284,6 +294,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const sendPokemons = useCallback((pokemons) => {
     const list = Array.isArray(pokemons) ? pokemons : []
     pokemonRef.current = list
+    pokemonListoRef.current = true
     setActivePokemons(list)
     channelRef.current?.send({ type: 'broadcast', event: 'pokemon_update', payload: { pokemons: list } })
   }, [])
@@ -291,6 +302,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const sendNpcs = useCallback((npcs) => {
     const list = Array.isArray(npcs) ? npcs : []
     npcRef.current = list
+    npcListoRef.current = true
     setActiveNpcs(list)
     channelRef.current?.send({ type: 'broadcast', event: 'npc_update', payload: { npcs: list } })
   }, [])
@@ -302,6 +314,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   const setPokemonsLocal = useCallback((pokemons) => {
     const list = Array.isArray(pokemons) ? pokemons : []
     pokemonRef.current = list
+    pokemonListoRef.current = true
     setActivePokemons(list)
   }, [])
 
@@ -311,12 +324,14 @@ export function usePartidaPresence(partidaId, userInfo) {
   const removePokemonLocal = useCallback((uid) => {
     const list = (pokemonRef.current || []).filter(p => p.uid !== uid)
     pokemonRef.current = list
+    pokemonListoRef.current = true
     setActivePokemons(list)
   }, [])
 
   const setNpcsLocal = useCallback((npcs) => {
     const list = Array.isArray(npcs) ? npcs : []
     npcRef.current = list
+    npcListoRef.current = true
     setActiveNpcs(list)
   }, [])
 
@@ -459,6 +474,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   // Difunde el orden ya guardado; quien lo cambia se encarga de persistirlo
   const sendIniciativa = useCallback((ini) => {
     iniciativaRef.current = ini ?? null
+    iniciativaListaRef.current = true
     setIniciativa(ini ?? null)
     channelRef.current?.send({ type: 'broadcast', event: 'iniciativa', payload: { iniciativa: ini ?? null } })
   }, [])
@@ -473,6 +489,7 @@ export function usePartidaPresence(partidaId, userInfo) {
   // entrenadores. Bug real, visto en una partida en curso el 2026-09-20.
   const setIniciativaLocal = useCallback((ini) => {
     iniciativaRef.current = ini ?? null
+    iniciativaListaRef.current = true
     setIniciativa(ini ?? null)
   }, [])
 
