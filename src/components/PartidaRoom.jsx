@@ -101,7 +101,7 @@ function construirEntradaPokemon(d, { uid, master_pokemon_id, hidden, inBall }) 
 }
 
 
-export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null, onPartyVersion = null, nombreJugador = null, onIniciativa = null }) {
+export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null, onPartyVersion = null, nombreJugador = null, onIniciativa = null, onPartyLocal = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
   const { user }    = useAuth()
@@ -153,7 +153,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
+  const { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, partyLocalAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
 
   // ── Atrapar Pokémon: pokébolas del trainer, panel de lanzamiento y animación ──
   const [pokeballs, setPokeballs]   = useState([])   // items tipo pokeball con cantidad > 0
@@ -291,6 +291,12 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
   // Notifica al padre cuando cambia la party (para que el trainer re-consulte su flag editable)
   useEffect(() => { onPartyVersion?.(partyUpdatedAt) }, [partyUpdatedAt, onPartyVersion])
+  // Los cambios propios van aparte: el padre solo relee lo que muestra (su vida
+  // en el avatar), sin recargar los paneles abiertos que ya tienen el valor nuevo
+  useEffect(() => { if (partyLocalAt) onPartyLocal?.(partyLocalAt) }, [partyLocalAt, onPartyLocal])
+  // Versión de la party para las vistas que solo la muestran: cambia con los
+  // avisos de los demás y con los propios
+  const partyVista = `${partyUpdatedAt}-${partyLocalAt}`
 
   // Datos de la party (para mostrar al rival en modo lucha); se re-consulta en vivo con party_update
   const [fightChars, setFightChars] = useState([])
@@ -300,7 +306,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       .then(r => r.json())
       .then(d => setFightChars(Array.isArray(d) ? d : []))
       .catch(() => setFightChars([]))
-  }, [fight.active, fight.at, id, partyUpdatedAt])
+  }, [fight.active, fight.at, id, partyVista])
 
   // Mensaje central de lucha durante 10s (solo trainer/espectador)
   const [fightMsg, setFightMsg] = useState(false)
@@ -1071,7 +1077,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 const txt = c ? `El clima cambió: ${CLIMAS.find(x => x.clave === c)?.nombre || c}` : 'El clima volvió a la normalidad'
                 sendActivity(txt, 'master', 'mensaje')
               }} />
-              <EdicionJugadoresPanel partidaId={id} presentes={presentes} partyVersion={`${partyUpdatedAt}-${terrenoTick}`}
+              <EdicionJugadoresPanel partidaId={id} presentes={presentes} partyVersion={`${partyVista}-${terrenoTick}`}
                 invocados={invocados} onAfterChange={sendPartyUpdate} />
               <EventosPanel onBackground={sendBackground} partidaId={id} onUnlock={startEvent}
                 counterCfg={counterCfg} counters={counters} onCounter={changeCounter}
@@ -1233,7 +1239,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           partidaId={id}
           presentes={presentes}
           selfUserId={user?.user_id}
-          partyVersion={`${partyUpdatedAt}-${terrenoTick}`}
+          partyVersion={`${partyVista}-${terrenoTick}`}
           hideHp={!isMaster}
           invocados={invocados}
           turno={participanteEnTurno(iniciativa)}

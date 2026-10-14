@@ -170,7 +170,6 @@ export default function TrainerPartida() {
   const miTurno = !!enTurno && String(enTurno.user_id) === String(user?.user_id)
   const turnoDelPokemon = miTurno && enTurno.personaje_pokemon_id != null
     && String(enTurno.personaje_pokemon_id) === String(pokemonInvocado)
-  const turnoDelEntrenador = miTurno && !turnoDelPokemon
   // Clave del turno para detectar cuándo empieza uno nuevo mío (y no avisar
   // dos veces del mismo al repintar)
   const claveTurno = miTurno ? `${iniciativa.ronda ?? 1}-${iniciativa.turno ?? 0}` : null
@@ -231,7 +230,10 @@ export default function TrainerPartida() {
   // El descanso toca HP, dados y PP de varios a la vez: al terminar se cierra
   // el control abierto para que no muestre valores viejos.
   const abrirDescanso = () => setShowDescanso(true)
-  const trasDescanso = () => { setOpenControl(null); setCharData(null); setPokeData(null); trasEventoPokemon() }
+  const trasDescanso = () => {
+    setOpenControl(null); setCharData(null); setPokeData(null); trasEventoPokemon()
+    partidaApiRef.current?.sendPartyUpdate?.() // la vida recuperada, a todos (y a mi avatar)
+  }
 
   useEffect(() => { refreshPending() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId])
   useEffect(() => { refreshRenames() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId, partyVersion])
@@ -777,16 +779,26 @@ export default function TrainerPartida() {
     return b
   }
   const pendingPersist = useRef(Promise.resolve())
-  // Tras guardar, avisa a los demás para que su panel (party/rival) se actualice de inmediato
+  // Tras guardar, avisa a la party para que se actualice (la propia incluida).
+  // La vida se mueve de a un punto por clic: el aviso espera a que se dejen de
+  // tocar los botones, así quitar 20 sale como un solo "−20" y no veinte "−1".
+  const avisoTimer = useRef(null)
+  const avisarParty = () => {
+    clearTimeout(avisoTimer.current)
+    avisoTimer.current = setTimeout(() => {
+      Promise.resolve(pendingPersist.current).finally(() => partidaApiRef.current?.sendPartyUpdate?.())
+    }, 700)
+  }
+  useEffect(() => () => clearTimeout(avisoTimer.current), [])
   const persistChar = (patch) => {
     const p = apiFetch(`/personaje/${personajeId}/combate`, { method: 'PATCH', body: JSON.stringify(toBody(patch)) })
-      .then(() => { partidaApiRef.current?.sendPartyUpdate?.() }).catch(() => {})
+      .then(avisarParty).catch(() => {})
     pendingPersist.current = p
     return p
   }
   const persistPoke = (patch) => {
     const p = apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}/combate`, { method: 'PATCH', body: JSON.stringify(toBody(patch)) })
-      .then(() => { partidaApiRef.current?.sendPartyUpdate?.() }).catch(() => {})
+      .then(avisarParty).catch(() => {})
     pendingPersist.current = p
     return p
   }
@@ -815,7 +827,7 @@ export default function TrainerPartida() {
   const hideBottomIcons = fight.active && !fight.players.some(p => String(p.id_personaje) === String(personajeId))
 
   return (
-    <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion} nombreJugador={nombrePj || null} onIniciativa={setIniciativa}>
+    <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion} nombreJugador={nombrePj || null} onIniciativa={setIniciativa} onPartyLocal={setTickParty}>
       {/* Mejora obligatoria por subida de nivel (una a la vez, no se puede cerrar) */}
       {pending.length > 0 && personajeId && (
         <PendingImprovementModal key={pending[0].id} personajeId={personajeId} pending={pending[0]}
@@ -1028,7 +1040,7 @@ export default function TrainerPartida() {
                   {/* Daño y curación propios: aquí sí se ve la cifra */}
                   <NumerosFlotantes valor={miParty?.personaje_current_hp ?? null} />
                   <button onClick={openTrainerControl} title="Controlar jugador"
-                    className={`relative transition-transform hover:scale-105 ${turnoDelEntrenador ? 'animate-turno-anillo' : ''}`}>
+                    className="relative transition-transform hover:scale-105">
                     {/* data-throw-origin: PartidaRoom lo mide para lanzar la pokébola desde aquí */}
                     <img src={user.avatar_face_url} alt="Jugador" data-throw-origin="1"
                       className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
@@ -1248,7 +1260,7 @@ export default function TrainerPartida() {
       )}
 
       {summonFx && <PokemonSummonFx key={summonFx.key} sprite={summonFx.sprite} />}
-      {/* Empieza mi turno: aviso grande unos segundos (el anillo queda puesto) */}
+      {/* Empieza mi turno: aviso grande unos segundos */}
       {avisoTurno && (
         <div key={avisoTurno} className="fixed inset-0 z-[90] flex items-center justify-center pointer-events-none">
           <div className="animate-event-pop rounded-2xl border-2 border-amber-400 bg-gray-900/95 px-8 py-4 shadow-2xl">

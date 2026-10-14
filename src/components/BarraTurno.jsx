@@ -17,15 +17,19 @@ export default function BarraTurno({ iniciativa, userId, onTerminar, busy = fals
   const esMio = actual?.user_id === userId
 
   return (
-    <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border-2 border-amber-500/60 bg-gray-900/95
-                    px-3 py-1.5 shadow-2xl backdrop-blur-sm">
+    // En el turno propio el foco va aquí (no en el avatar): aura que late y el
+    // texto crece un poco al compás
+    <div className={`pointer-events-auto flex items-center gap-2 rounded-2xl border-2 bg-gray-900/95
+                    px-3 py-1.5 backdrop-blur-sm ${esMio ? 'border-amber-400 animate-turno-aura' : 'border-amber-500/60 shadow-2xl'}`}>
       <span className="text-[9px] font-black uppercase tracking-widest text-amber-400/80 shrink-0">
         R{iniciativa.ronda ?? 1}
       </span>
 
       <div className="flex items-center gap-1.5 min-w-0">
         {actual?.es_master && <Crown size={12} className="text-amber-400 shrink-0" />}
-        <span className={`text-sm font-black truncate ${esMio ? 'text-amber-300' : 'text-white'}`}>
+        {/* Sin truncate en el turno propio: recortaría el brillo, y el margen deja
+            sitio para cuando las letras crecen */}
+        <span className={`text-sm font-black ${esMio ? 'inline-block origin-left mr-2 text-amber-300 animate-turno-texto' : 'truncate text-white'}`}>
           {esMio ? '¡Es tu turno!' : (actual?.nombre || '—')}
         </span>
       </div>

@@ -26,6 +26,8 @@ export function usePartidaPresence(partidaId, userInfo) {
   const [activeNpcs, setActiveNpcs] = useState([])
   const [lastAttack,    setLastAttack]    = useState(null)
   const [partyUpdatedAt, setPartyUpdatedAt] = useState(0)
+  // Lo mismo para los cambios propios: el broadcast no vuelve a quien lo manda
+  const [partyLocalAt, setPartyLocalAt] = useState(0)
   const [invocados, setInvocados] = useState({}) // personaje_id → id_personaje_pokemon invocado
   const [background, setBackground] = useState(null) // fondo del evento (url)
   const [eventActive, setEventActive] = useState(false) // evento desbloqueado
@@ -330,7 +332,10 @@ export function usePartidaPresence(partidaId, userInfo) {
   }, [pushLog, persistLog])
 
   // Avisa a los demás que cambió el estado de la party (para que re-consulten)
+  // (y relee la propia: sin esto lo que cambiaba uno mismo, como su vida, no
+  // se veía en su pantalla hasta el siguiente aviso de otro)
   const sendPartyUpdate = useCallback(() => {
+    setPartyLocalAt(Date.now())
     channelRef.current?.send({ type: 'broadcast', event: 'party_update', payload: {} })
   }, [])
 
@@ -464,5 +469,5 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'iniciativa_swap_respuesta', payload })
   }, [])
 
-  return { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, iniciativa, setIniciativa, sendIniciativa, setIniciativaLocal, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
+  return { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, partyLocalAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, iniciativa, setIniciativa, sendIniciativa, setIniciativaLocal, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
 }
