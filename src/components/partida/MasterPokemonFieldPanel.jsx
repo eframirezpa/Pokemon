@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { ArrowRightLeft, ChevronDown, Eye, EyeOff, Minus, Plus, Search, X, Zap } from 'lucide-react'
 import { POKEBALL_SPRITE, hpPct, hpColor, expAlAtrapar } from '../../lib/partidaShared'
 import { TypeBadge } from './TypeBadge'
+import NumerosFlotantes from '../NumerosFlotantes'
 
 /* Card de un Pokémon del master — colapsable (toggle) */
 function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo }) {
   const [collapsed, setCollapsed] = useState(false)
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-lg self-start">
+    <div className="relative bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-lg self-start">
+      <NumerosFlotantes valor={pokemon.hp_current} />
       {/* Encabezado (toggle repliega/expande) */}
       <div
         onClick={() => setCollapsed(c => !c)}

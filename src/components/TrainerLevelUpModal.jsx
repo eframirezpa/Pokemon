@@ -12,6 +12,7 @@ import { ResolvedBonusBadges } from './featBonoBadges'
 import MasterPokemonFeats from './MasterPokemonFeats'
 import { specPreviewBonos } from '../lib/specBonus'
 import { clasificarPathBonus, describirPathBonus, TIPO_BONO, TARGET_BONO, legible, skillLegible } from '../lib/pathBonus'
+import BotonDado from './dados/BotonDado'
 import PokeballSpinner from './PokeballSpinner'
 
 const STAT_KEYS  = ['str', 'dex', 'con', 'int', 'wis', 'cha']
@@ -525,9 +526,13 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
               Arroja un dado de d{dadoMax || '?'} y escribe el resultado. Se suma a tu vida
               máxima y actual, junto con tu modificador de CON.
             </p>
-            <input type="number" min={1} max={dadoMax || undefined} value={hpRoll}
-              onChange={e => setHpRoll(e.target.value)} placeholder={`1 a ${dadoMax || '?'}`}
-              className="w-28 px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+            <div className="flex items-center gap-2">
+              <input type="number" min={1} max={dadoMax || undefined} value={hpRoll}
+                onChange={e => setHpRoll(e.target.value)} placeholder={`1 a ${dadoMax || '?'}`}
+                className="w-28 px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+              <BotonDado notacion={dadoMax ? `1d${dadoMax}` : null} etiqueta="Dado de golpe (subida de nivel)"
+                onResultado={v => setHpRoll(String(v))} className="w-9 h-9" />
+            </div>
             {hpRoll !== '' && !rollOk && (
               <p className="text-[11px] text-red-600 font-medium mt-1">Debe ser un número entre 1 y {dadoMax}.</p>
             )}

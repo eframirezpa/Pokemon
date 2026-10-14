@@ -11,6 +11,9 @@ import PokemonBox from '../components/PokemonBox'
 import FormulaAtaqueModal from '../components/FormulaAtaqueModal'
 import PendingImprovementModal from '../components/PendingImprovementModal'
 import EvolucionModal from '../components/EvolucionModal'
+import BotonBandejaDados from '../components/dados/BotonBandejaDados'
+import NumerosFlotantes from '../components/NumerosFlotantes'
+import { participanteEnTurno, sonarTurno } from '../lib/turno'
 import EditarPersonajeModal from '../components/EditarPersonajeModal'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
@@ -155,8 +158,36 @@ export default function TrainerPartida() {
       .catch(() => {})
   }, [personajeId, id, partyVersion, pokemonInvocado, tickParty])
   const terrenoTrainer = miParty?.personaje_terreno ?? null
+  // charNombre solo se carga al abrir el panel del entrenador; la party llega
+  // al entrar, así que las tiradas y el registro no dependen de haberlo abierto.
+  const nombrePj = charNombre || miParty?.nombre_personaje || ''
   const terrenoPokemon = (miParty?.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(pokemonInvocado))?.personaje_pokemon_terreno ?? null
   const avatarPx = isMonitor ? 66 : 44
+  // ── Turno (iniciativa): anillo en mi avatar o en mi Pokémon, y un aviso
+  // con sonido cuando me toca. La iniciativa llega desde PartidaRoom.
+  const [iniciativa, setIniciativa] = useState(null)
+  const enTurno = participanteEnTurno(iniciativa)
+  const miTurno = !!enTurno && String(enTurno.user_id) === String(user?.user_id)
+  const turnoDelPokemon = miTurno && enTurno.personaje_pokemon_id != null
+    && String(enTurno.personaje_pokemon_id) === String(pokemonInvocado)
+  const turnoDelEntrenador = miTurno && !turnoDelPokemon
+  // Clave del turno para detectar cuándo empieza uno nuevo mío (y no avisar
+  // dos veces del mismo al repintar)
+  const claveTurno = miTurno ? `${iniciativa.ronda ?? 1}-${iniciativa.turno ?? 0}` : null
+  const [turnoPrevio, setTurnoPrevio] = useState(claveTurno)
+  const [avisoTurno, setAvisoTurno] = useState(null)
+  if (claveTurno !== turnoPrevio) {
+    setTurnoPrevio(claveTurno)
+    if (claveTurno) setAvisoTurno(claveTurno)
+  }
+  useEffect(() => {
+    if (!avisoTurno) return
+    sonarTurno()
+    const t = setTimeout(() => setAvisoTurno(null), 2200)
+    return () => clearTimeout(t)
+  }, [avisoTurno])
+
+  const vidaInvocado = (miParty?.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(pokemonInvocado))?.pokemon_current_hp ?? null
 
   // Mejoras pendientes por subida de nivel: se muestran al entrar y tras subir experiencia
   const refreshPending = () => {
@@ -464,7 +495,7 @@ export default function TrainerPartida() {
       : r.tipoEfecto === 'pp' ? `restauró ${r.restaurado} PP${r.movimientos > 1 ? ` (${r.movimientos} movimientos)` : ''}`
       : `recuperó ${r.curado} HP`
     partidaApiRef.current?.registrar?.(
-      `${charNombre || 'Un entrenador'} usó ${item?.item_name || 'un item'} en ${r.objetivo}: ${efecto}`)
+      `${nombrePj || 'Un entrenador'} usó ${item?.item_name || 'un item'} en ${r.objetivo}: ${efecto}`, 'item')
     setTickParty(t => t + 1)
     if (obj?.tipo !== 'pokemon' || String(obj.id_personaje) !== String(personajeId)
         || String(obj.id_personaje_pokemon) !== String(pokemonInvocado)) return
@@ -506,8 +537,8 @@ export default function TrainerPartida() {
   const alEvolucionar = (r, p) => {
     const dm = r.confirmadas_dm?.length ? ` (confirmado por el DM: ${r.confirmadas_dm.join(', ')})` : ''
     partidaApiRef.current?.anunciar?.(
-      `¡${p.pokemon_apodo} de ${charNombre || 'el entrenador'} evolucionó a ${r.a}!${dm}`,
-      charNombre || 'Entrenador', r.a)
+      `¡${p.pokemon_apodo} de ${nombrePj || 'el entrenador'} evolucionó a ${r.a}!${dm}`,
+      nombrePj || 'Entrenador', r.a, 'evolucion')
     partidaApiRef.current?.sendPartyUpdate?.()
     trasEventoPokemon()
     if (String(p.id_personaje_pokemon) === String(pokemonInvocado)) {
@@ -784,7 +815,7 @@ export default function TrainerPartida() {
   const hideBottomIcons = fight.active && !fight.players.some(p => String(p.id_personaje) === String(personajeId))
 
   return (
-    <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion}>
+    <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion} nombreJugador={nombrePj || null} onIniciativa={setIniciativa}>
       {/* Mejora obligatoria por subida de nivel (una a la vez, no se puede cerrar) */}
       {pending.length > 0 && personajeId && (
         <PendingImprovementModal key={pending[0].id} personajeId={personajeId} pending={pending[0]}
@@ -994,7 +1025,10 @@ export default function TrainerPartida() {
                       combate, junto al botón de fórmula; aquí solo queda el
                       aura, que se ve tanto en este icono como en la party. */}
                   {isInspirado && <AuraInspirado size={isMonitor ? 66 : 44} />}
-                  <button onClick={openTrainerControl} className="relative transition-transform hover:scale-105" title="Controlar jugador">
+                  {/* Daño y curación propios: aquí sí se ve la cifra */}
+                  <NumerosFlotantes valor={miParty?.personaje_current_hp ?? null} />
+                  <button onClick={openTrainerControl} title="Controlar jugador"
+                    className={`relative transition-transform hover:scale-105 ${turnoDelEntrenador ? 'animate-turno-anillo' : ''}`}>
                     {/* data-throw-origin: PartidaRoom lo mide para lanzar la pokébola desde aquí */}
                     <img src={user.avatar_face_url} alt="Jugador" data-throw-origin="1"
                       className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
@@ -1008,7 +1042,9 @@ export default function TrainerPartida() {
             <div className="flex items-end gap-1.5">
               <div className="flex flex-col items-center gap-1">
                 <EstadosChips estados={pokeEstados} iconPx={estadoChipSize} />
-                <button onClick={openPokemonControl} className="transition-transform hover:scale-105" title="Controlar Pokémon">
+                <button onClick={openPokemonControl} title="Controlar Pokémon"
+                  className={`relative transition-transform hover:scale-105 ${turnoDelPokemon ? 'animate-turno-anillo' : ''}`}>
+                  <NumerosFlotantes valor={vidaInvocado} />
                   <img src={invocadoSprite} alt="Pokémon invocado"
                     className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
                 </button>
@@ -1027,6 +1063,7 @@ export default function TrainerPartida() {
         {/* Botones laterales — columna centrada y scrolleable (para pantallas bajas) */}
         <div className="fixed left-3 top-64 bottom-3 z-30 overflow-y-auto">
           <div className="min-h-full flex flex-col justify-center gap-2 py-1">
+            {personajeId && <BotonBandejaDados />}
             {personajeId && (
               <button onClick={() => setShowChar(true)} className={sideBtn} title="Ver mi personaje">
                 <User size={18} />
@@ -1159,8 +1196,9 @@ export default function TrainerPartida() {
           editable={isEditable}
           onExpAdded={trasEventoPokemon}
           onEvolved={alEvolucionar}
-          nombrePersonaje={charNombre}
-          onAnuncio={(texto, trainer, pokemon) => partidaApiRef.current?.anunciar?.(texto, trainer, pokemon)}
+          nombrePersonaje={nombrePj}
+          onAnuncio={(texto, trainer, pokemon) => partidaApiRef.current?.anunciar?.(texto, trainer, pokemon, 'pokemon')}
+          onRegistrar={(texto, tipo) => partidaApiRef.current?.registrar?.(texto, tipo)}
           onClose={() => setShowBelt(false)}
           onSwitchMode={() => { setShowBelt(false); setShowPC(true) }}
           onInvoke={(idpp, sprite) => {
@@ -1185,8 +1223,9 @@ export default function TrainerPartida() {
       {showPC && personajeId && (
         <PokemonBox personajeId={personajeId} partidaId={id} getConectados={() => partidaApiRef.current?.getPresentes?.() ?? []} mode="pc" editable={isEditable} onExpAdded={trasEventoPokemon} onEvolved={alEvolucionar}
           onMoved={() => { refreshRenames(); partidaApiRef.current?.sendPartyUpdate?.() }}
-          nombrePersonaje={charNombre}
-          onAnuncio={(texto, trainer, pokemon) => partidaApiRef.current?.anunciar?.(texto, trainer, pokemon)}
+          nombrePersonaje={nombrePj}
+          onAnuncio={(texto, trainer, pokemon) => partidaApiRef.current?.anunciar?.(texto, trainer, pokemon, 'pokemon')}
+          onRegistrar={(texto, tipo) => partidaApiRef.current?.registrar?.(texto, tipo)}
           onSwitchMode={() => { setShowPC(false); setShowBelt(true) }}
           onClose={() => setShowPC(false)} />
       )}
@@ -1209,6 +1248,15 @@ export default function TrainerPartida() {
       )}
 
       {summonFx && <PokemonSummonFx key={summonFx.key} sprite={summonFx.sprite} />}
+      {/* Empieza mi turno: aviso grande unos segundos (el anillo queda puesto) */}
+      {avisoTurno && (
+        <div key={avisoTurno} className="fixed inset-0 z-[90] flex items-center justify-center pointer-events-none">
+          <div className="animate-event-pop rounded-2xl border-2 border-amber-400 bg-gray-900/95 px-8 py-4 shadow-2xl">
+            <p className="text-3xl font-black text-amber-300 tracking-wide">¡Es tu turno!</p>
+            {turnoDelPokemon && <p className="text-center text-sm text-gray-300 mt-0.5">Le toca a tu Pokémon</p>}
+          </div>
+        </div>
+      )}
 
       {/* Control del jugador */}
       {openControl === 'trainer' && charData && (
@@ -1219,7 +1267,7 @@ export default function TrainerPartida() {
           switchLabel="Ir al Pokémon"
           onSwitch={openPokemonControl}
           onAtaque={(poder) => partidaApiRef.current?.anunciar?.(
-            `${charNombre || 'El entrenador'} ha atacado con un poder de ${poder}`)}
+            `${nombrePj || 'El entrenador'} ha atacado con un poder de ${poder}`, null, null, 'ataque')}
           recursosFeat={recursosFeat}
           weaponProfs={charProfs}
           initial={charData}

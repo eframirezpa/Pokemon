@@ -1,6 +1,7 @@
 import { Smartphone } from 'lucide-react'
 import { POKEBALL_SPRITE, hpPct, hpColor } from '../../lib/partidaShared'
 import { TypeBadge, MysteryMark } from './TypeBadge'
+import NumerosFlotantes from '../NumerosFlotantes'
 
 /* Tarjeta de vida del Pokémon — vista de trainer/espectador (con imagen) */
 export function PokemonHpCard({ p, onPokeball = null, ballSprite = null, onPokedex = null }) {
@@ -50,8 +51,11 @@ export function PokemonHpCard({ p, onPokeball = null, ballSprite = null, onPoked
     )}
     <div onClick={onPokedex ? () => onPokedex(p) : undefined}
       title={onPokedex ? `Ver a ${p.name} en la Pokédex` : undefined}
-      className={`flex items-center gap-3 border-2 border-gray-700 rounded-2xl shadow-xl p-2.5 w-64 ${bleedClass}
+      className={`relative flex items-center gap-3 border-2 border-gray-700 rounded-2xl shadow-xl p-2.5 w-64 ${bleedClass}
         ${onPokedex ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
+      {/* El jugador no ve los HP del Pokémon del máster: solo ▼/▲, y nada
+          mientras siga oculto */}
+      <NumerosFlotantes valor={hidden ? null : p.hp_current} mostrarNumero={false} />
       {/* Sprite */}
       {hidden ? (
         <div className="w-16 h-16 rounded-xl shrink-0 border border-gray-300 bg-white flex items-center justify-center">
@@ -97,7 +101,8 @@ export function NpcHpCard({ n }) {
   const hidden = !!n.hidden
   const bleedClass = pct <= 20 ? 'animate-bleed-red' : pct <= 50 ? 'animate-bleed-yellow' : 'bg-gray-100'
   return (
-    <div className={`flex items-center gap-3 border-2 border-gray-700 rounded-2xl shadow-xl p-2.5 w-64 ${bleedClass}`}>
+    <div className={`relative flex items-center gap-3 border-2 border-gray-700 rounded-2xl shadow-xl p-2.5 w-64 ${bleedClass}`}>
+      <NumerosFlotantes valor={hidden ? null : n.hp_current} mostrarNumero={false} />
       {hidden ? (
         <div className="w-16 h-16 rounded-xl shrink-0 border border-gray-300 bg-white flex items-center justify-center">
           <MysteryMark />

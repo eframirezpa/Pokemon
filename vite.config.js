@@ -8,6 +8,9 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
+  // dice-box carga sus mundos 3D con import() relativos y crea workers: si
+  // Vite lo pre-empaqueta en desarrollo, esas rutas dejan de existir.
+  optimizeDeps: { exclude: ['@3d-dice/dice-box'] },
   server: {
     port: 5174,
     proxy: {

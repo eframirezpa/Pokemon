@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { X, Sword, Shield, Check } from 'lucide-react'
+import BotonDado from './dados/BotonDado'
 
 // Fórmula(s) del ataque de un movimiento del Pokémon.
 //
@@ -162,16 +163,24 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
         <span className="text-gray-500 font-black shrink-0 text-xs">=</span>
 
         <div className="flex items-center gap-0.5 flex-wrap justify-center">
-          {d20 ? (
-            <input type="number" min={1} max={20} value={dados[f.clave] ?? ''}
-              onClick={e => e.stopPropagation()}
-              onChange={e => setDado(f.clave, e.target.value)}
-              placeholder="1d20"
-              className={`shrink-0 w-11 h-9 text-center rounded-xl border-2 bg-gray-900/60 font-black tabular-nums
-                          text-white placeholder:text-gray-500 placeholder:font-bold placeholder:text-xs
-                          focus:outline-none focus:ring-2 focus:ring-amber-400/60 transition-colors ${
-                critico ? 'border-amber-400' : 'border-gray-600'}`} />
-          ) : (
+          {d20 && (
+            <>
+              <input type="number" min={1} max={20} value={dados[f.clave] ?? ''}
+                onClick={e => e.stopPropagation()}
+                onChange={e => setDado(f.clave, e.target.value)}
+                placeholder="1d20"
+                className={`shrink-0 w-11 h-9 text-center rounded-xl border-2 bg-gray-900/60 font-black tabular-nums
+                            text-white placeholder:text-gray-500 placeholder:font-bold placeholder:text-xs
+                            focus:outline-none focus:ring-2 focus:ring-amber-400/60 transition-colors ${
+                  critico ? 'border-amber-400' : 'border-gray-600'}`} />
+              {/* Tira el d20 de esta fila (el clic también la deja elegida);
+                  entrega solo el dado, la fórmula suma el resto */}
+              <BotonDado notacion="1d20" usar="dado" className="w-9 h-9 rounded-xl"
+                etiqueta={`${move?.move_name || 'Ataque'}${f.nombre ? ` (${f.nombre})` : ''}`}
+                onResultado={v => setDado(f.clave, String(v))} />
+            </>
+          )}
+          {!d20 && (
             <span className={`shrink-0 w-11 h-9 rounded-xl border-2 font-black tabular-nums
                               flex items-center justify-center ${colorBase}`}
               title="La Move DC no se tira: es un valor fijo">

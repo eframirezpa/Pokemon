@@ -3,6 +3,7 @@ import { AlertTriangle, Heart } from 'lucide-react'
 import { apiFetch } from '../api'
 import PokeballSpinner from './PokeballSpinner'
 import { leerEstados } from '../lib/estados'
+import BotonDado from './dados/BotonDado'
 
 // Items del entrenador dentro del panel de combate.
 //
@@ -239,9 +240,13 @@ export default function ItemsPanel({ personajeId, partidaId = null, onCurado = n
                     <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1">
                       Resultado de la tirada ({c.dados.n}d{c.dados.caras}{c.dados.mod ? ` + ${c.dados.mod}` : ''})
                     </label>
-                    <input type="number" value={tirada} onChange={e => setTirada(e.target.value)} min={c.min} max={c.max}
-                      placeholder={`${c.min} a ${c.max}`}
-                      className="w-28 px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={tirada} onChange={e => setTirada(e.target.value)} min={c.min} max={c.max}
+                        placeholder={`${c.min} a ${c.max}`}
+                        className="w-28 px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                      <BotonDado notacion={`${c.dados.n}d${c.dados.caras}${c.dados.mod ? `+${c.dados.mod}` : ''}`}
+                        etiqueta={usando.item_name} onResultado={v => setTirada(String(v))} />
+                    </div>
                     <p className="text-[10px] text-gray-400 mt-1">Ya con el modificador incluido: entre {c.min} y {c.max}.</p>
                   </div>
                 )}

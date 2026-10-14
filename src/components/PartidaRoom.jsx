@@ -7,6 +7,9 @@ import {
   AlertTriangle, Backpack, Dices,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import DadosProvider from './dados/DadosProvider'
+import BotonBandejaDados from './dados/BotonBandejaDados'
+import ResumenSesion from './ResumenSesion'
 import { apiFetch } from '../api'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import PartyPanel, { PlayerCard } from './PartyPanel'
@@ -34,7 +37,11 @@ import { TerrenosMasivoPanel } from './partida/TerrenosMasivoPanel'
 import { MasterPokemonFieldPanel } from './partida/MasterPokemonFieldPanel'
 import { MasterSendMessage } from './partida/MasterSendMessage'
 import { EventosPanel } from './partida/EventosPanel'
-import { Embers, Snow } from './partida/WeatherEffects'
+import { Embers, Snow, ClimaEfecto } from './partida/WeatherEffects'
+import { ClimaPanel } from './partida/ClimaPanel'
+import { ClimaChip } from './partida/ClimaChip'
+import { CLIMAS } from '../lib/clima'
+import { participanteEnTurno } from '../lib/turno'
 
 const ROLE_DASHBOARD = {
   master:     '/dashboard/master',
@@ -94,7 +101,7 @@ function construirEntradaPokemon(d, { uid, master_pokemon_id, hidden, inBall }) 
 }
 
 
-export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null, onPartyVersion = null }) {
+export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null, onPartyVersion = null, nombreJugador = null, onIniciativa = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
   const { user }    = useAuth()
@@ -146,7 +153,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, setLogLocal, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
+  const { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
 
   // ── Atrapar Pokémon: pokébolas del trainer, panel de lanzamiento y animación ──
   const [pokeballs, setPokeballs]   = useState([])   // items tipo pokeball con cantidad > 0
@@ -172,6 +179,14 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       .then(d => setMapaPin(d?.pin ?? null))
       .catch(() => {})
   }, [id, setMapaPin])
+
+  // El clima de combate, igual que el pin: guardado en la partida
+  useEffect(() => {
+    if (!id) return
+    apiFetch(`/partida/${id}/clima`).then(r => r.json())
+      .then(d => setClima(d?.clima ?? null))
+      .catch(() => {})
+  }, [id, setClima])
 
   // El orden de turno se consulta al entrar por lo mismo que el pin: el
   // broadcast solo alcanza a quien ya estaba conectado. setIniciativaLocal
@@ -271,6 +286,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   // Expone el estado de lucha al padre (TrainerPartida oculta iconos de no-seleccionados)
   useEffect(() => { onFight?.(fight) }, [fight, onFight])
 
+  // La iniciativa al padre (TrainerPartida marca el turno sobre su avatar)
+  useEffect(() => { onIniciativa?.(iniciativa) }, [iniciativa, onIniciativa])
+
   // Notifica al padre cuando cambia la party (para que el trainer re-consulte su flag editable)
   useEffect(() => { onPartyVersion?.(partyUpdatedAt) }, [partyUpdatedAt, onPartyVersion])
 
@@ -340,6 +358,17 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     return () => clearTimeout(t)
   }, [captura.at])
   const showCaptura = captura.at > 0 && capturaVistaAt !== captura.at
+
+  // Tiradas de dados de los demás: un aviso de unos segundos con el resultado.
+  // Las propias ya las muestra el tirador junto a los dados.
+  const [tiradaVistaAt, setTiradaVistaAt] = useState(0)
+  useEffect(() => {
+    if (!ultimaTirada?.at) return
+    const t = setTimeout(() => setTiradaVistaAt(ultimaTirada.at), 4500)
+    return () => clearTimeout(t)
+  }, [ultimaTirada?.at])
+  const tiradaAjena = ultimaTirada && ultimaTirada.at !== tiradaVistaAt
+    && String(ultimaTirada.user_id) !== String(user?.user_id) ? ultimaTirada : null
 
   const eventKey = !background ? null
     : background.includes('/evento0/fire') ? 'fire'
@@ -458,10 +487,10 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       // central. Los tres juntos son lo que hace el máster al entregar un
       // Pokémon, y las acciones del trainer deben verse igual.
       // Solo la línea del log de actividad, sin el aviso central para toda la mesa
-      registrar: (texto) => sendActivity(texto),
-      anunciar: (texto, trainer, pokemon) => {
+      registrar: (texto, tipo = null) => sendActivity(texto, 'master', tipo),
+      anunciar: (texto, trainer, pokemon, tipo = null) => {
         sendMasterMessage(texto)
-        sendActivity(texto)
+        sendActivity(texto, 'master', tipo)
         if (trainer) sendCaptura(trainer, pokemon, texto)
       },
     }
@@ -550,7 +579,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
       const text = 'Apareció un pokémon salvaje'
       sendMasterMessage(text)
-      sendActivity(text)
+      sendActivity(text, 'master', 'aparicion')
     } catch { /* noop */ }
   }
 
@@ -582,7 +611,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       // Se revela el Pokémon → mostrar el nombre real
       const text = `Apareció un ${p.name} salvaje`
       sendMasterMessage(text)
-      sendActivity(text)
+      sendActivity(text, 'master', 'aparicion')
     }
   }
 
@@ -645,7 +674,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       const nombreDest = j.nombre_personaje || nombreTrainer(transferDest)
       const texto = `Felicitaciones el trainer ${nombreDest} ha atrapado al pokemon ${nombrePokemon}`
       sendMasterMessage(texto)
-      sendActivity(texto)
+      sendActivity(texto, 'master', 'captura')
       sendCaptura(nombreDest, nombrePokemon) // aviso central de 5s
       sendPartyUpdate()
       cerrarTransferencia()
@@ -717,7 +746,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     const ahoraOculto = !n.hidden
     updateNpc(uid, { hidden: ahoraOculto })
     apiFetch(`/partida/${id}/campo/${uid}`, { method: 'PATCH', body: JSON.stringify({ hidden: ahoraOculto }) }).catch(() => {})
-    if (!ahoraOculto) sendActivity(`${n.name} entró en escena`)
+    if (!ahoraOculto) sendActivity(`${n.name} entró en escena`, 'master', 'aparicion')
   }
 
   const handleNpcRemove = (uid) => {
@@ -728,7 +757,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   // Mientras siga oculto no se delata quién atacó, solo que alguien lo hizo
   const handleNpcAttack = (npc) => {
     if (!npc) return
-    sendActivity(npc.hidden ? 'Un jugador ha atacado' : `El jugador ${npc.name} ha atacado`)
+    sendActivity(npc.hidden ? 'Un jugador ha atacado' : `El jugador ${npc.name} ha atacado`, 'master', 'ataque')
   }
 
   const handleCast = (pokemon, moveName, moveType) => {
@@ -740,6 +769,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   }
 
   return (
+    <DadosProvider nombre={isMaster ? 'El DM' : (nombreJugador || user?.user_name || 'Alguien')}
+      puedeOcultar={isMaster}
+      onTirada={(t) => sendTirada({ ...t, user_id: user?.user_id })}>
     <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden">
 
       {/* Top bar */}
@@ -770,6 +802,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       {/* Efectos de evento (solo trainer/espectador) */}
       {!isMaster && fireActive && <Embers />}
       {!isMaster && !!background && background.includes('/evento0/frost') && <Snow />}
+      {/* Clima de combate: el efecto solo en la vista de jugadores y espectadores */}
+      {!isMaster && clima && <ClimaEfecto key={clima} clima={clima} />}
 
       {/* Contadores del evento (fire/frost) — centrados (solo trainer/espectador) */}
       {!isMaster && counterCfg && (
@@ -897,11 +931,14 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         )
       })()}
 
-      {/* Turno en curso: lo ve toda la mesa mientras dure el combate */}
-      {iniciativa?.estado === 'activa' && (
-        <div className="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-40 max-w-[92vw]">
-          <BarraTurno iniciativa={iniciativa} userId={user?.user_id}
-            onTerminar={terminarTurno} busy={turnoBusy} />
+      {/* Turno en curso y clima: los ve toda la mesa, uno debajo del otro */}
+      {(iniciativa?.estado === 'activa' || clima) && (
+        <div className="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-40 max-w-[92vw] flex flex-col items-center gap-1.5">
+          {iniciativa?.estado === 'activa' && (
+            <BarraTurno iniciativa={iniciativa} userId={user?.user_id}
+              onTerminar={terminarTurno} busy={turnoBusy} />
+          )}
+          <ClimaChip clima={clima} />
         </div>
       )}
 
@@ -995,6 +1032,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           </button>
         )}
 
+        {/* Botón flotante — dados (master). El trainer lo tiene en su columna. */}
+        {isMaster && <BotonBandejaDados className="fixed left-3 top-76 z-40" />}
+
         {/* Center — master panel + content + activity log */}
         <div className="flex flex-col flex-1 overflow-hidden">
 
@@ -1026,6 +1066,11 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onAttack={handleNpcAttack}
               />
               <TerrenosMasivoPanel partidaId={id} onAfterChange={() => { sendPartyUpdate(); setTerrenoTick(t => t + 1) }} />
+              <ClimaPanel partidaId={id} clima={clima} onCambio={(c) => {
+                sendClima(c)
+                const txt = c ? `El clima cambió: ${CLIMAS.find(x => x.clave === c)?.nombre || c}` : 'El clima volvió a la normalidad'
+                sendActivity(txt, 'master', 'mensaje')
+              }} />
               <EdicionJugadoresPanel partidaId={id} presentes={presentes} partyVersion={`${partyUpdatedAt}-${terrenoTick}`}
                 invocados={invocados} onAfterChange={sendPartyUpdate} />
               <EventosPanel onBackground={sendBackground} partidaId={id} onUnlock={startEvent}
@@ -1146,9 +1191,12 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           {/* Activity log */}
           <div className={`shrink-0 border-t border-gray-700 bg-gray-800/60 flex flex-col transition-all duration-300 ${logOpen ? 'h-40' : 'h-9'}`}>
             <div className="flex items-center justify-between px-4 pt-2 pb-1 shrink-0">
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                Actividad
-              </p>
+              <div className="flex items-center gap-3">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                  Actividad
+                </p>
+                <ResumenSesion partidaId={id} userId={user?.user_id} />
+              </div>
               <button
                 onClick={() => setLogOpen(o => !o)}
                 className="text-gray-500 hover:text-white transition-colors"
@@ -1188,6 +1236,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           partyVersion={`${partyUpdatedAt}-${terrenoTick}`}
           hideHp={!isMaster}
           invocados={invocados}
+          turno={participanteEnTurno(iniciativa)}
           onClose={() => setShowParty(false)}
           onCharClick={isMaster ? (c => setInspectCharId(c.id_personaje)) : undefined}
           onPokemonClick={isMaster ? ((c, p) => setInspectPoke({ personajeId: c.id_personaje, idpp: p.id_personaje_pokemon })) : undefined}
@@ -1418,6 +1467,20 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           </div>
         </>
       )}
+
+      {/* Tirada de otro jugador: arriba al centro, unos segundos */}
+      {tiradaAjena && (
+        <div key={tiradaAjena.at} className="fixed top-36 left-1/2 -translate-x-1/2 z-[85] pointer-events-none animate-event-pop">
+          <div className="bg-gray-800/95 border border-gray-600 rounded-xl px-4 py-2 shadow-xl text-center">
+            <p className="text-xs text-gray-300">
+              <span className="font-bold text-white">{tiradaAjena.nombre}</span> tiró{tiradaAjena.etiqueta ? ` ${tiradaAjena.etiqueta}` : ''}
+            </p>
+            <p className="text-2xl font-black text-white tabular-nums leading-tight">{tiradaAjena.total}</p>
+            <p className="text-[10px] text-gray-400">{tiradaAjena.detalle}</p>
+          </div>
+        </div>
+      )}
     </div>
+    </DadosProvider>
   )
 }

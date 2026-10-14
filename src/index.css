@@ -222,7 +222,140 @@ body {
   animation: evo-lista 1.8s ease-in-out infinite;
 }
 
+/* ── Climas de combate (WeatherEffects.jsx) ── */
+@keyframes rain-fall {
+  from { transform: translate(0, 0) rotate(12deg); }
+  to   { transform: translate(-25vh, 110vh) rotate(12deg); }
+}
+@keyframes hail-fall {
+  0%   { transform: translate(0, 0); opacity: 0.9; }
+  100% { transform: translate(-6vh, 110vh); opacity: 0.9; }
+}
+@keyframes sand-drift {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: 0.8; }
+  100% { transform: translate(110vw, var(--caida, 40px)); opacity: 0.6; }
+}
+@keyframes arena-velo {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+.animate-arena-velo { animation: arena-velo 6s ease-in-out infinite; }
+@keyframes sol-pulso {
+  0%, 100% { opacity: 0.75; transform: translateX(-50%) scale(1); }
+  50%      { opacity: 1;    transform: translateX(-50%) scale(1.06); }
+}
+.animate-sol-pulso { animation: sol-pulso 7s ease-in-out infinite; }
+@keyframes niebla {
+  from { transform: translateX(-12%); }
+  to   { transform: translateX(12%); }
+}
+.animate-niebla { animation: niebla 40s ease-in-out infinite alternate; }
+
+
+/* ── Evolución (EvolucionFx.jsx): siluetas que se alternan cada vez más
+   rápido (3.2 s), destello y la forma nueva a color ── */
+@keyframes evo-viejo {
+  0% { opacity: 1; }
+  16% { opacity: 0; }
+  30% { opacity: 1; }
+  42% { opacity: 0; }
+  52% { opacity: 1; }
+  60% { opacity: 0; }
+  67% { opacity: 1; }
+  73% { opacity: 0; }
+  78% { opacity: 1; }
+  82% { opacity: 0; }
+  85.5% { opacity: 1; }
+  88.5% { opacity: 0; }
+  91% { opacity: 1; }
+  93% { opacity: 0; }
+  95% { opacity: 1; }
+  96.5% { opacity: 0; }
+  98% { opacity: 1; }
+  99% { opacity: 0; }
+  100% { opacity: 0; }
+}
+@keyframes evo-nuevo-silueta {
+  0% { opacity: 0; }
+  16% { opacity: 1; }
+  30% { opacity: 0; }
+  42% { opacity: 1; }
+  52% { opacity: 0; }
+  60% { opacity: 1; }
+  67% { opacity: 0; }
+  73% { opacity: 1; }
+  78% { opacity: 0; }
+  82% { opacity: 1; }
+  85.5% { opacity: 0; }
+  88.5% { opacity: 1; }
+  91% { opacity: 0; }
+  93% { opacity: 1; }
+  95% { opacity: 0; }
+  96.5% { opacity: 1; }
+  98% { opacity: 0; }
+  99% { opacity: 1; }
+  100% { opacity: 1; }
+}
+/* step-end: la silueta salta de una a otra, no se funde */
+.animate-evo-viejo { animation: evo-viejo 3.2s step-end forwards; }
+/* La silueta nueva sigue blanca hasta que el destello la tapa, y entonces se va */
+.animate-evo-nuevo-silueta { animation: evo-nuevo-silueta 3.2s step-end forwards, evo-fuera 0.01s linear 3.55s forwards; }
+@keyframes evo-fuera { to { opacity: 0; } }
+@keyframes evo-halo {
+  0%   { transform: scale(0.6); opacity: 0.3; }
+  90%  { transform: scale(1.5); opacity: 1; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+.animate-evo-halo { animation: evo-halo 3.6s ease-in forwards; }
+@keyframes evo-destello {
+  0%, 61%  { opacity: 0; }
+  68%      { opacity: 1; }
+  80%      { opacity: 0; }
+  100%     { opacity: 0; }
+}
+.animate-evo-destello { animation: evo-destello 5.2s linear forwards; }
+@keyframes evo-revelar {
+  0%, 68% { opacity: 0; transform: scale(0.85); }
+  76%     { opacity: 1; transform: scale(1.12); }
+  84%     { transform: scale(1); }
+  100%    { opacity: 1; transform: scale(1); }
+}
+.animate-evo-revelar { animation: evo-revelar 5.2s ease-out forwards; }
+@keyframes evo-texto {
+  0%, 74% { opacity: 0; transform: translateY(10px); }
+  82%     { opacity: 1; transform: translateY(0); }
+  100%    { opacity: 1; transform: translateY(0); }
+}
+.animate-evo-texto { animation: evo-texto 5.2s ease-out forwards; }
+
+/* Números de daño y curación (NumerosFlotantes.jsx) */
+@keyframes numero-flotante {
+  0%   { transform: translateY(6px) scale(0.7); opacity: 0; }
+  15%  { transform: translateY(-4px) scale(1.15); opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translateY(-38px) scale(1); opacity: 0; }
+}
+.animate-numero-flotante { animation: numero-flotante 1.4s ease-out forwards; }
+
+/* Quién tiene el turno: un anillo dorado que late (avatar y tarjetas de la party) */
+@keyframes turno-anillo {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(251,191,36,0.95), 0 0 8px 2px rgba(251,191,36,0.55); }
+  50%      { box-shadow: 0 0 0 3px rgba(251,191,36,1),    0 0 18px 6px rgba(251,191,36,0.85); }
+}
+.animate-turno-anillo { animation: turno-anillo 1.4s ease-in-out infinite; border-radius: 9999px; }
+/* En las tarjetas conserva su propio redondeo */
+.rounded-\[7px\].animate-turno-anillo { border-radius: 7px; }
+
 @media (prefers-reduced-motion: reduce) {
+  .animate-turno-anillo { animation: none; box-shadow: 0 0 0 3px rgba(251,191,36,1), 0 0 12px 4px rgba(251,191,36,0.7); }
+  .animate-numero-flotante { animation: numero-flotante 1.4s linear forwards; transform: none; }
+  /* Evolución sin parpadeo: se salta la alternancia y el destello */
+  .animate-evo-viejo, .animate-evo-nuevo-silueta, .animate-evo-destello, .animate-evo-halo { animation: none; opacity: 0; }
+  .animate-evo-revelar, .animate-evo-texto { animation: none; opacity: 1; transform: none; }
+  /* Clima: el velo se queda (dice qué clima hay), las partículas se apagan */
+  .animate-sol-pulso, .animate-niebla, .animate-arena-velo { animation: none; }
+  [style*="rain-fall"], [style*="hail-fall"], [style*="sand-drift"] { animation: none !important; opacity: 0 !important; }
   .animate-evo-lista { animation: none; box-shadow: 0 0 6px 1px rgba(59, 130, 246, 0.6); }
   .animate-terreno-giro { animation: none; }
   .animate-pokeball-idle { animation: none; }

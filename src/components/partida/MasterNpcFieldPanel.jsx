@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { ChevronDown, Eye, EyeOff, Minus, Plus, Swords, X } from 'lucide-react'
 import { hpPct, hpColor } from '../../lib/partidaShared'
+import NumerosFlotantes from '../NumerosFlotantes'
 
 /* Tarjeta de un NPC en el panel del master: vida, ojo para revelarlo y ataque */
 function MasterNpcCard({ npc, onHp, onRemove, onToggleHidden, onAttack }) {
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-lg self-start">
+    <div className="relative bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-lg self-start">
+      <NumerosFlotantes valor={npc.hp_current} />
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <img src={`/avatars/${npc.avatar}`} alt=""

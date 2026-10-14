@@ -5,6 +5,7 @@ import { EstadosChips } from './EstadosControl'
 import { AuraInspirado } from './InspiradoAura'
 import LoadingOverlay from './LoadingOverlay'
 import TerrenoPiso from './TerrenoPiso'
+import NumerosFlotantes from './NumerosFlotantes'
 
 const hpPct   = (cur, max) => Math.max(0, Math.min(100, Math.round(((cur ?? max ?? 0) / (max || 1)) * 100)))
 const hpColor = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
@@ -48,15 +49,17 @@ function HpBar({ cur, max, showNumbers = true }) {
    luego otro 10% más sobre eso (168px→151px, 34px→31px...), menos los
    estados: esos EstadosChips de abajo siguen en su tamaño de siempre, a
    propósito. */
-function PartyPokemon({ p, hideHp, onClick }) {
+function PartyPokemon({ p, hideHp, onClick, enTurno = false }) {
   const pct    = hpPct(p.pokemon_current_hp, p.pokemon_hp)
   const sprite = (p.pokemon_is_shiny && p.pokemon_media_sprite_shiny)
     ? p.pokemon_media_sprite_shiny
     : (p.pokemon_media_sprite || p.pokemon_media_main)
   return (
     <div onClick={onClick} title={onClick ? 'Ver detalle del Pokémon' : undefined}
-      className={`flex items-center gap-[5px] border border-gray-700 rounded-[7px] p-[5px] shrink-0 w-[151px] ${bleedClass(pct)}
+      className={`relative flex items-center gap-[5px] border border-gray-700 rounded-[7px] p-[5px] shrink-0 w-[151px] ${bleedClass(pct)}
+        ${enTurno ? 'animate-turno-anillo' : ''}
         ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
+      <NumerosFlotantes valor={p.pokemon_current_hp} mostrarNumero={!hideHp} />
       <div className="flex flex-col items-center gap-[2px] shrink-0">
         <img src={sprite} alt={p.pokemon_apodo}
           className="w-[31px] h-[31px] object-contain bg-white rounded-[5px] border border-gray-300"
@@ -82,19 +85,26 @@ function PartyPokemon({ p, hideHp, onClick }) {
 /* Tarjeta de un jugador + su Pokémon invocado (estilo party, reutilizable).
    Mismo criterio que PartyPokemon: 30% más chico y luego otro 10% más,
    salvo los estados. */
-export function PlayerCard({ char: c, pres, invId, hideHp, onCharClick, onPokemonClick }) {
+export function PlayerCard({ char: c, pres, invId, hideHp, onCharClick, onPokemonClick, turno = null }) {
   const pct = hpPct(c.personaje_current_hp, c.personaje_hp)
   const initials = (pres?.user_name ?? '?').slice(0, 2).toUpperCase()
   const pokemon = invId != null
     ? (c.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(invId))
     : null
+  // Turno de este jugador: el anillo va en el entrenador o en el Pokémon con
+  // el que tiró la iniciativa
+  const suyo = turno && String(turno.personaje_id) === String(c.id_personaje)
+  const turnoPokemon = suyo && turno.personaje_pokemon_id != null
+  const turnoEntrenador = suyo && !turnoPokemon
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-[7px] p-[7px]">
-      <div className="flex items-stretch gap-[5px] overflow-x-auto">
+      <div className="flex items-stretch gap-[5px] overflow-x-auto p-1 -m-1">
         <div onClick={onCharClick ? () => onCharClick(c) : undefined}
           title={onCharClick ? 'Ver ficha del personaje' : undefined}
-          className={`flex items-center gap-[5px] rounded-[7px] p-[5px] border border-gray-700 shrink-0 w-[151px] ${bleedClass(pct)}
+          className={`relative flex items-center gap-[5px] rounded-[7px] p-[5px] border border-gray-700 shrink-0 w-[151px] ${bleedClass(pct)}
+            ${turnoEntrenador ? 'animate-turno-anillo' : ''}
             ${onCharClick ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
+          <NumerosFlotantes valor={c.personaje_current_hp} mostrarNumero={!hideHp} />
           <div className="flex flex-col items-center gap-[2px] shrink-0">
           <div className="relative">
             {/* El aura va afuera del círculo: el círculo recorta con
@@ -123,13 +133,14 @@ export function PlayerCard({ char: c, pres, invId, hideHp, onCharClick, onPokemo
           </div>
         </div>
         {pokemon && <PartyPokemon p={pokemon} hideHp={hideHp}
+          enTurno={turnoPokemon && String(turno.personaje_pokemon_id) === String(pokemon.id_personaje_pokemon)}
           onClick={onPokemonClick ? () => onPokemonClick(c, pokemon) : undefined} />}
       </div>
     </div>
   )
 }
 
-export default function PartyPanel({ partidaId, presentes, selfUserId, partyVersion, hideHp, invocados = {}, onClose, onCharClick, onPokemonClick }) {
+export default function PartyPanel({ partidaId, presentes, selfUserId, partyVersion, hideHp, invocados = {}, onClose, onCharClick, onPokemonClick, turno = null }) {
   const [chars, setChars] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -184,7 +195,7 @@ export default function PartyPanel({ partidaId, presentes, selfUserId, partyVers
           ) : visibles.map(({ char: c, pres }) => {
             const key = String(c.id_personaje)
             const invId = key in invocados ? invocados[key] : pres.pokemon_invocado
-            return <PlayerCard key={c.id_personaje} char={c} pres={pres} invId={invId} hideHp={hideHp}
+            return <PlayerCard key={c.id_personaje} char={c} pres={pres} invId={invId} hideHp={hideHp} turno={turno}
               onCharClick={onCharClick} onPokemonClick={onPokemonClick} />
           })}
         </div>

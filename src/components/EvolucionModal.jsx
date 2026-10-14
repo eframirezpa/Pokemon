@@ -3,7 +3,7 @@ import { X, Check, ChevronLeft, AlertTriangle, Minus, Plus, Sparkles } from 'luc
 import { apiFetch } from '../api'
 import LoadingOverlay from './LoadingOverlay'
 import PokeballSpinner from './PokeballSpinner'
-import PokemonSummonFx from './PokemonSummonFx'
+import EvolucionFx from './EvolucionFx'
 
 // Reglas de poke5e para repartir los puntos de la evolución
 const MAX_POR_STAT = 4
@@ -59,7 +59,10 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
     return () => { vivo = false }
   }, [personajeId, idpp])
 
-  if (fx) return <PokemonSummonFx key={fx.key} sprite={fx.sprite} />
+  if (fx) {
+    return <EvolucionFx key={fx.key} spriteDe={fx.de} spriteA={fx.a} texto={fx.texto}
+      onFin={() => { onEvolved?.(fx.resultado); onClose() }} />
+  }
   if (!data && !error) return <LoadingOverlay label="Evolución" onClose={onClose} z="z-[100]" />
 
   const base = data?.stats || {}
@@ -102,8 +105,11 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
       const j = await res.json().catch(() => ({}))
       if (!res.ok) { setError(j.error || 'No se pudo evolucionar'); return }
       const sprite = (pokemon.pokemon_is_shiny && sel.destino.sprite_shiny) ? sel.destino.sprite_shiny : j.sprite
-      setFx({ sprite, key: Date.now() })
-      setTimeout(() => { onEvolved?.({ ...j, sprite }); onClose() }, 1300)
+      // onEvolved se llama cuando termina la animación (onFin de EvolucionFx)
+      setFx({
+        key: Date.now(), de: data.sprite_actual, a: sprite, resultado: { ...j, sprite },
+        texto: `¡${data.apodo || pokemon.pokemon_apodo} evolucionó a ${j.a}!`,
+      })
     } catch { setError('No se pudo evolucionar') } finally { setBusy(false) }
   }
 
@@ -291,7 +297,7 @@ export default function EvolucionModal({ personajeId, pokemon, onClose, onEvolve
                 {sel.destino.saving_throws && fila('Saving throws', sel.destino.saving_throws)}
                 {sel.destino.skills && fila('Skills', sel.destino.skills)}
                 {!sel.conserva_pasiva && fila('Habilidad', sel.pasivas_elegibles.find(a => a.id === pasiva)?.nombre)}
-                {item && fila('Se consume', item.valor)}
+                {item && fila('Se consume', item.equipado ? `${item.valor} (el que lleva equipado)` : item.valor)}
                 {fila('Movimientos', [...(data.movimientos_actuales || []), ...sel.movimientos_nuevos]
                   .filter(m => moves.includes(m.move_id)).map(m => m.move_name).join(', '))}
               </div>

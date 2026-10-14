@@ -4,6 +4,7 @@ import { apiFetch } from '../api'
 import MasterPokemonFeats from './MasterPokemonFeats'
 import MoveInfoModal from './MoveInfoModal'
 import PokeballSpinner from './PokeballSpinner'
+import BotonDado from './dados/BotonDado'
 
 const STAT_KEYS = ['dex', 'str', 'con', 'int', 'wis', 'cha']
 const STAT_LABEL = { dex: 'DEX', str: 'STR', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' }
@@ -51,12 +52,15 @@ function HpRollField({ dice, max, value, onChange }) {
       <label htmlFor="hp-roll" className="block text-[11px] font-black uppercase tracking-wider text-amber-800 mb-1.5">
         Puntos de golpe ganados
       </label>
-      <input
-        id="hp-roll" type="number" inputMode="numeric" min={1} max={max || undefined}
-        value={value} onChange={e => onChange(e.target.value)}
-        placeholder={`1 - ${max}`}
-        className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-lg font-black text-gray-900
-                   focus:outline-none focus:ring-2 focus:ring-amber-400" />
+      <div className="flex items-center gap-2">
+        <input
+          id="hp-roll" type="number" inputMode="numeric" min={1} max={max || undefined}
+          value={value} onChange={e => onChange(e.target.value)}
+          placeholder={`1 - ${max}`}
+          className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-lg font-black text-gray-900
+                     focus:outline-none focus:ring-2 focus:ring-amber-400" />
+        <BotonDado notacion={dice ? `1${dice}` : null} etiqueta="HP de subida de nivel" onResultado={v => onChange(String(v))} className="w-11 h-11" />
+      </div>
       <p className="text-[11px] text-amber-800 mt-1.5">
         Arroja un dado de <b>{dice || '—'}</b> e ingresa el resultado (1 a {max}).
       </p>

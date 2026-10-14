@@ -18,6 +18,7 @@ const formatAttackText = (payload, displayName) => {
 export function usePartidaPresence(partidaId, userInfo) {
   const [presentes, setPresentes]         = useState([])
   const [log,       setLog]               = useState([])
+  const [ultimaTirada, setUltimaTirada]   = useState(null) // { nombre, texto, total, ... at }
   const [masterMessage, setMasterMessage] = useState(DEFAULT_MASTER_MESSAGE)
   const [activePokemons, setActivePokemons] = useState([])
   // NPC invocados por el máster. Viven en la difusión igual que los Pokémon del
@@ -40,6 +41,9 @@ export function usePartidaPresence(partidaId, userInfo) {
   // la partida: el broadcast solo adelanta el cambio a quien ya está dentro, y
   // quien entra después lo recibe igual al consultar la partida.
   const [mapaPin, setMapaPin] = useState(null)
+  // Clima de combate: guardado en la partida igual que el pin; el broadcast
+  // solo adelanta el cambio a quien ya está dentro.
+  const [clima, setClima] = useState(null)
   // Orden de turno. Como el pin, está guardado en la partida: el broadcast solo
   // adelanta el cambio, y quien entre o recargue lo recibe al consultarla.
   const [iniciativa, setIniciativa] = useState(null)
@@ -94,10 +98,12 @@ export function usePartidaPresence(partidaId, userInfo) {
   // reconexión. La escribe solo quien origina la acción (sendActivity o
   // sendAttack, llamadas una vez por quien la dispara), nunca quien la recibe
   // por broadcast -si no, cada persona conectada duplicaría la fila-.
-  const persistLog = useCallback((texto, texto_master, role) => {
+  // tipo (captura, evolucion, nivel, item, ataque, tirada...) es lo que usa el
+  // resumen de la sesión anterior para no tener que adivinar leyendo el texto.
+  const persistLog = useCallback((texto, texto_master, role, tipo = null) => {
     if (!partidaId) return
     apiFetch(`/partida/${partidaId}/log`, {
-      method: 'POST', body: JSON.stringify({ texto, texto_master, role }),
+      method: 'POST', body: JSON.stringify({ texto, texto_master, role, tipo }),
     }).catch(() => { /* si falla, la mesa lo sigue viendo por broadcast; solo se pierde del historial */ })
   }, [partidaId])
 
@@ -170,6 +176,11 @@ export function usePartidaPresence(partidaId, userInfo) {
       .on('broadcast', { event: 'activity' }, ({ payload }) => {
         if (payload?.text) pushLog(payload.text, payload.role)
       })
+      .on('broadcast', { event: 'tirada' }, ({ payload }) => {
+        if (!payload?.texto) return
+        setUltimaTirada({ ...payload, at: Date.now() })
+        pushLog(payload.texto, 'master')
+      })
       .on('broadcast', { event: 'party_update' }, () => {
         setPartyUpdatedAt(Date.now())
       })
@@ -216,6 +227,9 @@ export function usePartidaPresence(partidaId, userInfo) {
       })
       .on('broadcast', { event: 'mapa_pin' }, ({ payload }) => {
         setMapaPin(payload?.pin ?? null)
+      })
+      .on('broadcast', { event: 'clima' }, ({ payload }) => {
+        setClima(payload?.clima ?? null)
       })
       .on('broadcast', { event: 'iniciativa' }, ({ payload }) => {
         iniciativaRef.current = payload?.iniciativa ?? null
@@ -295,14 +309,24 @@ export function usePartidaPresence(partidaId, userInfo) {
         formatAttackText(payload, payload.hidden ? 'el pokemon' : payload.pokemonName),
         payload.hidden ? formatAttackText(payload, payload.pokemonName) : null,
         'master',
+        'ataque',
       )
     }
   }, [applyAttack, persistLog])
 
-  const sendActivity = useCallback((text, role = 'master') => {
+  const sendActivity = useCallback((text, role = 'master', tipo = null) => {
     pushLog(text, role) // registro local inmediato
     channelRef.current?.send({ type: 'broadcast', event: 'activity', payload: { text, role } })
-    persistLog(text, null, role)
+    persistLog(text, null, role, tipo)
+  }, [pushLog, persistLog])
+
+  // Tirada de dados: el aviso con el resultado le sale a toda la mesa y queda
+  // en el registro. Los dados 3D solo los ve quien tira.
+  const sendTirada = useCallback((tirada) => {
+    setUltimaTirada({ ...tirada, at: Date.now() })
+    pushLog(tirada.texto, 'master')
+    channelRef.current?.send({ type: 'broadcast', event: 'tirada', payload: tirada })
+    persistLog(tirada.texto, null, 'master', 'tirada')
   }, [pushLog, persistLog])
 
   // Avisa a los demás que cambió el estado de la party (para que re-consulten)
@@ -417,6 +441,11 @@ export function usePartidaPresence(partidaId, userInfo) {
     setIniciativa(ini ?? null)
   }, [])
 
+  const sendClima = useCallback((c) => {
+    setClima(c ?? null)
+    channelRef.current?.send({ type: 'broadcast', event: 'clima', payload: { clima: c ?? null } })
+  }, [])
+
   const sendMapaPin = useCallback((pin) => {
     setMapaPin(pin ?? null)
     channelRef.current?.send({ type: 'broadcast', event: 'mapa_pin', payload: { pin: pin ?? null } })
@@ -435,5 +464,5 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'iniciativa_swap_respuesta', payload })
   }, [])
 
-  return { presentes, log, setLogLocal, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, iniciativa, setIniciativa, sendIniciativa, setIniciativaLocal, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
+  return { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, iniciativa, setIniciativa, sendIniciativa, setIniciativaLocal, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
 }

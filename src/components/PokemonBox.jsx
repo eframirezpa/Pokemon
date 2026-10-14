@@ -487,7 +487,7 @@ function AddExpModal({ personajeId, pokemon, onClose, onDone }) {
       const res = await apiFetch(`/personaje/${personajeId}/pokemon/${pokemon.id_personaje_pokemon}/experiencia`,
         { method: 'PATCH', body: JSON.stringify({ cantidad: n }) })
       if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error || 'No se pudo agregar'); return }
-      onDone()
+      onDone(await res.json().catch(() => null))
     } catch { setError('No se pudo agregar') } finally { setBusy(false) }
   }
 
@@ -522,7 +522,7 @@ function AddExpModal({ personajeId, pokemon, onClose, onDone }) {
   )
 }
 
-export default function PokemonBox({ personajeId, partidaId = null, getConectados = null, mode, editable = false, onClose, onInvoke, onMoved, onExpAdded, nombrePersonaje = null, onAnuncio = null, onSwitchMode = null, onEvolved = null }) {
+export default function PokemonBox({ personajeId, partidaId = null, getConectados = null, mode, editable = false, onClose, onInvoke, onMoved, onExpAdded, nombrePersonaje = null, onAnuncio = null, onSwitchMode = null, onEvolved = null, onRegistrar = null }) {
   const isBelt = mode === 'belt'
   const title    = isBelt ? 'Cinturón' : 'Femputadora'
   const subtitle = isBelt ? 'Pokémones en tu equipo' : 'Pokémones almacenados'
@@ -641,7 +641,14 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
         {expFor && (
           <AddExpModal personajeId={personajeId} pokemon={expFor}
             onClose={() => setExpFor(null)}
-            onDone={() => { setExpFor(null); load(); onExpAdded?.() }} />
+            onDone={(r) => {
+              // Las subidas de nivel quedan en el registro (cuentan para el
+              // resumen de la sesión). Subir un Pokémon puede subir al entrenador.
+              const quien = nombrePersonaje || 'el entrenador'
+              if (r?.leveled_up) onRegistrar?.(`${expFor.pokemon_apodo} de ${quien} subió a nivel ${r.pokemon_level}`, 'nivel')
+              if (r?.nivel_entrenador?.subio) onRegistrar?.(`${nombrePersonaje || 'El entrenador'} subió a nivel ${r.nivel_entrenador.nivel} de entrenador`, 'nivel')
+              setExpFor(null); load(); onExpAdded?.()
+            }} />
         )}
 
       {heldFor && (

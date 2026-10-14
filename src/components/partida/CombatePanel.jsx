@@ -5,6 +5,7 @@ import FeatInfoModal from '../FeatInfoModal'
 import MoveInfoModal from '../MoveInfoModal'
 import TypeEffectivenessView from '../TypeEffectivenessView'
 import ItemsPanel from '../ItemsPanel'
+import BotonDado from '../dados/BotonDado'
 import WeaponPanel from '../WeaponPanel'
 import { InspiradoInfoButton } from '../InspiradoAura'
 import { EstadoTrigger } from '../EstadosControl'
@@ -862,6 +863,9 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                                     text-white placeholder:text-gray-500 placeholder:font-bold placeholder:text-xs
                                     focus:outline-none focus:ring-2 focus:ring-amber-400/60 transition-colors ${
                           critico ? 'border-amber-400' : 'border-gray-600'}`} />
+                      {/* Solo el d20: el resto lo suma la fórmula */}
+                      <BotonDado notacion="1d20" usar="dado" etiqueta="Ataque" className="w-9 h-9 rounded-xl"
+                        onResultado={v => setDado(String(v))} />
 
                       <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
 

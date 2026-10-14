@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { X, BedDouble } from 'lucide-react'
 import { apiFetch } from '../api'
 import PokeballSpinner from './PokeballSpinner'
+import BotonDado from './dados/BotonDado'
 
 // Ventana de descanso del entrenador.
 //
@@ -222,10 +223,15 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
                 Lanza <span className="font-bold">{nDados}</span> {nDados === 1 ? 'dado' : 'dados'} de{' '}
                 <span className="font-bold">{elegido.hit_dice || `d${elegido.cara}`}</span>
               </p>
-              <input type="number" min={nDados} max={maxTirada} value={tirada} autoFocus
-                onChange={e => setTirada(e.target.value)}
-                placeholder={`Entre ${nDados} y ${maxTirada}`}
-                className="w-full px-3 py-2 text-sm text-center text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              <div className="flex items-center gap-2">
+                <input type="number" min={nDados} max={maxTirada} value={tirada} autoFocus
+                  onChange={e => setTirada(e.target.value)}
+                  placeholder={`Entre ${nDados} y ${maxTirada}`}
+                  className="w-full px-3 py-2 text-sm text-center text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                {/* Solo los dados: el modificador de CON lo suma el servidor */}
+                <BotonDado notacion={`${nDados}d${elegido.cara || 6}`} usar="dado" etiqueta="Descanso corto"
+                  onResultado={v => setTirada(String(v))} className="w-9 h-9" />
+              </div>
               <p className="text-[11px] text-gray-500">
                 Al resultado se le suma el modificador de CON por cada dado gastado.
                 Todo va a los puntos de golpe, sin pasar del máximo.
