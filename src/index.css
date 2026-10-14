@@ -418,7 +418,7 @@ body {
   35% { transform: rotate(18deg); }
   52% { transform: rotate(-8deg); }
 }
-.animate-cap-sacudir { animation: cap-sacudir 1s ease-in-out forwards; transform-origin: 50% 90%; }
+.animate-cap-sacudir { animation: cap-sacudir 2s ease-in-out forwards; transform-origin: 50% 90%; }
 /* Atrapado: la pokébola queda quieta y un poco apagada, como en los juegos */
 .cap-bola-cerrada { filter: brightness(0.8) drop-shadow(0 0 10px rgba(251,191,36,0.8)); }
 @keyframes cap-estrella {

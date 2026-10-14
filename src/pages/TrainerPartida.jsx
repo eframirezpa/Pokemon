@@ -31,6 +31,7 @@ import LoadingOverlay from '../components/LoadingOverlay'
 import { acDelTrainer, ICONO_REDONDO } from '../lib/trainerCombatShared'
 import { CombatePanel } from '../components/partida/CombatePanel'
 import { ClimaIcono } from '../components/partida/ClimaChip'
+import BarraTurno from '../components/BarraTurno'
 import PokemonSummonFx from '../components/PokemonSummonFx'
 
 export default function TrainerPartida() {
@@ -168,6 +169,11 @@ export default function TrainerPartida() {
   // con sonido cuando me toca. La iniciativa llega desde PartidaRoom.
   const [iniciativa, setIniciativa] = useState(null)
   const [clima, setClima] = useState(null) // lo avisa PartidaRoom; va en la columna de iconos
+  const [turnoBusy, setTurnoBusy] = useState(false)
+  const terminarTurno = async () => {
+    setTurnoBusy(true)
+    try { await partidaApiRef.current?.terminarTurno?.() } finally { setTurnoBusy(false) }
+  }
   const enTurno = participanteEnTurno(iniciativa)
   const miTurno = !!enTurno && String(enTurno.user_id) === String(user?.user_id)
   const turnoDelPokemon = miTurno && enTurno.personaje_pokemon_id != null
@@ -1074,11 +1080,25 @@ export default function TrainerPartida() {
           <Smartphone size={18} />
         </button>
 
+        {/* Debajo de la Pokédex: turno en curso, clima y la columna de botones.
+            El turno y el clima van fuera de la columna porque esta hace scroll y
+            recortaría la barra de turno, que es más ancha que un icono. El bloque
+            no captura clics (pointer-events-none): solo sus piezas. */}
+        <div className="fixed left-3 top-64 bottom-3 z-30 flex flex-col items-start gap-2 pointer-events-none">
+          {iniciativa?.estado === 'activa' && (
+            <div className="shrink-0 max-w-[calc(100vw-1.5rem)]">
+              <BarraTurno iniciativa={iniciativa} userId={user?.user_id} onTerminar={terminarTurno} busy={turnoBusy} />
+            </div>
+          )}
+          {clima && (
+            <div className="shrink-0 pointer-events-auto">
+              <ClimaIcono clima={clima} />
+            </div>
+          )}
+
         {/* Botones laterales — columna centrada y scrolleable (para pantallas bajas) */}
-        <div className="fixed left-3 top-64 bottom-3 z-30 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto pointer-events-auto">
           <div className="min-h-full flex flex-col justify-center gap-2 py-1">
-            {/* Clima de combate: entre la Pokédex y los dados */}
-            <ClimaIcono clima={clima} />
             {personajeId && <BotonBandejaDados />}
             {personajeId && (
               <button onClick={() => setShowChar(true)} className={sideBtn} title="Ver mi personaje">
@@ -1131,6 +1151,7 @@ export default function TrainerPartida() {
               </button>
             )}
           </div>
+        </div>
         </div>
       </div>
 

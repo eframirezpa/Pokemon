@@ -566,13 +566,15 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       // Pokémon, y las acciones del trainer deben verse igual.
       // Solo la línea del log de actividad, sin el aviso central para toda la mesa
       registrar: (texto, tipo = null) => sendActivity(texto, 'master', tipo),
+      // La barra de turno del entrenador vive en su columna (TrainerPartida)
+      terminarTurno,
       anunciar: (texto, trainer, pokemon, tipo = null) => {
         sendMasterMessage(texto)
         sendActivity(texto, 'master', tipo)
         if (trainer) sendCaptura(trainer, pokemon, texto)
       },
     }
-  }, [apiRef, sendPartyUpdate, sendAttack, loadPokeballs, presentes, sendMasterMessage, sendActivity, sendCaptura])
+  }, [apiRef, sendPartyUpdate, sendAttack, loadPokeballs, presentes, sendMasterMessage, sendActivity, sendCaptura, terminarTurno])
 
   // Difunde el Pokémon invocado del jugador cuando cambia
   useEffect(() => {
@@ -1009,10 +1011,11 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         )
       })()}
 
-      {/* Turno en curso y clima: los ve toda la mesa, uno debajo del otro */}
-      {(iniciativa?.estado === 'activa' || (clima && !onClima)) && (
+      {/* Turno en curso y clima: los ve toda la mesa, uno debajo del otro. El
+          entrenador los lleva en su columna de iconos (onIniciativa/onClima). */}
+      {((iniciativa?.estado === 'activa' && !onIniciativa) || (clima && !onClima)) && (
         <div className="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-40 max-w-[92vw] flex flex-col items-center gap-1.5">
-          {iniciativa?.estado === 'activa' && (
+          {iniciativa?.estado === 'activa' && !onIniciativa && (
             <BarraTurno iniciativa={iniciativa} userId={user?.user_id}
               onTerminar={terminarTurno} busy={turnoBusy} />
           )}

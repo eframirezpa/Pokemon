@@ -5,7 +5,7 @@ import { POKEBALL_SPRITE } from '../lib/partidaShared'
 const LANZAR = 700     // la pokébola vuela hasta el Pokémon
 const ABSORBER = 600   // se abre y lo absorbe en un destello
 const CAER = 450       // cae al suelo
-const SACUDIDA = 1000  // cada balanceo, con su pausa
+const SACUDIDA = 2000  // cada balanceo, con su pausa (lento, para el drama)
 const FINAL = 2400     // el desenlace en pantalla
 
 const SILUETA_BLANCA = { filter: 'brightness(0) invert(1) drop-shadow(0 0 18px rgba(255,255,255,0.9))' }
