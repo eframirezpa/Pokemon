@@ -30,6 +30,8 @@ import MapaModal from './MapaModal'
 import NotasModal from './NotasModal'
 import MasterFieldPicker from './MasterFieldPicker'
 import PokeballSpinner from './PokeballSpinner'
+import CapturaTirada from './CapturaTirada'
+import CapturaFx from './CapturaFx'
 import { POKEBALL_SPRITE, TYPE_COLORS, COUNTER_EVENTS, TONE } from '../lib/partidaShared'
 import { PokemonHpCard, NpcHpCard } from './partida/PokemonHpCard'
 import { MasterNpcFieldPanel } from './partida/MasterNpcFieldPanel'
@@ -101,7 +103,7 @@ function construirEntradaPokemon(d, { uid, master_pokemon_id, hidden, inBall }) 
 }
 
 
-export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null, onPartyVersion = null, nombreJugador = null, onIniciativa = null, onPartyLocal = null }) {
+export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null, onPartyVersion = null, nombreJugador = null, onIniciativa = null, onPartyLocal = null, onClima = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
   const { user }    = useAuth()
@@ -153,13 +155,17 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, partyLocalAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
+  const { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, partyLocalAt, sendPartyUpdate, sendPartyUpdateTotal, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, capturaAuto, setCapturaAuto, sendCapturaAuto, capturaFx, setCapturaFx, sendCapturaFx, removePokemonLocal, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
 
   // ── Atrapar Pokémon: pokébolas del trainer, panel de lanzamiento y animación ──
   const [pokeballs, setPokeballs]   = useState([])   // items tipo pokeball con cantidad > 0
   const [throwTarget, setThrowTarget] = useState(null) // Pokémon del master al que se apunta
   const [throwFx, setThrowFx]       = useState(null) // animación en curso
   const [throwing, setThrowing]     = useState(false)
+  // Captura automática: pokébola elegida esperando la tirada, y el resultado
+  // propio pendiente de anunciar cuando termine la animación
+  const [capturaPrep, setCapturaPrep] = useState(null) // { target, ball }
+  const capturaPropiaRef = useRef(null)
 
   const loadPokeballs = useCallback(() => {
     if (isMaster || personajeId == null) return
@@ -187,6 +193,14 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       .then(d => setClima(d?.clima ?? null))
       .catch(() => {})
   }, [id, setClima])
+
+  // La captura automática, igual que el clima: guardada en la partida
+  useEffect(() => {
+    if (!id) return
+    apiFetch(`/partida/${id}/captura-auto`).then(r => r.json())
+      .then(d => setCapturaAuto(!!d?.activa))
+      .catch(() => {})
+  }, [id, setCapturaAuto])
 
   // El orden de turno se consulta al entrar por lo mismo que el pin: el
   // broadcast solo alcanza a quien ya estaba conectado. setIniciativaLocal
@@ -224,6 +238,20 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     finally { setTurnoBusy(false) }
   }, [id, sendIniciativa])
 
+  // Encender o apagar la captura automática (solo el máster). Igual que el
+  // pin: se ve al instante y se deshace si el guardado falla.
+  const cambiarCapturaAuto = useCallback(async (activa) => {
+    sendCapturaAuto(activa)
+    try {
+      const res = await apiFetch(`/partida/${id}/captura-auto`, { method: 'PATCH', body: JSON.stringify({ activa }) })
+      if (!res.ok) throw new Error()
+      sendActivity(activa ? 'Captura automática activada: la pokébola pide tirada de Animal Handling'
+                          : 'Captura automática desactivada: el DM decide las capturas', 'master', 'mensaje')
+    } catch {
+      sendCapturaAuto(!activa)
+    }
+  }, [id, sendCapturaAuto, sendActivity])
+
   // Fijar, mover o quitar el pin (solo el máster). Se pinta al instante, se
   // guarda y se difunde; si el guardado falla, se deshace y no queda un pin
   // fantasma que solo ve quien lo puso.
@@ -258,6 +286,13 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   // Lanza la pokébola elegida: cierra el panel, descuenta 1 y dispara la animación
   const throwBall = async (ball) => {
     if (throwing || !throwTarget) return
+    // Con la captura automática no se lanza todavía: primero la tirada. La
+    // pokébola la descuenta el servidor al resolver, no aquí.
+    if (capturaAuto) {
+      setCapturaPrep({ target: throwTarget, ball })
+      setThrowTarget(null)
+      return
+    }
     setThrowing(true)
     const target = throwTarget
     setThrowTarget(null)
@@ -283,11 +318,48 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     setThrowing(false)
   }
 
+  // El servidor ya resolvió: se ajusta la mochila y arranca la animación para
+  // toda la mesa. El anuncio espera a que termine, para no adelantar el final.
+  const onCapturaResuelta = (r, target) => {
+    setCapturaPrep(null)
+    setPokeballs(prev => prev.map(b => b.id_personaje_equipo === capturaPrep?.ball?.id_personaje_equipo
+      ? { ...b, cantidad: r.bola.restante } : b).filter(b => Number(b.cantidad) > 0))
+    capturaPropiaRef.current = r
+    sendCapturaFx({
+      uid: r.uid, exito: r.exito, sacudidas: r.sacudidas,
+      bola: r.bola.sprite, nombreBola: r.bola.nombre,
+      sprite: target.sprite, oculto: r.oculto,
+      trainer: r.nombre_personaje,
+      pokemon: (r.exito || !r.oculto) ? r.pokemon : '???',
+    })
+  }
+
+  // Fin de la animación, en cada pantalla: si lo atrapó, sale del campo. Solo
+  // quien lanzó anuncia; la línea del historial ya la guardó el servidor.
+  const onCapturaFxFin = () => {
+    const fx = capturaFx
+    setCapturaFx(null)
+    if (!fx) return
+    if (fx.exito) removePokemonLocal(fx.uid)
+    const propia = capturaPropiaRef.current
+    if (!propia || propia.uid !== fx.uid) return
+    capturaPropiaRef.current = null
+    sendActivity(propia.texto, 'trainer', 'captura', false)
+    if (propia.exito) {
+      sendCaptura(propia.nombre_personaje, propia.pokemon)
+      sendPartyUpdateTotal()
+    }
+  }
+
   // Expone el estado de lucha al padre (TrainerPartida oculta iconos de no-seleccionados)
   useEffect(() => { onFight?.(fight) }, [fight, onFight])
 
   // La iniciativa al padre (TrainerPartida marca el turno sobre su avatar)
   useEffect(() => { onIniciativa?.(iniciativa) }, [iniciativa, onIniciativa])
+
+  // El clima al padre: el entrenador lo muestra en su columna de iconos, y
+  // entonces aquí arriba ya no se pinta (ver ClimaChip más abajo)
+  useEffect(() => { onClima?.(clima) }, [clima, onClima])
 
   // Notifica al padre cuando cambia la party (para que el trainer re-consulte su flag editable)
   useEffect(() => { onPartyVersion?.(partyUpdatedAt) }, [partyUpdatedAt, onPartyVersion])
@@ -938,13 +1010,13 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       })()}
 
       {/* Turno en curso y clima: los ve toda la mesa, uno debajo del otro */}
-      {(iniciativa?.estado === 'activa' || clima) && (
+      {(iniciativa?.estado === 'activa' || (clima && !onClima)) && (
         <div className="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-40 max-w-[92vw] flex flex-col items-center gap-1.5">
           {iniciativa?.estado === 'activa' && (
             <BarraTurno iniciativa={iniciativa} userId={user?.user_id}
               onTerminar={terminarTurno} busy={turnoBusy} />
           )}
-          <ClimaChip clima={clima} />
+          {!onClima && <ClimaChip clima={clima} />}
         </div>
       )}
 
@@ -1061,6 +1133,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onTransfer={abrirTransferencia}
                 onMoveInfo={setMasterMoveInfo}
                 onInspect={setInspectMasterPoke}
+                capturaAuto={capturaAuto}
+                onCapturaAuto={cambiarCapturaAuto}
               />
               <MasterNpcFieldPanel
                 npcs={activeNpcs}
@@ -1110,7 +1184,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
               <div className={`absolute top-4 right-4 z-10 flex gap-2 origin-top-right ${isPhone ? 'scale-[0.65]' : 'scale-100'} ${isPhoneLandscape ? 'flex-row-reverse' : 'flex-col'}`}>
                 {activePokemons.map(p => (
                   <PokemonHpCard key={p.uid} p={p}
-                    onPokeball={hasPokeballs && !p.inBall ? openThrowPanel : null} ballSprite={ballIcon}
+                    onPokeball={hasPokeballs && !p.inBall && capturaFx?.uid !== p.uid ? openThrowPanel : null} ballSprite={ballIcon}
                     onPokedex={!p.hidden && !p.inBall ? () => { setPokedexInspectListo(false); setPokedexInspectLevel(p.level); setPokedexInspectId(p.pokemon_id) } : null} />
                 ))}
                 {activeNpcs.map(n => <NpcHpCard key={n.uid} n={n} />)}
@@ -1269,6 +1343,15 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       )}
 
       {masterMoveInfo && <MoveInfoModal m={masterMoveInfo} theme="dark" onClose={() => setMasterMoveInfo(null)} />}
+
+      {/* Captura automática: la tirada (solo quien lanza) y la animación (toda la mesa) */}
+      {capturaPrep && !isMaster && personajeId != null && (
+        <CapturaTirada partidaId={id} personajeId={personajeId} pokemonInvocado={pokemonInvocado}
+          target={capturaPrep.target} ball={capturaPrep.ball}
+          onCancelar={() => setCapturaPrep(null)}
+          onResultado={(r) => onCapturaResuelta(r, capturaPrep.target)} />
+      )}
+      {capturaFx && <CapturaFx key={capturaFx.at} fx={capturaFx} esMaster={isMaster} onFin={onCapturaFxFin} />}
 
       {/* Aviso de captura: 5 s centrado en pantalla, para toda la partida (master incluido) */}
       {showCaptura && captura.trainer && (

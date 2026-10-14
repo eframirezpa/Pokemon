@@ -383,3 +383,73 @@ body {
   .animate-summon-flash, .animate-summon-beam, .animate-summon-particle { animation: none; opacity: 0; }
   .animate-summon-pokemon { animation: none; opacity: 1; transform: scale(1); }
 }
+
+/* ── Captura automática (CapturaFx.jsx) ──
+   La pokébola descansa abajo en el centro; "arriba" es frente al Pokémon. */
+@keyframes cap-lanzar {
+  0%   { transform: translate(-190px, 120px) rotate(0deg) scale(0.7); opacity: 0; }
+  12%  { opacity: 1; }
+  60%  { transform: translate(-60px, -190px) rotate(500deg) scale(1); }
+  100% { transform: translate(0, -150px) rotate(720deg) scale(1); }
+}
+.animate-cap-lanzar { animation: cap-lanzar 0.7s cubic-bezier(0.3, 0, 0.6, 1) forwards; }
+.cap-bola-arriba { transform: translateY(-150px); }
+@keyframes cap-absorber {
+  0%   { transform: scale(1); opacity: 1; }
+  100% { transform: translateY(-26px) scale(0.05); opacity: 0.2; }
+}
+.animate-cap-absorber { animation: cap-absorber 0.6s ease-in forwards; transform-origin: 50% 60%; }
+@keyframes cap-destello {
+  0%   { transform: scale(0.2); opacity: 0; }
+  30%  { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+.animate-cap-destello { animation: cap-destello 0.6s ease-out forwards; }
+@keyframes cap-caer {
+  0%   { transform: translateY(-150px); }
+  60%  { transform: translateY(0); }
+  78%  { transform: translateY(-22px); }
+  100% { transform: translateY(0); }
+}
+.animate-cap-caer { animation: cap-caer 0.45s ease-in forwards; }
+@keyframes cap-sacudir {
+  0%, 70%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-24deg); }
+  35% { transform: rotate(18deg); }
+  52% { transform: rotate(-8deg); }
+}
+.animate-cap-sacudir { animation: cap-sacudir 1s ease-in-out forwards; transform-origin: 50% 90%; }
+/* Atrapado: la pokébola queda quieta y un poco apagada, como en los juegos */
+.cap-bola-cerrada { filter: brightness(0.8) drop-shadow(0 0 10px rgba(251,191,36,0.8)); }
+@keyframes cap-estrella {
+  0%   { transform: rotate(var(--giro)) translateY(0) scale(0.4); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: rotate(var(--giro)) translateY(-70px) scale(1.2); opacity: 0; }
+}
+.animate-cap-estrella { animation: cap-estrella 1s ease-out forwards; }
+/* Escapó: la pokébola salta abierta y se desvanece; el Pokémon vuelve */
+@keyframes cap-abrir {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  40%  { transform: translateY(-40px) rotate(-25deg); opacity: 1; }
+  100% { transform: translateY(10px) rotate(-60deg); opacity: 0; }
+}
+.animate-cap-abrir { animation: cap-abrir 0.8s ease-out forwards; }
+@keyframes cap-escapar {
+  0%   { transform: translateY(150px) scale(0.05); opacity: 0; filter: brightness(0) invert(1); }
+  45%  { transform: translateY(0) scale(1.08); opacity: 1; filter: brightness(0) invert(1); }
+  100% { transform: translateY(0) scale(1); opacity: 1; filter: none; }
+}
+.animate-cap-escapar { animation: cap-escapar 0.9s ease-out forwards; }
+@keyframes cap-texto {
+  0%   { opacity: 0; transform: scale(0.7); }
+  25%  { opacity: 1; transform: scale(1.08); }
+  40%, 100% { opacity: 1; transform: scale(1); }
+}
+.animate-cap-texto { animation: cap-texto 0.9s ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Sin vuelos ni sacudidas: la pokébola queda quieta y el desenlace se lee */
+  .animate-cap-lanzar, .animate-cap-caer, .animate-cap-sacudir, .animate-cap-abrir { animation: none; }
+  .animate-cap-absorber, .animate-cap-destello, .animate-cap-estrella { animation: none; opacity: 0; }
+  .animate-cap-escapar, .animate-cap-texto { animation: none; opacity: 1; }
+}

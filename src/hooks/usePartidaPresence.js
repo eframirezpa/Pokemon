@@ -46,6 +46,11 @@ export function usePartidaPresence(partidaId, userInfo) {
   // Clima de combate: guardado en la partida igual que el pin; el broadcast
   // solo adelanta el cambio a quien ya está dentro.
   const [clima, setClima] = useState(null)
+  // Captura automática (check del máster): guardada en la partida como el
+  // clima; el broadcast solo adelanta el cambio a quien ya está dentro.
+  const [capturaAuto, setCapturaAuto] = useState(false)
+  // Animación de una captura automática en curso, la misma para toda la mesa
+  const [capturaFx, setCapturaFx] = useState(null)
   // Orden de turno. Como el pin, está guardado en la partida: el broadcast solo
   // adelanta el cambio, y quien entre o recargue lo recibe al consultarla.
   const [iniciativa, setIniciativa] = useState(null)
@@ -233,6 +238,12 @@ export function usePartidaPresence(partidaId, userInfo) {
       .on('broadcast', { event: 'clima' }, ({ payload }) => {
         setClima(payload?.clima ?? null)
       })
+      .on('broadcast', { event: 'captura_auto' }, ({ payload }) => {
+        setCapturaAuto(!!payload?.activa)
+      })
+      .on('broadcast', { event: 'captura_fx' }, ({ payload }) => {
+        if (payload?.uid) setCapturaFx({ ...payload, at: Date.now() })
+      })
       .on('broadcast', { event: 'iniciativa' }, ({ payload }) => {
         iniciativaRef.current = payload?.iniciativa ?? null
         setIniciativa(payload?.iniciativa ?? null)
@@ -294,6 +305,15 @@ export function usePartidaPresence(partidaId, userInfo) {
     setActivePokemons(list)
   }, [])
 
+  // Quita un Pokémon del campo solo en esta pantalla. Lo usa la captura
+  // automática: cada cliente lo retira al terminar la animación, en vez de que
+  // uno difunda su lista entera y pise la del máster si cambió algo a la vez.
+  const removePokemonLocal = useCallback((uid) => {
+    const list = (pokemonRef.current || []).filter(p => p.uid !== uid)
+    pokemonRef.current = list
+    setActivePokemons(list)
+  }, [])
+
   const setNpcsLocal = useCallback((npcs) => {
     const list = Array.isArray(npcs) ? npcs : []
     npcRef.current = list
@@ -316,10 +336,12 @@ export function usePartidaPresence(partidaId, userInfo) {
     }
   }, [applyAttack, persistLog])
 
-  const sendActivity = useCallback((text, role = 'master', tipo = null) => {
+  // persistir = false cuando el servidor ya guardó la línea (la captura
+  // automática la escribe él, para que quede aunque se cierre la pestaña).
+  const sendActivity = useCallback((text, role = 'master', tipo = null, persistir = true) => {
     pushLog(text, role) // registro local inmediato
     channelRef.current?.send({ type: 'broadcast', event: 'activity', payload: { text, role } })
-    persistLog(text, null, role, tipo)
+    if (persistir) persistLog(text, null, role, tipo)
   }, [pushLog, persistLog])
 
   // Tirada de dados: el aviso con el resultado le sale a toda la mesa y queda
@@ -336,6 +358,14 @@ export function usePartidaPresence(partidaId, userInfo) {
   // se veía en su pantalla hasta el siguiente aviso de otro)
   const sendPartyUpdate = useCallback(() => {
     setPartyLocalAt(Date.now())
+    channelRef.current?.send({ type: 'broadcast', event: 'party_update', payload: {} })
+  }, [])
+
+  // Igual, pero quien lo envía también recarga todo como si el cambio viniera
+  // de otro: lo usa la captura automática, donde el propio jugador recibe un
+  // Pokémon nuevo (cinturón, renombrar, pokelvls) y no solo un cambio de vida.
+  const sendPartyUpdateTotal = useCallback(() => {
+    setPartyUpdatedAt(Date.now())
     channelRef.current?.send({ type: 'broadcast', event: 'party_update', payload: {} })
   }, [])
 
@@ -451,6 +481,18 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'clima', payload: { clima: c ?? null } })
   }, [])
 
+  const sendCapturaAuto = useCallback((activa) => {
+    setCapturaAuto(!!activa)
+    channelRef.current?.send({ type: 'broadcast', event: 'captura_auto', payload: { activa: !!activa } })
+  }, [])
+
+  // La animación de captura: quien lanza la difunde y también la ve
+  const sendCapturaFx = useCallback((fx) => {
+    if (!fx?.uid) return
+    setCapturaFx({ ...fx, at: Date.now() })
+    channelRef.current?.send({ type: 'broadcast', event: 'captura_fx', payload: fx })
+  }, [])
+
   const sendMapaPin = useCallback((pin) => {
     setMapaPin(pin ?? null)
     channelRef.current?.send({ type: 'broadcast', event: 'mapa_pin', payload: { pin: pin ?? null } })
@@ -469,5 +511,5 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'iniciativa_swap_respuesta', payload })
   }, [])
 
-  return { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, partyLocalAt, sendPartyUpdate, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, iniciativa, setIniciativa, sendIniciativa, setIniciativaLocal, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
+  return { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, partyLocalAt, sendPartyUpdate, sendPartyUpdateTotal, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, capturaAuto, setCapturaAuto, sendCapturaAuto, capturaFx, setCapturaFx, sendCapturaFx, removePokemonLocal, iniciativa, setIniciativa, sendIniciativa, setIniciativaLocal, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
 }

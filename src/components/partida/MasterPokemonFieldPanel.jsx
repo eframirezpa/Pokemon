@@ -135,7 +135,7 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
 /* Panel de Pokémon del master — botón + grid de Pokémon (máx. según `max`).
    Se llama "FieldPanel" (y no "MasterPokemonPanel") para no chocar con
    src/components/MasterPokemonPanel.jsx, el modal "Mis Pokémon" del dashboard. */
-export function MasterPokemonFieldPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo }) {
+export function MasterPokemonFieldPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo, capturaAuto = false, onCapturaAuto = null }) {
   const full = pokemons.length >= max
   const [collapsed, setCollapsed] = useState(false)
   return (
@@ -162,6 +162,21 @@ export function MasterPokemonFieldPanel({ pokemons, max = 4, onAdd, onHp, onRemo
           <ChevronDown size={16} className={`transition-transform duration-300 ${collapsed ? '-rotate-90' : ''}`} />
         </button>
       </div>
+
+      {/* Captura automática: encendida, la pokébola de un entrenador pide la
+          tirada y el servidor decide. Apagada, decides tú como siempre. */}
+      {onCapturaAuto && (
+        <label className="mt-2 flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl cursor-pointer select-none"
+          title="Con esto activo, la pokébola pide una tirada de Animal Handling contra la DC y el resultado se aplica solo">
+          <input type="checkbox" checked={capturaAuto} onChange={e => onCapturaAuto(e.target.checked)}
+            className="w-4 h-4 accent-red-600 shrink-0" />
+          <img src={POKEBALL_SPRITE} alt="" className="w-5 h-5 object-contain shrink-0" />
+          <span className="text-xs font-semibold text-gray-200">Atrapado automático</span>
+          <span className={`ml-auto text-[10px] font-bold ${capturaAuto ? 'text-green-400' : 'text-gray-500'}`}>
+            {capturaAuto ? 'Activo' : 'Decide el DM'}
+          </span>
+        </label>
+      )}
 
       {/* Sin alto fijo: la rejilla crece con las tarjetas y solo hace scroll al
           pasar de 75vh. Sigue siendo redimensionable con el borde inferior. */}

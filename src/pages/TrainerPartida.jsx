@@ -30,6 +30,7 @@ import PokeballSpinner from '../components/PokeballSpinner'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { acDelTrainer, ICONO_REDONDO } from '../lib/trainerCombatShared'
 import { CombatePanel } from '../components/partida/CombatePanel'
+import { ClimaIcono } from '../components/partida/ClimaChip'
 import PokemonSummonFx from '../components/PokemonSummonFx'
 
 export default function TrainerPartida() {
@@ -166,6 +167,7 @@ export default function TrainerPartida() {
   // ── Turno (iniciativa): anillo en mi avatar o en mi Pokémon, y un aviso
   // con sonido cuando me toca. La iniciativa llega desde PartidaRoom.
   const [iniciativa, setIniciativa] = useState(null)
+  const [clima, setClima] = useState(null) // lo avisa PartidaRoom; va en la columna de iconos
   const enTurno = participanteEnTurno(iniciativa)
   const miTurno = !!enTurno && String(enTurno.user_id) === String(user?.user_id)
   const turnoDelPokemon = miTurno && enTurno.personaje_pokemon_id != null
@@ -827,7 +829,7 @@ export default function TrainerPartida() {
   const hideBottomIcons = fight.active && !fight.players.some(p => String(p.id_personaje) === String(personajeId))
 
   return (
-    <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion} nombreJugador={nombrePj || null} onIniciativa={setIniciativa} onPartyLocal={setTickParty}>
+    <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion} nombreJugador={nombrePj || null} onIniciativa={setIniciativa} onPartyLocal={setTickParty} onClima={setClima}>
       {/* Mejora obligatoria por subida de nivel (una a la vez, no se puede cerrar) */}
       {pending.length > 0 && personajeId && (
         <PendingImprovementModal key={pending[0].id} personajeId={personajeId} pending={pending[0]}
@@ -1075,6 +1077,8 @@ export default function TrainerPartida() {
         {/* Botones laterales — columna centrada y scrolleable (para pantallas bajas) */}
         <div className="fixed left-3 top-64 bottom-3 z-30 overflow-y-auto">
           <div className="min-h-full flex flex-col justify-center gap-2 py-1">
+            {/* Clima de combate: entre la Pokédex y los dados */}
+            <ClimaIcono clima={clima} />
             {personajeId && <BotonBandejaDados />}
             {personajeId && (
               <button onClick={() => setShowChar(true)} className={sideBtn} title="Ver mi personaje">
