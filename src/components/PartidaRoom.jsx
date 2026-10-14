@@ -327,7 +327,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       ? { ...b, cantidad: r.bola.restante } : b).filter(b => Number(b.cantidad) > 0))
     capturaPropiaRef.current = r
     sendCapturaFx({
-      uid: r.uid, exito: r.exito, sacudidas: r.sacudidas,
+      uid: r.uid, exito: r.exito,
       bola: r.bola.sprite, nombreBola: r.bola.nombre,
       sprite: target.sprite, oculto: r.oculto,
       trainer: r.nombre_personaje,

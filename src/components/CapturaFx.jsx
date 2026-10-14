@@ -7,6 +7,8 @@ const ABSORBER = 600   // se abre y lo absorbe en un destello
 const CAER = 450       // cae al suelo
 const SACUDIDA = 2000  // cada balanceo, con su pausa (lento, para el drama)
 const FINAL = 2400     // el desenlace en pantalla
+// Siempre tres sacudidas, atrape o no: el número no adelanta el resultado
+const SACUDIDAS = 3
 
 const SILUETA_BLANCA = { filter: 'brightness(0) invert(1) drop-shadow(0 0 18px rgba(255,255,255,0.9))' }
 const SILUETA_NEGRA  = { filter: 'brightness(0) drop-shadow(0 0 10px rgba(255,255,255,0.35))' }
@@ -15,13 +17,12 @@ const ESTRELLAS = [0, 45, 90, 135, 180, 225, 270, 315]
 /**
  * La captura automática como en los juegos: la pokébola vuela, se abre y
  * absorbe al Pokémon en un destello, cae, se balancea y al final hace "click"
- * con estrellas o se abre y el Pokémon escapa. Las sacudidas (0 a 3) las
- * decide el servidor, así toda la mesa ve lo mismo.
+ * con estrellas o se abre y el Pokémon escapa.
  *
- * fx: { uid, exito, sacudidas, bola, sprite, oculto, trainer, pokemon }
+ * fx: { uid, exito, bola, nombreBola, sprite, oculto, trainer, pokemon }
  */
 export default function CapturaFx({ fx, esMaster = false, onFin }) {
-  const n = Math.max(0, Math.min(3, Number(fx.sacudidas) || 0))
+  const n = SACUDIDAS
   const [fase, setFase] = useState('lanzar')
   const [sacudida, setSacudida] = useState(0)
 
