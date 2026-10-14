@@ -31,7 +31,7 @@ import LoadingOverlay from '../components/LoadingOverlay'
 import { acDelTrainer, ICONO_REDONDO } from '../lib/trainerCombatShared'
 import { CombatePanel } from '../components/partida/CombatePanel'
 import { ClimaIcono } from '../components/partida/ClimaChip'
-import BarraTurno from '../components/BarraTurno'
+import { TurnoIcono } from '../components/partida/TurnoIcono'
 import PokemonSummonFx from '../components/PokemonSummonFx'
 
 export default function TrainerPartida() {
@@ -1085,11 +1085,8 @@ export default function TrainerPartida() {
             recortaría la barra de turno, que es más ancha que un icono. El bloque
             no captura clics (pointer-events-none): solo sus piezas. */}
         <div className="fixed left-3 top-64 bottom-3 z-30 flex flex-col items-start gap-2 pointer-events-none">
-          {iniciativa?.estado === 'activa' && (
-            <div className="shrink-0 max-w-[calc(100vw-1.5rem)]">
-              <BarraTurno iniciativa={iniciativa} userId={user?.user_id} onTerminar={terminarTurno} busy={turnoBusy} />
-            </div>
-          )}
+          {/* Turno: icono que se despliega en la barra; con halo si me toca */}
+          <TurnoIcono iniciativa={iniciativa} userId={user?.user_id} onTerminar={terminarTurno} busy={turnoBusy} />
           {clima && (
             <div className="shrink-0 pointer-events-auto">
               <ClimaIcono clima={clima} />

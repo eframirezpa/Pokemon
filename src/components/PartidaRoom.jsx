@@ -41,7 +41,8 @@ import { MasterSendMessage } from './partida/MasterSendMessage'
 import { EventosPanel } from './partida/EventosPanel'
 import { Embers, Snow, ClimaEfecto } from './partida/WeatherEffects'
 import { ClimaPanel } from './partida/ClimaPanel'
-import { ClimaChip } from './partida/ClimaChip'
+import { ClimaChip, ClimaIcono } from './partida/ClimaChip'
+import { TurnoIcono } from './partida/TurnoIcono'
 import { CLIMAS } from '../lib/clima'
 import { participanteEnTurno } from '../lib/turno'
 
@@ -1011,9 +1012,10 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         )
       })()}
 
-      {/* Turno en curso y clima: los ve toda la mesa, uno debajo del otro. El
-          entrenador los lleva en su columna de iconos (onIniciativa/onClima). */}
-      {((iniciativa?.estado === 'activa' && !onIniciativa) || (clima && !onClima)) && (
+      {/* Turno en curso y clima arriba: solo para el espectador. El entrenador
+          los lleva en su columna de iconos (onIniciativa/onClima) y el máster
+          debajo de sus dados. */}
+      {!isMaster && ((iniciativa?.estado === 'activa' && !onIniciativa) || (clima && !onClima)) && (
         <div className="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-40 max-w-[92vw] flex flex-col items-center gap-1.5">
           {iniciativa?.estado === 'activa' && !onIniciativa && (
             <BarraTurno iniciativa={iniciativa} userId={user?.user_id}
@@ -1115,6 +1117,16 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
         {/* Botón flotante — dados (master). El trainer lo tiene en su columna. */}
         {isMaster && <BotonBandejaDados className="fixed left-3 top-76 z-40" />}
+
+        {/* Turno y clima del máster: debajo de sus dados, con la misma estética
+            que la columna del entrenador. El bloque no captura clics, solo sus
+            piezas: la barra de turno desplegada es más ancha que un icono. */}
+        {isMaster && (iniciativa?.estado === 'activa' || clima) && (
+          <div className="fixed left-3 top-88 z-40 flex flex-col items-start gap-2 pointer-events-none">
+            <TurnoIcono iniciativa={iniciativa} userId={user?.user_id} onTerminar={terminarTurno} busy={turnoBusy} />
+            {clima && <div className="shrink-0 pointer-events-auto"><ClimaIcono clima={clima} /></div>}
+          </div>
+        )}
 
         {/* Center — master panel + content + activity log */}
         <div className="flex flex-col flex-1 overflow-hidden">
