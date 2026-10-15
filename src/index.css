@@ -635,6 +635,15 @@ body {
   100% { transform: translateY(0) scale(1); opacity: 1; filter: none; }
 }
 .animate-cap-escapar { animation: cap-escapar 0.9s ease-out forwards; }
+/* Pokémon oculto que escapa: sale igual pero se queda como sombra. La
+   animación de arriba termina en filter: none y le ganaba al estilo en
+   línea, así que se veía el Pokémon real al final. */
+@keyframes cap-escapar-sombra {
+  0%   { transform: translateY(150px) scale(0.05); opacity: 0; filter: brightness(0) invert(1); }
+  45%  { transform: translateY(0) scale(1.08); opacity: 1; filter: brightness(0) invert(1); }
+  100% { transform: translateY(0) scale(1); opacity: 1; filter: brightness(0) drop-shadow(0 0 10px rgba(255,255,255,0.35)); }
+}
+.animate-cap-escapar-sombra { animation: cap-escapar-sombra 0.9s ease-out forwards; }
 @keyframes cap-texto {
   0%   { opacity: 0; transform: scale(0.7); }
   25%  { opacity: 1; transform: scale(1.08); }
@@ -647,4 +656,5 @@ body {
   .animate-cap-lanzar, .animate-cap-caer, .animate-cap-sacudir, .animate-cap-abrir { animation: none; }
   .animate-cap-absorber, .animate-cap-destello, .animate-cap-estrella { animation: none; opacity: 0; }
   .animate-cap-escapar, .animate-cap-texto { animation: none; opacity: 1; }
+  .animate-cap-escapar-sombra { animation: none; opacity: 1; filter: brightness(0) drop-shadow(0 0 10px rgba(255,255,255,0.35)); }
 }

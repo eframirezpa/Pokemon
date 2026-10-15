@@ -73,7 +73,7 @@ export default function CapturaFx({ fx, esMaster = false, onFin }) {
             style={{ width: ladoTalla(160, fx.talla), height: ladoTalla(160, fx.talla), marginLeft: -ladoTalla(160, fx.talla) / 2,
               ...(fase === 'absorber' ? SILUETA_BLANCA : (sombra ? SILUETA_NEGRA : {})) }}
             className={`absolute left-1/2 top-6 object-contain
-              ${fase === 'absorber' ? 'animate-cap-absorber' : ''} ${final ? 'animate-cap-escapar' : ''}`}
+              ${fase === 'absorber' ? 'animate-cap-absorber' : ''} ${final ? (sombra ? 'animate-cap-escapar-sombra' : 'animate-cap-escapar') : ''}`}
             onError={e => { e.target.style.opacity = '0' }} />
         )}
 
