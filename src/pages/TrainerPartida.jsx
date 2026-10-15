@@ -730,6 +730,8 @@ export default function TrainerPartida() {
     setCastCooldown(true)
     if (castTimer.current) clearTimeout(castTimer.current)
     castTimer.current = setTimeout(() => setCastCooldown(false), 3000)
+    // Se cierra el panel para que se vea la animación del ataque
+    closeControl()
   }
 
   // Gestión manual de PP: se edita en local y solo se persiste al confirmar
@@ -1324,6 +1326,8 @@ export default function TrainerPartida() {
               soloFx: true, pokemonName: quien, moveName: arma ? arma.weapon_type_name : 'Sin arma',
               sprite: user?.avatar_face_url || null, arma: armaFx(arma), ataque: poder, critico,
             })
+            // Se cierra el panel para que se vea la animación del ataque
+            closeControl()
           }}
           recursosFeat={recursosFeat}
           weaponProfs={charProfs}
