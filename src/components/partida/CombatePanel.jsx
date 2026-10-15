@@ -235,7 +235,10 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
   // skill), no de una habilidad: la lista y el cálculo salen de v.stats, la
   // misma fuente que pinta la pestaña Stats.
   const [statSel, setStatSel] = useState(null)
-  const [conProf, setConProf] = useState(false)
+  // Proficiencia: se calcula del arma elegida (más abajo, conProf). profManual
+  // guarda lo que el jugador cambie a mano; null = seguir el cálculo. Se vuelve
+  // a null al cambiar de arma o al abrir la fórmula.
+  const [profManual, setProfManual] = useState(null)
   // Bonus: arranca en lo que dé la ruta y se puede tocar. Es texto para poder
   // distinguir "vacío" de 0 mientras se escribe.
   const [bonus, setBonus] = useState('')
@@ -256,6 +259,11 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
   }, [puedeAtacar, personajeId])
   const armaElegida = armaSel === 'ninguna' ? null
     : (armasEquipadas.find(a => a.id_personaje_weapon === armaSel) || armasEquipadas[0] || null)
+  // Misma regla que la pestaña de armas (WeaponPanel). Sin arma no hay prof de arma.
+  const profAuto = armaElegida
+    ? (weaponProfs ? weaponProfs.isWeaponProf(armaElegida) : !!armaElegida.personaje_weapon_prof)
+    : false
+  const conProf = profManual ?? profAuto
 
 
   if (!v) return null
@@ -316,7 +324,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
             {recursos && (v.stats || []).length > 0 && (
               <button onClick={() => {
                   setTabPanel('stats')
-                  setDado(''); setStatSel(null); setConProf(false); setEligiendoStat(false)
+                  setDado(''); setStatSel(null); setProfManual(null); setEligiendoStat(false)
                   setBonus(String(bonoRuta.total || 0))
                   // El panel está centrado y su altura depende del contenido, así
                   // que el borde solo se sabe midiendo en el momento de abrir.
@@ -796,7 +804,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                 </span>
                 <span className="text-gray-500 text-sm">+</span>
                 <span className="text-[11px] text-emerald-300 bg-emerald-500/10 border border-dashed border-emerald-500/50 rounded-md px-2 py-1">
-                  +2 If weapon prof
+                  +{Number(v.prof) || 0} If weapon prof
                 </span>
                 <span className="text-gray-500 text-sm">+</span>
                 <span className="text-[11px] text-violet-300 bg-violet-500/10 border border-violet-500/40 rounded-md px-2 py-1">
@@ -818,7 +826,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                 </span>
                 <span className="text-gray-500 text-sm">+</span>
                 <span className="text-[11px] text-emerald-300 bg-emerald-500/10 border border-dashed border-emerald-500/50 rounded-md px-2 py-1">
-                  +2 If weapon prof
+                  +{Number(v.prof) || 0} If weapon prof
                 </span>
                 <span className="text-gray-500 text-sm">+</span>
                 <span className="text-[11px] text-violet-300 bg-violet-500/10 border border-violet-500/40 rounded-md px-2 py-1">
@@ -835,7 +843,8 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
               {recursos && (v.stats || []).length > 0 && (() => {
                 const n20 = dado === '' ? 0 : Number(dado)
                 const modStat = statSel ? Number(statSel.mod) || 0 : 0
-                const bonoProf = conProf ? 2 : 0
+                // El bono de proficiencia del entrenador (sube con su nivel), no un +2 fijo
+                const bonoProf = conProf ? (Number(v.prof) || 0) : 0
                 const extra = bonus === '' ? 0 : Number(bonus)
                 // Un modificador negativo resta, así que el total puede bajar del dado.
                 const total = n20 + modStat + bonoProf + extra
@@ -901,12 +910,13 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
 
                       <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
 
-                      <select value={conProf ? 'si' : 'no'} onChange={e => setConProf(e.target.value === 'si')}
+                      <select value={conProf ? 'si' : 'no'} onChange={e => setProfManual(e.target.value === 'si')}
+                        title={profManual === null ? 'Calculada según el arma elegida' : 'Cambiada a mano'}
                         className={`shrink-0 h-9 px-0.5 rounded-xl border-2 bg-gray-900/60 text-[9px] font-black
                                     focus:outline-none focus:ring-2 focus:ring-emerald-400/50 transition-colors ${
                           conProf ? 'border-emerald-500/60 text-emerald-200' : 'border-gray-600 text-gray-300'}`}>
                         <option value="no">No prof</option>
-                        <option value="si">Prof +2</option>
+                        <option value="si">Prof +{Number(v.prof) || 0}</option>
                       </select>
 
                       <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
@@ -952,7 +962,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                         <span className={`shrink-0 h-9 px-1 rounded-xl border-2 font-black tabular-nums text-[9px]
                                           flex items-center justify-center ${
                           conProf ? 'border-emerald-500/60 text-emerald-200' : 'border-gray-600 text-gray-300'}`}>
-                          {conProf ? '+2' : '+0'}
+                          {signo(bonoProf)}
                         </span>
                         <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
                         <span className={`shrink-0 w-11 h-9 rounded-xl border-2 font-black tabular-nums
@@ -980,7 +990,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                           const activa = a ? armaElegida?.id_personaje_weapon === a.id_personaje_weapon : !armaElegida
                           return (
                             <button key={a ? a.id_personaje_weapon : 'ninguna'}
-                              onClick={() => setArmaSel(a ? a.id_personaje_weapon : 'ninguna')}
+                              onClick={() => { setArmaSel(a ? a.id_personaje_weapon : 'ninguna'); setProfManual(null) }}
                               className={`flex items-center gap-1 rounded-lg pl-1 pr-2 py-0.5 text-[11px] font-bold transition-colors ${
                                 activa ? 'bg-amber-500/20 ring-1 ring-amber-400 text-amber-200' : 'bg-gray-700/60 text-gray-300 hover:bg-gray-700'}`}>
                               <img src={spriteArma(armaFx(a).sprite)} alt="" className="w-5 h-5" />
