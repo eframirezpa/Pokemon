@@ -120,7 +120,7 @@ function MovesSection({ title, moveNames, movesMap, onMoveClick }) {
   )
 }
 
-function TmSection({ tmNumbers, tmsMap }) {
+function TmSection({ tmNumbers, tmsMap, movesMap = {}, onMoveClick }) {
   const [open, setOpen] = useState(false)
   if (!tmNumbers?.length) return null
   return (
@@ -146,7 +146,15 @@ function TmSection({ tmNumbers, tmsMap }) {
                 return (
                   <tr key={n} className="border-b border-[#d4a96a]/30 hover:bg-amber-50/50">
                     <td className="py-1 px-2 font-bold text-[#7A200D]">TM{String(n).padStart(2,'0')}</td>
-                    <td className="py-1 px-2 text-gray-800">{tm ? slugToTitle(tm.tm_name_id) : '—'}</td>
+                    <td className="py-1 px-2 text-gray-800">
+                      {/* El TM enseña el movimiento del mismo nombre (TM.tm_name_id = moves.move_name_id) */}
+                      {tm && onMoveClick && movesMap[claveMove(tm.tm_name_id)] ? (
+                        <button onClick={() => onMoveClick(movesMap[claveMove(tm.tm_name_id)])} title="Ver detalle del movimiento"
+                          className="text-left underline decoration-dotted decoration-[#7A200D]/50 underline-offset-2 hover:text-[#7A200D] transition-colors">
+                          {slugToTitle(tm.tm_name_id)}
+                        </button>
+                      ) : (tm ? slugToTitle(tm.tm_name_id) : '—')}
+                    </td>
                     <td className="py-1 px-2 text-gray-500 text-right tabular-nums">
                       {tm?.tm_cost ? `${tm.tm_cost.toLocaleString()} po` : '—'}
                     </td>
@@ -494,7 +502,7 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose, 
             <MovesSection title="Nivel 14" moveNames={splitList(pk.pokemon_moves_level14)} movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
             <MovesSection title="Nivel 18" moveNames={splitList(pk.pokemon_moves_level18)} movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
             <MovesSection title="Huevo"    moveNames={splitList(pk.pokemon_moves_egg)}     movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
-            <TmSection tmNumbers={tmNumbers} tmsMap={tmsMap} />
+            <TmSection tmNumbers={tmNumbers} tmsMap={tmsMap} movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
           </div>
         </div>
       </div>

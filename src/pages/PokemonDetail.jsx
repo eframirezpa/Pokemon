@@ -4,6 +4,7 @@ import { ArrowLeft, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react'
 import { apiFetch } from '../api'
 import { claveMove } from '../lib/moveName'
 import { xpAlAtrapar } from '../lib/xpAtrapar'
+import MoveInfoModal from '../components/MoveInfoModal'
 
 /* ─────────────────── helpers ─────────────────── */
 const TYPE_COLORS = {
@@ -94,12 +95,23 @@ function TypeRow({ label, types }) {
   )
 }
 
-function MoveRow({ move }) {
+// Nombre del movimiento: con onMoveClick abre su detalle
+function NombreMove({ move, nombre, onMoveClick }) {
+  if (!onMoveClick || !move) return nombre
+  return (
+    <button onClick={() => onMoveClick(move)} title="Ver detalle del movimiento"
+      className="text-left underline decoration-dotted decoration-[#7A200D]/50 underline-offset-2 hover:text-[#7A200D] transition-colors">
+      {nombre}
+    </button>
+  )
+}
+
+function MoveRow({ move, onMoveClick }) {
   if (!move) return null
   const c = typeBg(move.move_type)
   return (
     <tr className="border-b border-gray-100 hover:bg-amber-50/50 text-xs">
-      <td className="py-1.5 px-3 font-medium text-gray-800">{move.move_name}</td>
+      <td className="py-1.5 px-3 font-medium text-gray-800"><NombreMove move={move} nombre={move.move_name} onMoveClick={onMoveClick} /></td>
       <td className="py-1.5 px-2">
         <span
           className="px-2 py-0.5 rounded-full text-[10px] font-bold"
@@ -116,7 +128,7 @@ function MoveRow({ move }) {
   )
 }
 
-function MovesSection({ title, moveNames, movesMap }) {
+function MovesSection({ title, moveNames, movesMap, onMoveClick }) {
   const [open, setOpen] = useState(false)
   if (!moveNames || moveNames.length === 0) return null
   const moves = moveNames.map(n => movesMap[claveMove(n)]).filter(Boolean)
@@ -145,7 +157,7 @@ function MovesSection({ title, moveNames, movesMap }) {
             </thead>
             <tbody className="bg-[#FDF1DC]">
               {moves.length > 0
-                ? moves.map(m => <MoveRow key={m.move_id} move={m} />)
+                ? moves.map(m => <MoveRow key={m.move_id} move={m} onMoveClick={onMoveClick} />)
                 : moveNames.map(n => (
                   <tr key={n} className="border-b border-gray-100 text-xs">
                     <td className="py-1.5 px-3 text-gray-600 italic">{n}</td>
@@ -166,7 +178,7 @@ function slugToTitle(slug) {
   return slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-function TmSection({ tmNumbers, tmsMap }) {
+function TmSection({ tmNumbers, tmsMap, movesMap = {}, onMoveClick }) {
   const [open, setOpen] = useState(false)
   if (!tmNumbers || tmNumbers.length === 0) return null
   return (
@@ -195,7 +207,9 @@ function TmSection({ tmNumbers, tmsMap }) {
                   <tr key={n} className="border-b border-[#d4a96a]/30 hover:bg-amber-50/50">
                     <td className="py-1.5 px-3 font-bold text-[#7A200D]">TM{String(n).padStart(2, '0')}</td>
                     <td className="py-1.5 px-3 text-gray-800">
-                      {tm ? slugToTitle(tm.tm_name_id) : '—'}
+                      {tm
+                        ? <NombreMove move={movesMap[claveMove(tm.tm_name_id)]} nombre={slugToTitle(tm.tm_name_id)} onMoveClick={onMoveClick} />
+                        : '—'}
                     </td>
                     <td className="py-1.5 px-3 text-gray-500 text-right tabular-nums">
                       {tm?.tm_cost ? `${tm.tm_cost.toLocaleString()} po` : '—'}
@@ -253,6 +267,16 @@ export default function PokemonDetail() {
   const [evols, setEvols]     = useState([])
   const [abilities, setAbils] = useState({})
   const [movesMap, setMovesMap] = useState({})
+  const [moveInfo, setMoveInfo] = useState(null)   // detalle del movimiento (popup pokédex)
+
+  // Abre el popup con los datos del listado y completa con el detalle del backend
+  const openMoveInfo = useCallback((m) => {
+    setMoveInfo(m)
+    apiFetch(`/moves/${m.move_id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(full => { if (full) setMoveInfo(cur => (cur && cur.move_id === full.move_id) ? full : cur) })
+      .catch(() => {})
+  }, [])
   const [tmsMap,  setTmsMap]  = useState({})
   const [shiny, setShiny]     = useState(false)
   const [loading, setLoading] = useState(true)
@@ -603,14 +627,14 @@ export default function PokemonDetail() {
             <h2 className="text-sm font-black uppercase tracking-widest text-gray-700 mb-3">
               Movimientos
             </h2>
-            <MovesSection title="Inicio"   moveNames={splitList(pk.pokemon_moves_start)}   movesMap={movesMap} />
-            <MovesSection title="Nivel 2"  moveNames={splitList(pk.pokemon_moves_level2)}  movesMap={movesMap} />
-            <MovesSection title="Nivel 6"  moveNames={splitList(pk.pokemon_moves_level6)}  movesMap={movesMap} />
-            <MovesSection title="Nivel 10" moveNames={splitList(pk.pokemon_moves_level10)} movesMap={movesMap} />
-            <MovesSection title="Nivel 14" moveNames={splitList(pk.pokemon_moves_level14)} movesMap={movesMap} />
-            <MovesSection title="Nivel 18" moveNames={splitList(pk.pokemon_moves_level18)} movesMap={movesMap} />
-            <MovesSection title="Huevo"    moveNames={splitList(pk.pokemon_moves_egg)}     movesMap={movesMap} />
-            <TmSection tmNumbers={tmNumbers} tmsMap={tmsMap} />
+            <MovesSection title="Inicio"   moveNames={splitList(pk.pokemon_moves_start)}   movesMap={movesMap} onMoveClick={openMoveInfo} />
+            <MovesSection title="Nivel 2"  moveNames={splitList(pk.pokemon_moves_level2)}  movesMap={movesMap} onMoveClick={openMoveInfo} />
+            <MovesSection title="Nivel 6"  moveNames={splitList(pk.pokemon_moves_level6)}  movesMap={movesMap} onMoveClick={openMoveInfo} />
+            <MovesSection title="Nivel 10" moveNames={splitList(pk.pokemon_moves_level10)} movesMap={movesMap} onMoveClick={openMoveInfo} />
+            <MovesSection title="Nivel 14" moveNames={splitList(pk.pokemon_moves_level14)} movesMap={movesMap} onMoveClick={openMoveInfo} />
+            <MovesSection title="Nivel 18" moveNames={splitList(pk.pokemon_moves_level18)} movesMap={movesMap} onMoveClick={openMoveInfo} />
+            <MovesSection title="Huevo"    moveNames={splitList(pk.pokemon_moves_egg)}     movesMap={movesMap} onMoveClick={openMoveInfo} />
+            <TmSection tmNumbers={tmNumbers} tmsMap={tmsMap} movesMap={movesMap} onMoveClick={openMoveInfo} />
           </div>
 
           {/* Notes */}
@@ -622,6 +646,8 @@ export default function PokemonDetail() {
           )}
         </div>
       </div>
+
+      {moveInfo && <MoveInfoModal m={moveInfo} theme="pokedex" onClose={() => setMoveInfo(null)} />}
     </div>
   )
 }
