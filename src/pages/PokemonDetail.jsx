@@ -269,7 +269,8 @@ export default function PokemonDetail() {
       apiFetch(`/pokemon/${id}`).then(r => r.json()),
       apiFetch(`/evolution/pokemon/${id}`).then(r => r.json()),
       apiFetch('/moves?limit=1000').then(r => r.json()),
-      apiFetch('/tm?limit=200').then(r => r.json()),
+      // Todos los TM (hoy son 256): con limit=200 se perdían del 201 en adelante
+      apiFetch('/tm?limit=1000').then(r => r.json()),
     ])
       .then(([pkData, evolData, movData, tmData]) => {
         setPk(pkData)
