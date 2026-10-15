@@ -653,17 +653,29 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
   // En el celular la barra del navegador y los botones virtuales cambian el
   // alto visible; mientras se ajusta asomaba el fondo claro del body como una
-  // franja blanca abajo. Durante la partida el fondo de la página es oscuro.
+  // franja blanca abajo. Durante la partida el fondo de la página es oscuro y
+  // el documento no hace scroll: la sala va fija a la pantalla, y si algo
+  // sobresalía el gesto arrastraba la página entera (se perdía la barra del
+  // master y la actividad quedaba flotando).
   useEffect(() => {
     const html = document.documentElement
-    const prev = [document.body.style.backgroundColor, html.style.backgroundColor]
-    document.body.style.backgroundColor = '#111827'
+    const body = document.body
+    const prev = [body.style.backgroundColor, html.style.backgroundColor, body.style.overflow, html.style.overflow, body.style.overscrollBehavior]
+    body.style.backgroundColor = '#111827'
     html.style.backgroundColor = '#111827'
-    return () => { [document.body.style.backgroundColor, html.style.backgroundColor] = prev }
+    body.style.overflow = 'hidden'
+    html.style.overflow = 'hidden'
+    body.style.overscrollBehavior = 'none'
+    return () => {
+      [body.style.backgroundColor, html.style.backgroundColor, body.style.overflow, html.style.overflow, body.style.overscrollBehavior] = prev
+    }
   }, [])
 
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // Solo la lista del registro: scrollIntoView también movía los contenedores
+    // de afuera (y en el celular subía la sala entera)
+    const lista = logEndRef.current?.parentElement
+    if (lista) lista.scrollTo({ top: lista.scrollHeight, behavior: 'smooth' })
   }, [log])
 
   // Efecto visual del ataque: el Pokémon aparece al centro, salta y de ahí sale
@@ -891,7 +903,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     <DadosProvider nombre={isMaster ? 'El DM' : (nombreJugador || user?.user_name || 'Alguien')}
       puedeOcultar={isMaster}
       onTirada={(t) => sendTirada({ ...t, user_id: user?.user_id })}>
-    <div className="flex flex-col h-dvh bg-gray-900 text-white overflow-hidden">
+    <div className="fixed inset-0 flex flex-col bg-gray-900 text-white overflow-hidden">
 
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 bg-gray-800 border-b border-gray-700 shrink-0">
