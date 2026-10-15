@@ -651,6 +651,17 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
   const [attackFx, setAttackFx] = useState(null)
 
+  // En el celular la barra del navegador y los botones virtuales cambian el
+  // alto visible; mientras se ajusta asomaba el fondo claro del body como una
+  // franja blanca abajo. Durante la partida el fondo de la página es oscuro.
+  useEffect(() => {
+    const html = document.documentElement
+    const prev = [document.body.style.backgroundColor, html.style.backgroundColor]
+    document.body.style.backgroundColor = '#111827'
+    html.style.backgroundColor = '#111827'
+    return () => { [document.body.style.backgroundColor, html.style.backgroundColor] = prev }
+  }, [])
+
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [log])
@@ -880,7 +891,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     <DadosProvider nombre={isMaster ? 'El DM' : (nombreJugador || user?.user_name || 'Alguien')}
       puedeOcultar={isMaster}
       onTirada={(t) => sendTirada({ ...t, user_id: user?.user_id })}>
-    <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden">
+    <div className="flex flex-col h-dvh bg-gray-900 text-white overflow-hidden">
 
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 bg-gray-800 border-b border-gray-700 shrink-0">

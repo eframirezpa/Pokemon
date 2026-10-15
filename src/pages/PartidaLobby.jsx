@@ -72,7 +72,7 @@ export default function PartidaLobby() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
+    <div className="min-h-dvh bg-gray-900 text-white flex flex-col">
 
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 bg-gray-800 border-b border-gray-700 shrink-0">
