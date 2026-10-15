@@ -33,6 +33,8 @@ import { CombatePanel } from '../components/partida/CombatePanel'
 import { ClimaIcono } from '../components/partida/ClimaChip'
 import { TurnoIcono } from '../components/partida/TurnoIcono'
 import PokemonSummonFx from '../components/PokemonSummonFx'
+import { armaFx } from '../lib/armasFx'
+import { ladoTalla } from '../lib/tallas'
 
 export default function TrainerPartida() {
   const { id }   = useParams()
@@ -92,6 +94,8 @@ export default function TrainerPartida() {
   const [partyVersion, setPartyVersion] = useState(0)   // cambia cuando el master actualiza la party
   const [pokemonInvocado, setPokemonInvocado] = useState(null) // id_personaje_pokemon
   const [invocadoSprite, setInvocadoSprite]   = useState(null)
+  // Talla del invocado (pokemon_size): cambia el tamaño del sprite y de sus animaciones
+  const [invocadoTalla, setInvocadoTalla]     = useState(null)
   // Efecto de invocación (destello + rayo + partículas): solo el momento en
   // que el jugador ELIGE un Pokémon del cinturón, no al restaurarlo de una
   // recarga -ahí no hay "instante de invocación" que animar, ya estaba en
@@ -292,6 +296,7 @@ export default function TrainerPartida() {
             : (inGame.pokemon_media_main || inGame.pokemon_media_sprite)
           setPokemonInvocado(inGame.id_personaje_pokemon)
           setInvocadoSprite(sprite)
+          setInvocadoTalla(inGame.pokemon_size ?? null)
         }
       })
       .catch(() => {})
@@ -553,6 +558,11 @@ export default function TrainerPartida() {
     trasEventoPokemon()
     if (String(p.id_personaje_pokemon) === String(pokemonInvocado)) {
       setInvocadoSprite(r.sprite)
+      // La evolución puede cambiar la talla (Pichu → Raichu): se relee
+      apiFetch(`/personaje/${personajeId}/pokemon/${p.id_personaje_pokemon}`)
+        .then(res => res.json())
+        .then(d => setInvocadoTalla(d?.pokemon_size ?? null))
+        .catch(() => {})
       if (openControl === 'pokemon') openPokemonControl()
     }
   }
@@ -691,12 +701,13 @@ export default function TrainerPartida() {
   const [formulaMove, setFormulaMove] = useState(null)
   const [ataqueLanzado, setAtaqueLanzado] = useState(null)
   const [dificultadLanzada, setDificultadLanzada] = useState(null)
+  const [criticoLanzado, setCriticoLanzado] = useState(false)
 
   // Lanzar movimiento del Pokémon invocado → animación de ataque (como el master)
   // Al pulsar la flecha se abre el popup para elegir cuántos PP gastar
-  const abrirPP = (m, ataque = null, dificultad = null) => {
+  const abrirPP = (m, ataque = null, dificultad = null, critico = false) => {
     // Struggle y demás movimientos de PP ilimitado no gastan nada: se lanzan directo
-    if ((Number(m.personaje_pokemon_moves_max_pp) || 0) === 0) { lanzar(m, ataque, dificultad, 0); return }
+    if ((Number(m.personaje_pokemon_moves_max_pp) || 0) === 0) { lanzar(m, ataque, dificultad, 0, critico); return }
     setPpMove(m); setPpCantidad(1); setPpError('')
   }
 
@@ -710,10 +721,11 @@ export default function TrainerPartida() {
   }
 
   // Dispara el ataque y arranca el cooldown
-  const lanzar = (m, ataque = null, dificultad = null, pp = 0) => {
+  const lanzar = (m, ataque = null, dificultad = null, pp = 0, critico = false) => {
     partidaApiRef.current?.sendAttack?.({
       pokemonName: pokeData?.name || 'Pokémon', moveName: m.move_name, type: m.move_type, hidden: false,
-      ataque, dificultad, pp,
+      sprite: invocadoSprite, talla: invocadoTalla,
+      ataque, dificultad, pp, critico,
     })
     setCastCooldown(true)
     if (castTimer.current) clearTimeout(castTimer.current)
@@ -774,7 +786,7 @@ export default function TrainerPartida() {
         }))
       }
       setPpMove(null)
-      lanzar(m, ataqueLanzado, dificultadLanzada, maxPP > 0 ? ppCantidad : 0)
+      lanzar(m, ataqueLanzado, dificultadLanzada, maxPP > 0 ? ppCantidad : 0, criticoLanzado)
     } catch { setPpError('No se pudo gastar los PP') } finally { setPpBusy(false) }
   }
 
@@ -824,7 +836,7 @@ export default function TrainerPartida() {
 
   const returnPokemon = () => {
     if (pokemonInvocado != null) persistEnJuego(pokemonInvocado, false)
-    setPokemonInvocado(null); setInvocadoSprite(null)
+    setPokemonInvocado(null); setInvocadoSprite(null); setInvocadoTalla(null)
     setOpenControl(null); setPokeData(null)
     notifyParty()
   }
@@ -904,11 +916,11 @@ export default function TrainerPartida() {
           prof={pokeData?.prof}
           stats={pokeData?.stats || []}
           bonoRuta={pokeData?.attack_bonus_path || { total: 0, detalle: [] }}
-          onClose={() => { setFormulaMove(null); setAtaqueLanzado(null); setDificultadLanzada(null) }}
-          onAtacar={(ataque, dificultad) => {
+          onClose={() => { setFormulaMove(null); setAtaqueLanzado(null); setDificultadLanzada(null); setCriticoLanzado(false) }}
+          onAtacar={(ataque, dificultad, critico) => {
             const m = formulaMove
-            setAtaqueLanzado(ataque); setDificultadLanzada(dificultad)
-            setFormulaMove(null); abrirPP(m, ataque, dificultad)
+            setAtaqueLanzado(ataque); setDificultadLanzada(dificultad); setCriticoLanzado(critico)
+            setFormulaMove(null); abrirPP(m, ataque, dificultad, critico)
           }}
         />
       )}
@@ -1066,7 +1078,8 @@ export default function TrainerPartida() {
                   className={`relative transition-transform hover:scale-105 ${turnoDelPokemon ? 'animate-turno-anillo' : ''}`}>
                   <NumerosFlotantes valor={vidaInvocado} />
                   <img src={invocadoSprite} alt="Pokémon invocado"
-                    className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
+                    width={ladoTalla(isMonitor ? 66 : 44, invocadoTalla)} height={ladoTalla(isMonitor ? 66 : 44, invocadoTalla)}
+                    className="animate-poke-hop-idle object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
                 </button>
                 <TerrenoPiso terreno={terrenoPokemon} width={avatarPx} reservar={!!(terrenoTrainer || terrenoPokemon)} />
               </div>
@@ -1235,12 +1248,13 @@ export default function TrainerPartida() {
           onRegistrar={(texto, tipo) => partidaApiRef.current?.registrar?.(texto, tipo)}
           onClose={() => setShowBelt(false)}
           onSwitchMode={() => { setShowBelt(false); setShowPC(true) }}
-          onInvoke={(idpp, sprite) => {
+          onInvoke={(idpp, sprite, talla) => {
             persistEnJuego(idpp, true)
             setPokemonInvocado(idpp)
             setInvocadoSprite(sprite)
+            setInvocadoTalla(talla ?? null)
             setShowBelt(false)
-            setSummonFx({ sprite, key: Date.now() })
+            setSummonFx({ sprite, talla, key: Date.now() })
           }}
           onMoved={(idpp) => {
             // Si se envió al computador el Pokémon invocado, se limpia el invocado
@@ -1281,7 +1295,7 @@ export default function TrainerPartida() {
         <LoadingOverlay label={cargandoPanel === 'trainer' ? 'Entrenador' : 'Pokémon'} />
       )}
 
-      {summonFx && <PokemonSummonFx key={summonFx.key} sprite={summonFx.sprite} />}
+      {summonFx && <PokemonSummonFx key={summonFx.key} sprite={summonFx.sprite} talla={summonFx.talla} />}
       {/* Empieza mi turno: aviso grande unos segundos */}
       {avisoTurno && (
         <div key={avisoTurno} className="fixed inset-0 z-[90] flex items-center justify-center pointer-events-none">
@@ -1300,8 +1314,17 @@ export default function TrainerPartida() {
           switchSprite={pokemonInvocado ? invocadoSprite : null}
           switchLabel="Ir al Pokémon"
           onSwitch={openPokemonControl}
-          onAtaque={(poder) => partidaApiRef.current?.anunciar?.(
-            `${nombrePj || 'El entrenador'} ha atacado con un poder de ${poder}`, null, null, 'ataque')}
+          onAtaque={(poder, { critico = false, arma = null } = {}) => {
+            const quien = nombrePj || 'El entrenador'
+            partidaApiRef.current?.anunciar?.(
+              `${quien} ha atacado${arma ? ` con ${arma.weapon_type_name}` : ''} con un poder de ${poder}${critico ? ' ¡crítico!' : ''}`,
+              null, null, 'ataque')
+            // La animación del ataque con su arma, para toda la mesa
+            partidaApiRef.current?.sendAttack?.({
+              soloFx: true, pokemonName: quien, moveName: arma ? arma.weapon_type_name : 'Sin arma',
+              sprite: user?.avatar_face_url || null, arma: armaFx(arma), ataque: poder, critico,
+            })
+          }}
           recursosFeat={recursosFeat}
           weaponProfs={charProfs}
           initial={charData}

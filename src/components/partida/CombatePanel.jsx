@@ -10,6 +10,8 @@ import WeaponPanel from '../WeaponPanel'
 import { InspiradoInfoButton } from '../InspiradoAura'
 import { EstadoTrigger } from '../EstadosControl'
 import { ICONO_REDONDO } from '../../lib/trainerCombatShared'
+import { apiFetch } from '../../api'
+import { armaFx, spriteArma } from '../../lib/armasFx'
 
 const hpColorPct = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
 
@@ -238,6 +240,22 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
   // distinguir "vacío" de 0 mientras se escribe.
   const [bonus, setBonus] = useState('')
   const [eligiendoStat, setEligiendoStat] = useState(false)
+  // Armas equipadas, para elegir con cuál se ataca: decide la animación que ve
+  // la mesa. armaSel null = la primera equipada; 'ninguna' = sin arma.
+  const [armasEquipadas, setArmasEquipadas] = useState([])
+  const [armaSel, setArmaSel] = useState(null)
+  const puedeAtacar = !!onAtaque
+  useEffect(() => {
+    if (!puedeAtacar || !personajeId) return
+    let vivo = true
+    apiFetch(`/personaje/${personajeId}/weapon`)
+      .then(r => r.json())
+      .then(w => { if (vivo) setArmasEquipadas((Array.isArray(w) ? w : []).filter(x => x.personaje_weapon_in_use)) })
+      .catch(() => {})
+    return () => { vivo = false }
+  }, [puedeAtacar, personajeId])
+  const armaElegida = armaSel === 'ninguna' ? null
+    : (armasEquipadas.find(a => a.id_personaje_weapon === armaSel) || armasEquipadas[0] || null)
 
 
   if (!v) return null
@@ -954,8 +972,27 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                     {/* Atacar cierra la fórmula y lo anuncia a la partida. Pide el
                         dado: sin tirada no hay ataque, y un 'poder de 0' en el
                         historial solo puede ser un clic de más. */}
+                    {/* Con qué se pega: solo cambia la animación y el anuncio */}
+                    {onAtaque && armasEquipadas.length > 0 && (
+                      <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Con</span>
+                        {[...armasEquipadas, null].map(a => {
+                          const activa = a ? armaElegida?.id_personaje_weapon === a.id_personaje_weapon : !armaElegida
+                          return (
+                            <button key={a ? a.id_personaje_weapon : 'ninguna'}
+                              onClick={() => setArmaSel(a ? a.id_personaje_weapon : 'ninguna')}
+                              className={`flex items-center gap-1 rounded-lg pl-1 pr-2 py-0.5 text-[11px] font-bold transition-colors ${
+                                activa ? 'bg-amber-500/20 ring-1 ring-amber-400 text-amber-200' : 'bg-gray-700/60 text-gray-300 hover:bg-gray-700'}`}>
+                              <img src={spriteArma(armaFx(a).sprite)} alt="" className="w-5 h-5" />
+                              {a ? a.weapon_type_name : 'Sin arma'}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+
                     {onAtaque && (
-                      <button onClick={() => { onAtaque(total); setVerFormula(null) }}
+                      <button onClick={() => { onAtaque(total, { critico, arma: armaElegida }); setVerFormula(null) }}
                         disabled={dado === ''}
                         title={dado === '' ? 'Escribe primero el resultado del d20' : 'Anunciar el ataque a la partida'}
                         className="mt-3 w-full flex items-center justify-center gap-1.5 h-10 rounded-xl

@@ -9,7 +9,7 @@ const DEFAULT_MASTER_MESSAGE = '¡Bienvenido a la partida entrenador!'
 // no la que le tocó ver a quien lo originó.
 const formatAttackText = (payload, displayName) => {
   const detalle = []
-  if (payload.ataque != null) detalle.push(`Ataque ${payload.ataque}`)
+  if (payload.ataque != null) detalle.push(`Ataque ${payload.ataque}${payload.critico ? ' ¡crítico!' : ''}`)
   if (payload.dificultad != null) detalle.push(`Dificultad ${payload.dificultad}`)
   if (Number(payload.pp) > 0) detalle.push(`${payload.pp} PP`)
   return `${displayName} usó ${payload.moveName}${detalle.length ? ` (${detalle.join(', ')})` : ''}`
@@ -127,7 +127,9 @@ export function usePartidaPresence(partidaId, userInfo) {
     // Si el Pokémon está oculto, los jugadores (no master) no ven su nombre
     const isMaster = userInfoRef.current?.role === 'master'
     const displayName = (payload.hidden && !isMaster) ? 'el pokemon' : payload.pokemonName
-    pushLog(formatAttackText(payload, displayName), 'master')
+    // soloFx: el ataque del entrenador ya se anunció por su cuenta; aquí solo
+    // viaja la animación, sin repetir la línea en la actividad
+    if (!payload.soloFx) pushLog(formatAttackText(payload, displayName), 'master')
     setLastAttack({ ...payload, id: Date.now() })
   }, [pushLog])
 
@@ -341,7 +343,7 @@ export function usePartidaPresence(partidaId, userInfo) {
     // Se guardan las dos versiones del texto -no la que le tocó ver a quien
     // originó el ataque-, para que quien lea el historial después vea lo que
     // le corresponde según su propio rol (ver partida_log.service.js).
-    if (payload?.moveName) {
+    if (payload?.moveName && !payload.soloFx) {
       persistLog(
         formatAttackText(payload, payload.hidden ? 'el pokemon' : payload.pokemonName),
         payload.hidden ? formatAttackText(payload, payload.pokemonName) : null,

@@ -58,12 +58,15 @@ function PartyPokemon({ p, hideHp, onClick, enTurno = false }) {
     <div onClick={onClick} title={onClick ? 'Ver detalle del Pokémon' : undefined}
       className={`relative flex items-center gap-[5px] border border-gray-700 rounded-[7px] p-[5px] shrink-0 w-[151px] ${bleedClass(pct)}
         ${enTurno ? 'animate-turno-anillo' : ''}
-        ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
+        ${onClick ? 'poke-hop cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
       <NumerosFlotantes valor={p.pokemon_current_hp} mostrarNumero={!hideHp} />
       <div className="flex flex-col items-center gap-[2px] shrink-0">
-        <img src={sprite} alt={p.pokemon_apodo}
-          className="w-[31px] h-[31px] object-contain bg-white rounded-[5px] border border-gray-300"
-          onError={e => { e.target.style.opacity = '0.2' }} />
+        {/* El fondo blanco va en el marco para que salte solo el sprite */}
+        <div className="w-[31px] h-[31px] bg-white rounded-[5px] border border-gray-300">
+          <img src={sprite} alt={p.pokemon_apodo}
+            className="poke-hop-sprite w-full h-full object-contain"
+            onError={e => { e.target.style.opacity = '0.2' }} />
+        </div>
         <TerrenoPiso terreno={p.personaje_pokemon_terreno} width={31} />
       </div>
       <div className="flex-1 min-w-0">

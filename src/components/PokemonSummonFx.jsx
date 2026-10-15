@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { ladoTalla } from '../lib/tallas'
 
 /**
  * Efecto de invocación del Pokémon del entrenador: el mismo instante en que
@@ -17,7 +18,7 @@ import { useMemo } from 'react'
  * el destello y el rayo se verían diminutos-; el avatar chico ya queda con
  * el sprite final en cuanto este efecto termina.
  */
-export default function PokemonSummonFx({ sprite }) {
+export default function PokemonSummonFx({ sprite, talla = null }) {
   // Fresca en cada montaje: como el componente se re-crea por invocación
   // (el padre le cambia la key), no hace falta más dependencia que la nada.
   const particulas = useMemo(() => Array.from({ length: 16 }, () => {
@@ -60,7 +61,8 @@ export default function PokemonSummonFx({ sprite }) {
         ))}
 
         {/* El sprite: entra de la nada a su tamaño real */}
-        <img src={sprite} alt="" className="relative w-28 h-28 object-contain animate-summon-pokemon drop-shadow-[0_4px_16px_rgba(252,211,77,0.6)]"
+        <img src={sprite} alt="" width={ladoTalla(112, talla)} height={ladoTalla(112, talla)}
+          className="relative object-contain animate-summon-pokemon drop-shadow-[0_4px_16px_rgba(252,211,77,0.6)]"
           onError={e => { e.target.style.opacity = '0' }} />
       </div>
     </div>

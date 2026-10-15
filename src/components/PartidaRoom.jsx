@@ -45,6 +45,30 @@ import { ClimaChip, ClimaIcono } from './partida/ClimaChip'
 import { TurnoIcono } from './partida/TurnoIcono'
 import { CLIMAS } from '../lib/clima'
 import { participanteEnTurno } from '../lib/turno'
+import PantallaRotaFx from './partida/PantallaRotaFx'
+import ArmaAtaqueFx from './partida/ArmaAtaqueFx'
+import { ladoTalla } from '../lib/tallas'
+
+// Explosión puntiaguda que acompaña al número del crítico
+function CritBurst() {
+  const pts = Array.from({ length: 16 }, (_, i) => {
+    const a = (i / 16) * Math.PI * 2
+    const r = i % 2 ? 9 : (i % 4 ? 20 : 24)
+    return `${24 + r * Math.cos(a)},${24 + r * Math.sin(a)}`
+  }).join(' ')
+  return (
+    <svg viewBox="0 0 48 48" className="w-11 h-11 shrink-0 drop-shadow-[0_2px_3px_rgba(0,0,0,0.6)]" aria-hidden="true">
+      <defs>
+        <radialGradient id="crit-burst" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#fef3c7" />
+          <stop offset="45%" stopColor="#f97316" />
+          <stop offset="100%" stopColor="#dc2626" />
+        </radialGradient>
+      </defs>
+      <polygon points={pts} fill="url(#crit-burst)" stroke="#3b1d0a" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  )
+}
 
 const ROLE_DASHBOARD = {
   master:     '/dashboard/master',
@@ -97,6 +121,7 @@ function construirEntradaPokemon(d, { uid, master_pokemon_id, hidden, inBall }) 
     hp_current:  (d.pokemon_current_hp ?? d.pokemon_hp ?? 0) + healing,
     healing,
     sprite:      d.pokemon_media_sprite || d.pokemon_media_main,
+    talla:       d.pokemon_size || null,
     moves,
     hidden,
     ...(inBall ? { inBall: true } : {}),
@@ -329,7 +354,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     sendCapturaFx({
       uid: r.uid, exito: r.exito,
       bola: r.bola.sprite, nombreBola: r.bola.nombre,
-      sprite: target.sprite, oculto: r.oculto,
+      sprite: target.sprite, talla: target.talla, oculto: r.oculto,
       trainer: r.nombre_personaje,
       pokemon: (r.exito || !r.oculto) ? r.pokemon : '???',
     })
@@ -630,11 +655,13 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [log])
 
-  // Efecto visual del ataque: aparece y desaparece a los 1.2s
+  // Efecto visual del ataque: el Pokémon aparece al centro, salta y de ahí sale
+  // el estallido del movimiento (1.2 s). Sin sprite queda solo el estallido.
   useEffect(() => {
     if (!lastAttack) return
     setAttackFx(lastAttack)
-    const t = setTimeout(() => setAttackFx(null), 1200)
+    // El crítico dura lo que la pantalla rota (PRUEBA): impacto a 0.6 s + 5 s
+    const t = setTimeout(() => setAttackFx(null), lastAttack.critico ? 5600 : ((lastAttack.sprite || lastAttack.arma) ? 3000 : 1200))
     return () => clearTimeout(t)
   }, [lastAttack])
 
@@ -846,7 +873,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     // Si está oculto, los jugadores no deben ver el nombre real (solo lo ve el master en su panel)
     const displayName = pokemon.hidden ? 'el pokemon' : pokemon.name
     sendMasterMessage(`${displayName} ha usado el movimiento ${moveName}`)
-    sendAttack({ pokemonName: pokemon.name, moveName, type: moveType, hidden: !!pokemon.hidden })
+    sendAttack({ pokemonName: pokemon.name, moveName, type: moveType, hidden: !!pokemon.hidden, sprite: pokemon.sprite, talla: pokemon.talla })
   }
 
   return (
@@ -1262,9 +1289,38 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             {!isMaster && attackFx && (() => {
               const FxIcon = TYPE_ICONS[attackFx.type] ?? Sparkles
               const color  = TYPE_COLORS[attackFx.type]?.bg ?? '#888'
+              // Oculto: los jugadores ven la sombra, como en la captura
+              const sombra = attackFx.hidden
               return (
                 <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-                  <div className="animate-attack-burst flex flex-col items-center gap-3">
+                  {/* Golpe crítico (20 natural): destello al impactar, centrado en el Pokémon */}
+                  {attackFx.critico && <PantallaRotaFx />}
+                  {attackFx.critico && (
+                    <div className="absolute w-80 h-80 rounded-full animate-crit-destello"
+                      style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(253,230,138,0.55) 35%, rgba(255,255,255,0) 70%)' }} />
+                  )}
+                  <div className={`relative flex items-center justify-center ${attackFx.critico ? 'animate-crit-temblor' : ''}`}>
+                  {/* Entrenador: su avatar salta y a su derecha se anima el arma */}
+                  {attackFx.arma ? (
+                    <>
+                      {attackFx.sprite
+                        ? <img src={attackFx.sprite} alt=""
+                            className="w-32 h-32 object-contain drop-shadow-lg animate-move-caster"
+                            onError={e => { e.target.style.opacity = '0' }} />
+                        : <div className="w-32 h-32" />}
+                      <ArmaAtaqueFx fx={attackFx.arma} />
+                    </>
+                  ) : (<>
+                  {attackFx.sprite && (
+                    // Tamaño según la talla: 160 px es el mediano
+                    <img src={attackFx.sprite} alt=""
+                      width={ladoTalla(160, attackFx.talla)} height={ladoTalla(160, attackFx.talla)}
+                      className="object-contain animate-move-caster drop-shadow-lg"
+                      style={sombra ? { filter: 'brightness(0) drop-shadow(0 0 10px rgba(255,255,255,0.35))' } : undefined}
+                      onError={e => { e.target.style.opacity = '0' }} />
+                  )}
+                  <div className={`flex flex-col items-center gap-3 ${attackFx.sprite
+                    ? 'absolute inset-0 justify-center animate-attack-burst-tras-salto' : 'animate-attack-burst'}`}>
                     <div className="relative flex items-center justify-center">
                       <span className="absolute w-24 h-24 rounded-full animate-ping opacity-60"
                         style={{ backgroundColor: color }} />
@@ -1274,6 +1330,33 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                       style={{ backgroundColor: color }}>
                       {attackFx.moveName}
                     </span>
+                  </div>
+                  </>)}
+                  {(attackFx.critico || attackFx.arma) && (
+                    <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 flex flex-col items-center whitespace-nowrap animate-crit-salida">
+                      {/* Con qué arma pegó y, si no fue crítico, el valor del ataque */}
+                      {attackFx.arma && (
+                        <span className="px-4 py-1.5 rounded-full bg-gray-900/90 border-2 border-amber-400 text-white font-black text-lg shadow-xl animate-arma-etiqueta">
+                          {attackFx.moveName}{!attackFx.critico && attackFx.ataque != null ? ` · ${attackFx.ataque}` : ''}
+                        </span>
+                      )}
+                      {attackFx.critico && <span className="block text-xl font-black italic uppercase tracking-wide text-amber-300 animate-crit-letrero
+                        [text-shadow:0_0_14px_rgba(251,191,36,0.9),2px_2px_0_#b91c1c,-2px_-2px_0_#b91c1c,2px_-2px_0_#b91c1c,-2px_2px_0_#b91c1c]">
+                        ¡Golpe crítico!
+                      </span>}
+                      {/* Valor del golpe, como los números de crítico de los MOBA */}
+                      {attackFx.critico && attackFx.ataque != null && (
+                        <span className="flex items-center gap-1 animate-crit-numero">
+                          <CritBurst />
+                          <span className="text-6xl font-black tabular-nums leading-none text-transparent bg-clip-text
+                            bg-gradient-to-b from-yellow-200 via-amber-400 to-orange-600
+                            [filter:drop-shadow(2px_0_0_#3b1d0a)_drop-shadow(-2px_0_0_#3b1d0a)_drop-shadow(0_2px_0_#3b1d0a)_drop-shadow(0_-2px_0_#3b1d0a)_drop-shadow(0_4px_6px_rgba(0,0,0,0.6))]">
+                            {attackFx.ataque}
+                          </span>
+                        </span>
+                      )}
+                    </span>
+                  )}
                   </div>
                 </div>
               )

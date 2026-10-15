@@ -116,7 +116,9 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
   const confirmar = () => {
     const ataque = tieneAtaque ? totalAtaqueDeFila(sel) : null
     const dificultad = tieneDC ? totalDCDeFila(sel) : null
-    onAtacar(ataque, dificultad)
+    // 20 natural en el d20 de la fila elegida: golpe crítico
+    const critico = tieneAtaque && Number(dados[sel.clave] || 0) === 20
+    onAtacar(ataque, dificultad, critico)
   }
 
   // Una fila de cualquiera de los dos bloques. `d20` decide si lleva tirada

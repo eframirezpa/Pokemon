@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { POKEBALL_SPRITE } from '../lib/partidaShared'
+import { ladoTalla } from '../lib/tallas'
 
 // Tiempos de la secuencia, en ms
 const LANZAR = 700     // la pokébola vuela hasta el Pokémon
@@ -68,9 +69,11 @@ export default function CapturaFx({ fx, esMaster = false, onFin }) {
         {/* El Pokémon: quieto, absorbido o escapando */}
         {fx.sprite && (fase === 'lanzar' || fase === 'absorber' || (final && !fx.exito)) && (
           <img src={fx.sprite} alt=""
-            className={`absolute left-1/2 top-6 w-40 h-40 -ml-20 object-contain
+            // 160 px es el mediano; centrado a mano porque el ancho cambia con la talla
+            style={{ width: ladoTalla(160, fx.talla), height: ladoTalla(160, fx.talla), marginLeft: -ladoTalla(160, fx.talla) / 2,
+              ...(fase === 'absorber' ? SILUETA_BLANCA : (sombra ? SILUETA_NEGRA : {})) }}
+            className={`absolute left-1/2 top-6 object-contain
               ${fase === 'absorber' ? 'animate-cap-absorber' : ''} ${final ? 'animate-cap-escapar' : ''}`}
-            style={fase === 'absorber' ? SILUETA_BLANCA : (sombra ? SILUETA_NEGRA : undefined)}
             onError={e => { e.target.style.opacity = '0' }} />
         )}
 

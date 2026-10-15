@@ -25,6 +25,169 @@ body {
 .animate-attack-burst {
   animation: attack-burst 1.2s ease-out forwards;
 }
+/* El Pokémon que usa el movimiento: entra al centro, da un salto y se queda
+   mientras sale el estallido; se desvanece al final (3 s en total).
+   Entra a 0.24 s, sube a 0.4 s, aterriza a 0.6 s y se va desde 2.64 s. */
+@keyframes move-caster {
+  0%     { transform: scale(0.7) translateY(0); opacity: 0; }
+  8%     { transform: scale(1) translateY(0); opacity: 1; }
+  13.33% { transform: scale(1) translateY(-22%); }
+  20%    { transform: scale(1) translateY(0); }
+  88%    { opacity: 1; }
+  100%   { transform: scale(1) translateY(0); opacity: 0; }
+}
+.animate-move-caster { animation: move-caster 3s ease-out forwards; }
+/* Letrero y número del crítico: se van junto con el Pokémon */
+@keyframes crit-salida {
+  0%, 88% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+.animate-crit-salida { animation: crit-salida 3s ease-out forwards; }
+
+/* PRUEBA: pantalla rota del crítico (PantallaRotaFx). Aparece al impacto
+   (0.6 s), las grietas se dibujan rápido, se queda y se va al final (5.6 s). */
+@keyframes pantalla-rota {
+  0%, 10.7% { opacity: 0; }
+  11%       { opacity: 1; }
+  91%       { opacity: 1; }
+  100%      { opacity: 0; }
+}
+.animate-pantalla-rota { animation: pantalla-rota 5.6s linear forwards; }
+@keyframes crack-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.crack-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: crack-draw 0.25s ease-out forwards; }
+/* Golpe crítico: al aterrizar el salto, destello blanco, temblor y letrero */
+/* Destello corto (~0.25 s) y solo alrededor del Pokémon, no toda la pantalla */
+@keyframes crit-destello {
+  0%, 21%  { opacity: 0; transform: scale(0.6); }
+  23%      { opacity: 0.7; transform: scale(1); }
+  30%, 100% { opacity: 0; transform: scale(1.4); }
+}
+.animate-crit-destello { animation: crit-destello 2.8s ease-out forwards; }
+@keyframes crit-temblor {
+  0%, 21%, 40%, 100% { transform: translate(0, 0); }
+  24% { transform: translate(-8px, 4px); }
+  28% { transform: translate(7px, -5px); }
+  32% { transform: translate(-5px, -3px); }
+  36% { transform: translate(4px, 3px); }
+}
+.animate-crit-temblor { animation: crit-temblor 2.8s linear forwards; }
+@keyframes crit-letrero {
+  0%   { transform: scale(2.6) rotate(-6deg); opacity: 0; }
+  60%  { transform: scale(0.92) rotate(-6deg); opacity: 1; }
+  80%  { transform: scale(1.06) rotate(-6deg); }
+  100% { transform: scale(1) rotate(-6deg); opacity: 1; }
+}
+.animate-crit-letrero { animation: crit-letrero 0.45s ease-out 0.7s both; }
+/* El número entra un poco después del letrero, con el mismo golpe de escala */
+@keyframes crit-numero {
+  0%   { transform: scale(2.4); opacity: 0; }
+  60%  { transform: scale(0.92); opacity: 1; }
+  80%  { transform: scale(1.06); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-crit-numero { animation: crit-numero 0.4s ease-out 0.85s both; }
+
+/* Ataque con arma del entrenador (ArmaAtaqueFx). Todo arranca al aterrizar
+   el salto del avatar (0.6 s) y dura 2 s, así se va junto con él (2.6 s). */
+.arma-pivote { transform-origin: 15% 85%; }
+@keyframes arma-corte {
+  0%   { opacity: 0; transform: rotate(-75deg); }
+  5%   { opacity: 1; transform: rotate(-75deg); }
+  18%  { transform: rotate(55deg); }
+  22%  { transform: rotate(48deg); }
+  85%  { opacity: 1; transform: rotate(48deg); }
+  100% { opacity: 0; transform: rotate(48deg); }
+}
+.animate-arma-corte { animation: arma-corte 2s ease-out 0.6s both; }
+@keyframes arma-trazo {
+  0%, 5%    { stroke-dashoffset: 1; opacity: 1; }
+  18%       { stroke-dashoffset: 0; opacity: 1; }
+  40%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+.animate-arma-trazo { stroke-dasharray: 1; animation: arma-trazo 2s ease-out 0.6s both; }
+@keyframes arma-estocada {
+  0%   { opacity: 0; transform: translateX(0) rotate(45deg); }
+  6%   { opacity: 1; transform: translateX(-24px) rotate(45deg); }
+  18%  { transform: translateX(90px) rotate(45deg); }
+  26%  { transform: translateX(70px) rotate(45deg); }
+  85%  { opacity: 1; transform: translateX(70px) rotate(45deg); }
+  100% { opacity: 0; transform: translateX(70px) rotate(45deg); }
+}
+.animate-arma-estocada { animation: arma-estocada 2s ease-out 0.6s both; }
+@keyframes arma-lineas {
+  0%, 14%   { opacity: 0; transform: scaleX(0); }
+  18%       { opacity: 1; transform: scaleX(1); }
+  35%, 100% { opacity: 0; transform: translateX(30px) scaleX(1); }
+}
+.animate-arma-lineas { animation: arma-lineas 2s ease-out 0.6s both; }
+@keyframes arma-golpe {
+  0%   { opacity: 0; transform: rotate(-30deg); }
+  6%   { opacity: 1; transform: rotate(-95deg); }
+  18%  { transform: rotate(45deg); }
+  22%  { transform: rotate(35deg); }
+  85%  { opacity: 1; transform: rotate(35deg); }
+  100% { opacity: 0; transform: rotate(35deg); }
+}
+.animate-arma-golpe { animation: arma-golpe 2s ease-in 0.6s both; }
+@keyframes arma-onda {
+  0%, 17%   { opacity: 0; transform: scale(0.2); }
+  19%       { opacity: 1; transform: scale(0.4); }
+  40%, 100% { opacity: 0; transform: scale(2.2); }
+}
+.animate-arma-onda { animation: arma-onda 2s ease-out 0.6s both; }
+@keyframes arma-impacto {
+  0%, 17%   { opacity: 0; transform: scale(0.2) rotate(0deg); }
+  20%       { opacity: 1; transform: scale(1.2) rotate(20deg); }
+  32%, 100% { opacity: 0; transform: scale(0.9) rotate(30deg); }
+}
+.animate-arma-impacto { animation: arma-impacto 2s ease-out 0.6s both; }
+@keyframes arma-disparo {
+  0%   { opacity: 0; transform: scale(0.8); }
+  6%   { opacity: 1; transform: scale(1); }
+  13%  { transform: translateX(0); }
+  15%  { transform: translateX(-10px); }
+  22%  { transform: translateX(0); }
+  85%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-arma-disparo { animation: arma-disparo 2s ease-out 0.6s both; }
+@keyframes arma-fogonazo {
+  0%, 13%   { opacity: 0; transform: scale(0.3); }
+  15%       { opacity: 1; transform: scale(1.2); }
+  21%, 100% { opacity: 0; transform: scale(0.8); }
+}
+.animate-arma-fogonazo { animation: arma-fogonazo 2s ease-out 0.6s both; }
+@keyframes arma-proyectil {
+  0%, 13%   { opacity: 0; transform: translate(0, -50%); }
+  14%       { opacity: 1; transform: translate(0, -50%); }
+  30%       { opacity: 1; transform: translate(180px, calc(-50% + var(--dy, 0px))); }
+  31%, 100% { opacity: 0; transform: translate(180px, calc(-50% + var(--dy, 0px))); }
+}
+.animate-arma-proyectil { animation: arma-proyectil 2s linear 0.6s both; }
+@keyframes arma-impacto-lejos {
+  0%, 29%   { opacity: 0; transform: scale(0.2) rotate(0deg); }
+  32%       { opacity: 1; transform: scale(1.2) rotate(20deg); }
+  45%, 100% { opacity: 0; transform: scale(0.9) rotate(30deg); }
+}
+.animate-arma-impacto-lejos { animation: arma-impacto-lejos 2s ease-out 0.6s both; }
+@keyframes arma-red {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.3) rotate(0deg); }
+  6%   { opacity: 1; }
+  30%  { transform: translate(190px, -10px) scale(1.6) rotate(220deg); }
+  85%  { opacity: 1; transform: translate(190px, -10px) scale(1.6) rotate(220deg); }
+  100% { opacity: 0; transform: translate(190px, -10px) scale(1.6) rotate(220deg); }
+}
+.animate-arma-red { animation: arma-red 2s ease-out 0.6s both; }
+/* Nombre del arma y valor: aparece tras el golpe */
+@keyframes arma-etiqueta {
+  0%, 30% { opacity: 0; transform: translateY(6px); }
+  36%     { opacity: 1; transform: translateY(0); }
+  100%    { opacity: 1; transform: translateY(0); }
+}
+.animate-arma-etiqueta { animation: arma-etiqueta 3s ease-out both; }
+
+/* El estallido arranca al aterrizar el salto (0.6 s) */
+.animate-attack-burst-tras-salto { animation: attack-burst 1.2s ease-out 0.6s both; }
 
 /* Efecto de sangrado: pulso de fondo tipo latido del corazón */
 @keyframes bleed-pulse-yellow {
@@ -358,7 +521,37 @@ body {
 /* En las tarjetas conserva su propio redondeo */
 .rounded-\[7px\].animate-turno-anillo { border-radius: 7px; }
 
+/* Saltito del sprite al pasar el mouse por la tarjeta, como en el menú del
+   equipo de los juegos (idea tomada de poke5e). Sube rápido y descansa el
+   resto del ciclo. Va en % de la propia imagen para que sirva igual en
+   sprites grandes y chicos. */
+@keyframes poke-hop {
+  0%, 30%, 100% { transform: translateY(0); }
+  15%           { transform: translateY(-18%); }
+}
+.poke-hop:hover .poke-hop-sprite,
+.poke-hop:focus-visible .poke-hop-sprite { animation: poke-hop 0.75s infinite; }
+/* Cinturón y femputadora: tres saltitos al entrar a la pantalla y se queda quieto */
+.animate-poke-hop-3 { animation: poke-hop 0.75s 3; }
+/* Pokémon invocado: un saltito cada 10 s. El salto dura lo mismo que en
+   poke-hop (0.225 s) y el resto del ciclo queda quieto. */
+@keyframes poke-hop-idle {
+  0%, 2.25%, 100% { transform: translateY(0); }
+  1.125%          { transform: translateY(-18%); }
+}
+.animate-poke-hop-idle { animation: poke-hop-idle 10s infinite; }
+
 @media (prefers-reduced-motion: reduce) {
+  .poke-hop-sprite, .animate-poke-hop-3, .animate-poke-hop-idle { animation: none !important; }
+  .animate-move-caster, .animate-crit-temblor, .animate-crit-destello { animation: none; }
+  .animate-crit-destello { opacity: 0; }
+  .animate-crit-letrero { animation: none; transform: rotate(-6deg); }
+  .animate-crit-numero { animation: none; }
+  .crack-draw { animation: none; stroke-dashoffset: 0; }
+  /* Arma: queda quieta a la vista; lo que vuela o destella se apaga */
+  [class*="animate-arma-"] { animation: none !important; }
+  .animate-arma-trazo, .animate-arma-lineas, .animate-arma-onda, .animate-arma-impacto,
+  .animate-arma-fogonazo, .animate-arma-proyectil, .animate-arma-impacto-lejos { opacity: 0; }
   .animate-turno-aura, .animate-turno-texto { animation: none; }
   .animate-turno-anillo { animation: none; box-shadow: 0 0 0 3px rgba(251,191,36,1), 0 0 12px 4px rgba(251,191,36,0.7); }
   .animate-numero-flotante { animation: numero-flotante 1.4s linear forwards; transform: none; }

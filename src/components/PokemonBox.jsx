@@ -226,7 +226,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                   </button>
                 )}
                 {onInvoke && (
-                  <button onClick={() => onInvoke(idpp, mainImg)}
+                  <button onClick={() => onInvoke(idpp, mainImg, d.pokemon_size)}
                     className="text-xs px-3 py-1 rounded-full bg-gray-800 hover:bg-gray-900 text-white font-semibold transition-colors">
                     Invocar
                   </button>
@@ -812,7 +812,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                             e.stopPropagation()
                             const img = (p.pokemon_is_shiny && p.pokemon_media_main_shiny)
                               ? p.pokemon_media_main_shiny : p.pokemon_media_main
-                            onInvoke(p.id_personaje_pokemon, img)
+                            onInvoke(p.id_personaje_pokemon, img, p.pokemon_size)
                           }}
                           title="Invocar al campo"
                           className="absolute right-1 top-1/2 -translate-y-1/2 z-10 shrink-0 flex items-center justify-center
@@ -837,7 +837,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                       )}
                       <img src={(p.pokemon_is_shiny && p.pokemon_media_sprite_shiny) ? p.pokemon_media_sprite_shiny : (p.pokemon_media_sprite || p.pokemon_media_main)}
                         alt={p.pokemon_apodo}
-                        className="w-16 h-16 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
+                        className="animate-poke-hop-3 w-16 h-16 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
                       <span className="text-sm font-semibold text-gray-800 truncate max-w-full">{p.pokemon_apodo}</span>
                       {/* El nivel acompaña a la especie; el nombre trunca pero el nivel siempre se ve */}
                       <span className="flex items-baseline gap-1 max-w-full text-[11px] text-gray-400">
