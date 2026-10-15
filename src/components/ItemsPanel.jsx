@@ -4,10 +4,11 @@ import { apiFetch } from '../api'
 import PokeballSpinner from './PokeballSpinner'
 import { leerEstados } from '../lib/estados'
 import BotonDado from './dados/BotonDado'
+import TmUsoModal from './TmUsoModal'
 
 // Items del entrenador dentro del panel de combate.
 //
-// Solo se listan los que se consumen en mesa: medicinas y bayas. Las pokébolas,
+// Solo se listan los que se consumen en mesa: medicinas, bayas y TM. Las pokébolas,
 // el equipo de entrenador, los objetos equipados y las piedras de evolución
 // tienen sus propios flujos y no se gastan desde aquí.
 //
@@ -16,7 +17,11 @@ import BotonDado from './dados/BotonDado'
 // servidor cura y gasta la unidad. El resto NO se aplica: lo resuelve el DM en
 // la mesa y "Usar" solo descuenta una unidad, por eso el aviso es parte del
 // flujo y no una nota al pie.
-const TIPOS = ['medicine', 'berry']
+//
+// Los TM van por su propio flujo (TmUsoModal): aprobación del DM en un long
+// rest, a qué Pokémon se le enseña y, si tiene 4 movimientos, cuál olvida.
+const TIPOS = ['medicine', 'berry', 'tm']
+const esTm = (i) => String(i?.item_type || '').toLowerCase() === 'tm'
 
 const hpPct = (cur, max) => Math.max(0, Math.min(100, Math.round(((cur ?? max ?? 0) / (max || 1)) * 100)))
 const hpColor = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
@@ -41,7 +46,7 @@ function FilaObjetivo({ nombre, sub, cur, max, deshabilitado, motivo, elegido, o
   )
 }
 
-export default function ItemsPanel({ personajeId, partidaId = null, onCurado = null, getPresentes = null }) {
+export default function ItemsPanel({ personajeId, partidaId = null, onCurado = null, onTmAprendido = null, getPresentes = null }) {
   const [items, setItems]     = useState(null)
   const [abierto, setAbierto] = useState(null) // id con el detalle desplegado
   const [usando, setUsando]   = useState(null) // item en confirmación
@@ -54,6 +59,7 @@ export default function ItemsPanel({ personajeId, partidaId = null, onCurado = n
   const [moves, setMoves]     = useState(null)   // movimientos del Pokémon elegido (items de PP a un movimiento)
   const [moveSel, setMoveSel] = useState(null)
   const [estadoSel, setEstadoSel] = useState(null) // Lum Berry: qué estado curar
+  const [tmUso, setTmUso] = useState(null) // TM en uso (su propia ventana)
 
   useEffect(() => {
     let vivo = true
@@ -71,6 +77,7 @@ export default function ItemsPanel({ personajeId, partidaId = null, onCurado = n
   }, [personajeId])
 
   const abrirUso = (i) => {
+    if (esTm(i)) { setError(''); setTmUso(i); return }
     setUsando(i); setError(''); setObjetivo(null); setTirada(''); setMoves(null); setMoveSel(null); setEstadoSel(null)
     // Sin partidaId no hay a quién aplicarlo: se muestra vacío en vez de quedarse cargando
     if ((i.curacion || i.pp || i.estado) && !partidaId) setParty([])
@@ -153,7 +160,7 @@ export default function ItemsPanel({ personajeId, partidaId = null, onCurado = n
   return (
     <div className="space-y-1">
       {items.length === 0 ? (
-        <p className="text-[11px] text-gray-500 italic">Sin medicinas ni bayas.</p>
+        <p className="text-[11px] text-gray-500 italic">Sin medicinas, bayas ni TM.</p>
       ) : items.map(i => {
         const open = abierto === i.id_personaje_equipo
         return (
@@ -453,6 +460,18 @@ export default function ItemsPanel({ personajeId, partidaId = null, onCurado = n
             </div>
           </div>
         </div>
+      )}
+      {tmUso && (
+        <TmUsoModal personajeId={personajeId} item={tmUso}
+          onClose={() => setTmUso(null)}
+          onAprendido={(r) => {
+            setItems(prev => (prev || [])
+              .map(i => i.id_personaje_equipo === tmUso.id_personaje_equipo ? { ...i, cantidad: r.cantidad } : i)
+              .filter(i => Number(i.cantidad) > 0))
+            setAviso(`${r.pokemon} aprendió ${r.aprendido}${r.olvidado ? ` y olvidó ${r.olvidado}` : ''}.`)
+            setTmUso(null)
+            onTmAprendido?.(r)
+          }} />
       )}
     </div>
   )

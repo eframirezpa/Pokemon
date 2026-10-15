@@ -13,6 +13,7 @@ const ITEM_TYPES = [
   { value: 'pokeball',     label: 'Pokéball',         bg: '#C03028' },
   { value: 'trainer gear', label: 'Equipo',           bg: '#F08030' },
   { value: 'Proyectil',    label: 'Proyectil',        bg: '#F8D030' },
+  { value: 'TM',           label: 'TM',               bg: '#1FA2B0' },
 ]
 
 function TypeBadge({ type }) {

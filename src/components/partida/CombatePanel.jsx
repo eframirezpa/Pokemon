@@ -216,7 +216,7 @@ function AcordeonPath({ rasgos, className = '' }) {
   )
 }
 
-export function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, onAtaque = null, recursosFeat = [],
+export function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, onAtaque = null, onTmAprendido = null, recursosFeat = [],
                        elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond, inspirado = false, onInspiradoInfo = null, onEstados = null, estadosTitle = 'Estados', partidaId = null, onCurado = null, getPresentes = null }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
@@ -653,7 +653,8 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                     setV(cur => ({ ...cur, hp: r.hp }))
                   }
                   onCurado?.(r, obj, item)
-                }} />
+                }}
+                onTmAprendido={onTmAprendido} />
             )}
 
             {/* Arma equipada del entrenador */}

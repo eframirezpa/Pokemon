@@ -4,5 +4,5 @@
 // y exportarlo desde un archivo de componente rompe el refresco en caliente.
 export const TIPOS_ITEM = [
   'berry', 'pokeball', 'held item', 'evolution',
-  'trainer gear', 'Event Item', 'medicine', 'Proyectil',
+  'trainer gear', 'Event Item', 'medicine', 'Proyectil', 'TM',
 ]

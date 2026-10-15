@@ -523,6 +523,18 @@ export default function TrainerPartida() {
       .catch(() => {})
   }
 
+  // TM usado desde la pestaña Items: a la actividad, aviso a la party y, si fue
+  // el Pokémon invocado, se releen sus movimientos para el panel abierto
+  const alAprenderTm = (r) => {
+    partidaApiRef.current?.registrar?.(r.texto, 'item')
+    partidaApiRef.current?.sendPartyUpdate?.()
+    setTickParty(t => t + 1)
+    if (String(r.id_personaje_pokemon) !== String(pokemonInvocado)) return
+    apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}`).then(res => res.json())
+      .then(d => setPokeData(p => p && ({ ...p, moves: Array.isArray(d.moves) ? d.moves : p.moves })))
+      .catch(() => {})
+  }
+
   // Si otro jugador (o el máster) cura o cambia mis HP/PP mientras tengo un panel
   // abierto, ese panel sigue con lo que cargó al abrirse. Cada party_update relee
   // solo el HP (del entrenador) o los PP y el HP (del Pokémon) del panel abierto.
@@ -1352,6 +1364,7 @@ export default function TrainerPartida() {
           partidaId={id}
           getPresentes={() => partidaApiRef.current?.getPresentes?.() ?? []}
           onCurado={alCurar}
+          onTmAprendido={alAprenderTm}
           estadosTitle="Estados del entrenador"
           onPersist={persistChar}
           onClose={closeControl}
@@ -1477,6 +1490,7 @@ export default function TrainerPartida() {
           partidaId={id}
           getPresentes={() => partidaApiRef.current?.getPresentes?.() ?? []}
           onCurado={alCurar}
+          onTmAprendido={alAprenderTm}
           onPersist={persistPoke}
           onReturn={returnPokemon}
           onClose={closeControl}

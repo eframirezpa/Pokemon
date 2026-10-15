@@ -13,6 +13,7 @@ const ITEM_TYPES = [
   { value: 'pokeball',     label: 'Pokéball',        bg: '#C03028' },
   { value: 'trainer gear', label: 'Equipo',          bg: '#F08030' },
   { value: 'Proyectil',    label: 'Proyectil',       bg: '#F8D030' },
+  { value: 'TM',           label: 'TM',              bg: '#1FA2B0' },
 ]
 const clampQty = v => Math.min(MAX_ITEM_QTY, Math.max(MIN_ITEM_QTY, Math.floor(Number(v)) || MIN_ITEM_QTY))
 const typeBg = t => ITEM_TYPES.find(x => x.value === t)?.bg || '#9CA3AF'
