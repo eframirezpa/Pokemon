@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { X, Sword, Shield, Check } from 'lucide-react'
+import { X, Sword, Shield, Check, AlertTriangle } from 'lucide-react'
 import BotonDado from './dados/BotonDado'
+import { requerimientosEspeciales } from '../lib/movesEspeciales'
 
 // Fórmula(s) del ataque de un movimiento del Pokémon.
 //
@@ -118,7 +119,12 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
     const dificultad = tieneDC ? totalDCDeFila(sel) : null
     // 20 natural en el d20 de la fila elegida: golpe crítico
     const critico = tieneAtaque && Number(dados[sel.clave] || 0) === 20
-    onAtacar(ataque, dificultad, critico)
+    // El power de la fila: su modificador es el "Move" que suma el daño
+    const power = sel.nombre === null ? null
+      : { nombre: sel.elegible ? (elegidas[sel.clave] || null) : sel.nombre, mod: modDeFila(sel) }
+    // 1 natural en el d20: pifia, sin daño
+    const pifia = tieneAtaque && Number(dados[sel.clave] || 0) === 1
+    onAtacar(ataque, dificultad, critico, power, pifia)
   }
 
   // Una fila de cualquiera de los dos bloques. `d20` decide si lleva tirada
@@ -269,6 +275,18 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
         </div>
 
         <div className="px-4 py-4">
+          {/* Lo que la app no resuelve sola (varios ataques...): a hablarlo con el DM */}
+          {requerimientosEspeciales(move).length > 0 && (
+            <div className="mb-3 flex gap-2.5 rounded-xl bg-amber-500/10 border border-amber-500/40 px-3 py-2.5">
+              <AlertTriangle size={17} className="text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-100 leading-relaxed">
+                <p className="font-bold">Este movimiento tiene estos requerimientos especiales</p>
+                <ul className="mt-0.5">
+                  {requerimientosEspeciales(move).map(a => <li key={a}>* {a}</li>)}
+                </ul>
+              </div>
+            </div>
+          )}
           {move?.move_name && (
             <p className="text-center text-[11px] text-gray-400 truncate mb-3">{move.move_name}</p>
           )}

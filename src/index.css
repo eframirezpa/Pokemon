@@ -39,6 +39,26 @@ body {
   100%   { transform: scale(1) translateY(0); opacity: 0; }
 }
 .animate-move-caster { animation: move-caster 3s ease-out forwards; }
+/* Pifia: mismo salto, pero al caer se desinfla y se inclina, y el letrero
+   "¡Pifia!" cae flojo y se queda caído */
+@keyframes move-caster-pifia {
+  0%     { transform: scale(0.7) translateY(0) rotate(0deg); opacity: 0; }
+  8%     { transform: scale(1) translateY(0) rotate(0deg); opacity: 1; }
+  13.33% { transform: scale(1) translateY(-22%) rotate(0deg); }
+  20%    { transform: scale(1) translateY(0) rotate(0deg); }
+  30%    { transform: scale(0.94, 0.88) translateY(6%) rotate(-8deg); }
+  88%    { transform: scale(0.94, 0.88) translateY(6%) rotate(-8deg); opacity: 1; }
+  100%   { transform: scale(0.94, 0.88) translateY(6%) rotate(-8deg); opacity: 0; }
+}
+.animate-move-caster-pifia { animation: move-caster-pifia 3s ease-out forwards; }
+@keyframes pifia-letrero {
+  0%   { transform: translateY(-30px) rotate(0deg); opacity: 0; }
+  50%  { transform: translateY(4px) rotate(4deg); opacity: 1; }
+  70%  { transform: translateY(0) rotate(-3deg); }
+  100% { transform: translateY(2px) rotate(-6deg); opacity: 1; }
+}
+.animate-pifia-letrero { animation: pifia-letrero 0.9s ease-out 0.6s both; }
+
 /* Letrero y número del crítico: se van junto con el Pokémon */
 @keyframes crit-salida {
   0%, 88% { opacity: 1; }
@@ -545,7 +565,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .poke-hop-sprite, .animate-poke-hop-3, .animate-poke-hop-idle { animation: none !important; }
-  .animate-move-caster, .animate-crit-temblor, .animate-crit-destello { animation: none; }
+  .animate-move-caster, .animate-move-caster-pifia, .animate-crit-temblor, .animate-crit-destello, .animate-pifia-letrero { animation: none; }
   .animate-crit-destello { opacity: 0; }
   .animate-crit-letrero { animation: none; transform: rotate(-6deg); }
   .animate-crit-numero { animation: none; }
@@ -658,3 +678,11 @@ body {
   .animate-cap-escapar, .animate-cap-texto { animation: none; opacity: 1; }
   .animate-cap-escapar-sombra { animation: none; opacity: 1; filter: brightness(0) drop-shadow(0 0 10px rgba(255,255,255,0.35)); }
 }
+
+/* Iconos de la izquierda de la partida: el control de abajo a la izquierda
+   los esconde deslizándolos fuera de la pantalla. La transformación solo se
+   pone al esconder: con ella el bloque fijo dejaría de ser la referencia de
+   sus hijos fijos. */
+.icono-izq { transition: transform 0.25s ease, opacity 0.25s ease; }
+.iconos-ocultos .icono-izq { transform: translateX(-160%); opacity: 0; pointer-events: none !important; }
+.iconos-ocultos .icono-izq * { pointer-events: none !important; }

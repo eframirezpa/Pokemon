@@ -1003,7 +1003,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                     )}
 
                     {onAtaque && (
-                      <button onClick={() => { onAtaque(total, { critico, arma: armaElegida }); setVerFormula(null) }}
+                      <button onClick={() => { onAtaque(total, { critico, arma: armaElegida, pifia: n20 === 1 }); setVerFormula(null) }}
                         disabled={dado === ''}
                         title={dado === '' ? 'Escribe primero el resultado del d20' : 'Anunciar el ataque a la partida'}
                         className="mt-3 w-full flex items-center justify-center gap-1.5 h-10 rounded-xl

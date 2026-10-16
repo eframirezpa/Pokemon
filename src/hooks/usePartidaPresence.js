@@ -9,8 +9,9 @@ const DEFAULT_MASTER_MESSAGE = '¡Bienvenido a la partida entrenador!'
 // no la que le tocó ver a quien lo originó.
 const formatAttackText = (payload, displayName) => {
   const detalle = []
-  if (payload.ataque != null) detalle.push(`Ataque ${payload.ataque}${payload.critico ? ' ¡crítico!' : ''}`)
+  if (payload.ataque != null) detalle.push(`Ataque ${payload.ataque}${payload.critico ? ' ¡crítico!' : ''}${payload.pifia ? ' ¡pifia!' : ''}`)
   if (payload.dificultad != null) detalle.push(`Dificultad ${payload.dificultad}`)
+  if (payload.dano != null) detalle.push(`${payload.curacion ? 'Curación' : 'Daño'} ${payload.dano}`)
   if (Number(payload.pp) > 0) detalle.push(`${payload.pp} PP`)
   return `${displayName} usó ${payload.moveName}${detalle.length ? ` (${detalle.join(', ')})` : ''}`
 }

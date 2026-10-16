@@ -35,6 +35,8 @@ import { TurnoIcono } from '../components/partida/TurnoIcono'
 import PokemonSummonFx from '../components/PokemonSummonFx'
 import { armaFx } from '../lib/armasFx'
 import { ladoTalla } from '../lib/tallas'
+import { tieneDano, esFling } from '../lib/danoMove'
+import DanoMoveModal from '../components/DanoMoveModal'
 
 export default function TrainerPartida() {
   const { id }   = useParams()
@@ -714,12 +716,18 @@ export default function TrainerPartida() {
   const [ataqueLanzado, setAtaqueLanzado] = useState(null)
   const [dificultadLanzada, setDificultadLanzada] = useState(null)
   const [criticoLanzado, setCriticoLanzado] = useState(false)
+  // Power elegido en la fórmula ({ nombre, mod }): su modificador suma al daño
+  const [powerLanzado, setPowerLanzado] = useState(null)
+  // 1 natural en el d20 del ataque: pifia, no hay ventana de daño
+  const [pifiaLanzada, setPifiaLanzada] = useState(false)
+  // Ventana de daño pendiente, después de los PP: { m, ataque, dificultad, pp, critico, power }
+  const [danoPend, setDanoPend] = useState(null)
 
   // Lanzar movimiento del Pokémon invocado → animación de ataque (como el master)
   // Al pulsar la flecha se abre el popup para elegir cuántos PP gastar
-  const abrirPP = (m, ataque = null, dificultad = null, critico = false) => {
-    // Struggle y demás movimientos de PP ilimitado no gastan nada: se lanzan directo
-    if ((Number(m.personaje_pokemon_moves_max_pp) || 0) === 0) { lanzar(m, ataque, dificultad, 0, critico); return }
+  const abrirPP = (m, ataque = null, dificultad = null, critico = false, power = null, pifia = false) => {
+    // Struggle y demás movimientos de PP ilimitado no gastan nada: van directo
+    if ((Number(m.personaje_pokemon_moves_max_pp) || 0) === 0) { trasPP(m, ataque, dificultad, 0, critico, power, pifia); return }
     setPpMove(m); setPpCantidad(1); setPpError('')
   }
 
@@ -728,16 +736,39 @@ export default function TrainerPartida() {
   // nada que calcular, así que se salta la ventana de fórmula por completo.
   const abrirFormulaAtaque = (m) => {
     const tieneFormula = !!String(m?.move_attack_scope || '').trim() || !!String(m?.move_save_attribute || '').trim()
-    if (!tieneFormula) { abrirPP(m); return }
+    if (!tieneFormula) {
+      // Sin fórmula no hay tirada: que no se arrastre la del movimiento anterior
+      setAtaqueLanzado(null); setDificultadLanzada(null); setCriticoLanzado(false); setPowerLanzado(null); setPifiaLanzada(false)
+      abrirPP(m); return
+    }
     setFormulaMove(m)
   }
 
+  // Gastados los PP: si el movimiento hace daño, primero la ventana de daño
+  // Con pifia (1 natural) no hay daño que calcular: se lanza directo
+  const trasPP = (m, ataque, dificultad, pp, critico, power, pifia = false) => {
+    if (pifia) { lanzar(m, ataque, dificultad, pp, false, null, true); return }
+    // Fling: su daño sale del held item del Pokémon, así que se leen antes
+    if (esFling(m)) {
+      apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}/held-items`)
+        .then(r => (r.ok ? r.json() : null))
+        .catch(() => null)
+        // La respuesta es { items, maximo }
+        .then(r => setDanoPend({ m, ataque, dificultad, pp, critico, power, heldItems: Array.isArray(r?.items) ? r.items : [] }))
+      return
+    }
+    if (tieneDano(m)) { setDanoPend({ m, ataque, dificultad, pp, critico, power }); return }
+    lanzar(m, ataque, dificultad, pp, critico)
+  }
+
   // Dispara el ataque y arranca el cooldown
-  const lanzar = (m, ataque = null, dificultad = null, pp = 0, critico = false) => {
+  const lanzar = (m, ataque = null, dificultad = null, pp = 0, critico = false, dano = null, pifia = false) => {
     partidaApiRef.current?.sendAttack?.({
       pokemonName: pokeData?.name || 'Pokémon', moveName: m.move_name, type: m.move_type, hidden: false,
       sprite: invocadoSprite, talla: invocadoTalla,
       ataque, dificultad, pp, critico,
+      // Daño (o curación) de la ventana de daño; en el crítico es el número que se ve
+      dano: dano?.total ?? null, curacion: !!dano?.curacion, pifia,
     })
     setCastCooldown(true)
     if (castTimer.current) clearTimeout(castTimer.current)
@@ -800,7 +831,7 @@ export default function TrainerPartida() {
         }))
       }
       setPpMove(null)
-      lanzar(m, ataqueLanzado, dificultadLanzada, maxPP > 0 ? ppCantidad : 0, criticoLanzado)
+      trasPP(m, ataqueLanzado, dificultadLanzada, maxPP > 0 ? ppCantidad : 0, criticoLanzado, powerLanzado, pifiaLanzada)
     } catch { setPpError('No se pudo gastar los PP') } finally { setPpBusy(false) }
   }
 
@@ -930,13 +961,34 @@ export default function TrainerPartida() {
           prof={pokeData?.prof}
           stats={pokeData?.stats || []}
           bonoRuta={pokeData?.attack_bonus_path || { total: 0, detalle: [] }}
-          onClose={() => { setFormulaMove(null); setAtaqueLanzado(null); setDificultadLanzada(null); setCriticoLanzado(false) }}
-          onAtacar={(ataque, dificultad, critico) => {
+          onClose={() => { setFormulaMove(null); setAtaqueLanzado(null); setDificultadLanzada(null); setCriticoLanzado(false); setPowerLanzado(null); setPifiaLanzada(false) }}
+          onAtacar={(ataque, dificultad, critico, power, pifia) => {
             const m = formulaMove
-            setAtaqueLanzado(ataque); setDificultadLanzada(dificultad); setCriticoLanzado(critico)
-            setFormulaMove(null); abrirPP(m, ataque, dificultad, critico)
+            setAtaqueLanzado(ataque); setDificultadLanzada(dificultad); setCriticoLanzado(critico); setPowerLanzado(power)
+            setPifiaLanzada(pifia)
+            setFormulaMove(null); abrirPP(m, ataque, dificultad, critico, power, pifia)
           }}
         />
+      )}
+
+      {/* Daño del movimiento: después de los PP y antes de lanzar */}
+      {danoPend && (
+        <DanoMoveModal move={danoPend.m} nivel={pokeData?.level} stats={pokeData?.stats || []}
+          critico={danoPend.critico} power={danoPend.power} heldItems={danoPend.heldItems}
+          onConfirmar={(r) => {
+            const d = danoPend; setDanoPend(null); lanzar(d.m, d.ataque, d.dificultad, d.pp, d.critico, r)
+            // Fling: el held item lanzado se pierde (se gasta, no vuelve a la mochila)
+            if (r.heldItem) {
+              apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}/held-items/${r.heldItem.personaje_pokemon_held_item_id}/usar`, { method: 'POST' })
+                .then(res => {
+                  if (!res.ok) return
+                  partidaApiRef.current?.registrar?.(`${pokeData?.name || 'El Pokémon'} lanzó su ${r.heldItem.item_name} con Fling y lo perdió.`, 'item')
+                  partidaApiRef.current?.sendPartyUpdate?.()
+                })
+                .catch(() => {})
+            }
+          }}
+          onOmitir={() => { const d = danoPend; setDanoPend(null); lanzar(d.m, d.ataque, d.dificultad, d.pp, d.critico) }} />
       )}
 
       {ppMove && (() => {
@@ -1103,7 +1155,7 @@ export default function TrainerPartida() {
         )}
 
         {/* Pokédex — flotante justo debajo del botón de notas de PartidaRoom */}
-        <button onClick={() => { setPokedexListo(false); setShowPokedex(true) }} className={`${sideBtn} fixed left-3 top-52 z-40`} title="Abrir Pokédex">
+        <button onClick={() => { setPokedexListo(false); setShowPokedex(true) }} className={`${sideBtn} icono-izq fixed left-3 top-52 z-40`} title="Abrir Pokédex">
           <Smartphone size={18} />
         </button>
 
@@ -1111,7 +1163,7 @@ export default function TrainerPartida() {
             El turno y el clima van fuera de la columna porque esta hace scroll y
             recortaría la barra de turno, que es más ancha que un icono. El bloque
             no captura clics (pointer-events-none): solo sus piezas. */}
-        <div className="fixed left-3 top-64 bottom-3 z-30 flex flex-col items-start gap-2 pointer-events-none">
+        <div className="icono-izq fixed left-3 top-64 bottom-16 z-30 flex flex-col items-start gap-2 pointer-events-none">
           {/* Turno: icono que se despliega en la barra; con halo si me toca */}
           <TurnoIcono iniciativa={iniciativa} userId={user?.user_id} onTerminar={terminarTurno} busy={turnoBusy} />
           {clima && (
@@ -1328,15 +1380,15 @@ export default function TrainerPartida() {
           switchSprite={pokemonInvocado ? invocadoSprite : null}
           switchLabel="Ir al Pokémon"
           onSwitch={openPokemonControl}
-          onAtaque={(poder, { critico = false, arma = null } = {}) => {
+          onAtaque={(poder, { critico = false, arma = null, pifia = false } = {}) => {
             const quien = nombrePj || 'El entrenador'
             partidaApiRef.current?.anunciar?.(
-              `${quien} ha atacado${arma ? ` con ${arma.weapon_type_name}` : ''} con un poder de ${poder}${critico ? ' ¡crítico!' : ''}`,
+              `${quien} ha atacado${arma ? ` con ${arma.weapon_type_name}` : ''} con un poder de ${poder}${critico ? ' ¡crítico!' : ''}${pifia ? ' ¡pifia!' : ''}`,
               null, null, 'ataque')
             // La animación del ataque con su arma, para toda la mesa
             partidaApiRef.current?.sendAttack?.({
               soloFx: true, pokemonName: quien, moveName: arma ? arma.weapon_type_name : 'Sin arma',
-              sprite: user?.avatar_face_url || null, arma: armaFx(arma), ataque: poder, critico,
+              sprite: user?.avatar_face_url || null, arma: armaFx(arma), ataque: poder, critico, pifia,
             })
             // Se cierra el panel para que se vea la animación del ataque
             closeControl()

@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  LogOut, ChevronDown, Users, X, Info,
+  LogOut, Users, X, Info,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
   Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star, Globe, NotebookPen,
-  AlertTriangle, Backpack, Dices,
+  AlertTriangle, Backpack, Dices, ScrollText, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import DadosProvider from './dados/DadosProvider'
@@ -48,6 +48,7 @@ import { participanteEnTurno } from '../lib/turno'
 import PantallaRotaFx from './partida/PantallaRotaFx'
 import ArmaAtaqueFx from './partida/ArmaAtaqueFx'
 import { ladoTalla } from '../lib/tallas'
+import { sonarPifia } from '../lib/sonidos'
 
 // Explosión puntiaguda que acompaña al número del crítico
 function CritBurst() {
@@ -139,7 +140,18 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [terrenoTick, setTerrenoTick] = useState(0) // el máster no recibe su propio party_update
   const [showMapa, setShowMapa]     = useState(false)
   const [showNotas, setShowNotas]   = useState(false)
-  const [logOpen, setLogOpen]       = useState(true)
+  // Actividad: botón flotante abajo a la derecha que abre el registro encima
+  const [logOpen, setLogOpen]       = useState(false)
+  const [logVisto, setLogVisto]     = useState(0)   // líneas ya vistas, para el contador de nuevas
+  // Iconos de la izquierda: se pueden esconder con el control de abajo a la
+  // izquierda. Preferencia de cada quien en su navegador.
+  const [ocultarIconos, setOcultarIconos] = useState(() => {
+    try { return localStorage.getItem('partida.iconosOcultos') === '1' } catch { return false }
+  })
+  const alternarIconos = () => setOcultarIconos(v => {
+    try { localStorage.setItem('partida.iconosOcultos', v ? '0' : '1') } catch { /* sin almacenamiento */ }
+    return !v
+  })
   const [showPokedex, setShowPokedex] = useState(false)
   const [showNpcPicker, setShowNpcPicker] = useState(false)
   const [showIniciativa, setShowIniciativa] = useState(false)
@@ -676,7 +688,10 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     // de afuera (y en el celular subía la sala entera)
     const lista = logEndRef.current?.parentElement
     if (lista) lista.scrollTo({ top: lista.scrollHeight, behavior: 'smooth' })
-  }, [log])
+  }, [log, logOpen])
+  // Con el registro abierto, todo lo que llega ya se está viendo
+  const nuevasLog = logOpen ? 0 : Math.max(0, log.length - logVisto)
+  const abrirCerrarLog = () => { setLogVisto(log.length); setLogOpen(o => !o) }
 
   // Efecto visual del ataque: el Pokémon aparece al centro, salta y de ahí sale
   // el estallido del movimiento (1.2 s). Sin sprite queda solo el estallido.
@@ -685,8 +700,10 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     setAttackFx(lastAttack)
     // El crítico dura lo que la pantalla rota (PRUEBA): impacto a 0.6 s + 5 s
     const t = setTimeout(() => setAttackFx(null), lastAttack.critico ? 5600 : ((lastAttack.sprite || lastAttack.arma) ? 3000 : 1200))
-    return () => clearTimeout(t)
-  }, [lastAttack])
+    // Pifia: el trombón triste al aterrizar el salto, para quien ve el efecto
+    const s = lastAttack.pifia && !isMaster ? setTimeout(sonarPifia, 600) : null
+    return () => { clearTimeout(t); if (s) clearTimeout(s) }
+  }, [lastAttack, isMaster])
 
   // El master elige uno de SUS Pokémon → se carga su detalle y se pone en el campo
   const handlePickPokemon = async (mp) => {
@@ -903,7 +920,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     <DadosProvider nombre={isMaster ? 'El DM' : (nombreJugador || user?.user_name || 'Alguien')}
       puedeOcultar={isMaster}
       onTirada={(t) => sendTirada({ ...t, user_id: user?.user_id })}>
-    <div className="fixed inset-0 flex flex-col bg-gray-900 text-white overflow-hidden">
+    <div className={`fixed inset-0 flex flex-col bg-gray-900 text-white overflow-hidden ${ocultarIconos ? 'iconos-ocultos' : ''}`}>
 
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 bg-gray-800 border-b border-gray-700 shrink-0">
@@ -962,9 +979,55 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         </div>
       )}
 
-      {/* Alerta "Hielo y Fuego" abajo a la izquierda */}
+      {/* Actividad: botón abajo a la derecha; el registro se abre encima de él
+          y no le quita espacio a la sala ni tapa los iconos */}
+      <button onClick={abrirCerrarLog} title={logOpen ? 'Cerrar la actividad' : 'Ver la actividad'}
+        className={`fixed right-3 bottom-3 z-[46] flex items-center justify-center w-11 h-11 rounded-full shadow-lg border transition-colors ${
+          logOpen ? 'bg-amber-500 border-amber-300 text-gray-900' : 'bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200'}`}>
+        <ScrollText size={19} />
+        {nuevasLog > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-600 border border-red-300 text-[10px] font-black flex items-center justify-center">
+            {nuevasLog > 99 ? '99+' : nuevasLog}
+          </span>
+        )}
+      </button>
+      {logOpen && (
+        <div className="fixed right-3 bottom-16 z-[46] w-[min(26rem,calc(100vw-1.5rem))] h-[min(18rem,55dvh)]
+                        flex flex-col rounded-2xl border border-gray-700 bg-gray-800/95 shadow-2xl backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-2 px-4 pt-2.5 pb-1.5 border-b border-gray-700 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Actividad</p>
+              <ResumenSesion partidaId={id} userId={user?.user_id} />
+            </div>
+            <button onClick={abrirCerrarLog} className="text-gray-400 hover:text-white shrink-0" title="Cerrar"><X size={15} /></button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+            {log.length === 0
+              ? <p className="text-xs text-gray-500 italic">Sin actividad aún...</p>
+              : log.map((e, i) => (
+                <p key={i} className="text-xs leading-relaxed">
+                  <span className="text-gray-500 text-[10px] mr-2">
+                    {new Date(e.time).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                  <span className={ROLE_COLORS[e.role] ?? 'text-gray-300'}>{e.text}</span>
+                </p>
+              ))
+            }
+            <div ref={logEndRef} />
+          </div>
+        </div>
+      )}
+
+      {/* Mostrar / esconder los iconos de la izquierda */}
+      <button onClick={alternarIconos} title={ocultarIconos ? 'Mostrar los iconos' : 'Esconder los iconos'}
+        className="fixed left-3 bottom-3 z-[46] flex items-center justify-center w-11 h-11 rounded-full shadow-lg border
+                   bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200 transition-colors">
+        {ocultarIconos ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
+      </button>
+
+      {/* Alerta "Hielo y Fuego" abajo a la izquierda, al lado del control de iconos */}
       {eventActive && (
-        <div className="fixed left-3 bottom-3 z-[45] flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-red-400">
+        <div className="fixed left-16 bottom-3.5 z-[45] flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-red-400">
           <Snowflake size={14} className="text-cyan-200" />
           <span>Hielo y Fuego</span>
           <Flame size={14} className="text-orange-300" />
@@ -1081,7 +1144,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         {/* Botón flotante — abre la ventana Party */}
         <button
           onClick={() => setShowParty(true)}
-          className="fixed left-3 top-16 z-30 flex items-center justify-center w-10 h-10
+          className="icono-izq fixed left-3 top-16 z-30 flex items-center justify-center w-10 h-10
                      rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
                      border border-gray-600 transition-all"
           title="Party"
@@ -1094,7 +1157,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             más abajo porque arriba ya tiene sus dos botones. */}
         <button
           onClick={() => setShowMapa(true)}
-          className={`fixed left-3 z-40 flex items-center justify-center w-10 h-10
+          className={`icono-izq fixed left-3 z-40 flex items-center justify-center w-10 h-10
                      rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
                      border border-gray-600 transition-all ${isMaster ? 'top-52' : 'top-28'}`}
           title={isMaster ? 'Mapa · fijar el pin de la party' : 'Mapa'}
@@ -1106,7 +1169,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         {!isMaster && personajeId != null && (
           <button
             onClick={() => setShowNotas(true)}
-            className="fixed left-3 top-40 z-40 flex items-center justify-center w-10 h-10
+            className="icono-izq fixed left-3 top-40 z-40 flex items-center justify-center w-10 h-10
                        rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
                        border border-gray-600 transition-all"
             title="Pokenotas"
@@ -1119,7 +1182,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         {isMaster && (
           <button
             onClick={() => setShowInfo(true)}
-            className="fixed left-3 top-28 z-30 flex items-center justify-center w-10 h-10
+            className="icono-izq fixed left-3 top-28 z-30 flex items-center justify-center w-10 h-10
                        rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
                        border border-gray-600 transition-all"
             title="Personajes registrados"
@@ -1142,7 +1205,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 }).catch(() => {})
               setShowIniciativa(true)
             }}
-            className={`fixed left-3 top-64 z-40 flex items-center justify-center w-10 h-10
+            className={`icono-izq fixed left-3 top-64 z-40 flex items-center justify-center w-10 h-10
                        rounded-full shadow-lg border transition-all ${
                        iniciativa ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-400'
                                   : 'bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600'}`}
@@ -1156,7 +1219,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         {isMaster && (
           <button
             onClick={() => setShowItems(true)}
-            className="fixed left-3 top-40 z-30 flex items-center justify-center w-10 h-10
+            className="icono-izq fixed left-3 top-40 z-30 flex items-center justify-center w-10 h-10
                        rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
                        border border-gray-600 transition-all"
             title="Items"
@@ -1166,13 +1229,13 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         )}
 
         {/* Botón flotante — dados (master). El trainer lo tiene en su columna. */}
-        {isMaster && <BotonBandejaDados className="fixed left-3 top-76 z-40" />}
+        {isMaster && <BotonBandejaDados className="icono-izq fixed left-3 top-76 z-40" />}
 
         {/* Turno y clima del máster: debajo de sus dados, con la misma estética
             que la columna del entrenador. El bloque no captura clics, solo sus
             piezas: la barra de turno desplegada es más ancha que un icono. */}
         {isMaster && (iniciativa?.estado === 'activa' || clima) && (
-          <div className="fixed left-3 top-88 z-40 flex flex-col items-start gap-2 pointer-events-none">
+          <div className="icono-izq fixed left-3 top-88 z-40 flex flex-col items-start gap-2 pointer-events-none">
             <TurnoIcono iniciativa={iniciativa} userId={user?.user_id} onTerminar={terminarTurno} busy={turnoBusy} />
             {clima && <div className="shrink-0 pointer-events-auto"><ClimaIcono clima={clima} /></div>}
           </div>
@@ -1338,10 +1401,11 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                     // Tamaño según la talla: 160 px es el mediano
                     <img src={attackFx.sprite} alt=""
                       width={ladoTalla(160, attackFx.talla)} height={ladoTalla(160, attackFx.talla)}
-                      className="object-contain animate-move-caster drop-shadow-lg"
+                      className={`object-contain drop-shadow-lg ${attackFx.pifia ? 'animate-move-caster-pifia' : 'animate-move-caster'}`}
                       style={sombra ? { filter: 'brightness(0) drop-shadow(0 0 10px rgba(255,255,255,0.35))' } : undefined}
                       onError={e => { e.target.style.opacity = '0' }} />
                   )}
+                  {!attackFx.pifia && (
                   <div className={`flex flex-col items-center gap-3 ${attackFx.sprite
                     ? 'absolute inset-0 justify-center animate-attack-burst-tras-salto' : 'animate-attack-burst'}`}>
                     <div className="relative flex items-center justify-center">
@@ -1354,8 +1418,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                       {attackFx.moveName}
                     </span>
                   </div>
+                  )}
                   </>)}
-                  {(attackFx.critico || attackFx.arma) && (
+                  {(attackFx.critico || attackFx.arma || attackFx.pifia) && (
                     <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 flex flex-col items-center whitespace-nowrap animate-crit-salida">
                       {/* Con qué arma pegó y, si no fue crítico, el valor del ataque */}
                       {attackFx.arma && (
@@ -1363,18 +1428,26 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                           {attackFx.moveName}{!attackFx.critico && attackFx.ataque != null ? ` · ${attackFx.ataque}` : ''}
                         </span>
                       )}
+                      {/* Pifia (1 natural): el movimiento no conecta */}
+                      {attackFx.pifia && (
+                        <span className="block text-3xl font-black italic uppercase tracking-wide text-slate-300 animate-pifia-letrero
+                          [text-shadow:2px_2px_0_#334155,-2px_-2px_0_#334155,2px_-2px_0_#334155,-2px_2px_0_#334155]">
+                          ¡Pifia!
+                        </span>
+                      )}
                       {attackFx.critico && <span className="block text-xl font-black italic uppercase tracking-wide text-amber-300 animate-crit-letrero
                         [text-shadow:0_0_14px_rgba(251,191,36,0.9),2px_2px_0_#b91c1c,-2px_-2px_0_#b91c1c,2px_-2px_0_#b91c1c,-2px_2px_0_#b91c1c]">
                         ¡Golpe crítico!
                       </span>}
                       {/* Valor del golpe, como los números de crítico de los MOBA */}
-                      {attackFx.critico && attackFx.ataque != null && (
+                      {/* Con ventana de daño el número es el daño; si no, el ataque */}
+                      {attackFx.critico && (attackFx.dano ?? attackFx.ataque) != null && (
                         <span className="flex items-center gap-1 animate-crit-numero">
                           <CritBurst />
                           <span className="text-6xl font-black tabular-nums leading-none text-transparent bg-clip-text
                             bg-gradient-to-b from-yellow-200 via-amber-400 to-orange-600
                             [filter:drop-shadow(2px_0_0_#3b1d0a)_drop-shadow(-2px_0_0_#3b1d0a)_drop-shadow(0_2px_0_#3b1d0a)_drop-shadow(0_-2px_0_#3b1d0a)_drop-shadow(0_4px_6px_rgba(0,0,0,0.6))]">
-                            {attackFx.ataque}
+                            {attackFx.dano ?? attackFx.ataque}
                           </span>
                         </span>
                       )}
@@ -1389,41 +1462,6 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           </div>
           )}
 
-          {/* Activity log */}
-          <div className={`shrink-0 border-t border-gray-700 bg-gray-800/60 flex flex-col transition-all duration-300 ${logOpen ? 'h-40' : 'h-9'}`}>
-            <div className="flex items-center justify-between px-4 pt-2 pb-1 shrink-0">
-              <div className="flex items-center gap-3">
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                  Actividad
-                </p>
-                <ResumenSesion partidaId={id} userId={user?.user_id} />
-              </div>
-              <button
-                onClick={() => setLogOpen(o => !o)}
-                className="text-gray-500 hover:text-white transition-colors"
-              >
-                <ChevronDown size={14} className={`transition-transform duration-300 ${logOpen ? '' : 'rotate-180'}`} />
-              </button>
-            </div>
-            {logOpen && (
-              <div className="flex-1 overflow-y-auto px-4 pb-3 space-y-1">
-                {log.length === 0
-                  ? <p className="text-xs text-gray-600 italic">Sin actividad aún...</p>
-                  : log.map((e, i) => (
-                    <p key={i} className="text-xs leading-relaxed">
-                      <span className="text-gray-600 text-[10px] mr-2">
-                        {new Date(e.time).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </span>
-                      <span className={ROLE_COLORS[e.role] ?? 'text-gray-300'}>
-                        {e.text}
-                      </span>
-                    </p>
-                  ))
-                }
-                <div ref={logEndRef} />
-              </div>
-            )}
-          </div>
         </div>
 
       </div>
