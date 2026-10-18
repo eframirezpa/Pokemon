@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, Pencil, PencilOff, BedDouble, Dices } from 'lucide-react'
+import { Smartphone, User, Backpack, Shield, Sword, Monitor, X, Minus, Plus, Pencil, PencilOff, BedDouble, Dices, Venus, Mars } from 'lucide-react'
 import PartidaRoom from '../components/PartidaRoom'
 import PokemonList from './PokemonList'
 import CharacterSheet from '../components/CharacterSheet'
@@ -1098,7 +1098,17 @@ export default function TrainerPartida() {
             <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-200">
                 <h3 className="font-black text-gray-900 text-lg leading-tight">Renombrar Pokemon</h3>
-                <p className="text-xs text-gray-500 mt-0.5 truncate">{r.pokemon_name} · Nv {r.pokemon_level}</p>
+                <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 min-w-0">
+                  <span className="truncate">{r.pokemon_name} · Nv {r.pokemon_level}</span>
+                  {/* El género ayuda a elegir el apodo */}
+                  {r.personaje_pokemon_genero === 'Female' && (
+                    <span className="flex items-center gap-0.5 shrink-0 font-bold text-pink-500"><Venus size={13} strokeWidth={2.5} /> Hembra</span>
+                  )}
+                  {r.personaje_pokemon_genero === 'Male' && (
+                    <span className="flex items-center gap-0.5 shrink-0 font-bold text-blue-500"><Mars size={13} strokeWidth={2.5} /> Macho</span>
+                  )}
+                  {!['Female', 'Male'].includes(r.personaje_pokemon_genero) && <span className="shrink-0">· Sin género</span>}
+                </p>
               </div>
               <div className="px-5 py-4">
                 {sprite && (
@@ -1166,7 +1176,9 @@ export default function TrainerPartida() {
                 <EstadosChips estados={pokeEstados} iconPx={estadoChipSize} />
                 <button onClick={openPokemonControl} title="Controlar Pokémon"
                   className={`relative transition-transform hover:scale-105 ${turnoDelPokemon ? 'animate-turno-anillo' : ''}`}>
-                  <NumerosFlotantes valor={vidaInvocado} />
+                  {/* key: al cambiar de Pokémon invocado se empieza de cero; si no,
+                      la diferencia de vida entre uno y otro salía como daño o curación */}
+                  <NumerosFlotantes key={pokemonInvocado} valor={vidaInvocado} />
                   <img src={invocadoSprite} alt="Pokémon invocado"
                     width={ladoTalla(isMonitor ? 66 : 44, invocadoTalla)} height={ladoTalla(isMonitor ? 66 : 44, invocadoTalla)}
                     className="animate-poke-hop-idle object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
