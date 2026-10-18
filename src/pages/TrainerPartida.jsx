@@ -38,6 +38,20 @@ import { ladoTalla } from '../lib/tallas'
 import { tieneDano, esFling } from '../lib/danoMove'
 import DanoMoveModal from '../components/DanoMoveModal'
 
+// Exhaust en la mesa: "-N" amarillo a la derecha del icono, solo si hay. Por
+// ahora es un recordatorio: la penalización a skills, ataques y salvaciones
+// no se calcula sola.
+function ExhaustMarca({ nivel }) {
+  if (!nivel) return null
+  return (
+    <span title={`Exhaust nivel ${nivel}: penaliza skills, ataques y tiradas de salvación`}
+      className="absolute left-full top-1/2 -translate-y-1/2 ml-0.5 pointer-events-none text-sm font-black tabular-nums text-yellow-300
+                 [text-shadow:1px_1px_0_#422006,-1px_-1px_0_#422006,1px_-1px_0_#422006,-1px_1px_0_#422006]">
+      -{nivel}
+    </span>
+  )
+}
+
 export default function TrainerPartida() {
   const { id }   = useParams()
   const location = useLocation()
@@ -201,6 +215,9 @@ export default function TrainerPartida() {
   }, [avisoTurno])
 
   const vidaInvocado = (miParty?.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(pokemonInvocado))?.pokemon_current_hp ?? null
+  // Exhaust de cada uno, para el "-N" junto a su icono en la mesa
+  const exhaustTrainer = Number(miParty?.personaje_exahust_lvl) || 0
+  const exhaustInvocado = Number((miParty?.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(pokemonInvocado))?.personaje_pokemon_exahust_lvl) || 0
 
   // Mejoras pendientes por subida de nivel: se muestran al entrar y tras subir experiencia
   const refreshPending = () => {
@@ -856,12 +873,18 @@ export default function TrainerPartida() {
   }
   useEffect(() => () => clearTimeout(avisoTimer.current), [])
   const persistChar = (patch) => {
+    // El "-N" de la mesa sale de miParty: se adelanta sin esperar a la party
+    if ('exhaust' in patch) setMiParty(m => m && ({ ...m, personaje_exahust_lvl: patch.exhaust }))
     const p = apiFetch(`/personaje/${personajeId}/combate`, { method: 'PATCH', body: JSON.stringify(toBody(patch)) })
       .then(avisarParty).catch(() => {})
     pendingPersist.current = p
     return p
   }
   const persistPoke = (patch) => {
+    if ('exhaust' in patch) {
+      setMiParty(m => m && ({ ...m, pokemons: (m.pokemons || []).map(pk => String(pk.id_personaje_pokemon) === String(pokemonInvocado)
+        ? { ...pk, personaje_pokemon_exahust_lvl: patch.exhaust } : pk) }))
+    }
     const p = apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}/combate`, { method: 'PATCH', body: JSON.stringify(toBody(patch)) })
       .then(avisarParty).catch(() => {})
     pendingPersist.current = p
@@ -1131,6 +1154,7 @@ export default function TrainerPartida() {
                     <img src={user.avatar_face_url} alt="Jugador" data-throw-origin="1"
                       className={`${isMonitor ? 'w-[66px] h-[66px]' : 'w-11 h-11'} object-contain`} onError={e => { e.target.style.opacity = '0.2' }} />
                   </button>
+                  <ExhaustMarca nivel={exhaustTrainer} />
                 </div>
                 <TerrenoPiso terreno={terrenoTrainer} width={avatarPx} reservar={!!(terrenoTrainer || terrenoPokemon)} />
               </div>
@@ -1146,6 +1170,7 @@ export default function TrainerPartida() {
                   <img src={invocadoSprite} alt="Pokémon invocado"
                     width={ladoTalla(isMonitor ? 66 : 44, invocadoTalla)} height={ladoTalla(isMonitor ? 66 : 44, invocadoTalla)}
                     className="animate-poke-hop-idle object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
+                  <ExhaustMarca nivel={exhaustInvocado} />
                 </button>
                 <TerrenoPiso terreno={terrenoPokemon} width={avatarPx} reservar={!!(terrenoTrainer || terrenoPokemon)} />
               </div>
