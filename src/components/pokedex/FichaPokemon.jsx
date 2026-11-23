@@ -62,13 +62,28 @@ export function CabeceraPokemon({ pk, shiny, onShiny, onChoose = null, compacta 
 function FichasCombate({ pk, compacta, className }) {
   // Nombres cortos donde no caben los largos (panel lateral y celular)
   const corto = (c, l) => compacta ? c : <><span className="sm:hidden">{c}</span><span className="hidden sm:inline">{l}</span></>
-  const extraSpeeds = [2, 3, 4].map(i => pk[`pokemon_speed_${i}_name`] && `${pk[`pokemon_speed_${i}_value`]} ${pk[`pokemon_speed_${i}_name`]}`).filter(Boolean)
+  const velocidades = [1, 2, 3, 4]
+    .map(i => ({ valor: pk[`pokemon_speed_${i}_value`], nombre: pk[`pokemon_speed_${i}_name`] }))
+    .filter(v => v.valor || v.nombre)
   return (
     <div className={`grid-cols-3 gap-2 ${className}`}>
       <Ficha sobreColor etiqueta={corto('AC', 'Armor Class')} valor={pk.pokemon_armor_class ?? '—'} />
       <Ficha sobreColor etiqueta={corto('HP', 'Hit Points')} valor={pk.pokemon_hit_points ?? '—'} sub={pk.pokemon_hit_dice} />
-      <Ficha sobreColor etiqueta="Velocidad" valor={pk.pokemon_speed_1_value ?? '—'}
-        sub={[pk.pokemon_speed_1_name, ...extraSpeeds].filter(Boolean).join(' · ')} />
+      {/* Con una velocidad: el valor grande y el tipo debajo. Con varias (andar
+          y volar…) no caben en una línea en el celular: una por renglón, más
+          pequeñas, para que se lean todas. */}
+      {velocidades.length > 1 ? (
+        <Ficha sobreColor etiqueta="Velocidad" valor={
+          <span className="block space-y-0.5 pt-0.5">
+            {velocidades.map((v, i) => (
+              <span key={i} className="block text-[13px] leading-tight tracking-normal truncate">
+                {v.valor}{v.nombre && <span className="ml-1 text-[11px] font-medium text-[#4A4A50]">{v.nombre}</span>}
+              </span>
+            ))}
+          </span>} />
+      ) : (
+        <Ficha sobreColor etiqueta="Velocidad" valor={velocidades[0]?.valor ?? '—'} sub={velocidades[0]?.nombre} />
+      )}
     </div>
   )
 }
