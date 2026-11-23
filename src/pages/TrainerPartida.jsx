@@ -13,7 +13,7 @@ import PendingImprovementModal from '../components/PendingImprovementModal'
 import EvolucionModal from '../components/EvolucionModal'
 import BotonBandejaDados from '../components/dados/BotonBandejaDados'
 import NumerosFlotantes from '../components/NumerosFlotantes'
-import { participanteEnTurno, sonarTurno } from '../lib/turno'
+import { participanteEnTurno, sonarTurno, vibrarTurno } from '../lib/turno'
 import EditarPersonajeModal from '../components/EditarPersonajeModal'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
@@ -227,6 +227,7 @@ export default function TrainerPartida() {
   useEffect(() => {
     if (!avisoTurno) return
     sonarTurno()
+    vibrarTurno()
     const t = setTimeout(() => setAvisoTurno(null), 2200)
     return () => clearTimeout(t)
   }, [avisoTurno])

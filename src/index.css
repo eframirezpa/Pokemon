@@ -328,18 +328,20 @@ body {
 /* El estallido arranca al aterrizar el salto (0.6 s) */
 .animate-attack-burst-tras-salto { animation: attack-burst 1.2s ease-out 0.6s both; }
 
-/* Efecto de sangrado: pulso de fondo tipo latido del corazón */
+/* Efecto de sangrado: pulso de fondo tipo latido del corazón. Parte del
+   cristal oscuro de la sala (antes un gris casi blanco que destellaba) y late
+   hacia un tinte del color, sin llegar a tapar el texto blanco. */
 @keyframes bleed-pulse-yellow {
-  0%, 100% { background-color: #f3f4f6; }
-  35%      { background-color: #fde047; }
-  50%      { background-color: #f3f4f6; }
-  70%      { background-color: #fde047; }
+  0%, 100% { background-color: rgba(44,44,46,.82); }
+  35%      { background-color: rgba(161,128,8,.85); }
+  50%      { background-color: rgba(44,44,46,.82); }
+  70%      { background-color: rgba(161,128,8,.85); }
 }
 @keyframes bleed-pulse-red {
-  0%, 100% { background-color: #f3f4f6; }
-  35%      { background-color: #f87171; }
-  50%      { background-color: #f3f4f6; }
-  70%      { background-color: #f87171; }
+  0%, 100% { background-color: rgba(44,44,46,.82); }
+  35%      { background-color: rgba(176,40,34,.88); }
+  50%      { background-color: rgba(44,44,46,.82); }
+  70%      { background-color: rgba(176,40,34,.88); }
 }
 .animate-bleed-yellow {
   animation: bleed-pulse-yellow 1.4s ease-in-out infinite;

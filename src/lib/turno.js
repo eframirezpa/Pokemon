@@ -33,6 +33,14 @@ export const sonarTurno = () => {
   } catch { /* sin sonido */ }
 }
 
+/**
+ * Vibración corta al llegar el turno propio (celular). Donde no hay vibración
+ * (escritorio, iPhone) no hace nada; el sonido avisa igual.
+ */
+export const vibrarTurno = () => {
+  try { navigator.vibrate?.([120, 80, 120]) } catch { /* sin vibración */ }
+}
+
 /** Posición del turno para comparar: ronda 2 turno 0 va después de ronda 1 turno 5. */
 export const posicionTurno = (ini) => (Number(ini?.ronda) || 1) * 1000 + (Number(ini?.turno) || 0)
 

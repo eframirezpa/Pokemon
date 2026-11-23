@@ -4,7 +4,7 @@ import {
   LogOut, Users, X, Info,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
   Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star, Globe, NotebookPen,
-  AlertTriangle, Backpack, Dices, ScrollText, PanelLeftClose, PanelLeftOpen, Smartphone,
+  AlertTriangle, Backpack, ListOrdered, ScrollText, PanelLeftClose, PanelLeftOpen, Smartphone,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import DadosProvider from './dados/DadosProvider'
@@ -13,6 +13,9 @@ import ResumenSesion from './ResumenSesion'
 import NotasParche, { BotonParche } from './NotasParche'
 import { apiFetch } from '../api'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
+import { useSalaDeJuego } from '../hooks/useSalaDeJuego'
+import Hoja from './ui/Hoja'
+import Boton from './ui/Boton'
 import PartyPanel, { PlayerCard } from './PartyPanel'
 import LoadingOverlay from './LoadingOverlay'
 import PokemonList from '../pages/PokemonList'
@@ -137,6 +140,10 @@ function construirEntradaPokemon(d, { uid, master_pokemon_id, hidden, inBall }) 
 export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null, onPartyVersion = null, nombreJugador = null, onIniciativa = null, onPartyLocal = null, onClima = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
+  // Pantalla encendida y sin "deslizar para recargar" mientras se juega
+  useSalaDeJuego()
+  // "Salir" es un icono pequeño junto al turno: se pide confirmación
+  const [confirmarSalir, setConfirmarSalir] = useState(false)
   const { user }    = useAuth()
   const logEndRef   = useRef(null)
 
@@ -988,7 +995,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             <TurnoIcono iniciativa={iniciativa} userId={user?.user_id} onTerminar={terminarTurno} busy={turnoBusy} partidaId={id} />
             {clima && <ClimaIcono clima={clima} />}
           </div>
-          <button type="button" onClick={() => navigate(ROLE_DASHBOARD[user?.role] ?? '/')}
+          <button type="button" onClick={() => setConfirmarSalir(true)}
             title="Salir de la partida" aria-label="Salir de la partida"
             className="cristal shrink-0 w-11 h-11 rounded-full grid place-items-center
                        text-peligro hover:bg-[rgba(72,72,74,.85)] transition-colors">
@@ -1001,7 +1008,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
               y no se mete debajo del aviso ni de "Salir" */}
           <div className="h-14 shrink-0" aria-hidden />
           <AvisoMaster mensaje={masterMessage} avatar={eventActive ? '/evento0/avatar.png' : '/avatars/chuckface.png'} />
-          <button type="button" onClick={() => navigate(ROLE_DASHBOARD[user?.role] ?? '/')}
+          <button type="button" onClick={() => setConfirmarSalir(true)}
             title="Salir de la partida" aria-label="Salir de la partida"
             className="modo-oscuro cristal fixed right-3 top-3 z-[47] w-11 h-11 rounded-full grid place-items-center
                        text-peligro hover:bg-[rgba(72,72,74,.85)] transition-colors">
@@ -1040,6 +1047,18 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           <img src="/evento0/avatar.png" alt="Evento"
             className="w-96 h-96 object-contain drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)] animate-event-pop" />
         </div>
+      )}
+
+      {confirmarSalir && (
+        <Hoja titulo="¿Salir de la partida?" onClose={() => setConfirmarSalir(false)} ancho="sm:max-w-sm" z="z-[95]"
+          pie={
+            <div className="flex gap-2 justify-end">
+              <Boton variante="tintado" onClick={() => setConfirmarSalir(false)}>Quedarme</Boton>
+              <Boton variante="peligro" onClick={() => navigate(ROLE_DASHBOARD[user?.role] ?? '/')}>Salir</Boton>
+            </div>
+          }>
+          <p className="text-[15px] text-texto-2">Puedes volver a entrar cuando quieras desde tus partidas.</p>
+        </Hoja>
       )}
 
       {/* Actividad: botón abajo a la derecha; el registro se abre encima de él
@@ -1265,7 +1284,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             activo={!!iniciativa}
             title={iniciativa ? 'Iniciativa en curso' : 'Pedir iniciativa'}
           >
-            <Dices size={18} />
+            {/* Orden de turnos: no el dado, que es el de la bandeja de dados */}
+            <ListOrdered size={18} />
           </BotonIcono>
         )}
 
