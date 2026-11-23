@@ -146,8 +146,8 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
   const skillValue = s => {
     const m = modOf((s.skill_related_ability || '').toLowerCase())
     const { pref, expert } = skillFlags(s)
-    // especializacion_extra lo resuelve el backend: ya viene en 0 si la
-    // característica asociada no es proficiente o si no hay coincidencia de tipo.
+    // especializacion_extra lo resuelve el backend: +1 por especialización del
+    // entrenador que coincida con un tipo del Pokémon; 0 si no hay coincidencia.
     return m + (pref ? prof : 0) + (expert ? prof : 0) + (Number(s.especializacion_extra) || 0)
   }
 
@@ -254,8 +254,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
             <div className="px-4 py-2 flex justify-around">
               {[['STR', 'str'], ['DEX', 'dex'], ['CON', 'con'], ['INT', 'int'], ['WIS', 'wis'], ['CHA', 'cha']].map(([lbl, k]) => {
                 // Proficiente en la tirada de salvación: se marca en verde igual
-                // que en la ficha del entrenador. Es además la condición que
-                // habilita el bono de especialización sobre las habilidades.
+                // que en la ficha del entrenador.
                 const esProf = !!stats[`pokemon_stats_${k}_prof`]
                 return (
                   <div key={k} title={esProf ? 'Proficiente en su tirada de salvación' : undefined}

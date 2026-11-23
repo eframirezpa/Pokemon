@@ -12,6 +12,8 @@ import { EstadoTrigger } from '../EstadosControl'
 import { ICONO_REDONDO } from '../../lib/trainerCombatShared'
 import { apiFetch } from '../../api'
 import { armaFx, spriteArma } from '../../lib/armasFx'
+import { usaMunicion, dadosArma, tiradaArma, danoArma } from '../../lib/armaDano'
+import ObjetivoSelector from '../ObjetivoSelector'
 
 const hpColorPct = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
 
@@ -217,7 +219,7 @@ function AcordeonPath({ rasgos, className = '' }) {
 }
 
 export function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, onAtaque = null, onTmAprendido = null, recursosFeat = [],
-                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond, inspirado = false, onInspiradoInfo = null, onEstados = null, estadosTitle = 'Estados', partidaId = null, onCurado = null, getPresentes = null }) {
+                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], getObjetivos = null, onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond, inspirado = false, onInspiradoInfo = null, onEstados = null, estadosTitle = 'Estados', partidaId = null, onCurado = null, getPresentes = null }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
   useEffect(() => { setV(initial) }, [initial])
@@ -247,6 +249,18 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
   // la mesa. armaSel null = la primera equipada; 'ninguna' = sin arma.
   const [armasEquipadas, setArmasEquipadas] = useState([])
   const [armaSel, setArmaSel] = useState(null)
+  // Daño del arma: lo que sumaron los dados (texto, '' = sin escribir).
+  // No es obligatorio: se puede atacar sin anunciar daño.
+  const [danoValor, setDanoValor] = useState('')
+  // Munición: los proyectiles de la mochila. municionSel = id_personaje_equipo,
+  // o 'otra' para lo que no está en el inventario (la resortera tira lo que
+  // encuentre) y entonces no se descuenta nada.
+  const [municiones, setMuniciones] = useState([])
+  const [municionSel, setMunicionSel] = useState(null)
+  // A quién se ataca: obligatorio para anunciar el ataque
+  const [objetivo, setObjetivo] = useState(null)
+  // Los del campo, tomados al abrir la fórmula (no cambian mientras se ataca)
+  const [objetivos, setObjetivos] = useState([])
   const puedeAtacar = !!onAtaque
   useEffect(() => {
     if (!puedeAtacar || !personajeId) return
@@ -254,6 +268,11 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
     apiFetch(`/personaje/${personajeId}/weapon`)
       .then(r => r.json())
       .then(w => { if (vivo) setArmasEquipadas((Array.isArray(w) ? w : []).filter(x => x.personaje_weapon_in_use)) })
+      .catch(() => {})
+    apiFetch(`/personaje/${personajeId}/equipo`)
+      .then(r => r.json())
+      .then(d => { if (vivo) setMuniciones((Array.isArray(d) ? d : [])
+        .filter(it => String(it.item_type || '').toLowerCase() === 'proyectil' && Number(it.cantidad) > 0)) })
       .catch(() => {})
     return () => { vivo = false }
   }, [puedeAtacar, personajeId])
@@ -264,6 +283,12 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
     ? (weaponProfs ? weaponProfs.isWeaponProf(armaElegida) : !!armaElegida.personaje_weapon_prof)
     : false
   const conProf = profManual ?? profAuto
+  // Lista de stats de la fórmula: en pantallas bajas queda debajo de todo, así
+  // que al abrirla se desplaza la ventana hasta dejarla a la vista.
+  const statsRef = useRef(null)
+  useEffect(() => {
+    if (eligiendoStat) statsRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [eligiendoStat])
 
 
   if (!v) return null
@@ -328,6 +353,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                   setBonus(String(bonoRuta.total || 0))
                   // El panel está centrado y su altura depende del contenido, así
                   // que el borde solo se sabe midiendo en el momento de abrir.
+                  setObjetivos(getObjetivos?.() || [])
                   setVerFormula(Math.max(0, Math.round(panelRef.current?.getBoundingClientRect().top ?? 0)))
                 }}
                 title="Fórmula de ataque"
@@ -781,8 +807,10 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
           con su color para poder leerla de un vistazo en mesa; el de la
           proficiencia lleva borde punteado porque es el único condicional. */}
       {verFormula !== null && (
-        <div className="fixed inset-0 z-[120] flex items-start justify-center px-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.45)', paddingTop: verFormula }}
+        // Con scroll propio: en un celular la fórmula entera no cabe debajo
+        // del borde del panel, y lo de abajo (la lista de stats) quedaba fuera.
+        <div className="fixed inset-0 z-[120] overflow-y-auto overscroll-contain flex items-start justify-center px-4 pb-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)', paddingTop: window.innerHeight < 700 ? Math.min(verFormula, 16) : verFormula }}
           onClick={e => { if (e.target === e.currentTarget) setVerFormula(null) }}>
           <div className={`bg-gray-800 border border-gray-700 rounded-2xl w-full shadow-2xl overflow-hidden ${
             recursos ? 'max-w-md' : 'max-w-sm'}`}>
@@ -854,6 +882,14 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                 const totalDC = 8 + modStat + bonoProf + extra
                 const critico = n20 === 20
                 const signo = m => (m >= 0 ? `+${m}` : `${m}`)
+                // Daño del arma elegida (null si no tiene dados: red, sin arma)
+                const dadosArmaSel = dadosArma(armaElegida)
+                const tiradaDano = tiradaArma(dadosArmaSel, critico)
+                const dano = danoArma(dadosArmaSel, { valor: danoValor, mod: modStat, critico })
+                const danoFuera = !!tiradaDano && danoValor !== '' && !dano
+                // Munición elegida; por defecto el primer proyectil de la mochila
+                const municionElegida = municionSel === 'otra' ? null
+                  : (municiones.find(m => m.id_personaje_equipo === municionSel) || municiones[0] || null)
                 return (
                   <div className="mt-4 border-t border-gray-700 pt-4">
                     {/* El lado derecho va en su propio grupo: si no cabe, la fila
@@ -991,7 +1027,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                           const activa = a ? armaElegida?.id_personaje_weapon === a.id_personaje_weapon : !armaElegida
                           return (
                             <button key={a ? a.id_personaje_weapon : 'ninguna'}
-                              onClick={() => { setArmaSel(a ? a.id_personaje_weapon : 'ninguna'); setProfManual(null) }}
+                              onClick={() => { setArmaSel(a ? a.id_personaje_weapon : 'ninguna'); setProfManual(null); setDanoValor('') }}
                               className={`flex items-center gap-1 rounded-lg pl-1 pr-2 py-0.5 text-[11px] font-bold transition-colors ${
                                 activa ? 'bg-amber-500/20 ring-1 ring-amber-400 text-amber-200' : 'bg-gray-700/60 text-gray-300 hover:bg-gray-700'}`}>
                               <img src={spriteArma(armaFx(a).sprite)} alt="" className="w-5 h-5" />
@@ -1002,10 +1038,100 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                       </div>
                     )}
 
+                    {/* Daño del arma: sus dados más el mismo stat del ataque. En
+                        un crítico se tiran el doble de dados; en una pifia no
+                        hay daño. No hace falta llenarlo para atacar. */}
+                    {onAtaque && dadosArmaSel && n20 !== 1 && (
+                      <div className="mt-3 border-t border-gray-700 pt-3">
+                        <p className="text-center text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+                          Daño{armaElegida?.weapon_type_damage_type ? ` · ${armaElegida.weapon_type_damage_type}` : ''}{critico ? ' · doble de dados' : ''}
+                        </p>
+                        <div className="flex items-center justify-center gap-0.5 flex-wrap">
+                          <div className={`w-11 h-9 rounded-xl border-2 flex items-center justify-center font-black text-base tabular-nums
+                                          ${dano ? 'border-red-500/70 text-red-200' : 'border-gray-600 text-gray-500'}`}>
+                            {dano ? dano.total : '—'}
+                          </div>
+                          <span className="text-gray-500 font-black shrink-0 text-xs">=</span>
+                          {tiradaDano ? (
+                            <>
+                              <input type="number" value={danoValor} onChange={e => setDanoValor(e.target.value)}
+                                placeholder={tiradaDano.notacion}
+                                title={`Entre ${tiradaDano.min} y ${tiradaDano.max}`}
+                                className={`shrink-0 w-12 h-9 text-center rounded-xl border-2 bg-gray-900/60 font-black tabular-nums
+                                            text-white placeholder:text-gray-500 placeholder:font-bold placeholder:text-xs
+                                            focus:outline-none focus:ring-2 focus:ring-red-400/60 ${
+                                  danoFuera ? 'border-red-500' : critico ? 'border-amber-400' : 'border-gray-600'}`} />
+                              <BotonDado notacion={tiradaDano.notacion} usar="dado" className="w-9 h-9 rounded-xl"
+                                etiqueta={`Daño${armaElegida ? ` de ${armaElegida.weapon_type_name}` : ''}`}
+                                onResultado={v => setDanoValor(String(v))} />
+                            </>
+                          ) : (
+                            <span className="shrink-0 h-9 px-3 rounded-xl border-2 border-gray-600 flex items-center font-black text-white tabular-nums">
+                              {dadosArmaSel.valor}
+                            </span>
+                          )}
+                          <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
+                          <span className={`shrink-0 h-9 min-w-[2rem] px-0.5 rounded-xl border-2 font-black tabular-nums
+                                            flex items-center justify-center ${
+                            statSel ? `bg-sky-500/15 border-sky-500/60 ${modStat < 0 ? 'text-red-300' : 'text-sky-200'}`
+                                    : 'bg-gray-900/60 border-gray-600 border-dashed text-gray-300 text-xs'}`}
+                            title={statSel ? `Modificador de ${statSel.key}` : 'Elige el stat arriba'}>
+                            {statSel ? signo(modStat) : '—'}
+                          </span>
+                        </div>
+                        {danoFuera && (
+                          <p className="mt-1 text-center text-[11px] text-red-400 font-medium">
+                            Con {tiradaDano.notacion} sale entre {tiradaDano.min} y {tiradaDano.max}.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Munición: solo armas con Ammunition. Opcional: "Otra"
+                        no descuenta nada (piedras, lo que haya a mano). */}
+                    {onAtaque && usaMunicion(armaElegida) && (
+                      <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Munición</span>
+                        {[...municiones, null].map(m => {
+                          const clave = m ? m.id_personaje_equipo : 'otra'
+                          const activa = municionElegida ? municionElegida.id_personaje_equipo === clave : clave === 'otra'
+                          return (
+                            <button key={clave} onClick={() => setMunicionSel(clave)}
+                              className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold transition-colors ${
+                                activa ? 'bg-amber-500/20 ring-1 ring-amber-400 text-amber-200' : 'bg-gray-700/60 text-gray-300 hover:bg-gray-700'}`}>
+                              {m?.item_media_sprite && <img src={m.item_media_sprite} alt="" className="w-4 h-4 object-contain" />}
+                              {m ? `${m.item_name} ×${m.cantidad}` : 'Otra (no descuenta)'}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+
                     {onAtaque && (
-                      <button onClick={() => { onAtaque(total, { critico, arma: armaElegida, pifia: n20 === 1 }); setVerFormula(null) }}
-                        disabled={dado === ''}
-                        title={dado === '' ? 'Escribe primero el resultado del d20' : 'Anunciar el ataque a la partida'}
+                      <div className="mt-3">
+                        <ObjetivoSelector objetivos={objetivos} valor={objetivo} onChange={setObjetivo} />
+                      </div>
+                    )}
+
+                    {onAtaque && (
+                      <button onClick={() => {
+                          onAtaque(total, {
+                            critico, arma: armaElegida, pifia: n20 === 1, objetivo,
+                            dano: n20 === 1 ? null : dano,
+                            municion: usaMunicion(armaElegida) ? municionElegida : null,
+                          })
+                          // La munición gastada sale de la lista de inmediato
+                          if (usaMunicion(armaElegida) && municionElegida) {
+                            setMuniciones(ms => ms.map(m => m.id_personaje_equipo === municionElegida.id_personaje_equipo
+                              ? { ...m, cantidad: Number(m.cantidad) - 1 } : m).filter(m => Number(m.cantidad) > 0))
+                          }
+                          setDanoValor('')
+                          setObjetivo(null)
+                          setVerFormula(null)
+                        }}
+                        disabled={dado === '' || !objetivo}
+                        title={dado === '' ? 'Escribe primero el resultado del d20'
+                          : !objetivo ? 'Elige a quién atacas' : 'Anunciar el ataque a la partida'}
                         className="mt-3 w-full flex items-center justify-center gap-1.5 h-10 rounded-xl
                                    text-xs font-black uppercase tracking-widest text-white transition-colors
                                    bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
@@ -1022,7 +1148,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                     {/* Modificador crudo del stat (mismo que la pestaña Stats):
                         sin proficiencia de skill, sin bono de tirada de salvación. */}
                     {eligiendoStat && (
-                      <div className="mt-3 grid grid-cols-3 gap-1 pr-0.5">
+                      <div ref={statsRef} className="mt-3 grid grid-cols-3 gap-1 pr-0.5 scroll-mb-4">
                         {(v.stats || []).map(st => (
                           <button key={st.key}
                             onClick={() => { setStatSel(st); setEligiendoStat(false) }}

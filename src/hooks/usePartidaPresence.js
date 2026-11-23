@@ -11,9 +11,14 @@ const formatAttackText = (payload, displayName) => {
   const detalle = []
   if (payload.ataque != null) detalle.push(`Ataque ${payload.ataque}${payload.critico ? ' ¡crítico!' : ''}${payload.pifia ? ' ¡pifia!' : ''}`)
   if (payload.dificultad != null) detalle.push(`Dificultad ${payload.dificultad}`)
-  if (payload.dano != null) detalle.push(`${payload.curacion ? 'Curación' : 'Daño'} ${payload.dano}`)
+  if (payload.dano != null) {
+    // El STAB ya va sumado en el daño: se dice después del total
+    const stab = Number(payload.stab) > 0 ? ` (ya incluye STAB +${payload.stab})` : ''
+    detalle.push(`${payload.curacion ? 'Curación' : 'Daño'} ${payload.dano}${stab}`)
+  }
   if (Number(payload.pp) > 0) detalle.push(`${payload.pp} PP`)
-  return `${displayName} usó ${payload.moveName}${detalle.length ? ` (${detalle.join(', ')})` : ''}`
+  const contra = payload.objetivo ? ` contra ${payload.objetivo}` : ''
+  return `${displayName} usó ${payload.moveName}${contra}${detalle.length ? ` · ${detalle.join(' · ')}` : ''}`
 }
 
 export function usePartidaPresence(partidaId, userInfo) {

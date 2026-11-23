@@ -5,6 +5,7 @@ import {
   esCuracion, dadosPorNivel, parseDados, tirada as calcularTirada, modificadorDano, usaPower, reglaRonda, rondaValida,
   magnitudDe, esFling, danoFling,
 } from '../lib/danoMove'
+import { danoTrasRelacion, etiquetaRelacion, cuentaRelacion } from '../lib/objetivos'
 
 // Ventana de daño de un movimiento del Pokémon. Sale después de elegir los PP,
 // solo si el movimiento tiene daño (move_has_damage = 1); las reglas viven en
@@ -19,8 +20,13 @@ import {
 const CARACTERISTICAS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
 const signo = m => (m >= 0 ? `+${m}` : `${m}`)
 
-export default function DanoMoveModal({ move, nivel, stats = [], critico = false, power = null, heldItems = [], onConfirmar, onOmitir }) {
+// stab: lo que suma el STAB si el movimiento es de un tipo del Pokémon (0 si no).
+// objetivo + relacion: a quién se ataca y si es vulnerable/resistente/inmune al
+// tipo del movimiento; solo informa, el daño anunciado es el de la tirada.
+export default function DanoMoveModal({ move, nivel, stats = [], critico = false, power = null, heldItems = [], stab = 0, objetivo = null, relacion = 'neutral', onConfirmar, onOmitir }) {
   const curacion = esCuracion(move)
+  // El STAB es del daño: una curación no lo lleva
+  const stabN = curacion ? 0 : (Number(stab) || 0)
   // El crítico duplica los dados del daño; una curación no tiene crítico
   const crit = critico && !curacion
   const texto = dadosPorNivel(move, nivel)
@@ -61,12 +67,15 @@ export default function DanoMoveModal({ move, nivel, stats = [], critico = false
   const fueraDeRango = t && n != null && (n < t.min || n > t.max)
   const base = dados.tipo === 'fijo' ? dados.valor : n
   const listo = base != null && !fueraDeRango && (!hayQueElegir || powerUsado)
-  const total = listo ? Math.max(0, base + mod.valor) : null
+  const total = listo ? Math.max(0, base + mod.valor + stabN) : null
+  // Lo que le haría al objetivo según su tipo (solo daño, no curación)
+  const rel = curacion ? 'neutral' : relacion
+  const totalObjetivo = total != null && etiquetaRelacion(rel) ? danoTrasRelacion(total, rel) : null
 
   const confirmar = () => {
     if (!listo) return
     onConfirmar({
-      total, dados: base, modificador: mod.valor, curacion, critico: crit,
+      total, dados: base, modificador: mod.valor, stab: stabN, curacion, critico: crit,
       notacion: t?.notacion || (dados.tipo === 'fijo' ? String(dados.valor) : texto),
     })
   }
@@ -225,6 +234,16 @@ export default function DanoMoveModal({ move, nivel, stats = [], critico = false
                 </span>
               </>
             )}
+            {stabN > 0 && (
+              <>
+                <span className="text-gray-500 text-sm">+</span>
+                <span title="STAB: el movimiento es del mismo tipo que el Pokémon"
+                  className="h-10 px-2 rounded-xl border-2 border-emerald-500/60 text-emerald-200 flex flex-col items-center justify-center leading-none">
+                  <span className="text-[8px] font-black tracking-widest">STAB</span>
+                  <span className="text-sm tabular-nums">{signo(stabN)}</span>
+                </span>
+              </>
+            )}
             <span className="text-gray-500 text-sm">=</span>
             <span className={`h-10 min-w-12 px-2.5 rounded-xl border-2 flex items-center justify-center tabular-nums text-lg ${
               curacion ? 'border-emerald-500/70 text-emerald-200' : 'border-red-500/70 text-red-200'}`}>
@@ -239,6 +258,14 @@ export default function DanoMoveModal({ move, nivel, stats = [], critico = false
             {mod.etiqueta && ` · ${mod.etiqueta === 'Nivel' ? `más el nivel (${nivel})` : `más ${mod.etiqueta}${powerUsado ? ` (${powerUsado.nombre})` : ''}`}`}
           </p>
           {fueraDeRango && <p className="text-center text-[11px] text-red-400 font-medium">Con {t.notacion} sale entre {t.min} y {t.max}.</p>}
+          {/* Efectividad contra el objetivo: el DM decide si lo aplica */}
+          {etiquetaRelacion(rel) && objetivo && (
+            <p className={`text-center text-xs font-bold rounded-lg px-2 py-1.5 ${
+              rel === 'vuln' ? 'bg-red-500/15 text-red-200' : rel === 'immune' ? 'bg-gray-700 text-gray-300' : 'bg-sky-500/15 text-sky-200'}`}>
+              {objetivo} es {etiquetaRelacion(rel)} a {move.move_type}
+              {totalObjetivo != null && <> → <span className="tabular-nums">{total} {cuentaRelacion(rel)} = {totalObjetivo}</span></>}
+            </p>
+          )}
         </div>
         )}
 

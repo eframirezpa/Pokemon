@@ -4,6 +4,7 @@ import { apiFetch } from '../api'
 import { construirSkillsTrainer, statModPokemon, tieneFeat } from '../lib/trainerStats'
 import PokeballSpinner from './PokeballSpinner'
 import BotonDado from './dados/BotonDado'
+import { notacion } from '../lib/dados'
 
 /**
  * Pide la tirada de iniciativa a quien todavía no la ha metido.
@@ -21,7 +22,7 @@ import BotonDado from './dados/BotonDado'
  * la iniciativa. Se detecta solo y se sujeta al ser vivo que corresponda -el
  * del entrenador si tira él, el del Pokémon si tira con él-, no a ambos.
  */
-export default function IniciativaTirada({ partidaId, personajeId, esMaster, pokemonInvocado = null, onListo }) {
+export default function IniciativaTirada({ partidaId, personajeId, esMaster, pokemonInvocado = null, onListo, onRegistrar = null }) {
   const [d20, setD20] = useState('')
   const [modMaster, setModMaster] = useState('0')     // el máster escribe el suyo a mano
   const [cargando, setCargando] = useState(!esMaster && personajeId != null)
@@ -49,7 +50,7 @@ export default function IniciativaTirada({ partidaId, personajeId, esMaster, pok
         // Pilot): esos no están en extra_feats, los otorga el origen y se leen aparte.
         const conAlert = tieneFeat([...(d.extra_feats || []), d.origin_feat, d.background_feat].filter(Boolean), 'alert')
         const prof = Number(d.personaje_prof) || 0
-        setTrainerInfo({ mod: dexMod + (conAlert ? prof : 0), conAlert, prof })
+        setTrainerInfo({ mod: dexMod + (conAlert ? prof : 0), conAlert, prof, nombre: d.nombre_personaje || null })
       })
       .catch(() => { if (!cancelado) setTrainerInfo({ mod: 0, conAlert: false, prof: 0 }) })
 
@@ -92,6 +93,12 @@ export default function IniciativaTirada({ partidaId, personajeId, esMaster, pok
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'No se pudo enviar la tirada')
+      // La iniciativa queda en el chat al enviarla, con dado o escrita a mano:
+      // el botón del dado anota la tirada, esto anota el resultado que cuenta.
+      const quien = esMaster ? 'El DM'
+        : serVivo === 'pokemon' ? (pokeInfo?.nombre || 'El Pokémon') : (trainerInfo?.nombre || 'El entrenador')
+      const signo = bono >= 0 ? `+ ${bono}` : `− ${Math.abs(bono)}`
+      onRegistrar?.(`Iniciativa de ${quien}: ${dado + bono} (d20 ${dado} ${signo})`)
       onListo?.(data.iniciativa)
     } catch (e) {
       setError(e.message || 'No se pudo enviar la tirada')
@@ -177,7 +184,7 @@ export default function IniciativaTirada({ partidaId, personajeId, esMaster, pok
                   placeholder="1 - 20"
                   className="w-full px-3 py-2 text-lg font-black text-center text-white bg-gray-800 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500" />
                 {/* Solo el d20: el modificador lo suma la iniciativa aparte */}
-                <BotonDado notacion="1d20" etiqueta="iniciativa" usar="dado" onResultado={v => setD20(String(v))} className="w-11 h-11" />
+                <BotonDado notacion={notacion({ cantidad: 1, caras: 20, mod: Number(bono) || 0 })} etiqueta="iniciativa" usar="dado" onResultado={v => setD20(String(v))} className="w-11 h-11" />
               </div>
             </div>
 

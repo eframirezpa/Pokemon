@@ -23,7 +23,7 @@ import PokeballsIcon from '../components/PokeballsIcon'
 import HeldItemsModal from '../components/HeldItemsModal'
 import { buildProfs } from '../lib/profs'
 import { construirSkillsTrainer } from '../lib/trainerStats'
-import { EstadosChips, EstadosPopup } from '../components/EstadosControl'
+import { EstadosAro, EstadosPopup } from '../components/EstadosControl'
 import { AuraInspirado, InspiradoInfoPopup } from '../components/InspiradoAura'
 import TerrenoPiso from '../components/TerrenoPiso'
 import PokeballSpinner from '../components/PokeballSpinner'
@@ -37,6 +37,9 @@ import { armaFx } from '../lib/armasFx'
 import { ladoTalla } from '../lib/tallas'
 import { tieneDano, esFling } from '../lib/danoMove'
 import DanoMoveModal from '../components/DanoMoveModal'
+import { ObjetivoModal } from '../components/ObjetivoSelector'
+import { getEffectivenessRows, effectivenessByNames, typeNamesByIds } from '../lib/typeEffect'
+import { relacionContra, textoRelacion, aplicaStab } from '../lib/objetivos'
 
 // Exhaust en la mesa: "-N" amarillo a la derecha del icono, solo si hay. Por
 // ahora es un recordatorio: la penalización a skills, ataques y salvaciones
@@ -52,6 +55,9 @@ function ExhaustMarca({ nivel }) {
   )
 }
 
+
+// Botón lateral del lápiz (editar jugador): oculto a prueba
+const MOSTRAR_EDITAR_JUGADOR = false
 export default function TrainerPartida() {
   const { id }   = useParams()
   const location = useLocation()
@@ -94,6 +100,8 @@ export default function TrainerPartida() {
   const [hdPoke, setHdPoke]           = useState(null)
   const [showDescanso, setShowDescanso] = useState(false)
   const [apodoEdit, setApodoEdit]     = useState({ id: null, value: '' })
+  // Paso de confirmación del apodo que recuerda el género (id del Pokémon)
+  const [apodoConfirmar, setApodoConfirmar] = useState(null)
   const [ppMove, setPpMove]           = useState(null)  // movimiento cuyo gasto de PP se está confirmando
   const [ppCantidad, setPpCantidad]   = useState(1)
   const [ppBusy, setPpBusy]           = useState(false)
@@ -133,11 +141,6 @@ export default function TrainerPartida() {
   const [fight, setFight] = useState({ active: false, players: [] }) // modo lucha
   // Monitor (PC/escritorio con mouse) → iconos más grandes
   const [isMonitor, setIsMonitor] = useState(() => typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches)
-  // Mitad del tamaño del avatar (66px en monitor, 44px normal), para la carita
-  // que abre el selector. Los iconos que aparecen debajo del avatar son la
-  // mitad de ESTE tamaño: se leen como una marca discreta, no como otro botón.
-  const estadoIconSize = isMonitor ? 33 : 22
-  const estadoChipSize = estadoIconSize / 2
   const [tickParty, setTickParty] = useState(0) // fuerza releer mi party (estados, terreno) tras usar un item
   const [miParty, setMiParty] = useState(null) // mi entrada en la party: trae los terrenos
   const [estadosPopup, setEstadosPopup] = useState(null) // 'trainer' | 'pokemon' | null
@@ -652,8 +655,8 @@ export default function TrainerPartida() {
           name: s.skill_name,
           ability: s.skill_related_ability,
           pref, expert,
-          // especializacion_extra lo resuelve el backend: ya viene en 0 si la
-          // característica asociada no es proficiente o si no coincide el tipo.
+          // especializacion_extra lo resuelve el backend: +1 por especialización
+          // del entrenador que coincida con un tipo del Pokémon (0 si ninguna).
           mod: modOf((s.skill_related_ability || '').toLowerCase()) + (pref ? profBonus : 0) + (expert ? profBonus : 0)
              + (Number(s.especializacion_extra) || 0),
         }
@@ -718,6 +721,7 @@ export default function TrainerPartida() {
         name: d.pokemon_apodo || 'Pokémon',
         level: d.pokemon_level,
         typeId1: d.personaje_pokemon_type_1, typeId2: d.personaje_pokemon_type_2,
+        typeNames: [d.pokemon_type_1, d.pokemon_type_2],
       })
       setCharData(null)
       setOpenControl('pokemon')
@@ -739,6 +743,25 @@ export default function TrainerPartida() {
   const [pifiaLanzada, setPifiaLanzada] = useState(false)
   // Ventana de daño pendiente, después de los PP: { m, ataque, dificultad, pp, critico, power }
   const [danoPend, setDanoPend] = useState(null)
+
+  // Objetivo del movimiento: se elige antes de la fórmula (objetivoMove es el
+  // movimiento que espera objetivo) y viaja hasta el anuncio del ataque.
+  const [objetivoMove, setObjetivoMove] = useState(null)
+  const [objetivoLanzado, setObjetivoLanzado] = useState(null)
+  // Tabla de efectividades (una consulta por sesión): tipos del objetivo y STAB
+  const [efectividades, setEfectividades] = useState(null)
+  useEffect(() => { getEffectivenessRows().then(setEfectividades) }, [])
+  // Tipos del Pokémon invocado: los del ejemplar si se conocen, si no los de la especie
+  const tiposInvocado = (() => {
+    if (!pokeData) return []
+    const porId = typeNamesByIds(efectividades, pokeData.typeId1, pokeData.typeId2)
+    return porId.length ? porId : (pokeData.typeNames || []).filter(Boolean)
+  })()
+  // Vulnerable / resistente / inmune del objetivo al tipo del movimiento
+  const relacionObjetivo = (m, o = objetivoLanzado) => (o?.tipo === 'pokemon' && efectividades)
+    ? relacionContra(effectivenessByNames(efectividades, o.type1, o.type2), m?.move_type)
+    : 'neutral'
+  const stabDe = (m) => (aplicaStab(m?.move_type, tiposInvocado) ? (Number(pokeData?.stab) || 0) : 0)
 
   // Lanzar movimiento del Pokémon invocado → animación de ataque (como el master)
   // Al pulsar la flecha se abre el popup para elegir cuántos PP gastar
@@ -780,13 +803,21 @@ export default function TrainerPartida() {
 
   // Dispara el ataque y arranca el cooldown
   const lanzar = (m, ataque = null, dificultad = null, pp = 0, critico = false, dano = null, pifia = false) => {
+    const objetivo = objetivoLanzado?.nombreChat || null
     partidaApiRef.current?.sendAttack?.({
       pokemonName: pokeData?.name || 'Pokémon', moveName: m.move_name, type: m.move_type, hidden: false,
       sprite: invocadoSprite, talla: invocadoTalla,
       ataque, dificultad, pp, critico,
       // Daño (o curación) de la ventana de daño; en el crítico es el número que se ve
       dano: dano?.total ?? null, curacion: !!dano?.curacion, pifia,
+      objetivo, stab: dano?.stab || 0,
     })
+    // Vulnerable / resistente / inmune: el daño que le correspondería, en el chat
+    if (dano && !dano.curacion && objetivo) {
+      const t = textoRelacion(objetivo, relacionObjetivo(m), m.move_type, dano.total)
+      if (t) partidaApiRef.current?.registrar?.(t, 'ataque')
+    }
+    setObjetivoLanzado(null)
     setCastCooldown(true)
     if (castTimer.current) clearTimeout(castTimer.current)
     castTimer.current = setTimeout(() => setCastCooldown(false), 3000)
@@ -994,10 +1025,19 @@ export default function TrainerPartida() {
         />
       )}
 
+      {/* Objetivo del movimiento: lo primero al lanzar */}
+      {objetivoMove && (
+        <ObjetivoModal titulo={`${pokeData?.name || 'Pokémon'} · ${objetivoMove.m.move_name}`}
+          objetivos={objetivoMove.objetivos}
+          onClose={() => setObjetivoMove(null)}
+          onElegir={o => { const { m } = objetivoMove; setObjetivoMove(null); setObjetivoLanzado(o); abrirFormulaAtaque(m) }} />
+      )}
+
       {/* Daño del movimiento: después de los PP y antes de lanzar */}
       {danoPend && (
         <DanoMoveModal move={danoPend.m} nivel={pokeData?.level} stats={pokeData?.stats || []}
           critico={danoPend.critico} power={danoPend.power} heldItems={danoPend.heldItems}
+          stab={stabDe(danoPend.m)} objetivo={objetivoLanzado?.nombreChat || null} relacion={relacionObjetivo(danoPend.m)}
           onConfirmar={(r) => {
             const d = danoPend; setDanoPend(null); lanzar(d.m, d.ataque, d.dificultad, d.pp, d.critico, r)
             // Fling: el held item lanzado se pierde (se gasta, no vuelve a la mochila)
@@ -1083,6 +1123,16 @@ export default function TrainerPartida() {
         // jugador escribe; así no hace falta un efecto que sincronice el estado.
         const nuevoApodo = apodoEdit.id === r.id_personaje_pokemon ? apodoEdit.value : (r.pokemon_apodo ?? '')
         const valido = nuevoApodo.trim().length > 0
+        // Con género conocido, antes de guardar se recuerda: hay apodos de
+        // macho en hembras y al revés.
+        const genero = r.personaje_pokemon_genero === 'Female' ? 'hembra'
+          : r.personaje_pokemon_genero === 'Male' ? 'macho' : null
+        const confirmando = apodoConfirmar === r.id_personaje_pokemon
+        const pedirConfirmacion = () => {
+          if (!valido || renameBusy) return
+          if (genero && !confirmando) { setApodoConfirmar(r.id_personaje_pokemon); return }
+          confirmar()
+        }
         const confirmar = async () => {
           if (!valido || renameBusy) return
           setRenameBusy(true); setRenameError('')
@@ -1090,6 +1140,7 @@ export default function TrainerPartida() {
             const res = await apiFetch(`/personaje/${personajeId}/pokemon/${r.id_personaje_pokemon}/apodo`,
               { method: 'PATCH', body: JSON.stringify({ apodo: nuevoApodo.trim() }) })
             if (!res.ok) { const j = await res.json().catch(() => ({})); setRenameError(j.error || 'No se pudo guardar'); return }
+            setApodoConfirmar(null)
             refreshRenames()
           } catch { setRenameError('No se pudo guardar') } finally { setRenameBusy(false) }
         }
@@ -1100,15 +1151,15 @@ export default function TrainerPartida() {
                 <h3 className="font-black text-gray-900 text-lg leading-tight">Renombrar Pokemon</h3>
                 <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 min-w-0">
                   <span className="truncate">{r.pokemon_name} · Nv {r.pokemon_level}</span>
-                  {/* El género ayuda a elegir el apodo */}
-                  {r.personaje_pokemon_genero === 'Female' && (
-                    <span className="flex items-center gap-0.5 shrink-0 font-bold text-pink-500"><Venus size={13} strokeWidth={2.5} /> Hembra</span>
-                  )}
-                  {r.personaje_pokemon_genero === 'Male' && (
-                    <span className="flex items-center gap-0.5 shrink-0 font-bold text-blue-500"><Mars size={13} strokeWidth={2.5} /> Macho</span>
-                  )}
-                  {!['Female', 'Male'].includes(r.personaje_pokemon_genero) && <span className="shrink-0">· Sin género</span>}
                 </p>
+              </div>
+              {/* El género, bien visible: ayuda a elegir el apodo */}
+              <div className={`flex items-center justify-center gap-2 py-2.5 font-black text-lg uppercase tracking-widest ${
+                genero === 'hembra' ? 'bg-pink-500 text-white'
+                  : genero === 'macho' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600 text-sm'}`}>
+                {genero === 'hembra' && <><Venus size={24} strokeWidth={3} /> Hembra</>}
+                {genero === 'macho' && <><Mars size={24} strokeWidth={3} /> Macho</>}
+                {!genero && 'Sin género'}
               </div>
               <div className="px-5 py-4">
                 {sprite && (
@@ -1117,18 +1168,31 @@ export default function TrainerPartida() {
                 )}
                 <label htmlFor="apodo-nuevo" className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">Apodo</label>
                 <input id="apodo-nuevo" value={nuevoApodo} autoFocus maxLength={60}
-                  onChange={e => { setApodoEdit({ id: r.id_personaje_pokemon, value: e.target.value }); setRenameError('') }}
-                  onKeyDown={e => { if (e.key === 'Enter') confirmar() }}
+                  onChange={e => { setApodoEdit({ id: r.id_personaje_pokemon, value: e.target.value }); setRenameError(''); setApodoConfirmar(null) }}
+                  onKeyDown={e => { if (e.key === 'Enter') pedirConfirmacion() }}
                   className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
                 {renameError && <p className="text-xs text-red-600 font-medium mt-2">{renameError}</p>}
                 {renames.length > 1 && (
                   <p className="text-[11px] text-gray-400 mt-2">Quedan {renames.length - 1} por renombrar.</p>
                 )}
               </div>
-              <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end">
-                <button onClick={confirmar} disabled={!valido || renameBusy}
+              {confirmando && (
+                <div className={`mx-5 mb-3 rounded-xl border-2 px-3 py-2.5 text-center text-sm text-gray-800 ${
+                  genero === 'hembra' ? 'border-pink-400 bg-pink-50' : 'border-blue-400 bg-blue-50'}`}>
+                  Vas a llamar <b>«{nuevoApodo.trim()}»</b> a {genero === 'hembra' ? 'una' : 'un'}{' '}
+                  <b className={genero === 'hembra' ? 'text-pink-600' : 'text-blue-600'}>{genero.toUpperCase()}</b>. ¿Lo guardas?
+                </div>
+              )}
+              <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+                {confirmando && (
+                  <button onClick={() => setApodoConfirmar(null)} disabled={renameBusy}
+                    className="text-sm font-bold text-gray-600 hover:text-gray-900 px-3 py-2">
+                    Cambiar nombre
+                  </button>
+                )}
+                <button onClick={confirmando ? confirmar : pedirConfirmacion} disabled={!valido || renameBusy}
                   className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
-                  {renameBusy ? <PokeballSpinner size={15} /> : null} Confirmar
+                  {renameBusy ? <PokeballSpinner size={15} /> : null} {confirmando ? 'Sí, guardar' : 'Confirmar'}
                 </button>
               </div>
             </div>
@@ -1145,13 +1209,13 @@ export default function TrainerPartida() {
             y por debajo de los modales, que empiezan en z-50. */}
         {!hideBottomIcons && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[48] flex items-end justify-center gap-10">
-          {/* Los estados puestos van encima de cada avatar; el botón para
-              cambiarlos vive en el panel de combate, junto al de fórmula. */}
+          {/* Los estados puestos van en un aro alrededor de cada avatar; el
+              botón para cambiarlos vive en el panel de combate, junto al de fórmula. */}
           {user?.avatar_face_url && (
             <div className="flex items-end gap-1.5">
               <div className="flex flex-col items-center gap-1">
-                <EstadosChips estados={charEstados} iconPx={estadoChipSize} />
                 <div className="relative">
+                  <EstadosAro estados={charEstados} px={avatarPx} />
                   {/* El aviso (el signo de información) vive en el panel de
                       combate, junto al botón de fórmula; aquí solo queda el
                       aura, que se ve tanto en este icono como en la party. */}
@@ -1173,9 +1237,9 @@ export default function TrainerPartida() {
           {pokemonInvocado && invocadoSprite && (
             <div className="flex items-end gap-1.5">
               <div className="flex flex-col items-center gap-1">
-                <EstadosChips estados={pokeEstados} iconPx={estadoChipSize} />
                 <button onClick={openPokemonControl} title="Controlar Pokémon"
                   className={`relative transition-transform hover:scale-105 ${turnoDelPokemon ? 'animate-turno-anillo' : ''}`}>
+                  <EstadosAro estados={pokeEstados} px={ladoTalla(avatarPx, invocadoTalla)} />
                   {/* key: al cambiar de Pokémon invocado se empieza de cero; si no,
                       la diferencia de vida entre uno y otro salía como daño o curación */}
                   <NumerosFlotantes key={pokemonInvocado} valor={vidaInvocado} />
@@ -1246,7 +1310,9 @@ export default function TrainerPartida() {
               </button>
             )}
 
-            {personajeId && (
+            {/* Editar jugador: oculto a prueba (2026-11-16), hace tiempo que no se
+                usa. Si no hace falta, se borra junto con su modal y showEdit. */}
+            {MOSTRAR_EDITAR_JUGADOR && personajeId && (
               <button
                 onClick={() => { if (isEditable) setShowEdit(true) }}
                 disabled={!isEditable}
@@ -1417,15 +1483,27 @@ export default function TrainerPartida() {
           switchSprite={pokemonInvocado ? invocadoSprite : null}
           switchLabel="Ir al Pokémon"
           onSwitch={openPokemonControl}
-          onAtaque={(poder, { critico = false, arma = null, pifia = false } = {}) => {
+          getObjetivos={() => partidaApiRef.current?.getObjetivos?.() || []}
+          onAtaque={(poder, { critico = false, arma = null, pifia = false, dano = null, municion = null, objetivo = null } = {}) => {
             const quien = nombrePj || 'El entrenador'
+            // Daño: total y de dónde sale (dados + modificador del stat)
+            const textoDano = dano
+              ? ` · daño ${dano.total}${arma?.weapon_type_damage_type ? ` ${arma.weapon_type_damage_type}` : ''} (${dano.notacion}: ${dano.dados}${dano.mod ? ` ${dano.mod > 0 ? '+' : '−'} ${Math.abs(dano.mod)}` : ''})`
+              : ''
             partidaApiRef.current?.anunciar?.(
-              `${quien} ha atacado${arma ? ` con ${arma.weapon_type_name}` : ''} con un poder de ${poder}${critico ? ' ¡crítico!' : ''}${pifia ? ' ¡pifia!' : ''}`,
+              `${quien} ha atacado${objetivo?.nombreChat ? ` ${/^el /.test(objetivo.nombreChat) ? objetivo.nombreChat.replace(/^el /, 'al ') : `a ${objetivo.nombreChat}`}` : ''}${arma ? ` con ${arma.weapon_type_name}` : ''}${municion ? ` (${municion.item_name})` : ''} con un poder de ${poder}${critico ? ' ¡crítico!' : ''}${pifia ? ' ¡pifia!' : ''}${textoDano}`,
               null, null, 'ataque')
+            // Munición del inventario: se gasta una
+            if (municion && personajeId) {
+              apiFetch(`/personaje/${personajeId}/equipo/${municion.id_personaje_equipo}`,
+                { method: 'PATCH', body: JSON.stringify({ cantidad: Math.max(0, Number(municion.cantidad) - 1) }) })
+                .catch(() => {})
+            }
             // La animación del ataque con su arma, para toda la mesa
             partidaApiRef.current?.sendAttack?.({
               soloFx: true, pokemonName: quien, moveName: arma ? arma.weapon_type_name : 'Sin arma',
               sprite: user?.avatar_face_url || null, arma: armaFx(arma), ataque: poder, critico, pifia,
+              dano: dano?.total ?? null,
             })
             // Se cierra el panel para que se vea la animación del ataque
             closeControl()
@@ -1565,7 +1643,7 @@ export default function TrainerPartida() {
           moves={pokeData.moves}
           pasivas={pokeData.pasivas}
           skills={pokeData.skills}
-          onCastRequest={abrirFormulaAtaque}
+          onCastRequest={m => setObjetivoMove({ m, objetivos: partidaApiRef.current?.getObjetivos?.() || [] })}
           onManagePP={abrirGestionPP}
           castDisabled={castCooldown}
           hitDice={hdPoke}

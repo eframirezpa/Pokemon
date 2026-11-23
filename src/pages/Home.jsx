@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ShoppingBag, LogIn, Leaf, Star, BookOpen, Map, Heart, Shield, Tag, BookMarked, Swords, Sword, ChevronDown, Zap, Clock, Award, Route } from 'lucide-react'
 import LoginModal from '../components/LoginModal'
 import { AVISO_SESION } from '../api'
+import NotasParche, { BotonParche } from '../components/NotasParche'
 
 function PokeballIcon({ size = 20, className = '' }) {
   return (
@@ -127,6 +128,12 @@ export default function HomePage() {
           )
         })}
       </div>
+
+      {/* Versión actual y sus novedades */}
+      <div className="flex justify-center pt-2 pb-4">
+        <BotonParche />
+      </div>
+      <NotasParche />
 
       {loginOpen && <LoginModal aviso={expirada ? 'Tu sesión expiró. Vuelve a entrar para continuar.' : null}
         onClose={() => setLoginOpen(false)} />}

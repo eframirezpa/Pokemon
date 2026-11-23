@@ -19,3 +19,13 @@ export const xpAlAtrapar = (level, sr) => {
   if (!Number.isFinite(lvl) || lvl <= 0 || srNum == null) return null
   return Math.round(200 * lvl * srNum)
 }
+
+// Línea de experiencia para el chat. El reparto lo hace el DM a mano; esto solo
+// deja anotado cuánto da. Sin SR calculable ("Varies") queda a criterio del DM.
+const formatoXp = (xp) => (xp != null ? `${xp.toLocaleString('es')} XP` : 'a criterio del DM')
+
+export const textoXpDerrota = (nombre, xp) =>
+  `¡${nombre} fue derrotado! Experiencia otorgada: ${formatoXp(xp)}`
+
+export const textoXpCaptura = (nombre, xp) =>
+  `Experiencia otorgada por atrapar ${nombre ? `a ${nombre}` : 'un Pokémon'}: ${formatoXp(xp)}`

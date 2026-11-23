@@ -97,7 +97,7 @@ export default function CapturaFx({ fx, esMaster = false, onFin }) {
 
       <p className={`mt-4 px-6 text-center text-2xl font-black ${final ? 'animate-cap-texto' : 'opacity-0'}
         ${fx.exito ? 'text-amber-300' : 'text-white'}`}>
-        {fx.exito ? `¡${fx.pokemon} atrapado!` : '¡Se escapó!'}
+        {fx.exito ? (fx.pokemon ? `¡${fx.pokemon} atrapado!` : '¡Atrapado!') : '¡Se escapó!'}
       </p>
     </div>
   )

@@ -4,12 +4,13 @@ import {
   LogOut, Users, X, Info,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
   Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star, Globe, NotebookPen,
-  AlertTriangle, Backpack, Dices, ScrollText, PanelLeftClose, PanelLeftOpen,
+  AlertTriangle, Backpack, Dices, ScrollText, PanelLeftClose, PanelLeftOpen, Smartphone,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import DadosProvider from './dados/DadosProvider'
 import BotonBandejaDados from './dados/BotonBandejaDados'
 import ResumenSesion from './ResumenSesion'
+import NotasParche, { BotonParche } from './NotasParche'
 import { apiFetch } from '../api'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import PartyPanel, { PlayerCard } from './PartyPanel'
@@ -48,6 +49,7 @@ import { participanteEnTurno } from '../lib/turno'
 import PantallaRotaFx from './partida/PantallaRotaFx'
 import ArmaAtaqueFx from './partida/ArmaAtaqueFx'
 import { ladoTalla } from '../lib/tallas'
+import { xpAlAtrapar, textoXpDerrota, textoXpCaptura } from '../lib/xpAtrapar'
 import { sonarPifia } from '../lib/sonidos'
 
 // Explosión puntiaguda que acompaña al número del crítico
@@ -169,6 +171,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [pokedexInspectId, setPokedexInspectId] = useState(null)
   const [pokedexInspectLevel, setPokedexInspectLevel] = useState(null) // nivel de ESE ejemplar, para la XP al atrapar
   const [pokedexInspectListo, setPokedexInspectListo] = useState(false)
+  // Pokédex libre del máster (botón lateral): la misma ventana, sin especie puesta
+  const [pokedexLibre, setPokedexLibre] = useState(false)
+  const cerrarPokedexInspect = () => { setPokedexInspectId(null); setPokedexLibre(false) }
   // Detecta celular (no tablet) y su orientación
   const detectDevice = () => {
     if (typeof window === 'undefined') return { phone: false, phoneLandscape: false }
@@ -368,7 +373,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       bola: r.bola.sprite, nombreBola: r.bola.nombre,
       sprite: target.sprite, talla: target.talla, oculto: r.oculto,
       trainer: r.nombre_personaje,
-      pokemon: (r.exito || !r.oculto) ? r.pokemon : '???',
+      // Oculto: la mesa no se entera de qué era, ni aunque lo atrape
+      pokemon: r.oculto ? null : r.pokemon,
     })
   }
 
@@ -378,13 +384,20 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     const fx = capturaFx
     setCapturaFx(null)
     if (!fx) return
+    // El Pokémon antes de que salga del campo: su nivel y SR dan la experiencia
+    const capturado = fx.exito ? activePokemons.find(p => p.uid === fx.uid) : null
     if (fx.exito) removePokemonLocal(fx.uid)
     const propia = capturaPropiaRef.current
     if (!propia || propia.uid !== fx.uid) return
     capturaPropiaRef.current = null
     sendActivity(propia.texto, 'trainer', 'captura', false)
     if (propia.exito) {
-      sendCaptura(propia.nombre_personaje, propia.pokemon)
+      if (capturado) {
+        const texto = textoXpCaptura(propia.oculto ? null : propia.pokemon, xpAlAtrapar(capturado.level, capturado.sr))
+        sendMasterMessage(texto)
+        sendActivity(texto, 'master', 'experiencia')
+      }
+      sendCaptura(propia.nombre_personaje, propia.oculto ? null : propia.pokemon)
       sendPartyUpdateTotal()
     }
   }
@@ -606,13 +619,30 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       registrar: (texto, tipo = null) => sendActivity(texto, 'master', tipo),
       // La barra de turno del entrenador vive en su columna (TrainerPartida)
       terminarTurno,
+      // A quién se puede atacar: Pokémon del máster fuera de la pokébola y NPC.
+      // Ocultos: sin nombre en el selector ni en el chat, pero con sus tipos,
+      // que hacen falta para la efectividad del daño.
+      getObjetivos: () => [
+        ...activePokemons.filter(p => !p.inBall).map(p => ({
+          clave: `pokemon-${p.uid}`, tipo: 'pokemon', uid: p.uid, hidden: !!p.hidden,
+          nombre: p.hidden ? '???' : p.name, nombreChat: p.hidden ? 'el Pokémon' : p.name,
+          sprite: p.sprite, type1: p.type1, type2: p.type2,
+        })),
+        ...activeNpcs.map(n => ({
+          clave: `npc-${n.uid}`, tipo: 'npc', uid: n.uid, hidden: !!n.hidden,
+          nombre: n.hidden ? '???' : n.name, nombreChat: n.hidden ? 'alguien' : n.name,
+          // Como en su tarjeta del campo: el avatar es un archivo de /avatars, y
+          // oculto no se muestra (el selector pone un signo de pregunta)
+          sprite: n.hidden || !n.avatar ? null : `/avatars/${n.avatar}`,
+        })),
+      ],
       anunciar: (texto, trainer, pokemon, tipo = null) => {
         sendMasterMessage(texto)
         sendActivity(texto, 'master', tipo)
         if (trainer) sendCaptura(trainer, pokemon, texto)
       },
     }
-  }, [apiRef, sendPartyUpdate, sendAttack, loadPokeballs, presentes, sendMasterMessage, sendActivity, sendCaptura, terminarTurno])
+  }, [apiRef, sendPartyUpdate, sendAttack, loadPokeballs, presentes, sendMasterMessage, sendActivity, sendCaptura, terminarTurno, activePokemons, activeNpcs])
 
   // Difunde el Pokémon invocado del jugador cuando cambia
   useEffect(() => {
@@ -741,6 +771,13 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     if (!p) return
     const nuevo = Math.max(0, Math.min(p.hp_max, p.hp_current + delta))
     updatePokemon(uid, { hp_current: nuevo })
+    // Derrotado: la vida acaba de llegar a 0. Queda en el chat la experiencia
+    // que otorga y la mesa lo ve como mensaje del DM.
+    if (p.hp_current > 0 && nuevo === 0) {
+      const texto = textoXpDerrota(p.hidden ? 'Un Pokémon salvaje' : p.name, xpAlAtrapar(p.level, p.sr))
+      sendMasterMessage(texto)
+      sendActivity(texto, 'master', 'experiencia')
+    }
     if (p.master_pokemon_id != null) {
       apiFetch(`/master/pokemon/${p.master_pokemon_id}/combate`, {
         method: 'PATCH',
@@ -820,10 +857,16 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       // backend, que lo lee de la tabla: nombreTrainer() depende de un fetch
       // aparte y, si ese no volvió, caía en el user_name.
       const nombreDest = j.nombre_personaje || nombreTrainer(transferDest)
-      const texto = `Felicitaciones el trainer ${nombreDest} ha atrapado al pokemon ${nombrePokemon}`
-      sendMasterMessage(texto)
+      // Oculto: la mesa no se entera de qué Pokémon era
+      const oculto = !!transferPoke.hidden
+      const texto = oculto
+        ? `Felicitaciones el trainer ${nombreDest} ha atrapado un pokemon`
+        : `Felicitaciones el trainer ${nombreDest} ha atrapado al pokemon ${nombrePokemon}`
+      const textoXp = textoXpCaptura(oculto ? null : nombrePokemon, xpAlAtrapar(transferPoke.level, transferPoke.sr))
+      sendMasterMessage(`${texto}. ${textoXp}`)
       sendActivity(texto, 'master', 'captura')
-      sendCaptura(nombreDest, nombrePokemon) // aviso central de 5s
+      sendActivity(textoXp, 'master', 'experiencia')
+      sendCaptura(nombreDest, oculto ? null : nombrePokemon) // aviso central de 5s
       sendPartyUpdate()
       cerrarTransferencia()
     } catch {
@@ -998,6 +1041,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             <div className="flex items-center gap-3 min-w-0">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Actividad</p>
               <ResumenSesion partidaId={id} userId={user?.user_id} />
+              <BotonParche />
             </div>
             <button onClick={abrirCerrarLog} className="text-gray-400 hover:text-white shrink-0" title="Cerrar"><X size={15} /></button>
           </div>
@@ -1231,11 +1275,24 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         {/* Botón flotante — dados (master). El trainer lo tiene en su columna. */}
         {isMaster && <BotonBandejaDados className="icono-izq fixed left-3 top-76 z-40" />}
 
+        {/* Botón flotante — Pokédex de consulta (master), debajo de los dados */}
+        {isMaster && (
+          <button
+            onClick={() => { setPokedexInspectListo(false); setPokedexInspectId(null); setPokedexInspectLevel(null); setPokedexLibre(true) }}
+            className="icono-izq fixed left-3 top-88 z-40 flex items-center justify-center w-10 h-10
+                       rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
+                       border border-gray-600 transition-all"
+            title="Abrir Pokédex"
+          >
+            <Smartphone size={18} />
+          </button>
+        )}
+
         {/* Turno y clima del máster: debajo de sus dados, con la misma estética
             que la columna del entrenador. El bloque no captura clics, solo sus
             piezas: la barra de turno desplegada es más ancha que un icono. */}
         {isMaster && (iniciativa?.estado === 'activa' || clima) && (
-          <div className="icono-izq fixed left-3 top-88 z-40 flex flex-col items-start gap-2 pointer-events-none">
+          <div className="icono-izq fixed left-3 top-100 z-40 flex flex-col items-start gap-2 pointer-events-none">
             <TurnoIcono iniciativa={iniciativa} userId={user?.user_id} onTerminar={terminarTurno} busy={turnoBusy} />
             {clima && <div className="shrink-0 pointer-events-auto"><ClimaIcono clima={clima} /></div>}
           </div>
@@ -1520,7 +1577,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
               onError={e => { e.target.style.opacity = '0.3' }} />
             <p className="text-lg font-black text-gray-900 leading-snug">
               {captura.texto ? captura.texto : (
-                <>En hora buena, el trainer <span className="text-red-600">{captura.trainer}</span> ha atrapado a <span className="text-red-600">{captura.pokemon}</span></>
+                <>En hora buena, el trainer <span className="text-red-600">{captura.trainer}</span> ha atrapado {captura.pokemon
+                  ? <>a <span className="text-red-600">{captura.pokemon}</span></> : 'un Pokémon'}</>
               )}
             </p>
           </div>
@@ -1645,7 +1703,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       {iniciativa?.estado === 'pidiendo'
         && (iniciativa.participantes || []).some(p => p.user_id === user?.user_id && !p.listo) && (
         <IniciativaTirada partidaId={id} personajeId={personajeId} esMaster={isMaster} pokemonInvocado={pokemonInvocado}
-          onListo={(ini) => sendIniciativa(ini)} />
+          onListo={(ini) => sendIniciativa(ini)}
+          onRegistrar={(texto) => sendActivity(texto, isMaster ? 'master' : 'trainer', 'tirada')} />
       )}
 
       {showIniciativa && isMaster && (
@@ -1689,20 +1748,20 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           buscado a mano. Se monta oculta -invisible mantiene el componente
           vivo, que es lo que hace falta para que consulte- y la pokébola tapa
           mientras tanto, igual que la Pokédex normal del trainer. */}
-      {pokedexInspectId != null && (
+      {(pokedexInspectId != null || pokedexLibre) && (
         <>
           {!pokedexInspectListo && (
-            <LoadingOverlay label="Pokédex" onClose={() => setPokedexInspectId(null)} z="z-[75]" />
+            <LoadingOverlay label="Pokédex" onClose={cerrarPokedexInspect} z="z-[75]" />
           )}
           <div
             className={`fixed inset-0 z-[70] flex items-center justify-center p-4 ${
               pokedexInspectListo ? '' : 'invisible pointer-events-none'}`}
             style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
-            onClick={e => { if (e.target === e.currentTarget) setPokedexInspectId(null) }}
+            onClick={e => { if (e.target === e.currentTarget) cerrarPokedexInspect() }}
           >
             <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl">
               <button
-                onClick={() => setPokedexInspectId(null)}
+                onClick={cerrarPokedexInspect}
                 className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center
                            rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
                 title="Cerrar"
@@ -1715,6 +1774,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           </div>
         </>
       )}
+
+      {/* Notas del parche: se abren solas una vez por versión nueva */}
+      <NotasParche key={user?.user_id ?? "anon"} userId={user?.user_id} auto />
 
       {/* Tirada de otro jugador: arriba al centro, unos segundos */}
       {tiradaAjena && (
