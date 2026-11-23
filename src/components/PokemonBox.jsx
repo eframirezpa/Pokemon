@@ -13,6 +13,9 @@ import ItemDetailPanel from './ItemDetailPanel'
 import EvolucionModal from './EvolucionModal'
 import { TypeBadge as TypeBadgeBase } from './partida/TypeBadge'
 
+// Lo mismo que responde el back cuando el jugador no está en un centro Pokémon
+const NARRATIVA = 'La narrativa no permite hacer esto en este momento.'
+
 const TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
   Ice:'#98D8D8', Fighting:'#C03028', Poison:'#A040A0', Ground:'#E0C068', Flying:'#A890F0',
@@ -513,7 +516,7 @@ function AddExpModal({ personajeId, pokemon, onClose, onDone }) {
   )
 }
 
-export default function PokemonBox({ personajeId, partidaId = null, getConectados = null, mode, editable = false, onClose, onInvoke, onMoved, onExpAdded, nombrePersonaje = null, onAnuncio = null, onSwitchMode = null, onEvolved = null, onRegistrar = null }) {
+export default function PokemonBox({ personajeId, partidaId = null, getConectados = null, mode, editable = false, enCentro = false, onClose, onInvoke, onMoved, onExpAdded, nombrePersonaje = null, onAnuncio = null, onSwitchMode = null, onEvolved = null, onRegistrar = null }) {
   const isBelt = mode === 'belt'
   const title    = isBelt ? 'Cinturón' : 'Femputadora'
   const subtitle = isBelt ? 'Pokémones en tu equipo' : 'Pokémones almacenados'
@@ -544,11 +547,17 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
   const [errorAccion, setErrorAccion] = useState('')
   const [movingId, setMovingId]   = useState(null) // Pokémon moviéndose con el atajo
   const [errorMover, setErrorMover] = useState('')
+  // Fuera del centro Pokémon (lo marca el máster) no se mueve, libera ni
+  // transfiere nada: los botones se ven, pero abren este aviso. El back lo
+  // valida igual, por si el máster lo desmarca con la ventana abierta.
+  const [avisoNarrativa, setAvisoNarrativa] = useState(false)
+  const permitido = () => { if (enCentro) return true; setAvisoNarrativa(true); return false }
 
   // Al abrir la transferencia se listan solo los entrenadores CONECTADOS a la
   // partida, excluyendo el propio. La presencia solo trae el id del personaje,
   // así que se cruza con la party para obtener su nombre.
   const abrirTransferencia = (p) => {
+    if (!permitido()) return
     setTransferFor(p); setTransferDest(null); setErrorAccion('')
     const conectados = (getConectados?.() ?? [])
       .filter(u => u.role !== 'master' && u.personaje_id != null)
@@ -573,6 +582,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [personajeId, isBelt])
 
   const handleAction = async (idpp) => {
+    if (!permitido()) return NARRATIVA
     try {
       const res = await apiFetch(`/personaje/${personajeId}/pokemon/${idpp}/en-equipo`, {
         method: 'PATCH',
@@ -596,7 +606,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
   // intacta, y esa sí cierra.
   const moverRapido = async (e, idpp) => {
     e.stopPropagation()   // no abrir el detalle del Pokémon
-    if (movingId) return
+    if (movingId || !permitido()) return
     setMovingId(idpp); setErrorMover('')
     try {
       const res = await apiFetch(`/personaje/${personajeId}/pokemon/${idpp}/en-equipo`, {
@@ -815,7 +825,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                       {/* Solo en la femputadora: liberar (izquierda) y transferir (derecha) */}
                       {!isBelt && (
                         <>
-                          <button onClick={e => { e.stopPropagation(); setReleaseFor(p) }} title="Liberar Pokémon"
+                          <button onClick={e => { e.stopPropagation(); if (permitido()) setReleaseFor(p) }} title="Liberar Pokémon"
                             className="absolute bottom-1.5 left-1.5 text-white bg-ok hover:brightness-110 rounded-md p-1 shadow transition-colors">
                             <DoorOpen size={16} />
                           </button>
@@ -865,6 +875,25 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
         <EvolucionModal personajeId={personajeId} pokemon={evoFor}
           onClose={() => { setEvoFor(null); load() }}
           onEvolved={(r) => onEvolved?.(r, evoFor)} />
+      )}
+
+      {avisoNarrativa && (
+        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
+          onClick={e => { if (e.target === e.currentTarget) setAvisoNarrativa(false) }}>
+          <div role="alertdialog" aria-label="Centro Pokémon"
+            className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full sm:max-w-xs shadow-hoja overflow-hidden">
+            <div className="px-5 py-5 flex items-start gap-3">
+              <AlertTriangle size={22} className="text-aviso shrink-0 mt-0.5" />
+              <p className="text-[15px] text-texto">{NARRATIVA}</p>
+            </div>
+            <div className="px-5 py-3 border-t border-separador flex justify-end">
+              <button onClick={() => setAvisoNarrativa(false)} autoFocus
+                className="h-9 px-5 rounded-full text-sm font-semibold text-white bg-acento hover:bg-acento-hover transition-colors">
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Liberar Pokémon — primera advertencia */}

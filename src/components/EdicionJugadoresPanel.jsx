@@ -22,6 +22,7 @@ export default function EdicionJugadoresPanel({ partidaId, presentes = [], party
   const [open, setOpen] = useState(false)
   const [editable, setEditable] = useState({}) // personaje_id → bool
   const [inspirado, setInspirado] = useState({}) // personaje_id → bool
+  const [centro, setCentro] = useState({})       // personaje_id → bool (en centro Pokémon)
   const [nombres, setNombres] = useState({})   // personaje_id → nombre del personaje
   const [saving, setSaving] = useState(null)    // personaje_id que se está guardando
   const [terrenos, setTerrenos] = useState([])  // catálogo de terrenos
@@ -35,15 +36,17 @@ export default function EdicionJugadoresPanel({ partidaId, presentes = [], party
     return apiFetch(`/personaje/party?id_partida=${partidaId}`)
       .then(r => r.json())
       .then(list => {
-        const map = {}, insp = {}, nom = {}, par = {}
+        const map = {}, insp = {}, nom = {}, par = {}, cen = {}
         for (const c of (Array.isArray(list) ? list : [])) {
           map[String(c.id_personaje)] = !!c.personaje_is_editable
           insp[String(c.id_personaje)] = !!c.personaje_inspirado
+          cen[String(c.id_personaje)] = !!c.personaje_en_centro_pokemon
           nom[String(c.id_personaje)] = c.nombre_personaje
           par[String(c.id_personaje)] = { terreno: c.personaje_terreno ?? null, pokemons: c.pokemons || [] }
         }
         setEditable(map)
         setInspirado(insp)
+        setCentro(cen)
         setNombres(nom)
         setParty(par)
       })
@@ -102,6 +105,26 @@ export default function EdicionJugadoresPanel({ partidaId, presentes = [], party
     }
   }
 
+  // En centro Pokémon: sin él, el jugador no mueve, libera ni transfiere
+  // Pokémon de su cinturón y Femputadora. Optimista, se revierte si falla.
+  const toggleCentro = async (personaje_id) => {
+    const key = String(personaje_id)
+    const next = !centro[key]
+    setCentro(prev => ({ ...prev, [key]: next }))
+    setSaving(`${personaje_id}-centro`)
+    try {
+      const res = await apiFetch(`/personaje/${personaje_id}/centro-pokemon`, {
+        method: 'PATCH', body: JSON.stringify({ en_centro: next }),
+      })
+      if (!res.ok) throw new Error()
+      onAfterChange?.()
+    } catch {
+      setCentro(prev => ({ ...prev, [key]: !next }))
+    } finally {
+      setSaving(null)
+    }
+  }
+
   // Terreno del entrenador o de su Pokémon: optimista, y se revierte si falla.
   const ponerTerreno = async (tipo, personaje_id, idpp, terreno) => {
     const key = String(personaje_id)
@@ -139,6 +162,7 @@ export default function EdicionJugadoresPanel({ partidaId, presentes = [], party
             const key = String(p.personaje_id)
             const on = !!editable[key]
             const insp = !!inspirado[key]
+            const cen = !!centro[key]
             const datos = party[key]
             const invId = key in invocados ? invocados[key] : p.pokemon_invocado
             const pokemon = invId != null
@@ -161,6 +185,15 @@ export default function EdicionJugadoresPanel({ partidaId, presentes = [], party
                         on ? 'bg-ok border-ok' : 'border-separador bg-elevada'}`}
                       title={on ? 'Edición habilitada' : 'Edición deshabilitada'}>
                       {on && <Check size={13} className="text-white" strokeWidth={3} />}
+                    </button>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <span className="text-[10px] font-bold text-texto-2 uppercase">Centro Pokémon</span>
+                    <button onClick={() => toggleCentro(p.personaje_id)} disabled={saving === `${p.personaje_id}-centro`}
+                      className={`w-5 h-5 rounded-[5px] border-2 flex items-center justify-center transition-colors disabled:opacity-50 ${
+                        cen ? 'bg-ok border-ok' : 'border-separador bg-elevada'}`}
+                      title={cen ? 'En centro Pokémon: puede mover su cinturón y Femputadora' : 'Fuera del centro Pokémon: no puede mover su cinturón ni su Femputadora'}>
+                      {cen && <Check size={13} className="text-white" strokeWidth={3} />}
                     </button>
                   </label>
                   <label className="flex items-center gap-1.5 cursor-pointer select-none">

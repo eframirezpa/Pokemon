@@ -91,6 +91,7 @@ export default function TrainerPartida() {
   const [showPC, setShowPC]           = useState(false)
   const [showEdit, setShowEdit]       = useState(false)
   const [isEditable, setIsEditable]   = useState(false) // personaje_is_editable (lo controla el master)
+  const [enCentro, setEnCentro]       = useState(false) // personaje_en_centro_pokemon (lo controla el master)
   const [isInspirado, setIsInspirado] = useState(false) // personaje_inspirado (lo activa el master)
   const [showInspiradoInfo, setShowInspiradoInfo] = useState(false)
   const [pending, setPending]         = useState([])    // mejoras de nivel por confirmar (secuencial)
@@ -174,6 +175,7 @@ export default function TrainerPartida() {
       .then(r => r.json())
       .then(d => {
         setIsEditable(!!d?.personaje_is_editable)
+        setEnCentro(!!d?.personaje_en_centro_pokemon)
         setIsInspirado(!!d?.personaje_inspirado)
       })
       .catch(() => {})
@@ -1429,7 +1431,7 @@ export default function TrainerPartida() {
 
       {/* Cinturón — Pokémon en el equipo */}
       {showBelt && personajeId && (
-        <PokemonBox
+        <PokemonBox enCentro={enCentro}
           personajeId={personajeId}
           mode="belt"
           editable={isEditable}
@@ -1461,7 +1463,7 @@ export default function TrainerPartida() {
 
       {/* Femputadora — Pokémon almacenados */}
       {showPC && personajeId && (
-        <PokemonBox personajeId={personajeId} partidaId={id} getConectados={() => partidaApiRef.current?.getPresentes?.() ?? []} mode="pc" editable={isEditable} onExpAdded={trasEventoPokemon} onEvolved={alEvolucionar}
+        <PokemonBox enCentro={enCentro} personajeId={personajeId} partidaId={id} getConectados={() => partidaApiRef.current?.getPresentes?.() ?? []} mode="pc" editable={isEditable} onExpAdded={trasEventoPokemon} onEvolved={alEvolucionar}
           onMoved={() => { refreshRenames(); partidaApiRef.current?.sendPartyUpdate?.() }}
           nombrePersonaje={nombrePj}
           onAnuncio={(texto, trainer, pokemon) => partidaApiRef.current?.anunciar?.(texto, trainer, pokemon, 'pokemon')}
