@@ -18,6 +18,7 @@ import EditarPersonajeModal from '../components/EditarPersonajeModal'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 import { hpValues } from '../lib/hp'
+import BarraHP from '../components/ui/BarraHP'
 import DescansoModal from '../components/DescansoModal'
 import PokeballsIcon from '../components/PokeballsIcon'
 import HeldItemsModal from '../components/HeldItemsModal'
@@ -58,6 +59,21 @@ function ExhaustMarca({ nivel }) {
 
 // Botón lateral del lápiz (editar jugador): oculto a prueba
 const MOSTRAR_EDITAR_JUGADOR = false
+/* Ficha de cristal bajo un avatar del campo: nombre, vida en cifras y barra HP.
+   Sin datos de vida (party aún cargando) no se pinta. */
+function FichaCampo({ nombre, cur, max }) {
+  if (cur == null || !max) return null
+  return (
+    <div className="cristal rounded-xl px-2.5 pt-1 pb-1.5 w-[118px] text-[12px] font-semibold leading-tight pointer-events-none">
+      <span className="flex justify-between gap-1 mb-1">
+        <span className="truncate text-white">{nombre || '—'}</span>
+        <em className="not-italic font-medium text-texto-2 tabular-nums shrink-0">{cur}/{max}</em>
+      </span>
+      <BarraHP valor={cur} max={max} delgada />
+    </div>
+  )
+}
+
 export default function TrainerPartida() {
   const { id }   = useParams()
   const location = useLocation()
@@ -217,7 +233,8 @@ export default function TrainerPartida() {
     return () => clearTimeout(t)
   }, [avisoTurno])
 
-  const vidaInvocado = (miParty?.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(pokemonInvocado))?.pokemon_current_hp ?? null
+  const invocadoParty = (miParty?.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(pokemonInvocado)) ?? null
+  const vidaInvocado = invocadoParty?.pokemon_current_hp ?? null
   // Exhaust de cada uno, para el "-N" junto a su icono en la mesa
   const exhaustTrainer = Number(miParty?.personaje_exahust_lvl) || 0
   const exhaustInvocado = Number((miParty?.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(pokemonInvocado))?.personaje_pokemon_exahust_lvl) || 0
@@ -960,16 +977,16 @@ export default function TrainerPartida() {
 
       {/* Gestión de PP: edita máximo y actual, se persiste solo al confirmar */}
       {gpMove && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
           onClick={e => { if (e.target === e.currentTarget && !gpBusy) setGpMove(null) }}>
-          <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-[17rem] shadow-2xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between gap-2">
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-[17rem] shadow-hoja overflow-hidden">
+            <div className="px-4 py-3 border-b border-separador flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <h4 className="font-bold text-white text-sm">Gestion de PP</h4>
-                <p className="text-[11px] text-gray-400 truncate">{gpMove.move_name}</p>
+                <p className="text-[11px] text-texto-2 truncate">{gpMove.move_name}</p>
               </div>
               <button onClick={() => setGpMove(null)} disabled={gpBusy}
-                className="text-gray-400 hover:text-white shrink-0 disabled:opacity-40"><X size={16} /></button>
+                className="text-texto-2 hover:text-white shrink-0 disabled:opacity-40"><X size={16} /></button>
             </div>
             <div className="px-4 py-3 space-y-3">
               {[
@@ -977,29 +994,29 @@ export default function TrainerPartida() {
                 ['PP actuales', gpCur, (n) => setGpCur(Math.max(0, Math.min(gpMax, n)))],
               ].map(([label, valor, set]) => (
                 <div key={label} className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-black text-gray-400 uppercase">{label}</span>
+                  <span className="text-[10px] font-black text-texto-2 uppercase">{label}</span>
                   <div className="flex items-center gap-2 shrink-0">
                     <button onClick={() => set(valor - 1)} disabled={gpBusy || valor <= 0}
-                      className="w-7 h-7 rounded-lg bg-gray-700 hover:bg-red-600 disabled:opacity-30 flex items-center justify-center text-white transition-colors">
+                      className="w-7 h-7 rounded-lg bg-elevada hover:bg-acento-hover disabled:opacity-30 flex items-center justify-center text-white transition-colors">
                       <Minus size={14} />
                     </button>
                     <span className="w-8 text-center font-black text-white tabular-nums">{valor}</span>
                     <button onClick={() => set(valor + 1)} disabled={gpBusy}
-                      className="w-7 h-7 rounded-lg bg-gray-700 hover:bg-green-600 disabled:opacity-30 flex items-center justify-center text-white transition-colors">
+                      className="w-7 h-7 rounded-lg bg-elevada hover:bg-ok disabled:opacity-30 flex items-center justify-center text-white transition-colors">
                       <Plus size={14} />
                     </button>
                   </div>
                 </div>
               ))}
               <button onClick={() => setGpCur(gpMax)} disabled={gpBusy || gpCur === gpMax}
-                className="w-full text-xs font-bold text-gray-200 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 py-1.5 rounded-lg transition-colors">
+                className="w-full text-xs font-bold text-texto bg-elevada hover:bg-relleno-2 disabled:opacity-40 py-1.5 rounded-lg transition-colors">
                 Restore
               </button>
-              {gpError && <p className="text-xs text-red-400 font-medium text-center">{gpError}</p>}
+              {gpError && <p className="text-xs text-tinte font-medium text-center">{gpError}</p>}
             </div>
-            <div className="px-4 py-3 border-t border-gray-700 flex items-center justify-center">
+            <div className="px-4 py-3 border-t border-separador flex items-center justify-center">
               <button onClick={confirmarGestionPP} disabled={gpBusy}
-                className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
+                className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
                 {gpBusy ? <PokeballSpinner size={15} /> : null} Confirmar
               </button>
             </div>
@@ -1060,37 +1077,37 @@ export default function TrainerPartida() {
         const tope = maxPP > 0 ? actual : 99 // max 0 = ilimitado
         const set = (n) => setPpCantidad(Math.max(1, Math.min(tope, n)))
         return (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+          <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
             onClick={e => { if (e.target === e.currentTarget && !ppBusy) setPpMove(null) }}>
-            <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-[15rem] shadow-2xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between gap-2">
+            <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-[15rem] shadow-hoja overflow-hidden">
+              <div className="px-4 py-3 border-b border-separador flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <h4 className="font-bold text-white text-sm">PPs a gastar</h4>
-                  <p className="text-[11px] text-gray-400 truncate">{ppMove.move_name}</p>
+                  <p className="text-[11px] text-texto-2 truncate">{ppMove.move_name}</p>
                 </div>
                 <button onClick={() => setPpMove(null)} disabled={ppBusy}
-                  className="text-gray-400 hover:text-white shrink-0 disabled:opacity-40"><X size={16} /></button>
+                  className="text-texto-2 hover:text-white shrink-0 disabled:opacity-40"><X size={16} /></button>
               </div>
               <div className="px-4 py-4">
                 <div className="flex items-center justify-center gap-3">
                   <button onClick={() => set(ppCantidad - 1)} disabled={ppBusy || ppCantidad <= 1}
-                    className="w-9 h-9 shrink-0 rounded-lg bg-gray-700 hover:bg-red-600 disabled:opacity-30 flex items-center justify-center text-white transition-colors">
+                    className="w-9 h-9 shrink-0 rounded-lg bg-elevada hover:bg-acento-hover disabled:opacity-30 flex items-center justify-center text-white transition-colors">
                     <Minus size={16} />
                   </button>
                   <span className="w-12 text-center text-2xl font-black text-white tabular-nums">{ppCantidad}</span>
                   <button onClick={() => set(ppCantidad + 1)} disabled={ppBusy || ppCantidad >= tope}
-                    className="w-9 h-9 shrink-0 rounded-lg bg-gray-700 hover:bg-green-600 disabled:opacity-30 flex items-center justify-center text-white transition-colors">
+                    className="w-9 h-9 shrink-0 rounded-lg bg-elevada hover:bg-ok disabled:opacity-30 flex items-center justify-center text-white transition-colors">
                     <Plus size={16} />
                   </button>
                 </div>
-                <p className="text-center text-[11px] text-gray-400 mt-2">
+                <p className="text-center text-[11px] text-texto-2 mt-2">
                   {maxPP > 0 ? `Disponibles ${actual}/${maxPP}` : 'PP ilimitados'}
                 </p>
-                {ppError && <p className="text-xs text-red-400 font-medium mt-2 text-center">{ppError}</p>}
+                {ppError && <p className="text-xs text-tinte font-medium mt-2 text-center">{ppError}</p>}
               </div>
-              <div className="px-4 py-3 border-t border-gray-700 flex items-center justify-center">
+              <div className="px-4 py-3 border-t border-separador flex items-center justify-center">
                 <button onClick={confirmarPP} disabled={ppBusy}
-                  className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
+                  className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
                   {ppBusy ? <PokeballSpinner size={15} /> : null} Confirmar
                 </button>
               </div>
@@ -1145,18 +1162,18 @@ export default function TrainerPartida() {
           } catch { setRenameError('No se pudo guardar') } finally { setRenameBusy(false) }
         }
         return (
-          <div className="fixed inset-0 z-[130] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}>
-            <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-200">
-                <h3 className="font-black text-gray-900 text-lg leading-tight">Renombrar Pokemon</h3>
-                <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 min-w-0">
+          <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+            <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs shadow-hoja overflow-hidden">
+              <div className="px-5 py-4 border-b border-separador">
+                <h3 className="font-black text-texto text-lg leading-tight">Renombrar Pokemon</h3>
+                <p className="text-xs text-texto-2 mt-0.5 flex items-center gap-1 min-w-0">
                   <span className="truncate">{r.pokemon_name} · Nv {r.pokemon_level}</span>
                 </p>
               </div>
               {/* El género, bien visible: ayuda a elegir el apodo */}
               <div className={`flex items-center justify-center gap-2 py-2.5 font-black text-lg uppercase tracking-widest ${
                 genero === 'hembra' ? 'bg-pink-500 text-white'
-                  : genero === 'macho' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600 text-sm'}`}>
+                  : genero === 'macho' ? 'bg-blue-500 text-white' : 'bg-relleno-2 text-texto-2 text-sm'}`}>
                 {genero === 'hembra' && <><Venus size={24} strokeWidth={3} /> Hembra</>}
                 {genero === 'macho' && <><Mars size={24} strokeWidth={3} /> Macho</>}
                 {!genero && 'Sin género'}
@@ -1166,32 +1183,32 @@ export default function TrainerPartida() {
                   <img src={sprite} alt="" className="w-20 h-20 object-contain mx-auto mb-2"
                     onError={e => { e.target.style.opacity = '0.2' }} />
                 )}
-                <label htmlFor="apodo-nuevo" className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">Apodo</label>
+                <label htmlFor="apodo-nuevo" className="block text-[11px] font-black uppercase tracking-wider text-texto-2 mb-1.5">Apodo</label>
                 <input id="apodo-nuevo" value={nuevoApodo} autoFocus maxLength={60}
                   onChange={e => { setApodoEdit({ id: r.id_personaje_pokemon, value: e.target.value }); setRenameError(''); setApodoConfirmar(null) }}
                   onKeyDown={e => { if (e.key === 'Enter') pedirConfirmacion() }}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
-                {renameError && <p className="text-xs text-red-600 font-medium mt-2">{renameError}</p>}
+                  className="w-full px-3 py-2 text-sm text-texto border border-separador rounded-lg bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
+                {renameError && <p className="text-xs text-tinte font-medium mt-2">{renameError}</p>}
                 {renames.length > 1 && (
-                  <p className="text-[11px] text-gray-400 mt-2">Quedan {renames.length - 1} por renombrar.</p>
+                  <p className="text-[11px] text-texto-2 mt-2">Quedan {renames.length - 1} por renombrar.</p>
                 )}
               </div>
               {confirmando && (
-                <div className={`mx-5 mb-3 rounded-xl border-2 px-3 py-2.5 text-center text-sm text-gray-800 ${
+                <div className={`mx-5 mb-3 rounded-xl border-2 px-3 py-2.5 text-center text-sm text-texto ${
                   genero === 'hembra' ? 'border-pink-400 bg-pink-50' : 'border-blue-400 bg-blue-50'}`}>
                   Vas a llamar <b>«{nuevoApodo.trim()}»</b> a {genero === 'hembra' ? 'una' : 'un'}{' '}
                   <b className={genero === 'hembra' ? 'text-pink-600' : 'text-blue-600'}>{genero.toUpperCase()}</b>. ¿Lo guardas?
                 </div>
               )}
-              <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+              <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2">
                 {confirmando && (
                   <button onClick={() => setApodoConfirmar(null)} disabled={renameBusy}
-                    className="text-sm font-bold text-gray-600 hover:text-gray-900 px-3 py-2">
+                    className="text-sm font-bold text-texto-2 hover:text-texto px-3 py-2">
                     Cambiar nombre
                   </button>
                 )}
                 <button onClick={confirmando ? confirmar : pedirConfirmacion} disabled={!valido || renameBusy}
-                  className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
+                  className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
                   {renameBusy ? <PokeballSpinner size={15} /> : null} {confirmando ? 'Sí, guardar' : 'Confirmar'}
                 </button>
               </div>
@@ -1215,6 +1232,8 @@ export default function TrainerPartida() {
             <div className="flex items-end gap-1.5">
               <div className="flex flex-col items-center gap-1">
                 <div className="relative">
+                  {/* Plataforma bajo el avatar (el terreno, si hay, pinta su propio suelo) */}
+                  {!terrenoTrainer && <span aria-hidden className="pointer-events-none absolute left-1/2 -translate-x-1/2 -bottom-1.5 w-[130%] h-3.5 rounded-[50%] bg-[#1F1F27] border-2 border-[#3A3A47] -z-10" />}
                   <EstadosAro estados={charEstados} px={avatarPx} />
                   {/* El aviso (el signo de información) vive en el panel de
                       combate, junto al botón de fórmula; aquí solo queda el
@@ -1231,6 +1250,7 @@ export default function TrainerPartida() {
                   <ExhaustMarca nivel={exhaustTrainer} />
                 </div>
                 <TerrenoPiso terreno={terrenoTrainer} width={avatarPx} reservar={!!(terrenoTrainer || terrenoPokemon)} />
+                <FichaCampo nombre={nombrePj} cur={miParty?.personaje_current_hp} max={miParty?.personaje_hp} />
               </div>
             </div>
           )}
@@ -1239,6 +1259,7 @@ export default function TrainerPartida() {
               <div className="flex flex-col items-center gap-1">
                 <button onClick={openPokemonControl} title="Controlar Pokémon"
                   className={`relative transition-transform hover:scale-105 ${turnoDelPokemon ? 'animate-turno-anillo' : ''}`}>
+                  {!terrenoPokemon && <span aria-hidden className="pointer-events-none absolute left-1/2 -translate-x-1/2 -bottom-1.5 w-[130%] h-3.5 rounded-[50%] bg-[#1F1F27] border-2 border-[#3A3A47] -z-10" />}
                   <EstadosAro estados={pokeEstados} px={ladoTalla(avatarPx, invocadoTalla)} />
                   {/* key: al cambiar de Pokémon invocado se empieza de cero; si no,
                       la diferencia de vida entre uno y otro salía como daño o curación */}
@@ -1249,6 +1270,7 @@ export default function TrainerPartida() {
                   <ExhaustMarca nivel={exhaustInvocado} />
                 </button>
                 <TerrenoPiso terreno={terrenoPokemon} width={avatarPx} reservar={!!(terrenoTrainer || terrenoPokemon)} />
+                <FichaCampo nombre={invocadoParty?.pokemon_apodo} cur={invocadoParty?.pokemon_current_hp} max={invocadoParty?.pokemon_hp} />
               </div>
             </div>
           )}
@@ -1260,18 +1282,21 @@ export default function TrainerPartida() {
           <Smartphone size={18} />
         </button>
 
-        {/* Debajo de la Pokédex: turno en curso, clima y la columna de botones.
-            El turno y el clima van fuera de la columna porque esta hace scroll y
-            recortaría la barra de turno, que es más ancha que un icono. El bloque
-            no captura clics (pointer-events-none): solo sus piezas. */}
-        <div className="icono-izq fixed left-3 top-64 bottom-16 z-30 flex flex-col items-start gap-2 pointer-events-none">
-          {/* Turno: icono que se despliega en la barra; con halo si me toca */}
-          <TurnoIcono iniciativa={iniciativa} userId={user?.user_id} onTerminar={terminarTurno} busy={turnoBusy} />
+        {/* Arriba al centro, entre el aviso del master y "Salir": turno en
+            curso (icono que se despliega en la barra; con halo si me toca) y
+            clima. Los márgenes dejan sitio a esos dos botones; la barra se
+            recorta si no cabe. El bloque no captura clics, solo sus piezas. */}
+        <div className="fixed top-3 left-[4.5rem] right-[4rem] z-[46] flex items-start justify-center gap-2 pointer-events-none">
+          <TurnoIcono iniciativa={iniciativa} userId={user?.user_id} onTerminar={terminarTurno} busy={turnoBusy} partidaId={id} />
           {clima && (
             <div className="shrink-0 pointer-events-auto">
               <ClimaIcono clima={clima} />
             </div>
           )}
+        </div>
+
+        {/* Debajo de la Pokédex: la columna de botones */}
+        <div className="icono-izq fixed left-3 top-64 bottom-16 z-30 flex flex-col items-start gap-2 pointer-events-none">
 
         {/* Botones laterales — columna centrada y scrolleable (para pantallas bajas) */}
         <div className="flex-1 min-h-0 overflow-y-auto pointer-events-auto">
@@ -1316,7 +1341,7 @@ export default function TrainerPartida() {
               <button
                 onClick={() => { if (isEditable) setShowEdit(true) }}
                 disabled={!isEditable}
-                className={`${sideBtn} ${isEditable ? '' : 'opacity-40 cursor-not-allowed hover:bg-gray-700'}`}
+                className={`${sideBtn} ${isEditable ? '' : 'opacity-40 cursor-not-allowed hover:bg-relleno-2'}`}
                 title={isEditable ? 'Editar jugador' : 'Editar jugador (deshabilitado por el master)'}
               >
                 {isEditable ? <Pencil size={18} /> : <PencilOff size={18} />}
@@ -1352,19 +1377,19 @@ export default function TrainerPartida() {
             <LoadingOverlay label="Pokédex" onClose={() => setShowPokedex(false)} z="z-[55]" />
           )}
           <div
-            className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${
+            className={`modo-oscuro fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 ${
               pokedexListo ? '' : 'invisible pointer-events-none'}`}
-            style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
             onClick={e => { if (e.target === e.currentTarget) setShowPokedex(false) }}
           >
-            <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl">
+            <div className="relative bg-fondo text-texto rounded-t-hoja sm:rounded-hoja overflow-hidden w-full max-w-5xl h-[92dvh] sm:h-[85vh] flex flex-col shadow-hoja">
               <button
                 onClick={() => setShowPokedex(false)}
-                className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center
-                           rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+                aria-label="Cerrar"
+                className="absolute top-3 right-3 z-20 w-[30px] h-[30px] grid place-items-center
+                           rounded-full bg-relleno hover:bg-relleno-2 text-texto-2 transition-colors"
                 title="Cerrar"
               >
-                <X size={18} />
+                <X size={16} strokeWidth={2.4} />
               </button>
               <PokemonList title="Pokédex" moveDetail onReady={() => setPokedexListo(true)} />
             </div>
@@ -1468,9 +1493,9 @@ export default function TrainerPartida() {
       {/* Empieza mi turno: aviso grande unos segundos */}
       {avisoTurno && (
         <div key={avisoTurno} className="fixed inset-0 z-[90] flex items-center justify-center pointer-events-none">
-          <div className="animate-event-pop rounded-2xl border-2 border-amber-400 bg-gray-900/95 px-8 py-4 shadow-2xl">
-            <p className="text-3xl font-black text-amber-300 tracking-wide">¡Es tu turno!</p>
-            {turnoDelPokemon && <p className="text-center text-sm text-gray-300 mt-0.5">Le toca a tu Pokémon</p>}
+          <div className="animate-event-pop cristal rounded-[20px] !border-2 !border-tinte/60 text-texto px-8 py-4">
+            <p className="text-3xl font-black text-tinte tracking-wide">¡Es tu turno!</p>
+            {turnoDelPokemon && <p className="text-center text-sm text-texto mt-0.5">Le toca a tu Pokémon</p>}
           </div>
         </div>
       )}
@@ -1547,29 +1572,29 @@ export default function TrainerPartida() {
         <div className="fixed inset-0 z-[130] flex items-center justify-center p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
           onClick={e => { if (e.target === e.currentTarget) setDadoBatalla(null) }}>
-          <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between gap-2">
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs shadow-hoja overflow-hidden">
+            <div className="px-4 py-3 border-b border-separador flex items-center justify-between gap-2">
               <h4 className="font-bold text-white text-sm flex items-center gap-2 min-w-0">
-                <Dices size={15} className="text-amber-400 shrink-0" />
+                <Dices size={15} className="text-tinte shrink-0" />
                 <span className="truncate">{dadoBatalla.nombre}</span>
               </h4>
-              <button onClick={() => setDadoBatalla(null)} className="text-gray-400 hover:text-white shrink-0">
+              <button onClick={() => setDadoBatalla(null)} className="text-texto-2 hover:text-white shrink-0">
                 <X size={16} />
               </button>
             </div>
             <div className="px-4 py-4 text-center">
-              <p className="text-[11px] text-gray-400 uppercase tracking-widest font-bold mb-1">Tira</p>
-              <p className="text-3xl font-black text-amber-300">1{dadoBatalla.dado}</p>
-              <p className="mt-2 text-[11px] text-gray-400 leading-relaxed">
+              <p className="text-[11px] text-texto-2 uppercase tracking-widest font-bold mb-1">Tira</p>
+              <p className="text-3xl font-black text-tinte">1{dadoBatalla.dado}</p>
+              <p className="mt-2 text-[11px] text-texto-2 leading-relaxed">
                 Súmalo a la tirada de tu Pokémon, después de tirarla.
               </p>
-              <p className="mt-2 text-[11px] text-gray-500">
+              <p className="mt-2 text-[11px] text-texto-2">
                 Te quedan {dadoBatalla.actual} de {dadoBatalla.maximo}
               </p>
               <button onClick={usarDadoBatalla}
                 className="mt-4 w-full flex items-center justify-center gap-1.5 h-10 rounded-xl
                            text-xs font-black uppercase tracking-widest text-white transition-colors
-                           bg-red-600 hover:bg-red-700">
+                           bg-acento hover:bg-acento-hover">
                 <Dices size={14} /> Gastar punto
               </button>
             </div>
@@ -1578,33 +1603,33 @@ export default function TrainerPartida() {
       )}
 
       {recursoEdit && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
           onClick={e => { if (e.target === e.currentTarget) setRecursoEdit(null) }}>
-          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200">
-              <h3 className="font-bold text-gray-900 truncate">{recursoEdit.nombre}</h3>
-              <p className="text-[11px] text-gray-500">
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs shadow-hoja overflow-hidden">
+            <div className="px-5 py-4 border-b border-separador">
+              <h3 className="font-bold text-texto truncate">{recursoEdit.nombre}</h3>
+              <p className="text-[11px] text-texto-2">
                 Máximo {recursoEdit.maximo} · {recursoEdit.tipo && recursoEdit.tipo !== 'path' ? 'lo fija el nivel' : 'se deriva de tu personaje'}
               </p>
             </div>
             <div className="px-5 py-4">
-              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">
+              <label className="block text-xs font-black uppercase tracking-widest text-texto-2 mb-1.5">
                 {recursoEdit.tipo && recursoEdit.tipo !== 'path' ? 'Dados restantes' : 'Puntos restantes'}
               </label>
               <div className="flex items-center gap-2">
                 <button onClick={() => setRecursoVal(v => Math.max(0, v - 1))}
-                  className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center"><Minus size={15} /></button>
+                  className="w-8 h-8 rounded-lg border border-separador text-texto-2 hover:bg-relleno flex items-center justify-center"><Minus size={15} /></button>
                 <input type="number" min={0} max={recursoEdit.maximo} value={recursoVal}
                   onChange={e => setRecursoVal(Math.min(recursoEdit.maximo, Math.max(0, Math.floor(Number(e.target.value) || 0))))}
-                  className="flex-1 px-3 py-2 text-sm text-center text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                  className="flex-1 px-3 py-2 text-sm text-center text-texto border border-separador rounded-lg bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
                 <button onClick={() => setRecursoVal(v => Math.min(recursoEdit.maximo, v + 1))}
-                  className="w-8 h-8 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center"><Plus size={15} /></button>
+                  className="w-8 h-8 rounded-lg border border-separador text-texto-2 hover:bg-relleno flex items-center justify-center"><Plus size={15} /></button>
               </div>
             </div>
-            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
-              <button onClick={() => setRecursoEdit(null)} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg">Cancelar</button>
+            <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2">
+              <button onClick={() => setRecursoEdit(null)} className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg">Cancelar</button>
               <button onClick={guardarRecurso}
-                className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 px-4 py-1.5 rounded-lg transition-colors">Guardar</button>
+                className="text-sm font-bold text-white bg-acento hover:bg-acento-hover px-4 py-1.5 rounded-lg transition-colors">Guardar</button>
             </div>
           </div>
         </div>

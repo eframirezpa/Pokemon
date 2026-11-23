@@ -98,11 +98,11 @@ export default function DadosProvider({ children, nombre, puedeOcultar = false, 
 
       {resultado && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[201] pointer-events-none animate-event-pop">
-          <div className="bg-gray-900/95 border border-gray-600 rounded-2xl px-6 py-3 shadow-2xl text-center">
-            {resultado.etiqueta && <p className="text-[11px] font-black uppercase tracking-widest text-amber-400">{resultado.etiqueta}</p>}
-            <p className="text-4xl font-black text-white tabular-nums leading-tight">{resultado.r.total}</p>
-            <p className="text-xs text-gray-300">{detalle(resultado.r)}</p>
-            {resultado.oculta && <p className="text-[10px] font-bold text-purple-300 mt-0.5">Tirada oculta: solo tú la ves</p>}
+          <div className="modo-oscuro cristal text-texto rounded-[20px] px-6 py-3 text-center">
+            {resultado.etiqueta && <p className="text-[11px] font-black uppercase tracking-widest text-tinte">{resultado.etiqueta}</p>}
+            <p className="text-4xl font-bold tracking-[-.03em] text-white tabular-nums leading-tight">{resultado.r.total}</p>
+            <p className="text-xs text-texto">{detalle(resultado.r)}</p>
+            {resultado.oculta && <p className="text-[10px] font-bold text-tinte mt-0.5">Tirada oculta: solo tú la ves</p>}
           </div>
         </div>
       )}
@@ -131,35 +131,35 @@ function BandejaDados({ puedeOcultar, tirando, onCerrar, onTirar }) {
   })
 
   const paso = (set, v, min, max) => set(x => Math.max(min, Math.min(max, x + v)))
-  const btn = 'w-8 h-8 rounded-lg border border-gray-600 text-gray-200 hover:bg-gray-700 font-black'
+  const btn = 'w-8 h-8 rounded-lg border border-separador text-texto hover:bg-relleno-2 font-black'
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+    <div className="modo-oscuro fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onCerrar() }}>
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-          <h3 className="font-bold text-white text-sm flex items-center gap-2"><Dices size={16} className="text-red-500" /> Tirar dados</h3>
-          <button onClick={onCerrar} className="text-gray-400 hover:text-white"><X size={16} /></button>
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm shadow-hoja overflow-hidden">
+        <div className="px-4 py-3 border-b border-separador flex items-center justify-between">
+          <h3 className="font-bold text-white text-sm flex items-center gap-2"><Dices size={16} className="text-tinte" /> Tirar dados</h3>
+          <button onClick={onCerrar} aria-label="Cerrar" className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 hover:text-texto shrink-0 disabled:opacity-40"><X size={16} strokeWidth={2.4} /></button>
         </div>
         <div className="p-4 space-y-3">
           <div className="grid grid-cols-7 gap-1.5">
             {CARAS.map(c => (
               <button key={c} onClick={() => setCaras(c)}
                 className={`py-2 rounded-lg text-xs font-black border transition-colors ${caras === c
-                  ? 'bg-red-600 border-red-500 text-white' : 'border-gray-600 text-gray-300 hover:bg-gray-700'}`}>
+                  ? 'bg-acento border-acento text-white' : 'border-separador text-texto hover:bg-relleno-2'}`}>
                 d{c}
               </button>
             ))}
           </div>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-black uppercase text-gray-400 w-16">Cantidad</span>
+              <span className="text-[10px] font-black uppercase text-texto-2 w-16">Cantidad</span>
               <button className={btn} onClick={() => paso(setCantidad, -1, 1, 10)}>−</button>
               <span className="w-6 text-center text-white font-bold tabular-nums">{cantidad}</span>
               <button className={btn} onClick={() => paso(setCantidad, 1, 1, 10)}>+</button>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-black uppercase text-gray-400">Mod</span>
+              <span className="text-[10px] font-black uppercase text-texto-2">Mod</span>
               <button className={btn} onClick={() => paso(setMod, -1, -20, 30)}>−</button>
               <span className="w-8 text-center text-white font-bold tabular-nums">{mod > 0 ? `+${mod}` : mod}</span>
               <button className={btn} onClick={() => paso(setMod, 1, -20, 30)}>+</button>
@@ -170,25 +170,25 @@ function BandejaDados({ puedeOcultar, tirando, onCerrar, onTirar }) {
               {[[null, 'Normal'], ['ventaja', 'Ventaja'], ['desventaja', 'Desventaja']].map(([v, l]) => (
                 <button key={l} onClick={() => setModo(v)}
                   className={`py-1.5 rounded-lg text-xs font-bold border ${modo === v
-                    ? 'bg-amber-500 border-amber-400 text-gray-900' : 'border-gray-600 text-gray-300 hover:bg-gray-700'}`}>
+                    ? 'bg-acento border-tinte/60 text-texto' : 'border-separador text-texto hover:bg-relleno-2'}`}>
                   {l}
                 </button>
               ))}
             </div>
           )}
           <input value={motivo} onChange={e => setMotivo(e.target.value)} maxLength={40} placeholder="Motivo (opcional): Percepción, daño..."
-            className="w-full px-3 py-1.5 text-sm text-gray-100 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-400" />
+            className="w-full px-3 py-1.5 text-sm text-texto bg-superficie border border-separador rounded-lg focus:outline-none focus:ring-1 focus:ring-tinte/50" />
           {puedeOcultar && (
-            <label className="flex items-center gap-2 text-xs text-gray-300 select-none cursor-pointer">
+            <label className="flex items-center gap-2 text-xs text-texto select-none cursor-pointer">
               <input type="checkbox" checked={oculta} onChange={e => setOculta(e.target.checked)} className="accent-purple-500" />
               Tirada oculta (solo la ves tú, no va al registro)
             </label>
           )}
         </div>
-        <div className="px-4 py-3 border-t border-gray-700 flex items-center justify-between">
-          <span className="text-sm font-black text-gray-300">{armarNotacion({ cantidad, caras, mod })}{conModo && modo ? ` · ${modo}` : ''}</span>
+        <div className="px-4 py-3 border-t border-separador flex items-center justify-between">
+          <span className="text-sm font-black text-texto">{armarNotacion({ cantidad, caras, mod })}{conModo && modo ? ` · ${modo}` : ''}</span>
           <button onClick={tirar} disabled={tirando}
-            className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg">
+            className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-5 py-2 rounded-lg">
             <Dices size={15} /> Tirar
           </button>
         </div>

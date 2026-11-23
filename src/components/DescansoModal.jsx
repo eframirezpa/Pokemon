@@ -126,34 +126,34 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
   const elegibles = tipo === 'long' ? filas : filasCorto
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-2">
-          <h3 className="font-bold text-gray-900 flex items-center gap-2">
-            <BedDouble size={18} className="text-gray-500" />
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm shadow-hoja overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between gap-2">
+          <h3 className="font-bold text-texto flex items-center gap-2">
+            <BedDouble size={18} className="text-texto-2" />
             {titulo}
             {(paso === 'dados' || paso === 'tirada') && (
-              <span className="text-gray-500 font-normal truncate">· {nombreDe(uno)}</span>
+              <span className="text-texto-2 font-normal truncate">· {nombreDe(uno)}</span>
             )}
           </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 shrink-0"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Cerrar" className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 hover:text-texto shrink-0 disabled:opacity-40"><X size={16} strokeWidth={2.4} /></button>
         </div>
 
         <div className="px-5 py-4 overflow-y-auto">
           {!data && !error && (
-            <p className="text-sm text-gray-500 flex items-center gap-2"><PokeballSpinner size={15} /> Cargando…</p>
+            <p className="text-sm text-texto-2 flex items-center gap-2"><PokeballSpinner size={15} /> Cargando…</p>
           )}
 
           {/* Menú */}
           {paso === 'menu' && data && (
             <div className="space-y-2">
               <button onClick={() => empezar('long')}
-                className="w-full text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 rounded-lg transition-colors">
+                className="w-full text-sm font-bold text-white bg-acento hover:bg-acento-hover px-4 py-2.5 rounded-lg transition-colors">
                 Long rest
               </button>
               <button onClick={() => empezar('short')}
-                className="w-full text-sm font-bold text-gray-800 bg-gray-200 hover:bg-gray-300 px-4 py-2.5 rounded-lg transition-colors">
+                className="w-full text-sm font-bold text-texto bg-relleno-2 hover:bg-elevada px-4 py-2.5 rounded-lg transition-colors">
                 Short rest
               </button>
             </div>
@@ -162,14 +162,14 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
           {/* Visto bueno del DM */}
           {paso === 'confirma' && (
             <div className="space-y-4">
-              <p className="text-sm text-gray-800">
+              <p className="text-sm text-texto">
                 ¿El {tipo === 'long' ? 'long' : 'short'} rest se encuentra aprobado por el DM?
               </p>
               <div className="flex gap-2">
                 <button onClick={() => confirmarDM(true)}
-                  className="flex-1 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-colors">Sí</button>
+                  className="flex-1 text-sm font-bold text-white bg-acento hover:bg-acento-hover px-4 py-2 rounded-lg transition-colors">Sí</button>
                 <button onClick={() => confirmarDM(false)}
-                  className="flex-1 text-sm font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg transition-colors">No</button>
+                  className="flex-1 text-sm font-semibold text-texto bg-relleno-2 hover:bg-elevada px-4 py-2 rounded-lg transition-colors">No</button>
               </div>
             </div>
           )}
@@ -177,13 +177,13 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
           {/* Quiénes descansan */}
           {paso === 'elige' && data && (
             <div className="space-y-3">
-              <p className="text-sm font-semibold text-gray-800">
+              <p className="text-sm font-semibold text-texto">
                 {tipo === 'long' ? 'Quiénes tomarán el descanso largo' : 'Quién toma el descanso corto'}
               </p>
               <div className="space-y-1">
                 {elegibles.map(f => (
                   <label key={f.clave}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${f.caido ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 cursor-pointer'}`}>
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${f.caido ? 'opacity-50 cursor-not-allowed' : 'hover:bg-relleno cursor-pointer'}`}>
                     <input
                       type={tipo === 'long' ? 'checkbox' : 'radio'}
                       name="descansante"
@@ -192,13 +192,13 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
                       onChange={() => tipo === 'long' ? toggle(f.clave) : setUno(f.clave)}
                       className="shrink-0 accent-indigo-600 disabled:cursor-not-allowed" />
                     <span className="min-w-0">
-                      <span className="block text-sm text-gray-900 truncate">{f.nombre}</span>
-                      <span className={`block text-[11px] ${f.caido ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>{f.sub}</span>
+                      <span className="block text-sm text-texto truncate">{f.nombre}</span>
+                      <span className={`block text-[11px] ${f.caido ? 'text-peligro font-semibold' : 'text-texto-2'}`}>{f.sub}</span>
                     </span>
                   </label>
                 ))}
                 {tipo === 'short' && filasCorto.length === 0 && (
-                  <p className="text-xs text-gray-500 italic">Nadie conserva dados de golpe.</p>
+                  <p className="text-xs text-texto-2 italic">Nadie conserva dados de golpe.</p>
                 )}
               </div>
             </div>
@@ -207,19 +207,19 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
           {/* Corto: cuántos dados */}
           {paso === 'dados' && elegido && (
             <div className="space-y-3">
-              <p className="text-sm text-gray-800">¿Cuántos hit dice va a usar?</p>
+              <p className="text-sm text-texto">¿Cuántos hit dice va a usar?</p>
               <input type="number" min={1} max={elegido.dados} value={dados}
                 onChange={e => setDados(e.target.value.replace(/[^0-9]/g, ''))}
                 onBlur={() => setDados(String(nDados))}
-                className="w-full px-3 py-2 text-sm text-center text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
-              <p className="text-[11px] text-gray-500">Disponibles: {elegido.dados}</p>
+                className="w-full px-3 py-2 text-sm text-center text-texto border border-separador rounded-lg bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
+              <p className="text-[11px] text-texto-2">Disponibles: {elegido.dados}</p>
             </div>
           )}
 
           {/* Corto: la tirada */}
           {paso === 'tirada' && elegido && (
             <div className="space-y-3">
-              <p className="text-sm text-gray-800">
+              <p className="text-sm text-texto">
                 Lanza <span className="font-bold">{nDados}</span> {nDados === 1 ? 'dado' : 'dados'} de{' '}
                 <span className="font-bold">{elegido.hit_dice || `d${elegido.cara}`}</span>
               </p>
@@ -227,12 +227,12 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
                 <input type="number" min={nDados} max={maxTirada} value={tirada} autoFocus
                   onChange={e => setTirada(e.target.value)}
                   placeholder={`Entre ${nDados} y ${maxTirada}`}
-                  className="w-full px-3 py-2 text-sm text-center text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  className="w-full px-3 py-2 text-sm text-center text-texto border border-separador rounded-lg bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
                 {/* Solo los dados: el modificador de CON lo suma el servidor */}
                 <BotonDado notacion={`${nDados}d${elegido.cara || 6}`} usar="dado" etiqueta="Descanso corto"
                   onResultado={v => setTirada(String(v))} className="w-9 h-9" />
               </div>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[11px] text-texto-2">
                 Al resultado se le suma el modificador de CON por cada dado gastado.
                 Todo va a los puntos de golpe, sin pasar del máximo.
               </p>
@@ -241,18 +241,18 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
 
           {/* Resultado */}
           {paso === 'listo' && hecho && (
-            <div className="space-y-2 text-sm text-gray-800">
+            <div className="space-y-2 text-sm text-texto">
               {hecho.tipo === 'long' ? (
                 <>
                   <p>Descanso largo aplicado.</p>
-                  <ul className="text-[12px] text-gray-600 list-disc pl-5 space-y-0.5">
+                  <ul className="text-[12px] text-texto-2 list-disc pl-5 space-y-0.5">
                     {hecho.entrenador && <li>{data.entrenador.nombre} recuperado</li>}
                     {hecho.pokemons?.length > 0 && <li>{hecho.pokemons.length} Pokémon recuperados</li>}
                     {hecho.movimientos > 0 && <li>{hecho.movimientos} movimientos con sus PP al tope</li>}
                     {hecho.recursos > 0 && <li>{hecho.recursos} recursos de ruta al máximo</li>}
                   </ul>
                   {hecho.omitidos?.length > 0 && (
-                    <p className="text-[12px] text-red-600">
+                    <p className="text-[12px] text-tinte">
                       Sin puntos de vida, no descansaron: {hecho.omitidos.join(', ')}
                     </p>
                   )}
@@ -263,50 +263,50 @@ export default function DescansoModal({ personajeId, onClose, onDone }) {
                   {/* De dónde sale el número: la tirada y lo que puso el CON. Si
                       el modificador es 0 no se menciona, para no añadir ruido. */}
                   {hecho.mod_con != null && hecho.mod_con !== 0 && (
-                    <p className="text-[12px] text-gray-600">
+                    <p className="text-[12px] text-texto-2">
                       Tirada {hecho.tirada} {hecho.bono_con >= 0 ? '+' : '−'} {Math.abs(hecho.bono_con)} de CON
                       {' '}({hecho.mod_con >= 0 ? '+' : '−'}{Math.abs(hecho.mod_con)} por dado).
                     </p>
                   )}
-                  <p className="text-[12px] text-gray-600">Queda en {hecho.current_hp}/{hecho.max_hp} · {hecho.dados} dados sin usar.</p>
+                  <p className="text-[12px] text-texto-2">Queda en {hecho.current_hp}/{hecho.max_hp} · {hecho.dados} dados sin usar.</p>
                 </>
               )}
             </div>
           )}
 
-          {error && <p className="text-xs text-red-600 font-medium mt-3">{error}</p>}
+          {error && <p className="text-xs text-peligro font-medium mt-3">{error}</p>}
         </div>
 
         {/* Pie */}
         {paso !== 'confirma' && paso !== 'menu' && (
-          <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+          <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2">
             {paso === 'listo' ? (
               <button onClick={onClose}
-                className="text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-lg transition-colors">Cerrar</button>
+                className="text-sm font-bold text-white bg-acento hover:bg-acento-hover px-4 py-1.5 rounded-lg transition-colors">Cerrar</button>
             ) : (
               <>
-                <button onClick={onClose} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg">Cancelar</button>
+                <button onClick={onClose} className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg">Cancelar</button>
                 {paso === 'elige' && tipo === 'long' && (
                   <button onClick={enviarLargo} disabled={sel.length === 0 || enviando}
-                    className="text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
+                    className="text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
                     {enviando ? 'Aplicando…' : 'Confirmar'}
                   </button>
                 )}
                 {paso === 'elige' && tipo === 'short' && (
                   <button onClick={() => { setPaso('dados'); setDados('1') }} disabled={uno == null}
-                    className="text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
+                    className="text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
                     Confirmar
                   </button>
                 )}
                 {paso === 'dados' && (
                   <button onClick={() => { setDados(String(nDados)); setPaso('tirada'); setTirada('') }}
-                    className="text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-lg transition-colors">
+                    className="text-sm font-bold text-white bg-acento hover:bg-acento-hover px-4 py-1.5 rounded-lg transition-colors">
                     Continuar
                   </button>
                 )}
                 {paso === 'tirada' && (
                   <button onClick={enviarCorto} disabled={enviando || tirada === ''}
-                    className="text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
+                    className="text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
                     {enviando ? 'Aplicando…' : 'Confirmar'}
                   </button>
                 )}

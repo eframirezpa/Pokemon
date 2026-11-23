@@ -155,37 +155,38 @@ export default function MapaModal({
   }, [])
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between shrink-0">
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-4xl h-[85vh] flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-4 py-3 border-b border-separador flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <Globe size={18} className="text-amber-400 shrink-0" />
+            <Globe size={18} className="text-tinte shrink-0" />
             <h3 className="font-bold text-white text-sm truncate">{title}</h3>
-            <span className="text-[10px] font-bold text-gray-400 bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 shrink-0">
+            <span className="text-[10px] font-bold text-texto-2 bg-superficie border border-separador rounded px-1.5 py-0.5 shrink-0">
               {Math.round(zoom * 100)}%
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {editable && pin && (
               <button onClick={() => onPinChange?.(null)}
-                className="p-1.5 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-red-400" title="Quitar el pin">
+                className="p-1.5 rounded-lg text-texto hover:bg-relleno hover:text-tinte" title="Quitar el pin">
                 <Trash2 size={17} />
               </button>
             )}
             <button onClick={() => applyZoom(zoom - STEP)} disabled={zoom <= MIN_ZOOM}
-              className="p-1.5 rounded-lg text-gray-300 hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed" title="Alejar">
+              className="p-1.5 rounded-lg text-texto hover:bg-relleno disabled:opacity-30 disabled:cursor-not-allowed" title="Alejar">
               <ZoomOut size={17} />
             </button>
             <button onClick={() => applyZoom(zoom + STEP)} disabled={zoom >= MAX_ZOOM}
-              className="p-1.5 rounded-lg text-gray-300 hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed" title="Acercar">
+              className="p-1.5 rounded-lg text-texto hover:bg-relleno disabled:opacity-30 disabled:cursor-not-allowed" title="Acercar">
               <ZoomIn size={17} />
             </button>
-            <button onClick={reset} className="p-1.5 rounded-lg text-gray-300 hover:bg-gray-800" title="Ajustar a la ventana">
+            <button onClick={reset} className="p-1.5 rounded-lg text-texto hover:bg-relleno" title="Ajustar a la ventana">
               <Maximize2 size={17} />
             </button>
-            <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 ml-1" title="Cerrar">
-              <X size={18} />
+            <button onClick={onClose} aria-label="Cerrar" title="Cerrar"
+              className="ml-1 w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 hover:text-texto">
+              <X size={16} strokeWidth={2.4} />
             </button>
           </div>
         </div>
@@ -232,8 +233,8 @@ export default function MapaModal({
 
         {/* Alto fijo: el botón del nombre solo aparece cuando hay pin, y sin
             esto el pie crecía al poner el primero, encogiendo el mapa de golpe. */}
-        <div className="px-4 py-2 border-t border-gray-700 shrink-0 flex items-center justify-between gap-3 min-h-11">
-          <p className="text-[10px] text-gray-500 min-w-0 truncate">
+        <div className="px-4 py-2 border-t border-separador shrink-0 flex items-center justify-between gap-3 min-h-11">
+          <p className="text-[10px] text-texto-2 min-w-0 truncate">
             {editable
               ? 'Clic en el mapa para fijar o mover el pin de la party · rueda o doble clic para acercar · arrastra para desplazarte'
               : 'Rueda del mouse o doble clic para acercar · arrastra para desplazarte'}
@@ -247,12 +248,12 @@ export default function MapaModal({
                 onBlur={guardarLabel}
                 onKeyDown={e => { if (e.key === 'Enter') guardarLabel(); if (e.key === 'Escape') setEditandoLabel(false) }}
                 placeholder="Nombre del sitio"
-                className="shrink-0 w-44 px-2 py-1 text-xs text-white bg-gray-800 border border-gray-600 rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                className="shrink-0 w-44 px-2 py-1 text-xs text-white bg-superficie border border-separador rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-tinte/60" />
             ) : (
               <button onClick={() => { setLabelBorrador(pin.label || ''); setEditandoLabel(true) }}
-                className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-amber-300 hover:text-amber-200
-                           bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 transition-colors">
+                className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-tinte hover:opacity-75
+                           bg-superficie border border-separador rounded-lg px-2 py-1 transition-colors">
                 <MapPin size={12} /> {pin.label || 'Ponerle nombre'}
               </button>
             )

@@ -1,3 +1,4 @@
+import { textoSobreColor } from '../lib/partidaShared'
 import { X } from 'lucide-react'
 import { useState } from 'react'
 import FeatInfoModal from './FeatInfoModal'
@@ -9,33 +10,21 @@ const MOVE_TYPE_COLORS = {
   Dark:'#705848', Steel:'#B8B8D0', Fairy:'#EE99AC', Typeless:'#9CA3AF',
 }
 
-/* Estilos por tema: 'dark' (panel de combate) y 'pokedex' (pergamino claro) */
-const THEMES = {
-  dark: {
-    panel:        'bg-gray-800 border border-gray-700',
-    header:       'border-b border-gray-700',
-    title:        'text-white',
-    close:        'text-gray-400 hover:text-white',
-    factBox:      'bg-gray-700/50',
-    factLabel:    'text-gray-400',
-    factValue:    'text-white',
-    sectionLabel: 'text-gray-400',
-    text:         'text-gray-200',
-    subText:      'text-gray-400',
-  },
-  pokedex: {
-    panel:        'bg-[#FDF1DC] border-2 border-[#d4a96a]',
-    header:       'border-b-2 border-[#d4a96a]/60',
-    title:        'text-[#7A200D]',
-    close:        'text-[#7A200D]/60 hover:text-[#7A200D]',
-    factBox:      'bg-[#f5e6c8]',
-    factLabel:    'text-[#7A200D]',
-    factValue:    'text-gray-900',
-    sectionLabel: 'text-[#7A200D]',
-    text:         'text-gray-800',
-    subText:      'text-gray-500',
-  },
+/* Mismos colores en los dos temas: salen del modo (claro en la consulta,
+   oscuro en la sala). Se conserva `theme` para no tocar a quien lo pasa. */
+const ESTILO = {
+  panel:        'bg-fondo text-texto',
+  header:       'border-b border-separador',
+  title:        'text-texto',
+  close:        'w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 hover:text-texto',
+  factBox:      'bg-superficie',
+  factLabel:    'text-texto-2',
+  factValue:    'text-texto',
+  sectionLabel: 'text-tinte',
+  text:         'text-texto',
+  subText:      'text-texto-2',
 }
+const THEMES = { dark: ESTILO, pokedex: ESTILO }
 
 const hasVal = x => (x ?? '') !== ''
 
@@ -60,16 +49,16 @@ export default function MoveInfoModal({ m, onClose, theme = 'dark', attackBonos 
   const save = [m.move_save_attribute, has(m.move_save_dc) ? `DC ${m.move_save_dc}` : null].filter(Boolean).join(' · ')
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className={`rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden ${t.panel}`}>
+      <div className={`animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-md max-h-[85dvh] flex flex-col shadow-hoja overflow-hidden ${t.panel}`}>
         <div className={`px-4 py-3 flex items-center justify-between shrink-0 ${t.header}`}>
           <div className="flex items-center gap-2 min-w-0">
             <h3 className={`font-bold text-sm truncate ${t.title}`}>{m.move_name}</h3>
-            <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
-              style={{ backgroundColor: MOVE_TYPE_COLORS[m.move_type] || '#9CA3AF' }}>{m.move_type}</span>
+            <span className="text-[11px] font-bold rounded-full px-2 py-0.5 shrink-0"
+              style={{ backgroundColor: MOVE_TYPE_COLORS[m.move_type] || '#9CA3AF', color: textoSobreColor(MOVE_TYPE_COLORS[m.move_type] || '#9CA3AF') }}>{m.move_type}</span>
           </div>
-          <button onClick={onClose} className={`shrink-0 ml-2 ${t.close}`}><X size={18} /></button>
+          <button onClick={onClose} aria-label="Cerrar" className={`shrink-0 ml-2 ${t.close}`}><X size={16} strokeWidth={2.4} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">

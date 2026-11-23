@@ -1,22 +1,106 @@
 import { useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, User } from 'lucide-react'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { LogOut, User, PanelLeft, X, Home, Gamepad2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import AvatarSelector from './AvatarSelector'
+import { SECCIONES, enlaceActivo } from '../lib/navegacion'
 
-const ROLE_COLORS = {
-  master:     'bg-red-600',
-  trainer:    'bg-blue-600',
-  espectador: 'bg-gray-500',
+const ROLES = { master: 'Master', trainer: 'Entrenador', espectador: 'Espectador' }
+
+// Logo: pokébola blanca en un cuadro morado redondeado
+function Logo({ tamano = 28 }) {
+  return (
+    <span className="rounded-lg bg-acento text-white grid place-items-center shrink-0"
+      style={{ width: tamano, height: tamano }} aria-hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+        style={{ width: tamano * 0.62, height: tamano * 0.62 }}>
+        <circle cx="12" cy="12" r="9" /><path d="M3 12h6M15 12h6" /><circle cx="12" cy="12" r="3" />
+      </svg>
+    </span>
+  )
 }
 
-function PokeballIcon() {
+function Avatar({ user, tamano = 30 }) {
+  const src = user.role === 'master' ? '/avatars/chuckface.png' : user.avatar_face_url
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" fill="none" />
-      <path d="M2 12h20" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
-    </svg>
+    <span className="rounded-full overflow-hidden bg-relleno-2 grid place-items-center shrink-0"
+      style={{ width: tamano, height: tamano }}>
+      {src
+        ? <img src={src} alt="" className="w-full h-full object-cover" />
+        : <User size={tamano * 0.5} className="text-texto-2" />}
+    </span>
+  )
+}
+
+function EnlaceNav({ to, label, Icon, activo, onNavegar }) {
+  return (
+    <Link to={to} onClick={onNavegar} aria-current={activo ? 'page' : undefined}
+      className={`h-8 px-2 rounded-lg flex items-center gap-2 text-sm transition-colors ${
+        activo ? 'bg-acento text-white font-semibold' : 'text-texto hover:bg-relleno'}`}>
+      <Icon size={16} className={activo ? 'text-white' : 'text-tinte'} aria-hidden />
+      <span className="truncate">{label}</span>
+    </Link>
+  )
+}
+
+/* Barra lateral: marca, secciones de consulta, usuario y créditos. La misma
+   sirve fija en escritorio y como cajón en el celular. */
+function BarraLateral({ user, onNavegar, onCerrar = null, onAvatar, onSalir }) {
+  const location = useLocation()
+  const grupos = [
+    { titulo: null, enlaces: [{ to: '/', label: 'Inicio', Icon: Home }] },
+    ...(user ? [{ titulo: 'Jugar', enlaces: [{ to: `/dashboard/${user.role}`, label: 'Mis partidas', Icon: Gamepad2 }] }] : []),
+    ...SECCIONES,
+  ]
+
+  return (
+    <nav aria-label="Secciones" className="h-full w-full flex flex-col gap-4 px-2.5 pt-4 pb-3 overflow-y-auto">
+      <div className="flex items-center gap-2.5 px-2">
+        <Link to="/" onClick={onNavegar} className="flex items-center gap-2.5 flex-1 min-w-0">
+          <Logo />
+          <span className="text-[17px] font-bold tracking-[-.02em] truncate">Pokemon DnD</span>
+        </Link>
+        {onCerrar && (
+          <button type="button" onClick={onCerrar} aria-label="Cerrar el menú"
+            className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2">
+            <X size={16} strokeWidth={2.4} />
+          </button>
+        )}
+      </div>
+
+      {grupos.map((g, i) => (
+        <div key={g.titulo ?? i} className="flex flex-col gap-px">
+          {g.titulo && <small className="text-[11px] font-semibold text-texto-2 px-2 pb-1">{g.titulo}</small>}
+          {g.enlaces.map(e => (
+            <EnlaceNav key={e.to} {...e} onNavegar={onNavegar}
+              activo={e.to === '/' ? location.pathname === '/' : enlaceActivo(e.to, location)} />
+          ))}
+        </div>
+      ))}
+
+      <div className="mt-auto flex flex-col gap-3 pt-2">
+        {user && (
+          <div className="flex items-center gap-2 p-1.5 pl-2 rounded-xl bg-relleno">
+            <button type="button" onClick={onAvatar} disabled={user.role === 'master'}
+              title={user.role !== 'master' ? 'Cambiar avatar' : undefined}
+              className="flex items-center gap-2 flex-1 min-w-0 text-left disabled:cursor-default">
+              <Avatar user={user} />
+              <span className="min-w-0 leading-tight">
+                <span className="block text-[13px] font-semibold truncate">{user.user_name}</span>
+                <small className="block text-[11px] text-texto-2">{ROLES[user.role] ?? user.role}</small>
+              </span>
+            </button>
+            <button type="button" onClick={onSalir} aria-label="Cerrar sesión" title="Cerrar sesión"
+              className="w-[30px] h-[30px] rounded-full grid place-items-center text-texto-2 hover:bg-relleno-2 hover:text-peligro shrink-0">
+              <LogOut size={15} />
+            </button>
+          </div>
+        )}
+        <p className="text-[11px] leading-snug text-texto-2 px-2">
+          Creado por <span className="text-texto">Efrain Ramirez</span> &amp; <span className="text-texto">Gustavo Quintero</span>
+        </p>
+      </div>
+    </nav>
   )
 }
 
@@ -24,77 +108,65 @@ export default function Layout() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [showAvatarSelector, setShowAvatarSelector] = useState(false)
+  const [cajon, setCajon] = useState(false)
 
   const handleLogout = () => {
+    setCajon(false)
     logout()
     navigate('/')
   }
+  const abrirAvatar = () => {
+    if (user?.role === 'master') return
+    setCajon(false)
+    setShowAvatarSelector(true)
+  }
+
+  const props = { user, onAvatar: abrirAvatar, onSalir: handleLogout }
 
   return (
-    <div className="flex flex-col min-h-dvh bg-gray-50">
+    <div className="min-h-dvh bg-fondo text-texto lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
 
-      <header className="sticky top-0 z-20 bg-gray-900 shadow-md">
-        <div className="flex items-center justify-between px-4 lg:px-8 py-3">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-          >
-            <div className="w-7 h-7 bg-red-600 rounded-full flex items-center justify-center text-white">
-              <PokeballIcon />
-            </div>
-            <span className="font-bold text-white text-base">
-              Pokemon <span className="text-red-400">DnD</span>
-            </span>
+      {/* Escritorio: barra lateral fija */}
+      <aside className="hidden lg:flex sticky top-0 h-dvh self-start bg-lateral border-r border-separador">
+        <BarraLateral {...props} />
+      </aside>
+
+      {/* Celular: barra superior con el botón del menú */}
+      <div className="lg:hidden sticky top-0 z-30 h-14 px-4 flex items-center gap-3
+                      bg-fondo/85 backdrop-blur-xl backdrop-saturate-150 border-b border-separador">
+        <button type="button" onClick={() => setCajon(true)} aria-label="Abrir el menú" aria-expanded={cajon}
+          className="w-9 h-9 rounded-full bg-relleno grid place-items-center text-tinte">
+          <PanelLeft size={18} />
+        </button>
+        <Link to="/" className="flex-1 min-w-0 flex items-center gap-2">
+          <Logo tamano={24} />
+          <span className="text-[15px] font-bold tracking-[-.02em] truncate">Pokemon DnD</span>
+        </Link>
+        {user && (
+          <button type="button" onClick={() => setCajon(true)} aria-label="Mi cuenta"
+            className="rounded-full ring-1 ring-separador">
+            <Avatar user={user} tamano={34} />
           </button>
+        )}
+      </div>
 
-          {user && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => user.role !== 'master' && setShowAvatarSelector(true)}
-                className={`flex items-center gap-2 transition-opacity ${user.role !== 'master' ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}`}
-                title={user.role !== 'master' ? 'Cambiar avatar' : ''}
-              >
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 border-2 border-gray-600 hover:border-red-500 transition-colors">
-                  {user.role === 'master'
-                    ? <img src="/avatars/chuckface.png" alt="avatar" className="w-full h-full object-cover" />
-                    : user.avatar_face_url
-                      ? <img src={user.avatar_face_url} alt="avatar" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center"><User size={14} className="text-gray-300" /></div>
-                  }
-                </div>
-                <div className="hidden sm:block text-left">
-                  <p className="text-white text-xs font-medium leading-none">{user.user_name}</p>
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-white ${ROLE_COLORS[user.role] ?? 'bg-gray-500'}`}>
-                    {user.role}
-                  </span>
-                </div>
-              </button>
-
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 text-gray-400 hover:text-white text-xs
-                           px-2.5 py-1.5 rounded-lg hover:bg-gray-700/60 transition-all"
-              >
-                <LogOut size={14} />
-                <span className="hidden sm:inline">Salir</span>
-              </button>
-            </div>
-          )}
+      {cajon && (
+        <div className="lg:hidden fixed inset-0 z-50 bg-black/40 animate-velo"
+          onClick={e => { if (e.target === e.currentTarget) setCajon(false) }}>
+          <div className="animate-cajon absolute left-0 top-0 bottom-0 w-[286px] max-w-[85vw]
+                          bg-lateral rounded-r-hoja shadow-hoja overflow-hidden">
+            <BarraLateral {...props} onNavegar={() => setCajon(false)} onCerrar={() => setCajon(false)} />
+          </div>
         </div>
-      </header>
+      )}
 
-      <main className="flex-1">
+      <main className="min-w-0">
         <Outlet />
       </main>
-
-      <footer className="bg-gray-900 text-gray-400 text-center text-xs py-4">
-        Creado por <span className="text-gray-200">Efrain Ramirez</span> &amp; <span className="text-gray-200">Gustavo Quintero</span>
-      </footer>
 
       {showAvatarSelector && (
         <AvatarSelector onClose={() => setShowAvatarSelector(false)} />
       )}
-
     </div>
   )
 }

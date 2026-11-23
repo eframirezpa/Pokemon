@@ -1,39 +1,53 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, X, ChevronLeft, ChevronRight, Pencil, Plus } from 'lucide-react'
+import { Pencil, Plus, Package, ChevronRight } from 'lucide-react'
 import ItemDetailPanel from '../components/ItemDetailPanel'
+import ItemTypeBadge from '../components/pokedex/ItemTypeBadge'
 import { apiFetch } from '../api'
+import { ITEM_TYPES } from '../lib/tiposItem'
+import { textoSobreColor } from '../lib/partidaShared'
+import { CabeceraPagina, Buscador, Capsulas, Capsula, Paginacion, Pagina, Vacio } from '../components/ui/Pagina'
+import { CeldaEsqueleto } from '../components/ui/ListaAgrupada'
+import Boton from '../components/ui/Boton'
+import Hoja from '../components/ui/Hoja'
+import useEsEscritorio from '../hooks/useEsEscritorio'
 
 const LIMIT = 20
 
-const ITEM_TYPES = [
-  { value: 'berry',        label: 'Berry',            bg: '#78C850' },
-  { value: 'evolution',    label: 'Evolución',        bg: '#7038F8' },
-  { value: 'held item',    label: 'Objeto Equipado',  bg: '#6890F0' },
-  { value: 'medicine',     label: 'Medicina',         bg: '#F85888' },
-  { value: 'pokeball',     label: 'Pokéball',         bg: '#C03028' },
-  { value: 'trainer gear', label: 'Equipo',           bg: '#F08030' },
-  { value: 'Proyectil',    label: 'Proyectil',        bg: '#F8D030' },
-  { value: 'TM',           label: 'TM',               bg: '#1FA2B0' },
-]
-
-function TypeBadge({ type }) {
-  const t = ITEM_TYPES.find(x => x.value === type)
-  if (!t) return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-200 text-gray-700">{type}</span>
+/* Fila del catálogo: sprite, nombre, tipo, costo y (para el master) editar */
+function FilaItem({ item, activa, onClick, onEdit }) {
   return (
-    <span className="px-2 py-0.5 rounded-full text-xs font-bold"
-      style={{ backgroundColor: t.bg, color: '#fff' }}>
-      {t.label}
-    </span>
-  )
-}
-
-function SkeletonRow() {
-  return (
-    <tr className="border-b border-gray-100 animate-pulse">
-      <td className="py-3 px-4"><div className="h-3 bg-gray-200 rounded w-36" /></td>
-      <td className="py-3 px-3"><div className="h-3 bg-gray-200 rounded w-20" /></td>
-      <td className="py-3 px-3 hidden sm:table-cell"><div className="h-3 bg-gray-200 rounded w-16" /></td>
-    </tr>
+    <div className={`relative flex items-center transition-colors ${activa ? 'bg-tinte/10' : 'hover:bg-relleno'}
+                     before:absolute before:left-[62px] before:right-0 before:top-0 before:border-t before:border-separador first:before:hidden`}>
+      <button type="button" onClick={onClick} aria-current={activa ? 'true' : undefined}
+        className="flex-1 min-w-0 min-h-[52px] pl-3 pr-4 py-1.5 grid items-center gap-x-2.5 text-left
+                   grid-cols-[40px_minmax(0,1fr)_auto_14px] sm:grid-cols-[40px_minmax(0,5fr)_minmax(0,3fr)_88px_14px]
+                   focus-visible:outline-none focus-visible:bg-relleno">
+        <span className="w-10 h-10 grid place-items-center">
+          {item.item_media_sprite
+            ? <img src={item.item_media_sprite} alt="" loading="lazy" className="w-8 h-8 object-contain [image-rendering:pixelated]"
+                onError={e => { e.currentTarget.style.visibility = 'hidden' }} />
+            : <Package size={18} className="text-texto-2" aria-hidden />}
+        </span>
+        <span className="min-w-0 leading-tight">
+          <span className={`block font-semibold text-[15px] truncate ${activa ? 'text-tinte' : 'text-texto'}`}>{item.item_name}</span>
+          <small className="sm:hidden block text-xs text-texto-2 tabular-nums">
+            {item.item_cost != null ? `${item.item_cost.toLocaleString()} po` : '—'}
+          </small>
+        </span>
+        <span className="flex justify-end sm:justify-start"><ItemTypeBadge type={item.item_type} /></span>
+        <span className="hidden sm:block text-[13px] text-texto-2 tabular-nums text-right">
+          {item.item_cost != null ? `${item.item_cost.toLocaleString()} po` : '—'}
+        </span>
+        <ChevronRight size={14} className="text-texto-2 opacity-60" aria-hidden />
+      </button>
+      {onEdit && (
+        // Botón aparte: la fila entera abre el detalle
+        <button type="button" onClick={() => onEdit(item)} title={`Editar ${item.item_name}`} aria-label={`Editar ${item.item_name}`}
+          className="shrink-0 mr-2 w-9 h-9 rounded-full grid place-items-center text-tinte hover:bg-relleno-2 transition-colors">
+          <Pencil size={15} />
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -44,9 +58,12 @@ function SkeletonRow() {
  * (`onPick`) y el panel del máster en la partida, que además edita (`onEdit`) y
  * crea (`onAdd`). `refreshKey` es para esa última: al crear o editar un item,
  * el padre cambia el número y la lista se vuelve a pedir.
+ *
+ * `pagina`: se monta como pantalla de la app y crece con la ventana. Sin ella
+ * va dentro de una ventana de alto fijo y la lista se desplaza por dentro.
  */
 export default function ItemsList({ title = 'Items', onPick = null, excludeType = '',
-                                    onEdit = null, onAdd = null, refreshKey = 0 }) {
+                                    onEdit = null, onAdd = null, refreshKey = 0, pagina = false }) {
   const [items, setItems]               = useState([])
   const [total, setTotal]               = useState(0)
   const [loading, setLoading]           = useState(true)
@@ -55,6 +72,7 @@ export default function ItemsList({ title = 'Items', onPick = null, excludeType 
   const [selectedType, setSelectedType] = useState('')
   const [page, setPage]                 = useState(1)
   const [selectedId, setSelectedId]     = useState(null)
+  const esEscritorio = useEsEscritorio()
 
   const debounceRef = useRef(null)
 
@@ -87,192 +105,101 @@ export default function ItemsList({ title = 'Items', onPick = null, excludeType 
   const totalPages = Math.ceil(total / LIMIT)
   const fromItem   = total === 0 ? 0 : (page - 1) * LIMIT + 1
   const toItem     = Math.min(page * LIMIT, total)
-  const clearSearch = () => { setSearch(''); setPage(1) }
+  const cambiarBusqueda = (v) => { setSearch(v); if (!v) setPage(1) }
 
   /* ── cabecera + filtros ── */
   const Header = (
-    <div className="px-4 pt-5 pb-3 border-b border-gray-200 bg-white shrink-0">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold text-gray-900">{title}</h1>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {loading ? 'Cargando...' : `Mostrando ${fromItem}–${toItem} de ${total}`}
-            </p>
-          </div>
-          {onAdd && (
-            <button onClick={onAdd}
-              className="shrink-0 flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white
-                         text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors">
-              <Plus size={15} /> Agregar
-            </button>
-          )}
+    <CabeceraPagina titulo={title}
+      subtitulo={loading ? 'Cargando…' : `Mostrando ${fromItem}–${toItem} de ${total}`}
+      accion={
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {onAdd && <Boton tamano="md" onClick={onAdd} className="shrink-0"><Plus size={16} /> Agregar</Boton>}
+          <Buscador valor={search} onChange={cambiarBusqueda} placeholder="Buscar ítem" etiqueta="Buscar ítem" />
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar ítem..."
-            className="w-full pl-8 pr-7 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50
-                       focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent placeholder-gray-400" />
-          {search && (
-            <button onClick={clearSearch} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-              <X size={13} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Filtros por tipo */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        <button onClick={() => handleTypeSelect('')}
-          className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-            selectedType === '' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
-          Todos
-        </button>
+      }>
+      <Capsulas>
+        <Capsula activa={selectedType === ''} onClick={() => handleTypeSelect('')}>Todos</Capsula>
         {ITEM_TYPES.map(t => (
-          <button key={t.value} onClick={() => handleTypeSelect(t.value)}
-            className="shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-all"
-            style={{
-              backgroundColor: selectedType === t.value ? t.bg   : 'white',
-              color:           selectedType === t.value ? '#fff'  : '#4B5563',
-              borderColor:     selectedType === t.value ? t.bg    : '#E5E7EB',
-            }}>
+          <Capsula key={t.value} activa={selectedType === t.value} onClick={() => handleTypeSelect(t.value)}
+            color={t.bg} colorTexto={textoSobreColor(t.bg)}>
             {t.label}
-          </button>
+          </Capsula>
         ))}
+      </Capsulas>
+    </CabeceraPagina>
+  )
+
+  /* ── lista ── */
+  const Lista = loading
+    ? (
+      <div className="bg-superficie rounded-grupo overflow-hidden divide-y divide-separador">
+        {Array.from({ length: 10 }).map((_, i) => <CeldaEsqueleto key={i} conIcono />)}
       </div>
-    </div>
-  )
-
-  /* ── tabla ── */
-  const Table = (
-    <div className="flex-1 overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-          <tr className="text-left text-xs text-gray-500 uppercase tracking-wider">
-            <th className="py-3 px-4 font-medium">Nombre</th>
-            <th className="py-3 px-3 font-medium">Tipo</th>
-            <th className="py-3 px-3 font-medium hidden sm:table-cell">Costo</th>
-            {onEdit && <th className="py-3 px-3 font-medium w-10"><span className="sr-only">Editar</span></th>}
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-100">
-          {loading
-            ? Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)
-            : items.length === 0
-              ? (
-                <tr><td colSpan={onEdit ? 4 : 3} className="py-16 text-center text-gray-400">
-                  <div className="flex flex-col items-center gap-2">
-                    <span className="text-4xl">🎒</span>
-                    <span className="text-sm">No se encontraron ítems</span>
-                  </div>
-                </td></tr>
-              )
-              : items.map(item => {
-                const isSelected = item.item_id === selectedId
-                return (
-                  <tr key={item.item_id}
-                    onClick={() => onPick ? onPick(item) : setSelectedId(isSelected ? null : item.item_id)}
-                    className={`cursor-pointer transition-colors group ${
-                      isSelected ? 'bg-red-50 border-l-2 border-red-500' : 'hover:bg-gray-50'}`}>
-                    <td className="py-2 px-4">
-                      <span className={`font-semibold transition-colors ${isSelected ? 'text-red-700' : 'text-gray-800 group-hover:text-red-700'}`}>
-                        {item.item_name}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3">
-                      {item.item_type && <TypeBadge type={item.item_type} />}
-                    </td>
-                    <td className="py-2 px-3 hidden sm:table-cell text-gray-600 tabular-nums">
-                      {item.item_cost != null ? `${item.item_cost.toLocaleString()} po` : '—'}
-                    </td>
-                    {onEdit && (
-                      <td className="py-2 px-3">
-                        {/* stopPropagation: la fila entera abre el detalle */}
-                        <button onClick={e => { e.stopPropagation(); onEdit(item) }} title={`Editar ${item.item_name}`}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
-                          <Pencil size={15} />
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                )
-              })
-          }
-        </tbody>
-      </table>
-    </div>
-  )
-
-  /* ── paginación ── */
-  const Pagination = !loading && totalPages > 1 && (
-    <div className="px-4 py-3 border-t border-gray-200 bg-white flex items-center justify-between gap-2 shrink-0">
-      <span className="text-xs text-gray-500 hidden sm:block">
-        Pág. <span className="font-medium text-gray-800">{page}</span> / {totalPages}
-      </span>
-      <div className="flex items-center gap-1 mx-auto sm:mx-0">
-        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-          <ChevronLeft size={14} /> Ant.
-        </button>
-        <div className="flex gap-1">
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            let p
-            if (totalPages <= 5)             p = i + 1
-            else if (page <= 3)              p = i + 1
-            else if (page >= totalPages - 2) p = totalPages - 4 + i
-            else                             p = page - 2 + i
+    )
+    : items.length === 0
+      ? <Vacio titulo="No se encontraron ítems" detalle="Prueba con otro nombre o quita el filtro de tipo." />
+      : (
+        <div className="bg-superficie rounded-grupo overflow-hidden">
+          {items.map(item => {
+            const isSelected = item.item_id === selectedId
             return (
-              <button key={p} onClick={() => setPage(p)}
-                className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${p === page ? 'bg-red-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
-                {p}
-              </button>
+              <FilaItem key={item.item_id} item={item} activa={isSelected} onEdit={onEdit}
+                onClick={() => onPick ? onPick(item) : setSelectedId(isSelected ? null : item.item_id)} />
             )
           })}
         </div>
-        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-          Sig. <ChevronRight size={14} />
-        </button>
-      </div>
-    </div>
+      )
+
+  const Paginas = !loading && totalPages > 1 && (
+    <Paginacion pagina={page} total={totalPages} onCambiar={setPage} />
   )
 
-  return (
-    <>
-      {/* ── Desktop: panel izquierdo + lista derecha ── */}
-      <div className="hidden lg:flex h-full overflow-hidden">
-        {selectedId && (
-          <div className="w-[420px] shrink-0 border-r border-gray-200 flex flex-col overflow-hidden bg-white">
-            <ItemDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
+  const detalle = selectedId && <ItemDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
+
+  // Celular: el detalle sube en una hoja inferior
+  const hojaDetalle = selectedId && !esEscritorio && (
+    <Hoja onClose={() => setSelectedId(null)} sinRelleno alto="max-h-[90dvh]" z="z-[60]">
+      {detalle}
+    </Hoja>
+  )
+
+  if (pagina) {
+    return (
+      <Pagina className={selectedId && esEscritorio ? 'max-w-7xl' : ''}>
+        <div className="flex gap-5 items-start">
+          {selectedId && esEscritorio && (
+            <aside className="w-[400px] shrink-0 sticky top-6 max-h-[calc(100dvh-3rem)] flex flex-col overflow-hidden bg-superficie rounded-grupo [&>*]:min-h-0">
+              {detalle}
+            </aside>
+          )}
+          <div className="flex-1 min-w-0 flex flex-col gap-4">
+            {Header}
+            {Lista}
+            {Paginas}
           </div>
-        )}
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          {Header}
-          {Table}
-          {Pagination}
+        </div>
+        {hojaDetalle}
+      </Pagina>
+    )
+  }
+
+  // Dentro de una ventana de alto fijo: la lista se desplaza por dentro
+  return (
+    <div className="flex h-full overflow-hidden bg-fondo text-texto">
+      {selectedId && esEscritorio && (
+        <div className="w-[420px] shrink-0 border-r border-separador flex flex-col overflow-hidden bg-superficie">
+          {detalle}
+        </div>
+      )}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {/* pr-14: deja libre la X de cerrar que pone la ventana arriba a la derecha */}
+        <div className="shrink-0 px-4 pt-4 pb-3 pr-14">{Header}</div>
+        <div className="flex-1 overflow-auto px-4 pb-4 flex flex-col gap-3">
+          {Lista}
+          {Paginas}
         </div>
       </div>
-
-      {/* ── Móvil: lista + bottom sheet ── */}
-      <div className="lg:hidden flex flex-col h-full overflow-hidden">
-        {Header}
-        {Table}
-        {Pagination}
-        {selectedId && (
-          <div className="fixed inset-0 z-50 flex flex-col justify-end"
-            style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-            onClick={e => { if (e.target === e.currentTarget) setSelectedId(null) }}>
-            <div className="bg-white rounded-t-2xl flex flex-col overflow-hidden"
-              style={{ maxHeight: '90dvh' }}>
-              <div className="flex justify-center pt-3 pb-1 shrink-0">
-                <div className="w-10 h-1 bg-gray-300 rounded-full" />
-              </div>
-              <ItemDetailPanel id={selectedId} onClose={() => setSelectedId(null)} />
-            </div>
-          </div>
-        )}
-      </div>
-    </>
+      {hojaDetalle}
+    </div>
   )
 }

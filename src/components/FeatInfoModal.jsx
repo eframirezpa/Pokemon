@@ -4,24 +4,24 @@ import { ResolvedBonusBadges, ArmorProfBadges } from './featBonoBadges'
 /* Estilos por tema: 'light' (hoja del personaje) y 'dark' (panel del master) */
 const THEMES = {
   light: {
-    panel:        'bg-white border border-gray-200',
-    header:       'border-b border-gray-200',
-    title:        'text-gray-900',
-    close:        'text-gray-400 hover:text-gray-700',
-    chip:         'bg-red-100 text-red-700',
-    sectionLabel: 'text-red-700',
-    text:         'text-gray-700',
-    good:         'text-green-700',
+    panel:        'bg-fondo text-texto',
+    header:       'border-b border-separador',
+    title:        'text-texto',
+    close:        'w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2',
+    chip:         'bg-tinte/15 text-tinte',
+    sectionLabel: 'text-tinte',
+    text:         'text-texto',
+    good:         'text-ok',
   },
   dark: {
-    panel:        'bg-gray-800 border border-gray-700',
-    header:       'border-b border-gray-700',
+    panel:        'bg-superficie border border-separador',
+    header:       'border-b border-separador',
     title:        'text-white',
-    close:        'text-gray-400 hover:text-white',
-    chip:         'bg-gray-700 text-gray-200',
-    sectionLabel: 'text-amber-400/90',
-    text:         'text-gray-200',
-    good:         'text-green-400',
+    close:        'text-texto-2 hover:text-white',
+    chip:         'bg-elevada text-texto',
+    sectionLabel: 'text-tinte',
+    text:         'text-texto',
+    good:         'text-ok',
   },
 }
 
@@ -33,9 +33,9 @@ export default function FeatInfoModal({ feat, onClose, theme = 'light' }) {
   const t = THEMES[theme] ?? THEMES.light
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/40 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className={`rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden ${t.panel}`}>
+      <div className={`animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-md max-h-[85dvh] flex flex-col shadow-hoja overflow-hidden ${t.panel}`}>
         <div className={`px-4 py-3 flex items-center justify-between shrink-0 ${t.header}`}>
           <div className="flex items-center gap-2 min-w-0">
             <h3 className={`font-bold text-sm truncate ${t.title}`}>{feat.feat_name}</h3>

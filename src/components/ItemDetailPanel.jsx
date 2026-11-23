@@ -1,27 +1,12 @@
 import { useState, useEffect } from 'react'
-import { X, ExternalLink, Package } from 'lucide-react'
+import { X, Package } from 'lucide-react'
 import { apiFetch } from '../api'
+import { tipoItem } from '../lib/tiposItem'
+import ItemTypeBadge from './pokedex/ItemTypeBadge'
+import { ListaAgrupada } from './ui/ListaAgrupada'
+import { FilaDato } from './pokedex/FichaPokemon'
 
-const TYPE_COLORS = {
-  'berry':        { bg: '#78C850', text: '#fff', label: 'Berry'       },
-  'evolution':    { bg: '#7038F8', text: '#fff', label: 'Evolución'   },
-  'held item':    { bg: '#6890F0', text: '#fff', label: 'Objeto Equipado' },
-  'medicine':     { bg: '#F85888', text: '#fff', label: 'Medicina'    },
-  'pokeball':     { bg: '#C03028', text: '#fff', label: 'Pokéball'    },
-  'trainer gear': { bg: '#F08030', text: '#fff', label: 'Equipo'      },
-  'Proyectil':    { bg: '#F8D030', text: '#fff', label: 'Proyectil'   },
-  'TM':           { bg: '#1FA2B0', text: '#fff', label: 'TM'          },
-}
-
-function TypeBadge({ type }) {
-  const c = TYPE_COLORS[type] ?? { bg: '#888', text: '#fff', label: type }
-  return (
-    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold"
-      style={{ backgroundColor: c.bg, color: c.text }}>
-      {c.label}
-    </span>
-  )
-}
+// Detalle de un item al lado del catálogo (o en la hoja inferior del celular)
 
 export default function ItemDetailPanel({ id, onClose }) {
   const [item,    setItem]    = useState(null)
@@ -37,107 +22,68 @@ export default function ItemDetailPanel({ id, onClose }) {
       .finally(() => setLoading(false))
   }, [id])
 
+  const barra = (titulo, extra = null) => (
+    <div className="flex items-center gap-2 px-4 py-3 shrink-0 bg-superficie border-b border-separador">
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <span className="font-semibold text-[15px] text-texto truncate">{titulo}</span>
+        {extra}
+      </div>
+      <button type="button" onClick={onClose} title="Cerrar" aria-label="Cerrar"
+        className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 hover:text-texto transition-colors shrink-0">
+        <X size={16} strokeWidth={2.4} />
+      </button>
+    </div>
+  )
+
   /* ── loading ── */
   if (loading) return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shrink-0">
-        <div className="h-4 bg-gray-200 rounded w-32 animate-pulse" />
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1"><X size={18} /></button>
-      </div>
-      <div className="flex-1 flex items-center justify-center text-gray-400 text-sm animate-pulse">Cargando...</div>
+    <div className="flex flex-col h-full bg-fondo text-texto">
+      {barra(<span className="inline-block h-3.5 w-28 rounded bg-relleno animate-pulse align-middle" />)}
+      <div className="p-4"><div className="h-40 rounded-tarjeta bg-relleno animate-pulse" /></div>
     </div>
   )
 
   if (!item || item.error) return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shrink-0">
-        <span className="text-sm text-gray-500">No encontrado</span>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1"><X size={18} /></button>
-      </div>
+    <div className="flex flex-col h-full bg-fondo text-texto">
+      {barra('No encontrado')}
     </div>
   )
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-fondo text-texto">
+      {barra(item.item_name, <ItemTypeBadge type={item.item_type} />)}
 
-      {/* ── sticky header ── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shrink-0 sticky top-0 z-10">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-bold text-gray-900 truncate">{item.item_name}</span>
-          {item.item_type && <TypeBadge type={item.item_type} />}
-        </div>
-        <button onClick={onClose}
-          className="text-gray-400 hover:text-gray-700 p-1 transition-colors ml-2 shrink-0" title="Cerrar">
-          <X size={18} />
-        </button>
-      </div>
-
-      {/* ── scrollable content ── */}
-      <div className="flex-1 overflow-y-auto">
-
-        {/* Sprite */}
-        <div className="flex flex-col items-center gap-3 py-6 bg-gray-50 border-b border-gray-100">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 [&>*]:shrink-0">
+        {/* Sprite y nombre */}
+        <div className="bg-superficie rounded-tarjeta py-6 flex flex-col items-center gap-2">
           {item.item_media_sprite ? (
             <img src={item.item_media_sprite} alt={item.item_name}
-              className="w-24 h-24 object-contain"
-              onError={e => { e.target.style.display = 'none' }} />
+              className="w-24 h-24 object-contain [image-rendering:pixelated]"
+              onError={e => { e.currentTarget.style.display = 'none' }} />
           ) : (
-            <div className="w-24 h-24 flex items-center justify-center bg-gray-200 rounded-2xl">
-              <Package size={40} className="text-gray-400" />
+            <div className="w-24 h-24 grid place-items-center bg-relleno rounded-2xl">
+              <Package size={40} className="text-texto-2" aria-hidden />
             </div>
           )}
-          <span className="text-lg font-bold text-gray-900">{item.item_name}</span>
+          <span className="text-[22px] font-bold tracking-[-.02em] text-center px-4">{item.item_name}</span>
         </div>
 
-        <div className="px-4 py-4 space-y-4">
+        <ListaAgrupada>
+          {item.item_type && <FilaDato etiqueta="Tipo">{tipoItem(item.item_type)?.label ?? item.item_type}</FilaDato>}
+          {item.item_cost != null && <FilaDato etiqueta="Costo">{item.item_cost.toLocaleString()} po</FilaDato>}
+        </ListaAgrupada>
 
-          {/* Info grid */}
-          <div
-            className="rounded-lg overflow-hidden"
-            style={{ borderTop: '5px solid #9C6E1B', borderBottom: '5px solid #9C6E1B', backgroundColor: '#FDF1DC' }}
-          >
-            <div className="px-4 pt-3 pb-1">
-              <h2 className="text-lg font-black text-[#7A200D]">{item.item_name}</h2>
-              {item.item_type && (
-                <p className="text-xs text-gray-600 capitalize">{item.item_type}</p>
-              )}
-            </div>
-            <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
-            <div className="px-4 py-2 space-y-0.5 text-xs">
-              {item.item_cost != null && (
-                <p>
-                  <span className="font-bold text-[#7A200D]">Costo</span>{' '}
-                  {item.item_cost.toLocaleString()} po
-                </p>
-              )}
-              {item.item_type && (
-                <p>
-                  <span className="font-bold text-[#7A200D]">Tipo</span>{' '}
-                  <span className="capitalize">{TYPE_COLORS[item.item_type]?.label ?? item.item_type}</span>
-                </p>
-              )}
-            </div>
-          </div>
+        {item.item_description && (
+          <ListaAgrupada titulo="Descripción">
+            <p className="px-4 py-3 text-[14px] leading-relaxed text-texto">{item.item_description}</p>
+          </ListaAgrupada>
+        )}
 
-          {/* Description */}
-          {item.item_description && (
-            <div>
-              <h3 className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Descripción</h3>
-              <p className="text-sm text-gray-700 leading-relaxed border-l-2 border-amber-300 pl-3">
-                {item.item_description}
-              </p>
-            </div>
-          )}
-
-          {/* Notes */}
-          {item.item_notes && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <p className="text-xs font-bold text-amber-800 uppercase tracking-wide mb-1">Notas</p>
-              <p className="text-xs text-amber-900 leading-relaxed">{item.item_notes}</p>
-            </div>
-          )}
-
-        </div>
+        {item.item_notes && (
+          <ListaAgrupada titulo="Notas">
+            <p className="px-4 py-3 text-[14px] leading-relaxed text-texto-2">{item.item_notes}</p>
+          </ListaAgrupada>
+        )}
       </div>
     </div>
   )

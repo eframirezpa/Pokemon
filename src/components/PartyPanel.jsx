@@ -10,15 +10,15 @@ import NumerosFlotantes from './NumerosFlotantes'
 const hpPct   = (cur, max) => Math.max(0, Math.min(100, Math.round(((cur ?? max ?? 0) / (max || 1)) * 100)))
 const hpColor = pct => (pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444')
 // Mismo efecto que el Pokémon del master cuando le baja la vida
-const bleedClass = pct => (pct <= 20 ? 'animate-bleed-red' : pct <= 50 ? 'animate-bleed-yellow' : 'bg-gray-100')
+const bleedClass = pct => (pct <= 20 ? 'animate-bleed-red' : pct <= 50 ? 'animate-bleed-yellow' : 'bg-relleno')
 
 /* Cajitas de estado: EXH (neutro), DSTS (verde), DSTF (rojo) */
 function MiniStat({ label, value, tone }) {
   const cls = tone === 'green'
-    ? 'border-green-600 bg-green-100 text-green-700'
+    ? 'border-ok bg-ok/15 text-ok'
     : tone === 'red'
-      ? 'border-red-600 bg-red-100 text-red-700'
-      : 'border-gray-400 bg-white text-gray-900'
+      ? 'border-acento bg-tinte/15 text-tinte'
+      : 'border-texto-2/50 bg-superficie text-texto'
   return (
     <div className={`border rounded px-1 py-0.5 text-center leading-none ${cls}`}>
       <p className="text-[4px] font-black uppercase">{label}</p>
@@ -33,13 +33,13 @@ function HpBar({ cur, max, showNumbers = true }) {
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-1">
-        <span className="text-[5px] font-black text-amber-600">HP</span>
-        <div className="flex-1 h-[5px] bg-gray-300 rounded-full overflow-hidden border border-gray-400">
+        <span className="text-[5px] font-black text-aviso">HP</span>
+        <div className="flex-1 h-[5px] bg-elevada rounded-full overflow-hidden border border-texto-2/50">
           <div className="h-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: hpColor(pct) }} />
         </div>
       </div>
       {/* Los trainers ven la barra y su color, pero no los hit points */}
-      {showNumbers && <p className="text-right text-[5px] font-bold text-gray-700 leading-none mt-0.5">{c}/{max}</p>}
+      {showNumbers && <p className="text-right text-[5px] font-bold text-texto leading-none mt-0.5">{c}/{max}</p>}
     </div>
   )
 }
@@ -56,13 +56,13 @@ function PartyPokemon({ p, hideHp, onClick, enTurno = false }) {
     : (p.pokemon_media_sprite || p.pokemon_media_main)
   return (
     <div onClick={onClick} title={onClick ? 'Ver detalle del Pokémon' : undefined}
-      className={`relative flex items-center gap-[5px] border border-gray-700 rounded-[7px] p-[5px] shrink-0 w-[151px] ${bleedClass(pct)}
+      className={`relative flex items-center gap-[5px] border border-separador rounded-[7px] p-[5px] shrink-0 w-[151px] ${bleedClass(pct)}
         ${enTurno ? 'animate-turno-anillo' : ''}
-        ${onClick ? 'poke-hop cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
+        ${onClick ? 'poke-hop cursor-pointer hover:ring-2 hover:ring-tinte/60 transition-shadow' : ''}`}>
       <NumerosFlotantes valor={p.pokemon_current_hp} mostrarNumero={!hideHp} />
       <div className="flex flex-col items-center gap-[2px] shrink-0">
         {/* El fondo blanco va en el marco para que salte solo el sprite */}
-        <div className="w-[31px] h-[31px] bg-white rounded-[5px] border border-gray-300">
+        <div className="w-[31px] h-[31px] bg-superficie rounded-[5px] border border-separador">
           <img src={sprite} alt={p.pokemon_apodo}
             className="poke-hop-sprite w-full h-full object-contain"
             onError={e => { e.target.style.opacity = '0.2' }} />
@@ -70,7 +70,7 @@ function PartyPokemon({ p, hideHp, onClick, enTurno = false }) {
         <TerrenoPiso terreno={p.personaje_pokemon_terreno} width={31} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-gray-900 text-[7px] truncate">{p.pokemon_apodo}</p>
+        <p className="font-bold text-texto text-[7px] truncate">{p.pokemon_apodo}</p>
         <HpBar cur={p.pokemon_current_hp} max={p.pokemon_hp} showNumbers={!hideHp} />
         {/* Debajo de la barra: junto al nombre no cabía más con el sprite y
             los MiniStat al lado. */}
@@ -100,13 +100,13 @@ export function PlayerCard({ char: c, pres, invId, hideHp, onCharClick, onPokemo
   const turnoPokemon = suyo && turno.personaje_pokemon_id != null
   const turnoEntrenador = suyo && !turnoPokemon
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-[7px] p-[7px]">
+    <div className="bg-superficie border border-separador rounded-[7px] p-[7px]">
       <div className="flex items-stretch gap-[5px] overflow-x-auto p-1 -m-1">
         <div onClick={onCharClick ? () => onCharClick(c) : undefined}
           title={onCharClick ? 'Ver ficha del personaje' : undefined}
-          className={`relative flex items-center gap-[5px] rounded-[7px] p-[5px] border border-gray-700 shrink-0 w-[151px] ${bleedClass(pct)}
+          className={`relative flex items-center gap-[5px] rounded-[7px] p-[5px] border border-separador shrink-0 w-[151px] ${bleedClass(pct)}
             ${turnoEntrenador ? 'animate-turno-anillo' : ''}
-            ${onCharClick ? 'cursor-pointer hover:ring-2 hover:ring-amber-400 transition-shadow' : ''}`}>
+            ${onCharClick ? 'cursor-pointer hover:ring-2 hover:ring-tinte/60 transition-shadow' : ''}`}>
           <NumerosFlotantes valor={c.personaje_current_hp} mostrarNumero={!hideHp} />
           <div className="flex flex-col items-center gap-[2px] shrink-0">
           <div className="relative">
@@ -114,16 +114,16 @@ export function PlayerCard({ char: c, pres, invId, hideHp, onCharClick, onPokemo
                 overflow-hidden y se comería el resplandor, que es más
                 grande que el avatar a propósito. */}
             {c.personaje_inspirado && <AuraInspirado size={31} />}
-            <div className="relative w-[31px] h-[31px] rounded-full overflow-hidden border border-gray-300 bg-gray-200 flex items-center justify-center">
+            <div className="relative w-[31px] h-[31px] rounded-full overflow-hidden border border-separador bg-relleno-2 flex items-center justify-center">
               {pres?.avatar_face_url
                 ? <img src={pres.avatar_face_url} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
-                : <span className="text-[9px] font-black text-gray-600">{initials}</span>}
+                : <span className="text-[9px] font-black text-texto-2">{initials}</span>}
             </div>
           </div>
           <TerrenoPiso terreno={c.personaje_terreno} width={31} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-gray-900 text-[9px] truncate">{c.nombre_personaje || 'Sin nombre'}</p>
+            <p className="font-bold text-texto text-[9px] truncate">{c.nombre_personaje || 'Sin nombre'}</p>
             <HpBar cur={c.personaje_current_hp} max={c.personaje_hp} showNumbers={!hideHp} />
             {/* Debajo de la barra: junto al nombre no cabía más con el avatar
                 y los MiniStat al lado. */}
@@ -184,17 +184,17 @@ export default function PartyPanel({ partidaId, presentes, selfUserId, partyVers
   if (loading) return <LoadingOverlay label="Party" onClose={onClose} z="z-[70]" />
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="relative bg-gray-900 rounded-2xl w-full max-w-3xl max-h-[88vh] flex flex-col shadow-2xl overflow-hidden border border-gray-700">
-        <div className="px-5 py-3 border-b border-gray-700 flex items-center justify-between shrink-0">
+      <div className="relative bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-3xl max-h-[88vh] flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-5 py-3 border-b border-separador flex items-center justify-between shrink-0">
           <h3 className="font-black text-white text-lg flex items-center gap-2"><Users size={18} /> Party</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Cerrar" className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 hover:text-texto shrink-0 disabled:opacity-40"><X size={16} strokeWidth={2.4} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {visibles.length === 0 ? (
-            <p className="text-center text-gray-500 text-sm py-10">No hay otros jugadores conectados.</p>
+            <p className="text-center text-texto-2 text-sm py-10">No hay otros jugadores conectados.</p>
           ) : visibles.map(({ char: c, pres }) => {
             const key = String(c.id_personaje)
             const invId = key in invocados ? invocados[key] : pres.pokemon_invocado

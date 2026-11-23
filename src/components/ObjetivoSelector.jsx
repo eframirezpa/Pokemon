@@ -13,7 +13,7 @@ export default function ObjetivoSelector({ objetivos = [], valor = null, onChang
   const opciones = [...objetivos, OTRO_OBJETIVO]
   return (
     <div className="flex flex-wrap items-center justify-center gap-1.5">
-      <span className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${oscuro ? 'text-gray-500' : 'text-gray-600'}`}>
+      <span className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${oscuro ? 'text-texto-2' : 'text-texto-2'}`}>
         <Crosshair size={11} /> Objetivo
       </span>
       {opciones.map(o => {
@@ -21,13 +21,13 @@ export default function ObjetivoSelector({ objetivos = [], valor = null, onChang
         return (
           <button key={o.clave} type="button" onClick={() => onChange(o)}
             className={`flex items-center gap-1 rounded-lg pl-1 pr-2 py-0.5 text-[11px] font-bold transition-colors ${
-              activa ? 'bg-red-500/20 ring-1 ring-red-400 text-red-200' : 'bg-gray-700/60 text-gray-300 hover:bg-gray-700'}`}>
+              activa ? 'bg-red-500/20 ring-1 ring-tinte/50 text-peligro' : 'bg-superficie text-texto hover:bg-relleno-2'}`}>
             {o.sprite ? (
               <img src={o.sprite} alt=""
-                className={`w-5 h-5 ${o.tipo === 'npc' ? 'object-cover rounded-full bg-white' : 'object-contain'} ${o.hidden ? 'brightness-0 opacity-70' : ''}`}
+                className={`w-5 h-5 ${o.tipo === 'npc' ? 'object-cover rounded-full bg-superficie' : 'object-contain'} ${o.hidden ? 'brightness-0 opacity-70' : ''}`}
                 onError={e => { e.currentTarget.style.visibility = 'hidden' }} />
             ) : o.tipo !== 'otro' ? (
-              <span className="w-5 h-5 rounded-full bg-gray-600 text-gray-200 text-[10px] font-black flex items-center justify-center">?</span>
+              <span className="w-5 h-5 rounded-full bg-relleno-2 text-texto text-[10px] font-black flex items-center justify-center">?</span>
             ) : <span className="w-1" />}
             {o.nombre}
           </button>
@@ -40,14 +40,14 @@ export default function ObjetivoSelector({ objetivos = [], valor = null, onChang
 /** Ventana previa al lanzar un movimiento: solo pide el objetivo */
 export function ObjetivoModal({ titulo, objetivos = [], onElegir, onClose }) {
   return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-700">
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm shadow-hoja overflow-hidden">
+        <div className="px-4 py-3 border-b border-separador">
           <h4 className="font-bold text-white text-sm flex items-center gap-2">
-            <Crosshair size={15} className="text-red-400" /> ¿A quién atacas?
+            <Crosshair size={15} className="text-tinte" /> ¿A quién atacas?
           </h4>
-          {titulo && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{titulo}</p>}
+          {titulo && <p className="text-[11px] text-texto-2 mt-0.5 truncate">{titulo}</p>}
         </div>
         <div className="px-4 py-4">
           <ObjetivoSelector objetivos={objetivos} onChange={onElegir} />

@@ -138,19 +138,19 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
         onClick={() => interactivo && varias && setFilaSel(f.clave)}
         className={`flex items-center justify-center gap-0.5 flex-wrap rounded-xl transition-colors ${
           interactivo && varias ? `cursor-pointer px-1.5 py-1.5 ${
-            activa ? 'bg-sky-500/10 ring-1 ring-sky-500/50' : 'hover:bg-gray-700/40'}` : ''}`}>
+            activa ? 'bg-sky-500/10 ring-1 ring-sky-500/50' : 'hover:bg-superficie'}` : ''}`}>
 
         {/* Marca de la fila elegida, solo en el bloque interactivo con varias filas */}
         {interactivo && varias && (
           <span className={`shrink-0 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
-            activa ? 'border-sky-400 bg-sky-500/30' : 'border-gray-600'}`}>
+            activa ? 'border-sky-400 bg-sky-500/30' : 'border-separador'}`}>
             {activa && <Check size={10} className="text-sky-200" />}
           </span>
         )}
 
         {/* El nombre del power abre la fila; sin power no hay etiqueta */}
         {f.nombre && (
-          <span className="shrink-0 w-8 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+          <span className="shrink-0 w-8 text-[10px] font-black text-texto-2 uppercase tracking-wide">
             {f.nombre}
           </span>
         )}
@@ -162,13 +162,13 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
           <div className={`relative w-11 h-9 rounded-xl border-2 flex items-center justify-center
                            font-black text-base tabular-nums transition-all ${
             critico
-              ? 'bg-amber-500/20 border-amber-400 text-amber-200 shadow-[0_0_20px_rgba(251,191,36,0.7)]'
-              : 'bg-gray-900/60 border-gray-600 text-white'}`}>
+              ? 'bg-tinte/15 border-tinte/60 text-tinte shadow-[0_0_20px_rgba(251,191,36,0.7)]'
+              : 'bg-superficie border-separador text-white'}`}>
             {total}
           </div>
         </div>
 
-        <span className="text-gray-500 font-black shrink-0 text-xs">=</span>
+        <span className="text-texto-2 font-black shrink-0 text-xs">=</span>
 
         <div className="flex items-center gap-0.5 flex-wrap justify-center">
           {d20 && (
@@ -177,10 +177,10 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
                 onClick={e => e.stopPropagation()}
                 onChange={e => setDado(f.clave, e.target.value)}
                 placeholder="1d20"
-                className={`shrink-0 w-11 h-9 text-center rounded-xl border-2 bg-gray-900/60 font-black tabular-nums
-                            text-white placeholder:text-gray-500 placeholder:font-bold placeholder:text-xs
-                            focus:outline-none focus:ring-2 focus:ring-amber-400/60 transition-colors ${
-                  critico ? 'border-amber-400' : 'border-gray-600'}`} />
+                className={`shrink-0 w-11 h-9 text-center rounded-xl border-2 bg-superficie font-black tabular-nums
+                            text-white placeholder:text-texto-2 placeholder:font-bold placeholder:text-xs
+                            focus:outline-none focus:ring-2 focus:ring-tinte/60 transition-colors ${
+                  critico ? 'border-tinte/60' : 'border-separador'}`} />
               {/* Tira el d20 de esta fila (el clic también la deja elegida);
                   entrega solo el dado, la fórmula suma el resto */}
               <BotonDado notacion="1d20" usar="dado" className="w-9 h-9 rounded-xl"
@@ -196,7 +196,7 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
             </span>
           )}
 
-          <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
+          <span className="text-texto-2 font-black shrink-0 text-xs">+</span>
 
           {/* PROF: fija, sale del Pokémon */}
           <span className="shrink-0 h-9 min-w-[2rem] px-0.5 rounded-xl border-2 border-emerald-500/60
@@ -205,7 +205,7 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
             {signo(profN)}
           </span>
 
-          <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
+          <span className="text-texto-2 font-black shrink-0 text-xs">+</span>
 
           {/* En ANY la característica la elige el jugador. Solo se puede elegir
               desde el bloque interactivo; el otro bloque solo muestra el
@@ -220,9 +220,9 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
                   if (varias) setFilaSel(f.clave)
                 }}
                 title="Elige la característica del ataque"
-                className={`shrink-0 h-9 px-0.5 rounded-xl border-2 bg-gray-900/60 text-[9px] font-black
+                className={`shrink-0 h-9 px-0.5 rounded-xl border-2 bg-superficie text-[9px] font-black
                             focus:outline-none focus:ring-2 focus:ring-sky-400/50 transition-colors ${
-                  elegidas[f.clave] ? 'border-sky-500/60 text-sky-200' : 'border-dashed border-gray-600 text-gray-300'}`}>
+                  elegidas[f.clave] ? 'border-sky-500/60 text-sky-200' : 'border-dashed border-separador text-texto'}`}>
                 <option value="">Elegir</option>
                 {CARACTERISTICAS.map(k => (
                   <option key={k} value={k}>{k} {signo(modDe(k))}</option>
@@ -231,7 +231,7 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
             ) : (
               <span className={`shrink-0 h-9 min-w-[2rem] px-0.5 rounded-xl border-2 border-sky-500/60
                                 bg-sky-500/15 font-black tabular-nums flex items-center justify-center ${
-                  modDeFila(f) < 0 ? 'text-red-300' : 'text-sky-200'}`}
+                  modDeFila(f) < 0 ? 'text-tinte' : 'text-sky-200'}`}
                 title={elegidas[f.clave] ? `Modificador de ${elegidas[f.clave]}` : 'Aún sin elegir arriba'}>
                 {elegidas[f.clave] ? signo(modDeFila(f)) : '—'}
               </span>
@@ -239,13 +239,13 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
           ) : (
             <span className={`shrink-0 h-9 min-w-[2rem] px-0.5 rounded-xl border-2 border-sky-500/60
                               bg-sky-500/15 font-black tabular-nums flex items-center justify-center ${
-                modDeFila(f) < 0 ? 'text-red-300' : 'text-sky-200'}`}
+                modDeFila(f) < 0 ? 'text-tinte' : 'text-sky-200'}`}
               title={f.nombre ? `Modificador de ${f.nombre}` : 'El movimiento no ataca con ninguna característica'}>
               {signo(modDeFila(f))}
             </span>
           )}
 
-          <span className="text-gray-500 font-black shrink-0 text-xs">+</span>
+          <span className="text-texto-2 font-black shrink-0 text-xs">+</span>
 
           <input type="number" value={bonusDe(f.clave)}
             onClick={e => e.stopPropagation()}
@@ -253,9 +253,9 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
             title={bonoRuta.detalle.length
               ? bonoRuta.detalle.map(d => `Nv ${d.nivel} ${d.nombre}: ${d.valor >= 0 ? '+' : ''}${d.valor}`).join(' · ')
               : 'Bonus adicional'}
-            className={`shrink-0 w-11 h-9 text-center rounded-xl border-2 bg-gray-900/60 font-black tabular-nums
+            className={`shrink-0 w-11 h-9 text-center rounded-xl border-2 bg-superficie font-black tabular-nums
                         text-white focus:outline-none focus:ring-2 focus:ring-violet-400/60 transition-colors ${
-              bonoRuta.total ? 'border-violet-500/60' : 'border-gray-600'}`} />
+              bonoRuta.total ? 'border-violet-500/60' : 'border-separador'}`} />
         </div>
       </div>
     )
@@ -265,21 +265,21 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
     <div className="fixed inset-0 z-[130] flex items-center justify-center p-4"
       style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-md shadow-hoja overflow-hidden">
 
-        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between gap-2">
+        <div className="px-4 py-3 border-b border-separador flex items-center justify-between gap-2">
           <h4 className="font-bold text-white text-sm flex items-center gap-2 min-w-0">
-            <Sword size={15} className="text-amber-400 shrink-0" /> Formula
+            <Sword size={15} className="text-tinte shrink-0" /> Formula
           </h4>
-          <button onClick={onClose} className="text-gray-400 hover:text-white shrink-0"><X size={16} /></button>
+          <button onClick={onClose} className="text-texto-2 hover:text-white shrink-0"><X size={16} /></button>
         </div>
 
         <div className="px-4 py-4">
           {/* Lo que la app no resuelve sola (varios ataques...): a hablarlo con el DM */}
           {requerimientosEspeciales(move).length > 0 && (
-            <div className="mb-3 flex gap-2.5 rounded-xl bg-amber-500/10 border border-amber-500/40 px-3 py-2.5">
-              <AlertTriangle size={17} className="text-amber-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-100 leading-relaxed">
+            <div className="mb-3 flex gap-2.5 rounded-xl bg-tinte/10 border border-tinte/40 px-3 py-2.5">
+              <AlertTriangle size={17} className="text-tinte shrink-0 mt-0.5" />
+              <div className="text-xs text-tinte leading-relaxed">
                 <p className="font-bold">Este movimiento tiene estos requerimientos especiales</p>
                 <ul className="mt-0.5">
                   {requerimientosEspeciales(move).map(a => <li key={a}>* {a}</li>)}
@@ -288,39 +288,39 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
             </div>
           )}
           {move?.move_name && (
-            <p className="text-center text-[11px] text-gray-400 truncate mb-3">{move.move_name}</p>
+            <p className="text-center text-[11px] text-texto-2 truncate mb-3">{move.move_name}</p>
           )}
 
           {/* ── Bloque Attack: solo si move_attack_scope trae información ── */}
           {tieneAtaque && (
             <div>
               <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-2 font-black">
-                <span className="text-gray-300 text-sm">Attack</span>
-                <span className="text-gray-500 text-sm">=</span>
-                <span className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/40 rounded-md px-2 py-1">
+                <span className="text-texto text-sm">Attack</span>
+                <span className="text-texto-2 text-sm">=</span>
+                <span className="text-[11px] text-tinte bg-tinte/10 border border-tinte/40 rounded-md px-2 py-1">
                   1d20
                 </span>
-                <span className="text-gray-500 text-sm">+</span>
+                <span className="text-texto-2 text-sm">+</span>
                 <span className="text-[11px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/40 rounded-md px-2 py-1">
                   PROF
                 </span>
-                <span className="text-gray-500 text-sm">+</span>
+                <span className="text-texto-2 text-sm">+</span>
                 <span className="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/40 rounded-md px-2 py-1">
                   Power Mod
                 </span>
-                <span className="text-gray-500 text-sm">+</span>
+                <span className="text-texto-2 text-sm">+</span>
                 <span className="text-[11px] text-violet-300 bg-violet-500/10 border border-violet-500/40 rounded-md px-2 py-1">
                   Bonus
                 </span>
               </div>
 
               {varias && (
-                <p className="mt-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                <p className="mt-3 text-center text-[10px] font-bold text-texto-2 uppercase tracking-widest">
                   Elige con cuál atacas
                 </p>
               )}
 
-              <div className="mt-3 border-t border-gray-700 pt-3 space-y-2">
+              <div className="mt-3 border-t border-separador pt-3 space-y-2">
                 {filas.map(f => pintarFila(f, {
                   d20: true, interactivo: seleccionEnAtaque,
                   total: totalAtaqueDeFila(f), colorBase: '',
@@ -328,7 +328,7 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
               </div>
 
               {tiradaPuesta && Number(dados[sel.clave]) === 20 && (
-                <p className="mt-2 text-center text-[10px] font-black uppercase tracking-widest text-amber-300">
+                <p className="mt-2 text-center text-[10px] font-black uppercase tracking-widest text-tinte">
                   ¡Golpe crítico!
                 </p>
               )}
@@ -337,42 +337,42 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
 
           {/* ── Bloque Move DC: solo si move_save_attribute trae información ── */}
           {tieneDC && (
-            <div className={tieneAtaque ? 'mt-4 border-t border-gray-700 pt-4' : ''}>
+            <div className={tieneAtaque ? 'mt-4 border-t border-separador pt-4' : ''}>
               <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-2 font-black">
-                <span className="text-gray-300 text-sm">Move DC</span>
-                <span className="text-gray-500 text-sm">=</span>
+                <span className="text-texto text-sm">Move DC</span>
+                <span className="text-texto-2 text-sm">=</span>
                 <span className="text-[11px] text-rose-300 bg-rose-500/10 border border-rose-500/40 rounded-md px-2 py-1">
                   8
                 </span>
-                <span className="text-gray-500 text-sm">+</span>
+                <span className="text-texto-2 text-sm">+</span>
                 <span className="text-[11px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/40 rounded-md px-2 py-1">
                   PROF
                 </span>
-                <span className="text-gray-500 text-sm">+</span>
+                <span className="text-texto-2 text-sm">+</span>
                 <span className="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/40 rounded-md px-2 py-1">
                   Power Mod
                 </span>
-                <span className="text-gray-500 text-sm">+</span>
+                <span className="text-texto-2 text-sm">+</span>
                 <span className="text-[11px] text-violet-300 bg-violet-500/10 border border-violet-500/40 rounded-md px-2 py-1">
                   Bonus
                 </span>
                 {/* Informativo: qué tirada hace el OBJETIVO para resistirla. No
                     entra en la cuenta, es la que ya trae move_save_attribute. */}
                 {move?.move_save_attribute && (
-                  <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-gray-400
-                                   bg-gray-700/60 border border-gray-600 rounded-full px-2 py-0.5">
+                  <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-texto-2
+                                   bg-superficie border border-separador rounded-full px-2 py-0.5">
                     <Shield size={10} /> Salva {move.move_save_attribute}
                   </span>
                 )}
               </div>
 
               {!seleccionEnAtaque && varias && (
-                <p className="mt-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                <p className="mt-3 text-center text-[10px] font-bold text-texto-2 uppercase tracking-widest">
                   Elige con cuál se calcula
                 </p>
               )}
 
-              <div className="mt-3 border-t border-gray-700 pt-3 space-y-2">
+              <div className="mt-3 border-t border-separador pt-3 space-y-2">
                 {(seleccionEnAtaque ? [sel] : filas).map(f => pintarFila(f, {
                   d20: false, interactivo: !seleccionEnAtaque,
                   total: totalDCDeFila(f), colorBase: 'bg-rose-500/15 border-rose-500/60 text-rose-200',
@@ -388,7 +388,7 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
               : 'Continuar a los PP'}
             className="mt-4 w-full flex items-center justify-center gap-1.5 h-10 rounded-xl
                        text-xs font-black uppercase tracking-widest text-white transition-colors
-                       bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                       bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed">
             <Sword size={14} /> Atacar
           </button>
         </div>

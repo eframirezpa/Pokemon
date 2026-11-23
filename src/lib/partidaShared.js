@@ -16,6 +16,20 @@ export const TYPE_COLORS = {
   Dark:{bg:'#705848',dark:false}, Steel:{bg:'#B8B8D0',dark:true}, Fairy:{bg:'#EE99AC',dark:true},
 }
 
+// Color del texto que se lee mejor sobre un fondo dado (para las etiquetas de
+// tipo): casi negro sobre los tipos claros y blanco sobre los oscuros. Se
+// decide por contraste (luminancia WCAG), no a mano, para que valga también
+// con colores nuevos.
+const lumCanal = v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4 }
+export function textoSobreColor(hex) {
+  const h = String(hex || '').replace('#', '')
+  if (!/^[0-9a-f]{6}$/i.test(h)) return '#FFFFFF'
+  const [r, g, b] = [0, 2, 4].map(i => lumCanal(parseInt(h.slice(i, i + 2), 16)))
+  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b
+  // Contraste contra blanco (L=1) y contra #1C1C1E (L≈0.0118)
+  return (1.05 / (L + 0.05)) >= ((L + 0.05) / 0.0618) ? '#FFFFFF' : '#1C1C1E'
+}
+
 // Experiencia que da un Pokémon al atraparlo: 200 x nivel x SR.
 //
 // El SR viene de la especie como texto y puede ser una fracción ('1/2', '1/8'),

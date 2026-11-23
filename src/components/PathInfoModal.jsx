@@ -18,20 +18,20 @@ export default function PathInfoModal({ path, nivel = 1, otorgados = [], onClose
   }
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center sm:p-4 bg-black/40 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+      <div className="animate-hoja bg-fondo text-texto rounded-t-hoja sm:rounded-hoja w-full max-w-lg max-h-[88dvh] flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between shrink-0">
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Trainer Path</p>
-            <h3 className="font-bold text-gray-900 truncate">{path.path_name}</h3>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-texto-2">Trainer Path</p>
+            <h3 className="font-bold text-texto truncate">{path.path_name}</h3>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 shrink-0"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Cerrar" className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 shrink-0"><X size={16} strokeWidth={2.4} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {path.path_full_description && (
-            <p className="text-xs text-gray-600 leading-relaxed">{path.path_full_description}</p>
+            <p className="text-xs text-texto-2 leading-relaxed">{path.path_full_description}</p>
           )}
 
           {NIVELES.map(n => {
@@ -42,17 +42,17 @@ export default function PathInfoModal({ path, nivel = 1, otorgados = [], onClose
             const mios = porNivel.get(n) || []
             return (
               <div key={n} className={`border rounded-xl px-3 py-2.5 ${
-                adquirido ? 'border-green-200 bg-green-50/40' : 'border-gray-200 bg-gray-50/60'}`}>
+                adquirido ? 'border-ok/30 bg-ok/10' : 'border-separador bg-superficie'}`}>
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   <span className={`text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0 ${
-                    adquirido ? 'bg-green-600' : 'bg-gray-400'}`}>Nivel {n}</span>
-                  <span className={`text-xs font-bold ${adquirido ? 'text-gray-800' : 'text-gray-500'}`}>{nombre}</span>
+                    adquirido ? 'bg-ok' : 'bg-texto-2'}`}>Nivel {n}</span>
+                  <span className={`text-xs font-bold ${adquirido ? 'text-texto' : 'text-texto-2'}`}>{nombre}</span>
                   {adquirido
-                    ? <span className="flex items-center gap-0.5 text-[10px] font-bold text-green-700"><Check size={11} /> Adquirido</span>
-                    : <span className="flex items-center gap-0.5 text-[10px] font-bold text-gray-400"><Lock size={10} /> Pendiente</span>}
+                    ? <span className="flex items-center gap-0.5 text-[10px] font-bold text-ok"><Check size={11} /> Adquirido</span>
+                    : <span className="flex items-center gap-0.5 text-[10px] font-bold text-texto-2"><Lock size={10} /> Pendiente</span>}
                 </div>
                 {descr && (
-                  <p className={`text-xs leading-relaxed ${adquirido ? 'text-gray-600' : 'text-gray-400'}`}>{descr}</p>
+                  <p className={`text-xs leading-relaxed ${adquirido ? 'text-texto-2' : 'text-texto-2'}`}>{descr}</p>
                 )}
 
                 {/* Lo que el personaje tiene registrado de este nivel */}
@@ -63,7 +63,7 @@ export default function PathInfoModal({ path, nivel = 1, otorgados = [], onClose
                         className={`text-[10px] font-bold rounded px-1.5 py-0.5 border ${
                           (b.value || '').toLowerCase() === 'expert'
                             ? 'text-blue-700 bg-blue-50 border-blue-200'
-                            : 'text-green-700 bg-green-50 border-green-200'}`}>
+                            : 'text-ok bg-ok/10 border-ok/30'}`}>
                         {b.llave}{(b.value || '').toLowerCase() === 'expert' ? ' exp' : ''}
                         {(b.target || '') === 'all_pokemon' && <span className="font-normal"> (Pokémon)</span>}
                       </span>
@@ -79,10 +79,10 @@ export default function PathInfoModal({ path, nivel = 1, otorgados = [], onClose
                       return (
                         <span key={b.id} title={d.detalle || b.notes || undefined}
                           className={`text-[10px] font-semibold rounded-md px-1.5 py-0.5 border ${
-                            adquirido ? 'text-gray-700 bg-white border-gray-300' : 'text-gray-400 bg-white border-gray-200'}`}>
+                            adquirido ? 'text-texto bg-superficie border-separador' : 'text-texto-2 bg-superficie border-separador'}`}>
                           {d.texto}
                           {d.target && d.target !== 'trainer' && (
-                            <span className="font-normal text-gray-400"> · {TARGET_BONO[d.target] || d.target}</span>
+                            <span className="font-normal text-texto-2"> · {TARGET_BONO[d.target] || d.target}</span>
                           )}
                         </span>
                       )
@@ -94,8 +94,8 @@ export default function PathInfoModal({ path, nivel = 1, otorgados = [], onClose
           })}
 
           {path.path_notes && (
-            <p className="text-xs text-gray-500 italic">
-              <span className="font-semibold not-italic text-gray-700">Notas: </span>{path.path_notes}
+            <p className="text-xs text-texto-2 italic">
+              <span className="font-semibold not-italic text-texto">Notas: </span>{path.path_notes}
             </p>
           )}
         </div>

@@ -73,24 +73,24 @@ export function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, co
   return (
     <div className="shrink-0 px-4 pt-3">
       <button onClick={toggle}
-        className="w-full flex items-center justify-between gap-1.5 py-2 bg-gray-800 hover:bg-gray-700
-                   border border-gray-700 text-gray-200 text-xs font-semibold rounded-xl transition-colors">
+        className="w-full flex items-center justify-between gap-1.5 py-2 bg-superficie hover:bg-relleno-2
+                   border border-separador text-texto text-xs font-semibold rounded-xl transition-colors">
         <span>Eventos</span>
         <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {asking && !unlocked && (
-        <div className="mt-2 bg-gray-800 border border-gray-700 rounded-xl p-3">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Contraseña</p>
+        <div className="mt-2 bg-superficie border border-separador rounded-xl p-3">
+          <p className="text-[10px] font-bold text-texto-2 uppercase tracking-widest mb-2">Contraseña</p>
           <div className="flex items-center gap-2">
             <input type="password" value={pwd} autoFocus
               onChange={e => { setPwd(e.target.value); setErr(false) }}
               onKeyDown={e => { if (e.key === 'Enter') submit() }}
               placeholder="Contraseña"
-              className="flex-1 bg-gray-700 text-white text-sm rounded-lg px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/50" />
-            <button onClick={submit} className="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shrink-0">Entrar</button>
+              className="flex-1 bg-elevada text-white text-sm rounded-lg px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/50" />
+            <button onClick={submit} className="bg-ok hover:brightness-110 text-white text-xs font-semibold px-3 py-2 rounded-lg shrink-0">Entrar</button>
           </div>
-          {err && <p className="text-[11px] text-red-400 mt-1">Contraseña incorrecta</p>}
+          {err && <p className="text-[11px] text-tinte mt-1">Contraseña incorrecta</p>}
         </div>
       )}
 
@@ -99,7 +99,7 @@ export function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, co
           <div className="mt-2 grid grid-cols-3 gap-2">
             {EVENTOS.map(ev => (
               <button key={ev.url} onClick={() => handleEvento(ev)}
-                className="py-2 bg-gray-700 hover:bg-red-600 border border-gray-600 text-gray-200 text-xs font-semibold rounded-xl transition-colors">
+                className="py-2 bg-elevada hover:bg-acento-hover border border-separador text-texto text-xs font-semibold rounded-xl transition-colors">
                 {ev.label}
               </button>
             ))}
@@ -126,28 +126,28 @@ export function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, co
 
           {/* Personajes para luchar (máx. 2) */}
           <div className="mt-3">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Personajes</p>
+            <p className="text-[10px] font-bold text-texto-2 uppercase tracking-widest mb-1.5">Personajes</p>
             <div className="flex items-center gap-2 flex-wrap">
               {selected.map(c => (
-                <span key={c.id_personaje} className="flex items-center gap-1 bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-xs text-gray-100">
+                <span key={c.id_personaje} className="flex items-center gap-1 bg-elevada border border-separador rounded-lg px-2 py-1 text-xs text-texto">
                   {c.nombre_personaje || 'Sin nombre'}
-                  <button onClick={() => removeChar(c.id_personaje)} className="text-gray-400 hover:text-red-400" title="Quitar"><X size={12} /></button>
+                  <button onClick={() => removeChar(c.id_personaje)} className="text-texto-2 hover:text-tinte" title="Quitar"><X size={12} /></button>
                 </span>
               ))}
 
               {selected.length < 2 && (
                 <div className="relative">
                   <button onClick={() => setPickerOpen(o => !o)}
-                    className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-200">
+                    className="flex items-center gap-1 bg-superficie hover:bg-relleno-2 border border-separador rounded-lg px-2 py-1 text-xs text-texto">
                     <Plus size={12} /> Personaje
                   </button>
                   {pickerOpen && (
-                    <div className="absolute z-20 mt-1 w-48 max-h-56 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg shadow-xl">
+                    <div className="absolute z-20 mt-1 w-48 max-h-56 overflow-y-auto bg-superficie border border-separador rounded-lg shadow-xl">
                       {disponibles.length === 0 ? (
-                        <p className="text-[11px] text-gray-500 px-3 py-2 italic">Sin personajes</p>
+                        <p className="text-[11px] text-texto-2 px-3 py-2 italic">Sin personajes</p>
                       ) : disponibles.map(c => (
                         <button key={c.id_personaje} onClick={() => addChar(c)}
-                          className="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-gray-700 border-b border-gray-700/50 last:border-0">
+                          className="w-full text-left px-3 py-2 text-xs text-texto hover:bg-relleno-2 border-b border-gray-700/50 last:border-0">
                           {c.nombre_personaje || 'Sin nombre'}
                         </button>
                       ))}
@@ -160,12 +160,12 @@ export function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, co
                 <button
                   onClick={() => { if (selected.length > 0) onLuchar?.(selected) }}
                   disabled={selected.length === 0}
-                  className="bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                  className="bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
                   Luchar
                 </button>
                 <button
                   onClick={() => { setSelected([]); onLimpiar?.() }}
-                  className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                  className="bg-elevada hover:bg-relleno-2 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
                   Limpiar
                 </button>
               </div>
@@ -175,39 +175,39 @@ export function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, co
             <div className="mt-2 flex items-center gap-2">
               <button
                 onClick={() => onHit?.()}
-                className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                className="bg-acento hover:bg-acento-hover text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
                 Hit
               </button>
               <button
                 onClick={() => onHeal?.()}
-                className="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                className="bg-ok hover:brightness-110 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
                 Heal
               </button>
             </div>
           </div>
 
           {/* Premios — entregar item a un personaje (uno) */}
-          <div className="mt-3 border-t border-gray-700 pt-3">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Premios</p>
+          <div className="mt-3 border-t border-separador pt-3">
+            <p className="text-[10px] font-bold text-texto-2 uppercase tracking-widest mb-1.5">Premios</p>
             <div className="flex items-center gap-2 flex-wrap">
               {prizeChar ? (
-                <span className="flex items-center gap-1 bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-xs text-gray-100">
+                <span className="flex items-center gap-1 bg-elevada border border-separador rounded-lg px-2 py-1 text-xs text-texto">
                   {prizeChar.nombre_personaje || 'Sin nombre'}
-                  <button onClick={() => setPrizeChar(null)} className="text-gray-400 hover:text-red-400" title="Quitar"><X size={12} /></button>
+                  <button onClick={() => setPrizeChar(null)} className="text-texto-2 hover:text-tinte" title="Quitar"><X size={12} /></button>
                 </span>
               ) : (
                 <div className="relative">
                   <button onClick={() => setPrizePickerOpen(o => !o)}
-                    className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-200">
+                    className="flex items-center gap-1 bg-superficie hover:bg-relleno-2 border border-separador rounded-lg px-2 py-1 text-xs text-texto">
                     <Plus size={12} /> Personaje
                   </button>
                   {prizePickerOpen && (
-                    <div className="absolute z-20 mt-1 w-48 max-h-56 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg shadow-xl">
+                    <div className="absolute z-20 mt-1 w-48 max-h-56 overflow-y-auto bg-superficie border border-separador rounded-lg shadow-xl">
                       {conectados.length === 0 ? (
-                        <p className="text-[11px] text-gray-500 px-3 py-2 italic">Sin personajes conectados</p>
+                        <p className="text-[11px] text-texto-2 px-3 py-2 italic">Sin personajes conectados</p>
                       ) : conectados.map(c => (
                         <button key={c.id_personaje} onClick={() => { setPrizeChar(c); setPrizePickerOpen(false) }}
-                          className="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-gray-700 border-b border-gray-700/50 last:border-0">
+                          className="w-full text-left px-3 py-2 text-xs text-texto hover:bg-relleno-2 border-b border-gray-700/50 last:border-0">
                           {c.nombre_personaje || 'Sin nombre'}
                         </button>
                       ))}
@@ -220,7 +220,7 @@ export function EventosPanel({ onBackground, partidaId, onUnlock, counterCfg, co
                 <button
                   onClick={() => { if (prizeChar) { onPremiar?.(prizeChar); setPrizeChar(null) } }}
                   disabled={!prizeChar}
-                  className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                  className="bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
                   Premiar
                 </button>
               </div>

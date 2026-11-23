@@ -14,19 +14,19 @@ const urlCara = (archivo) => `/avatars/${archivo}`
    sobre los archivos y no sobre la tabla avatar, que solo tiene 14 de las 20. */
 function SelectorCara({ actual, onPick, onClose }) {
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="font-bold text-gray-900">Elige una cara</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between">
+          <h3 className="font-bold text-texto">Elige una cara</h3>
+          <button onClick={onClose} className="text-texto-2 hover:text-texto"><X size={18} /></button>
         </div>
         <div className="px-5 py-4 grid grid-cols-5 gap-2 max-h-[60vh] overflow-y-auto">
           {CARAS_LISTA.map(cara => (
             <button key={cara} onClick={() => { onPick(cara); onClose() }}
               className={`rounded-xl overflow-hidden border-2 transition-colors ${
-                cara === actual ? 'border-red-500 ring-2 ring-red-300' : 'border-transparent hover:border-gray-300'}`}>
-              <img src={urlCara(cara)} alt={cara} className="w-full aspect-square object-cover bg-gray-100"
+                cara === actual ? 'border-acento ring-2 ring-tinte/40' : 'border-transparent hover:border-separador'}`}>
+              <img src={urlCara(cara)} alt={cara} className="w-full aspect-square object-cover bg-relleno"
                 onError={e => { e.currentTarget.style.opacity = '0.2' }} />
             </button>
           ))}
@@ -124,26 +124,26 @@ export default function MasterNpcWizard({ mode = 'create', sourceId = null, onCl
     const n = Number(nivelInput)
     const invalido = !Number.isInteger(n) || n < NIVEL_MIN || n > NIVEL_MAX
     return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
         onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-        <div className="bg-white rounded-2xl w-full max-w-xs flex flex-col shadow-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="font-bold text-gray-900">Nivel del NPC</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+        <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs flex flex-col shadow-hoja overflow-hidden">
+          <div className="px-5 py-4 border-b border-separador flex items-center justify-between">
+            <h3 className="font-bold text-texto">Nivel del NPC</h3>
+            <button onClick={onClose} className="text-texto-2 hover:text-texto"><X size={18} /></button>
           </div>
           <div className="px-5 py-4 space-y-2">
-            <p className="text-xs text-gray-500">De él sale la vida, y no podrá cambiarse después.</p>
+            <p className="text-xs text-texto-2">De él sale la vida, y no podrá cambiarse después.</p>
             <input type="number" min={NIVEL_MIN} max={NIVEL_MAX} value={nivelInput} autoFocus
               onChange={e => setNivelInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !invalido) aceptarNivel() }}
-              className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
-            {invalido && <p className="text-xs text-red-600">El nivel debe estar entre {NIVEL_MIN} y {NIVEL_MAX}.</p>}
+              className="w-full px-3 py-2 text-sm text-texto border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
+            {invalido && <p className="text-xs text-tinte">El nivel debe estar entre {NIVEL_MIN} y {NIVEL_MAX}.</p>}
           </div>
-          <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+          <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2">
             <button onClick={onClose}
-              className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg">Cancelar</button>
+              className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg">Cancelar</button>
             <button onClick={aceptarNivel} disabled={invalido}
-              className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+              className="text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
               Aceptar
             </button>
           </div>
@@ -155,16 +155,16 @@ export default function MasterNpcWizard({ mode = 'create', sourceId = null, onCl
   const titulo = editando ? 'Editar NPC' : mode === 'clone' ? 'Clonar NPC' : 'Nuevo NPC'
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget && !guardando) onClose() }}>
-      <div className="bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-2xl overflow-hidden max-h-[88vh]">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
-          <h3 className="font-bold text-gray-900">{titulo}</h3>
-          <button onClick={onClose} disabled={guardando} className="text-gray-400 hover:text-gray-700 disabled:opacity-40"><X size={18} /></button>
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm flex flex-col shadow-hoja overflow-hidden max-h-[88vh]">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between shrink-0">
+          <h3 className="font-bold text-texto">{titulo}</h3>
+          <button onClick={onClose} disabled={guardando} className="text-texto-2 hover:text-texto disabled:opacity-40"><X size={18} /></button>
         </div>
 
         {cargando ? (
-          <div className="flex items-center justify-center py-16 text-gray-400">
+          <div className="flex items-center justify-center py-16 text-texto-2">
             <PokeballSpinner size={18} className="mr-2" /> Cargando...
           </div>
         ) : (
@@ -173,23 +173,23 @@ export default function MasterNpcWizard({ mode = 'create', sourceId = null, onCl
               {/* Cara: se pulsa para cambiarla, como el avatar del jugador */}
               <div className="flex items-center gap-3">
                 <button onClick={() => setEligiendoCara(true)} title="Cambiar la cara"
-                  className="shrink-0 rounded-2xl overflow-hidden border-2 border-gray-200 hover:border-red-400 transition-colors">
-                  <img src={urlCara(avatar)} alt="Avatar del NPC" className="w-20 h-20 object-cover bg-gray-100"
+                  className="shrink-0 rounded-2xl overflow-hidden border-2 border-separador hover:border-tinte/60 transition-colors">
+                  <img src={urlCara(avatar)} alt="Avatar del NPC" className="w-20 h-20 object-cover bg-relleno"
                     onError={e => { e.currentTarget.style.opacity = '0.2' }} />
                 </button>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-gray-600">Avatar</p>
-                  <p className="text-[11px] text-gray-400 leading-snug">Pulsa la imagen para elegir otra de las {CARAS}.</p>
+                  <p className="text-xs font-bold text-texto-2">Avatar</p>
+                  <p className="text-[11px] text-texto-2 leading-snug">Pulsa la imagen para elegir otra de las {CARAS}.</p>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">Apodo</label>
+                <label className="block text-xs font-bold text-texto-2 mb-1">Apodo</label>
                 <div className="flex items-center gap-2">
                   <input value={apodo} onChange={e => setApodo(e.target.value)} maxLength={60}
-                    className="flex-1 min-w-0 px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                    className="flex-1 min-w-0 px-3 py-2 text-sm text-texto border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
                   <button onClick={otroApodo} title="Otro nombre al azar"
-                    className="shrink-0 p-2 rounded-xl border border-gray-200 text-gray-500 hover:text-red-600 hover:border-red-300 transition-colors">
+                    className="shrink-0 p-2 rounded-xl border border-separador text-texto-2 hover:text-tinte hover:border-tinte/40 transition-colors">
                     <Shuffle size={16} />
                   </button>
                 </div>
@@ -197,28 +197,28 @@ export default function MasterNpcWizard({ mode = 'create', sourceId = null, onCl
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">Nivel</label>
+                  <label className="block text-xs font-bold text-texto-2 mb-1">Nivel</label>
                   {/* No editable: la vida se tiró con este nivel */}
-                  <div className="px-3 py-2 text-sm font-bold text-gray-500 bg-gray-100 border border-gray-200 rounded-xl">
+                  <div className="px-3 py-2 text-sm font-bold text-texto-2 bg-relleno border border-separador rounded-xl">
                     {level}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">Vida</label>
+                  <label className="block text-xs font-bold text-texto-2 mb-1">Vida</label>
                   <input type="number" min="0" value={hp}
                     onChange={e => setHp(e.target.value.replace(/[^0-9]/g, ''))}
-                    className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                    className="w-full px-3 py-2 text-sm text-texto border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
                 </div>
               </div>
 
-              {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+              {error && <p className="text-xs text-peligro font-medium">{error}</p>}
             </div>
 
-            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
+            <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2 shrink-0">
               <button onClick={onClose} disabled={guardando}
-                className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
+                className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
               <button onClick={guardar} disabled={!valido || guardando}
-                className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+                className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
                 {guardando ? <PokeballSpinner size={15} /> : <Check size={15} />} Confirmar
               </button>
             </div>

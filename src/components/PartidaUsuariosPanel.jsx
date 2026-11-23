@@ -45,29 +45,29 @@ export default function PartidaUsuariosPanel({ partida, onClose }) {
 
   const ROLE_BADGE = {
     trainer:    'bg-blue-100 text-blue-700',
-    espectador: 'bg-gray-100 text-gray-600',
+    espectador: 'bg-relleno text-texto-2',
   }
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="bg-gray-800 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja shadow-hoja w-full max-w-md">
+        <div className="bg-superficie px-6 py-4 flex items-center justify-between rounded-t-2xl">
           <div>
             <h2 className="text-white font-bold">Usuarios de la partida</h2>
-            <p className="text-gray-400 text-xs mt-0.5">{partida.nombre_partida}</p>
+            <p className="text-texto-2 text-xs mt-0.5">{partida.nombre_partida}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
+          <button onClick={onClose} className="text-texto-2 hover:text-white"><X size={20} /></button>
         </div>
 
         <div className="p-5 space-y-4">
           {/* Agregar usuario */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Agregar usuario</p>
+            <p className="text-xs font-semibold text-texto-2 uppercase tracking-wide">Agregar usuario</p>
             <div className="flex gap-2">
               <select
                 value={selectedId}
                 onChange={e => setSelectedId(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400"
+                className="flex-1 px-3 py-2 border border-separador rounded-xl text-sm bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50"
               >
                 <option value="">Seleccionar usuario...</option>
                 {disponibles.map(u => (
@@ -79,38 +79,38 @@ export default function PartidaUsuariosPanel({ partida, onClose }) {
               <button
                 onClick={handleAdd}
                 disabled={!selectedId || adding}
-                className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors disabled:opacity-50"
+                className="px-3 py-2 bg-acento hover:bg-acento-hover text-white rounded-xl transition-colors disabled:opacity-50"
               >
                 <UserPlus size={16} />
               </button>
             </div>
             {disponibles.length === 0 && !loading && (
-              <p className="text-xs text-gray-400">No hay usuarios disponibles para agregar.</p>
+              <p className="text-xs text-texto-2">No hay usuarios disponibles para agregar.</p>
             )}
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {error && <p className="text-xs text-peligro">{error}</p>}
           </div>
 
           {/* Lista de miembros */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            <p className="text-xs font-semibold text-texto-2 uppercase tracking-wide">
               Miembros ({miembros.length})
             </p>
             {loading
-              ? <p className="text-xs text-gray-400">Cargando...</p>
+              ? <p className="text-xs text-texto-2">Cargando...</p>
               : miembros.length === 0
-                ? <p className="text-xs text-gray-400">No hay usuarios en esta partida aún.</p>
+                ? <p className="text-xs text-texto-2">No hay usuarios en esta partida aún.</p>
                 : (
                   <ul className="space-y-1.5 max-h-56 overflow-y-auto">
                     {miembros.map(u => (
-                      <li key={u.user_id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-xl">
+                      <li key={u.user_id} className="flex items-center justify-between px-3 py-2 bg-superficie rounded-xl">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-800">{u.user_name}</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${ROLE_BADGE[u.role_name] ?? 'bg-gray-100 text-gray-600'}`}>
+                          <span className="text-sm font-medium text-texto">{u.user_name}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${ROLE_BADGE[u.role_name] ?? 'bg-relleno text-texto-2'}`}>
                             {u.role_name}
                           </span>
                         </div>
                         <button onClick={() => handleRemove(u.user_id)}
-                          className="text-gray-400 hover:text-red-600 transition-colors p-1">
+                          className="text-texto-2 hover:text-tinte transition-colors p-1">
                           <Trash2 size={14} />
                         </button>
                       </li>
@@ -121,7 +121,7 @@ export default function PartidaUsuariosPanel({ partida, onClose }) {
           </div>
 
           <button onClick={onClose}
-            className="w-full py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+            className="w-full py-2 border border-separador rounded-xl text-sm text-texto-2 hover:bg-relleno transition-colors">
             Cerrar
           </button>
         </div>

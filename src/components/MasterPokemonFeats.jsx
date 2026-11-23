@@ -99,7 +99,7 @@ function StatSingleSelect({ options, selected, onPick }) {
         return (
           <button key={k} onClick={() => onPick(k)}
             className={`text-xs font-bold px-2 py-1.5 rounded-lg border transition-colors ${
-              sel ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-400' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+              sel ? 'border-acento bg-tinte/10 text-tinte ring-1 ring-tinte/50' : 'border-separador text-texto hover:bg-relleno'}`}>
             {statLabel(k)}
           </button>
         )
@@ -116,14 +116,14 @@ function SkillPickMany({ skills, proficientNames, kind, count, chosen, onToggle 
         const owned = proficientNames.has(lower(s.skill_name))
         const sel   = chosen.includes(s.skill_name)
         let cls
-        if (sel) cls = (kind === 'expert' && owned) ? 'bg-blue-700 text-white border-blue-700' : 'bg-green-600 text-white border-green-600'
-        else if (owned) cls = 'bg-green-50 border-green-300 text-green-700'
-        else cls = 'border-gray-200 text-gray-700 hover:bg-gray-50'
+        if (sel) cls = (kind === 'expert' && owned) ? 'bg-blue-700 text-white border-blue-700' : 'bg-ok text-white border-ok'
+        else if (owned) cls = 'bg-ok/10 border-ok/40 text-ok'
+        else cls = 'border-separador text-texto hover:bg-relleno'
         return (
           <button key={s.skill_id} onClick={() => onToggle(s.skill_name)} disabled={!sel && full}
             className={`text-left text-xs px-2 py-1.5 rounded-lg border transition-colors disabled:opacity-40 ${cls}`}>
             <span className="font-semibold">{s.skill_name}</span>
-            <span className={sel ? 'text-white/70' : 'text-gray-400'}> ({s.skill_related_ability})</span>
+            <span className={sel ? 'text-white/70' : 'text-texto-2'}> ({s.skill_related_ability})</span>
           </button>
         )
       })}
@@ -228,19 +228,19 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
   }), level)
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onCancel() }}>
-      <div className="bg-white rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
-          <h3 className="font-bold text-gray-900 truncate">{feat.feat_name}</h3>
-          <button onClick={onCancel} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm max-h-[85vh] flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between shrink-0">
+          <h3 className="font-bold text-texto truncate">{feat.feat_name}</h3>
+          <button onClick={onCancel} className="text-texto-2 hover:text-texto"><X size={18} /></button>
         </div>
         <div className="px-5 py-4 space-y-3 overflow-y-auto">
           {bonos.map((b, i) => {
             const st = analyzeStat(b); const sk = analyzeSkill(b)
             if (st?.mode === 'choose') return (
               <div key={i}>
-                <label className="block text-xs font-bold text-gray-600 mb-1.5">Elige atributo (+{st.value})</label>
+                <label className="block text-xs font-bold text-texto-2 mb-1.5">Elige atributo (+{st.value})</label>
                 <StatSingleSelect options={st.options} selected={choices[i]} onPick={(k) => setChoices(c => ({ ...c, [i]: k }))} />
               </div>
             )
@@ -248,7 +248,7 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
               const opts = skillsList.filter(s => !sk.excluded.has(lower(s.skill_name)))
               return (
                 <div key={i}>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5">Elige 1 habilidad ({sk.kind})</label>
+                  <label className="block text-xs font-bold text-texto-2 mb-1.5">Elige 1 habilidad ({sk.kind})</label>
                   <SkillPickMany skills={opts} proficientNames={proficientNames} kind={sk.kind} count={1}
                     chosen={choices[i] || []}
                     onToggle={(name) => setChoices(c => {
@@ -267,16 +267,16 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
               const opcionesTipo = tiposPk.filter(t => !excluidos.has(lower(t)))
               return (
                 <div key={i}>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5">Elige un tipo</label>
+                  <label className="block text-xs font-bold text-texto-2 mb-1.5">Elige un tipo</label>
                   <select value={choices[i] || ''}
                     onChange={e => setChoices(c => ({ ...c, [i]: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50
-                               focus:outline-none focus:ring-2 focus:ring-red-400">
+                    className="w-full px-3 py-2 text-sm text-texto border border-separador rounded-xl bg-superficie
+                               focus:outline-none focus:ring-2 focus:ring-tinte/50">
                     <option value="">Elegir…</option>
                     {opcionesTipo.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                   {elementosExcluidos.length > 0 && (
-                    <p className="text-[11px] text-gray-400 mt-1">Ya tienes {elementosExcluidos.join(', ')}; elige uno distinto.</p>
+                    <p className="text-[11px] text-texto-2 mt-1">Ya tienes {elementosExcluidos.join(', ')}; elige uno distinto.</p>
                   )}
                 </div>
               )
@@ -287,11 +287,11 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
             const tsel = analyzeTerrainSelect(b)
             if (tsel) return (
               <div key={i}>
-                <label className="block text-xs font-bold text-gray-600 mb-1.5">Elige un terreno</label>
+                <label className="block text-xs font-bold text-texto-2 mb-1.5">Elige un terreno</label>
                 <select value={choices[i] || ''}
                   onChange={e => setChoices(c => ({ ...c, [i]: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50
-                             focus:outline-none focus:ring-2 focus:ring-red-400">
+                  className="w-full px-3 py-2 text-sm text-texto border border-separador rounded-xl bg-superficie
+                             focus:outline-none focus:ring-2 focus:ring-tinte/50">
                   <option value="">Elegir…</option>
                   {tsel.options.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
@@ -301,15 +301,15 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
             // Regla 6 — el terreno donde vale el bono
             if (analyzeTerrain(b)) return (
               <div key={i}>
-                <label className="block text-xs font-bold text-gray-600 mb-1.5">
+                <label className="block text-xs font-bold text-texto-2 mb-1.5">
                   Elige terreno (+{analyzeTerrain(b).value} a tiradas de ataque)
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {TERRENOS.map(t => (
                     <button key={t} onClick={() => setChoices(c => ({ ...c, [i]: t }))}
                       className={`text-xs font-bold px-2 py-1.5 rounded-lg border transition-colors ${
-                        choices[i] === t ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-400'
-                                         : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                        choices[i] === t ? 'border-acento bg-tinte/10 text-tinte ring-1 ring-tinte/50'
+                                         : 'border-separador text-texto hover:bg-relleno'}`}>
                       {t}
                     </button>
                   ))}
@@ -320,9 +320,9 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
             // Regla 3 — el movimiento que aprende, de su propio learnset
             if (analyzeKnownMoves(b)) return (
               <div key={i}>
-                <label className="block text-xs font-bold text-gray-600 mb-1.5">Elige el movimiento que aprende</label>
+                <label className="block text-xs font-bold text-texto-2 mb-1.5">Elige el movimiento que aprende</label>
                 {movesElegibles.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">
+                  <p className="text-xs text-texto-2 italic">
                     No hay movimientos disponibles para su nivel. El feat sube el tope igualmente.
                   </p>
                 ) : (
@@ -330,10 +330,10 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
                     {movesElegibles.map(m => (
                       <button key={m.move_id} onClick={() => setChoices(c => ({ ...c, [i]: m.move_id }))}
                         className={`text-left text-xs px-2 py-1.5 rounded-lg border transition-colors ${
-                          choices[i] === m.move_id ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-400'
-                                                   : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                          choices[i] === m.move_id ? 'border-acento bg-tinte/10 text-tinte ring-1 ring-tinte/50'
+                                                   : 'border-separador text-texto hover:bg-relleno'}`}>
                         <span className="font-semibold">{m.move_name}</span>
-                        <span className="text-gray-400"> ({m.move_type})</span>
+                        <span className="text-texto-2"> ({m.move_type})</span>
                       </button>
                     ))}
                   </div>
@@ -344,21 +344,21 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
             // Regla 5 — la pasiva oculta. Con una sola ya viene elegida.
             if (analyzeAbility(b)) return (
               <div key={i}>
-                <label className="block text-xs font-bold text-gray-600 mb-1.5">Pasiva oculta</label>
+                <label className="block text-xs font-bold text-texto-2 mb-1.5">Pasiva oculta</label>
                 {hiddenAbilities.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">Esta especie no tiene pasiva oculta.</p>
+                  <p className="text-xs text-texto-2 italic">Esta especie no tiene pasiva oculta.</p>
                 ) : hiddenAbilities.length === 1 ? (
-                  <p className="text-sm text-gray-700">
+                  <p className="text-sm text-texto">
                     Reemplaza su pasiva por <span className="font-bold">{hiddenAbilities[0].ability_name}</span>.
                   </p>
                 ) : (
                   <div className="space-y-1.5">
-                    <p className="text-[11px] text-gray-500">Esta especie tiene varias. Elige una.</p>
+                    <p className="text-[11px] text-texto-2">Esta especie tiene varias. Elige una.</p>
                     {hiddenAbilities.map(a => (
                       <button key={a.ability_id} onClick={() => setChoices(c => ({ ...c, [i]: String(a.ability_id) }))}
                         className={`w-full text-left text-xs px-2 py-1.5 rounded-lg border transition-colors ${
-                          choices[i] === String(a.ability_id) ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-400'
-                                                              : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                          choices[i] === String(a.ability_id) ? 'border-acento bg-tinte/10 text-tinte ring-1 ring-tinte/50'
+                                                              : 'border-separador text-texto hover:bg-relleno'}`}>
                         <span className="font-semibold">{a.ability_name}</span>
                       </button>
                     ))}
@@ -369,13 +369,13 @@ function ConfirmFeat({ feat, skillsList, proficientNames, level, movePool = [], 
 
             return null
           })}
-          {!needsChoice && <p className="text-sm text-gray-600">¿Agregar este rasgo al Pokémon?</p>}
+          {!needsChoice && <p className="text-sm text-texto-2">¿Agregar este rasgo al Pokémon?</p>}
           <div className="flex flex-wrap gap-1"><ResolvedBonusBadges bonos={badgeBonos} /></div>
         </div>
-        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
-          <button onClick={onCancel} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg">Cancelar</button>
+        <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2 shrink-0">
+          <button onClick={onCancel} className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg">Cancelar</button>
           <button onClick={resolve} disabled={!complete}
-            className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+            className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
             <Plus size={15} /> Agregar
           </button>
         </div>
@@ -465,20 +465,20 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
 
   return (
     <div>
-      <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Feats</label>
+      <label className="block text-xs font-black uppercase tracking-widest text-texto-2 mb-1.5">Feats</label>
 
       {/* 1. Feats agregados (arriba) */}
       {feats.length > 0 && (
         <div className="space-y-1.5 mb-3">
           {feats.map((f, i) => (
-            <div key={f.key} className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            <div key={f.key} className="flex items-center justify-between gap-2 bg-superficie border border-separador rounded-lg px-3 py-2">
               <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                <span className="text-sm font-semibold text-gray-800 truncate">
-                  <span className="text-gray-400 font-normal mr-1.5">Rasgo {i + 1}:</span>{f.feat_name}
+                <span className="text-sm font-semibold text-texto truncate">
+                  <span className="text-texto-2 font-normal mr-1.5">Rasgo {i + 1}:</span>{f.feat_name}
                 </span>
                 <ResolvedBonusBadges bonos={displayBonos(f.bonos, level)} />
               </div>
-              <button onClick={() => removeFeat(f.key)} title="Quitar" className="shrink-0 text-gray-400 hover:text-red-600"><Trash2 size={15} /></button>
+              <button onClick={() => removeFeat(f.key)} title="Quitar" className="shrink-0 text-texto-2 hover:text-tinte"><Trash2 size={15} /></button>
             </div>
           ))}
         </div>
@@ -487,14 +487,14 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
       {/* Panel para agregar (oculto al alcanzar el máximo de feats) */}
       {feats.length < maxFeats && (
       <><div className="relative mb-2">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-texto-2" />
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar feat..."
-          className="w-full pl-8 pr-7 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
-        {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"><X size={13} /></button>}
+          className="w-full pl-8 pr-7 py-1.5 text-sm text-texto border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
+        {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-texto-2"><X size={13} /></button>}
       </div>
-      <div className="border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-48 overflow-y-auto">
+      <div className="border border-separador rounded-xl divide-y divide-separador max-h-48 overflow-y-auto">
         {available.length === 0 ? (
-          <p className="text-xs text-gray-400 italic px-3 py-3">Sin feats disponibles.</p>
+          <p className="text-xs text-texto-2 italic px-3 py-3">Sin feats disponibles.</p>
         ) : available.map(f => {
           const tope = topeAlcanzado(f)
           const prereq = featStatus(f)
@@ -502,21 +502,21 @@ export default function MasterPokemonFeats({ feats, setFeats, level, stats, skil
           const boon = esBoon(f)
           return (
             <div key={f.feat_id} className={`flex items-center justify-between gap-2 px-3 py-2 ${
-              boon ? 'bg-green-50 hover:bg-green-100' : 'hover:bg-gray-50'}`}>
+              boon ? 'bg-ok/10 hover:bg-ok/15' : 'hover:bg-relleno'}`}>
               <button onClick={() => setInfo(f)} title="Ver detalle"
                 className="text-left min-w-0 flex items-center gap-1.5 flex-wrap">
-                <span className="text-sm font-medium text-gray-800 truncate underline decoration-dotted decoration-gray-300 underline-offset-2 hover:text-red-700">{f.feat_name}</span>
+                <span className="text-sm font-medium text-texto truncate underline decoration-dotted decoration-gray-300 underline-offset-2 hover:text-tinte">{f.feat_name}</span>
                 {boon && (
-                  <span className="text-[9px] font-bold text-green-800 bg-green-100 border border-green-300 rounded px-1 shrink-0">
+                  <span className="text-[9px] font-bold text-green-800 bg-ok/15 border border-ok/40 rounded px-1 shrink-0">
                     Epic Boon
                   </span>
                 )}
                 <ResolvedBonusBadges bonos={displayBonos(previewBonos(f), level)} />
-                {!status.met && <span className="text-[9px] font-bold text-red-700 bg-red-50 border border-red-200 rounded px-1 shrink-0">{status.reason}</span>}
+                {!status.met && <span className="text-[9px] font-bold text-peligro bg-peligro/10 border border-peligro/30 rounded px-1 shrink-0">{status.reason}</span>}
               </button>
               <button onClick={() => openAdd(f)} disabled={!status.met}
                 title={status.met ? undefined : status.reason}
-                className="shrink-0 flex items-center gap-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
+                className="shrink-0 flex items-center gap-1 text-xs font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
                 <Plus size={13} /> Agregar
               </button>
             </div>

@@ -13,6 +13,7 @@ export default defineConfig({
   optimizeDeps: { exclude: ['@3d-dice/dice-box'] },
   server: {
     port: 5174,
+    host: true,
     proxy: {
       '/api': 'http://localhost:3001',
     },

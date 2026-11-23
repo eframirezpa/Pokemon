@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertCircle, UserCircle, Pencil, Lock } from 'lucide-react'
+import { UserCircle, Lock, ChevronRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
 import PartidaPresentacion from '../components/PartidaPresentacion'
 import AvatarSelector from '../components/AvatarSelector'
+import { Pagina, CabeceraPagina, Vacio } from '../components/ui/Pagina'
+import Boton from '../components/ui/Boton'
 
 export default function DashboardTrainer() {
   const { user } = useAuth()
@@ -47,111 +49,68 @@ export default function DashboardTrainer() {
 
   // ── Lista de partidas ────────────────────────────────────────────────────
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <Pagina className="max-w-3xl">
+      <CabeceraPagina titulo="Mis partidas"
+        subtitulo={<>Bienvenido, <span className="font-semibold text-texto">{user?.user_name}</span></>}
+        accion={
+          <Boton variante={hasAvatar ? 'tintado' : 'relleno'} onClick={() => setShowAvatar(true)} className="self-start sm:self-auto">
+            {hasAvatar
+              ? <><img src={user.avatar_face_url} alt="" className="w-6 h-6 -ml-2 rounded-full object-cover" /> Cambiar avatar</>
+              : <><UserCircle size={16} /> Elegir avatar</>}
+          </Boton>
+        } />
 
-      {/* Cabecera */}
-      <div className="flex items-start justify-between mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mis Partidas</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Bienvenido, <span className="font-medium text-gray-700">{user?.user_name}</span>
-          </p>
-        </div>
-
-        {/* Botón de avatar */}
-        <button
-          onClick={() => setShowAvatar(true)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border transition-all shrink-0
-            ${hasAvatar
-              ? 'border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-600 bg-white'
-              : 'border-red-400 text-red-600 hover:bg-red-50 bg-red-50'
-            }`}
-        >
-          {hasAvatar ? (
-            <>
-              <img src={user.avatar_face_url} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
-              <Pencil size={13} />
-              <span>Editar avatar</span>
-            </>
-          ) : (
-            <>
-              <UserCircle size={16} />
-              <span>Agregar avatar</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Alerta si no tiene avatar */}
+      {/* Aviso si no tiene avatar: sin él no se entra a ninguna partida */}
       {!hasAvatar && (
-        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4 mb-5">
-          <Lock size={18} className="text-red-500 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 bg-superficie rounded-grupo px-4 py-3.5">
+          <span className="w-8 h-8 rounded-lg bg-tinte/12 text-tinte grid place-items-center shrink-0"><Lock size={16} /></span>
           <div>
-            <p className="font-semibold text-red-800 text-sm">Selecciona un avatar para continuar</p>
-            <p className="text-red-600 text-xs mt-0.5 leading-relaxed">
-              Debes elegir tu avatar antes de poder ingresar a una partida.
+            <p className="font-semibold text-[15px]">Elige un avatar para continuar</p>
+            <p className="text-[13px] text-texto-2 leading-snug mt-0.5">
+              Debes elegir tu avatar antes de poder entrar a una partida.
             </p>
           </div>
         </div>
-      )}
-
-      {!loading && partidas.length > 0 && (
-        <p className={`text-base font-medium mb-4 ${hasAvatar ? 'text-gray-600' : 'text-gray-300'}`}>
-          Selecciona tu partida
-        </p>
       )}
 
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2].map(i => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-200 p-4 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-1/2 mb-2" />
-              <div className="h-3 bg-gray-200 rounded w-3/4" />
-            </div>
-          ))}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[1, 2].map(i => <div key={i} className="h-[104px] rounded-[20px] bg-relleno animate-pulse" />)}
         </div>
       ) : partidas.length === 0 ? (
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-5">
-          <AlertCircle size={20} className="text-amber-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-amber-800 text-sm">Sin partidas asignadas</p>
-            <p className="text-amber-700 text-xs mt-1 leading-relaxed">
-              Actualmente no estás asociado a ninguna partida activa.
-              Comunícate con tu Master para que te agregue a una partida.
-            </p>
-          </div>
-        </div>
+        <Vacio titulo="Sin partidas asignadas"
+          detalle="Ahora mismo no estás en ninguna partida activa. Pídele a tu Master que te agregue a una." />
       ) : (
-        <div className="space-y-3">
-          {partidas.map((p, i) => (
-            <button
-              key={p.id_partida}
-              onClick={() => handleSelect(p)}
-              disabled={!hasAvatar}
-              className={`w-full text-left rounded-2xl p-4 border transition-all duration-200 group flex items-center gap-4
-                ${hasAvatar
-                  ? 'bg-white border-gray-200 hover:border-red-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer'
-                  : 'bg-gray-50 border-gray-100 cursor-not-allowed opacity-50'
-                }`}
-            >
-              <span className={`text-2xl font-bold w-8 shrink-0 text-center transition-colors
-                ${hasAvatar ? 'text-gray-200 group-hover:text-red-200' : 'text-gray-200'}`}>
-                {i + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className={`font-semibold transition-colors
-                  ${hasAvatar ? 'text-gray-800 group-hover:text-red-700' : 'text-gray-400'}`}>
-                  {p.nombre_partida}
-                </p>
-                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{p.descripcion_partida}</p>
-              </div>
-              {!hasAvatar && <Lock size={15} className="text-gray-300 shrink-0" />}
-            </button>
-          ))}
-        </div>
+        <section className="flex flex-col gap-1.5">
+          <h3 className="text-[13px] font-semibold text-texto-2 uppercase tracking-[.03em] px-4">Elige tu partida</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {partidas.map((p, i) => (
+              <button key={p.id_partida} type="button" onClick={() => handleSelect(p)} disabled={!hasAvatar}
+                className="group text-left bg-superficie rounded-[20px] p-4 flex items-start gap-3.5 transition-all
+                           enabled:hover:shadow-[0_8px_24px_rgba(0,0,0,.08)] enabled:hover:-translate-y-0.5
+                           disabled:opacity-50 disabled:cursor-not-allowed
+                           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinte">
+                <span className="w-10 h-10 rounded-xl bg-acento text-white text-lg font-bold grid place-items-center shrink-0 tabular-nums">
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[17px] font-bold tracking-[-.02em] group-enabled:group-hover:text-tinte transition-colors">
+                    {p.nombre_partida}
+                  </span>
+                  {p.descripcion_partida && (
+                    <span className="block text-[13px] text-texto-2 mt-1 line-clamp-2 leading-snug">{p.descripcion_partida}</span>
+                  )}
+                </span>
+                {hasAvatar
+                  ? <ChevronRight size={18} className="text-texto-2 opacity-60 shrink-0 mt-2.5" aria-hidden />
+                  : <Lock size={15} className="text-texto-2 shrink-0 mt-2.5" aria-hidden />}
+              </button>
+            ))}
+          </div>
+        </section>
       )}
 
       {showAvatar && <AvatarSelector onClose={() => setShowAvatar(false)} />}
-    </div>
+    </Pagina>
   )
 }

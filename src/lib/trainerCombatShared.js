@@ -19,7 +19,13 @@ export function acDelTrainer(d, dexMod) {
   return v
 }
 
-// Estética de los iconos laterales: redondo, gris, con borde y sombra. Vive
-// aquí y no dentro del componente para que CombatePanel pueda reutilizarla.
-export const ICONO_REDONDO = 'shrink-0 flex items-center justify-center rounded-full bg-gray-700 ' +
-  'hover:bg-gray-600 text-gray-200 shadow-lg border border-gray-600 transition-all'
+// Estética de los iconos de la sala: cápsula redonda de cristal oscuro con
+// la silueta en un blanco lila suave (#E2D8E4, elegido por el usuario). Es la
+// única definición: la usan BotonIcono (columna de la sala), TrainerPartida y
+// CombatePanel. Lleva `modo-oscuro` propio para que el cristal y el texto
+// tomen los valores oscuros aunque el contenedor siga en claro.
+export const ICONO_REDONDO = 'modo-oscuro cristal shrink-0 flex items-center justify-center rounded-full ' +
+  'text-[#E2D8E4] hover:bg-[rgba(72,72,74,.85)] transition-colors'
+// Variante encendida (algo en curso: iniciativa, actividad abierta…)
+export const ICONO_REDONDO_ACTIVO = 'modo-oscuro shrink-0 flex items-center justify-center rounded-full ' +
+  'bg-acento hover:bg-acento-hover text-white shadow-[0_6px_18px_rgba(127,0,178,.55)] transition-colors'

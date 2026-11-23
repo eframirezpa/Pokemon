@@ -5,7 +5,8 @@ import { apiFetch } from '../api'
 import CharacterWizard from '../components/CharacterWizard'
 import CharacterSheet from '../components/CharacterSheet'
 import PokemonWizard from '../components/PokemonWizard'
-import PokeballSpinner from '../components/PokeballSpinner'
+import Boton from '../components/ui/Boton'
+import { Pagina, CabeceraPagina, Vacio } from '../components/ui/Pagina'
 
 export default function PartidaLobby() {
   const { id }    = useParams()
@@ -71,45 +72,55 @@ export default function PartidaLobby() {
     navigate(`/trainer-partida/${id}`, { state: { nombre, personaje } })
   }
 
+  // Pasos para poder entrar: se marcan solos según lo que ya hay
+  const algunoConPokemon = personajes.some(p => pokemonByChar[p.id_personaje]?.length > 0 || p.personaje_get_starter_pokemon)
+  const pasos = [
+    { titulo: 'Crea tu personaje', corto: 'Personaje', hecho: personajes.length > 0 },
+    { titulo: 'Elige su Pokémon inicial', corto: 'Pokémon', hecho: algunoConPokemon },
+    { titulo: 'Entra a la partida', corto: 'Entrar', hecho: false, actual: !!selectedHasPokemon },
+  ]
+
   return (
-    <div className="min-h-dvh bg-gray-900 text-white flex flex-col">
+    <div className="min-h-dvh bg-fondo text-texto flex flex-col">
 
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-3 bg-gray-800 border-b border-gray-700 shrink-0">
-        <div>
-          <p className="text-white font-semibold text-sm">{nombre}</p>
-          <p className="text-[10px] text-gray-400 uppercase tracking-wide">Lobby — Selecciona tu personaje</p>
+      {/* Barra superior */}
+      <header className="sticky top-0 z-20 h-14 px-4 sm:px-6 flex items-center justify-between gap-3
+                         bg-fondo/85 backdrop-blur-xl backdrop-saturate-150 border-b border-separador">
+        <div className="min-w-0">
+          <p className="font-semibold text-[15px] truncate">{nombre}</p>
+          <p className="text-xs text-texto-2">Sala de espera</p>
         </div>
-        <button
-          onClick={() => navigate('/dashboard/trainer')}
-          className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-900/30 px-3 py-1.5 rounded-lg transition-all"
-        >
+        <Boton variante="peligro" tamano="sm" onClick={() => navigate('/dashboard/trainer')}>
           <LogOut size={14} /> Salir
-        </button>
-      </div>
+        </Boton>
+      </header>
 
-      {/* Contenido */}
-      <div className="flex-1 max-w-3xl w-full mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-5">
-          <h1 className="text-xl font-bold">Tus personajes</h1>
-          <button
-            onClick={() => setShowWizard(true)}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
-          >
-            <Plus size={16} /> Crear personaje
-          </button>
-        </div>
+      <Pagina className="max-w-3xl">
+        <CabeceraPagina titulo="Tus personajes"
+          accion={<Boton onClick={() => setShowWizard(true)} className="self-start sm:self-auto"><Plus size={16} /> Crear personaje</Boton>} />
+
+        {/* Pasos */}
+        <ol className="grid grid-cols-3 gap-2" aria-label="Pasos para entrar">
+          {pasos.map((p, i) => (
+            <li key={p.titulo} className={`rounded-grupo px-2.5 sm:px-3 py-2.5 flex items-center gap-2 sm:gap-2.5 min-w-0 ${p.actual ? 'bg-acento text-white' : 'bg-superficie'}`}>
+              <span className={`w-6 h-6 rounded-full grid place-items-center text-xs font-bold shrink-0 ${
+                p.hecho ? 'bg-ok text-white' : p.actual ? 'bg-white text-acento' : 'bg-relleno text-texto-2'}`}>
+                {p.hecho ? <Check size={14} strokeWidth={3} /> : i + 1}
+              </span>
+              <span className={`text-[13px] leading-tight font-medium truncate ${p.hecho ? 'text-texto-2' : ''}`}>
+                <span className="sm:hidden">{p.corto}</span><span className="hidden sm:inline">{p.titulo}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-gray-500">
-            <PokeballSpinner size={18} className="mr-2" /> Cargando...
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[1, 2].map(i => <div key={i} className="h-[118px] rounded-[20px] bg-relleno animate-pulse" />)}
           </div>
         ) : personajes.length === 0 ? (
-          <div className="text-center py-16 bg-gray-800/50 border border-gray-700 rounded-2xl">
-            <UserCircle size={40} className="mx-auto text-gray-600 mb-3" />
-            <p className="text-gray-300 font-medium">Aún no tienes personajes</p>
-            <p className="text-gray-500 text-sm mt-1">Crea uno para poder ingresar a la partida.</p>
-          </div>
+          <Vacio titulo="Aún no tienes personajes" detalle="Crea uno para poder entrar a la partida."
+            accion={<Boton className="mt-2" onClick={() => setShowWizard(true)}><Plus size={16} /> Crear personaje</Boton>} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {personajes.map(p => {
@@ -117,18 +128,20 @@ export default function PartidaLobby() {
               const pkmn  = pokemonByChar[p.id_personaje] || []
               const first = pkmn[0]
               return (
-                <div key={p.id_personaje} className="flex flex-col gap-1.5">
-                  <div className={`rounded-2xl border p-3 pr-4 flex items-center gap-3 transition-all ${
-                    isSel ? 'border-red-400 bg-red-900/20 ring-1 ring-red-400' : 'border-gray-700 bg-gray-800/50 hover:border-gray-500'}`}>
+                <div key={p.id_personaje}
+                  className={`rounded-[20px] bg-superficie overflow-hidden transition-shadow ${isSel ? 'ring-[3px] ring-acento' : ''}`}>
+                  <div className="p-3 pr-4 flex items-center gap-3">
                     {/* Zona seleccionable */}
-                    <button onClick={() => setSelected(p.id_personaje)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isSel ? 'bg-red-500' : 'bg-gray-700'}`}>
-                        {isSel ? <Check size={18} /> : <UserCircle size={20} className="text-gray-300" />}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold truncate">{p.nombre_personaje || 'Sin nombre'}</p>
-                        <p className="text-xs text-gray-400">Nivel {p.personaje_level ?? 1}</p>
-                      </div>
+                    <button type="button" onClick={() => setSelected(p.id_personaje)} aria-pressed={isSel}
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                      <span className={`w-10 h-10 rounded-full grid place-items-center shrink-0 transition-colors ${
+                        isSel ? 'bg-acento text-white' : 'bg-relleno text-texto-2'}`}>
+                        {isSel ? <Check size={18} strokeWidth={3} /> : <UserCircle size={20} />}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block font-semibold text-[17px] tracking-[-.01em] truncate">{p.nombre_personaje || 'Sin nombre'}</span>
+                        <span className="block text-[13px] text-texto-2">Nivel {p.personaje_level ?? 1}</span>
+                      </span>
                     </button>
 
                     {/* Pokémon inicial: sprite, o botón de agregar solo si aún
@@ -141,31 +154,25 @@ export default function PartidaLobby() {
                           src={first.pokemon_media_sprite || first.pokemon_media_main}
                           alt={first.pokemon_name}
                           title={first.pokemon_name}
-                          className="w-14 h-14 object-contain"
+                          className="w-14 h-14 object-contain [image-rendering:pixelated]"
                           onError={e => { e.target.style.opacity = '0.3' }}
                         />
                       ) : p.personaje_get_starter_pokemon ? (
-                        <span className="text-xs text-gray-500 italic px-2" title="Ya recibió su Pokémon inicial">
+                        <span className="text-xs text-texto-2 italic px-2" title="Ya recibió su Pokémon inicial">
                           Sin Pokémon
                         </span>
                       ) : (
-                        <button
-                          onClick={() => setAddPokemonFor(p.id_personaje)}
-                          className="flex items-center gap-1.5 text-xs font-semibold text-gray-200
-                                     bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-xl px-3 py-2 transition-colors"
-                        >
-                          <Plus size={14} /> Agregar pokémon
-                        </button>
+                        <Boton variante="tintado" tamano="sm" onClick={() => setAddPokemonFor(p.id_personaje)}>
+                          <Plus size={14} /> Pokémon inicial
+                        </Boton>
                       )}
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => setViewChar(p.id_personaje)}
-                    className="flex items-center justify-center gap-1.5 text-xs font-medium text-gray-400
-                               hover:text-white hover:bg-gray-800 border border-gray-700 rounded-xl py-1.5 transition-colors"
-                  >
-                    <Eye size={13} /> Ver información completa
+                  <button type="button" onClick={() => setViewChar(p.id_personaje)}
+                    className="w-full h-10 flex items-center justify-center gap-1.5 text-[13px] font-medium text-tinte
+                               border-t border-separador hover:bg-relleno transition-colors">
+                    <Eye size={14} /> Ver ficha completa
                   </button>
                 </div>
               )
@@ -173,21 +180,19 @@ export default function PartidaLobby() {
           </div>
         )}
 
-        {/* Ingresar */}
-        <div className="mt-8 flex flex-col items-center gap-2">
-          <button
-            onClick={handleEnter}
-            disabled={!selected || !selectedHasPokemon}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed
-                       text-white px-6 py-3 rounded-xl text-sm font-bold transition-colors shadow-lg"
-          >
-            <LogIn size={18} /> Ingresar a la partida
-          </button>
+        {/* Entrar */}
+        <div className="mt-2 flex flex-col items-center gap-2">
+          <Boton tamano="lg" onClick={handleEnter} disabled={!selected || !selectedHasPokemon} className="sm:max-w-xs">
+            <LogIn size={18} /> Entrar a la partida
+          </Boton>
+          {!selected && personajes.length > 0 && (
+            <p className="text-[13px] text-texto-2">Toca un personaje para elegirlo.</p>
+          )}
           {selected && !selectedHasPokemon && (
-            <p className="text-xs text-amber-400">Este personaje necesita al menos un Pokémon para ingresar.</p>
+            <p className="text-[13px] text-aviso">Este personaje necesita al menos un Pokémon para entrar.</p>
           )}
         </div>
-      </div>
+      </Pagina>
 
       {showWizard && (
         <CharacterWizard idPartida={Number(id)} onClose={() => setShowWizard(false)} onCreated={handleCreated} />

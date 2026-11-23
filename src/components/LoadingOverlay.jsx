@@ -12,12 +12,14 @@ import PokeballSpinner from './PokeballSpinner'
 export default function LoadingOverlay({ label, onClose = null, z = 'z-[65]' }) {
   return (
     <div className={`fixed inset-0 ${z} flex items-center justify-center p-4`}
-      style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}
+      style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
       onClick={e => { if (onClose && e.target === e.currentTarget) onClose() }}>
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl px-6 py-5 shadow-2xl flex flex-col items-center gap-2">
-        <PokeballSpinner size={38} className="text-red-500" />
+      {/* Indicador tipo HUD: cristal oscuro, se lee igual sobre consulta y sala */}
+      <div className="rounded-[20px] px-6 py-5 flex flex-col items-center gap-2.5 text-white
+                   bg-[rgba(28,28,30,.82)] backdrop-blur-2xl backdrop-saturate-150 border border-white/10 shadow-hoja">
+        <PokeballSpinner size={38} className="text-[#D9A1FF]" />
         {label && (
-          <p className="text-[11px] font-bold text-gray-300 uppercase tracking-widest">{label}</p>
+          <p className="text-[13px] font-semibold text-white/85">{label}</p>
         )}
       </div>
     </div>

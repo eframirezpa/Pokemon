@@ -25,22 +25,22 @@ export function TerrenosMasivoPanel({ partidaId, onAfterChange }) {
   const btn = 'text-xs font-bold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
   return (
     <div className="shrink-0 px-4 pt-3">
-      <div className="bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5">
-        <p className="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-2">Terrenos (entrenadores y sus Pokémon)</p>
+      <div className="bg-superficie border border-separador rounded-xl px-3 py-2.5">
+        <p className="text-[11px] font-black uppercase tracking-widest text-texto-2 mb-2">Terrenos (entrenadores y sus Pokémon)</p>
         <div className="flex items-center gap-2 flex-wrap">
           <select value={elegido} onChange={e => { setElegido(e.target.value); setConfirmar(null) }}
-            className="text-xs text-gray-100 bg-gray-700 border border-gray-600 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400">
+            className="text-xs text-texto bg-elevada border border-separador rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-tinte/60">
             <option value="">Elige un terreno...</option>
             {terrenos.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           <button disabled={!elegido || busy}
             onClick={() => confirmar === 'poner' ? aplicar(elegido) : setConfirmar('poner')}
-            className={`${btn} ${confirmar === 'poner' ? 'bg-amber-500 text-gray-900' : 'bg-green-700 hover:bg-green-600 text-white'}`}>
+            className={`${btn} ${confirmar === 'poner' ? 'bg-acento text-texto' : 'bg-green-700 hover:bg-ok text-white'}`}>
             {confirmar === 'poner' ? '¿Confirmar?' : 'Poner a todos'}
           </button>
           <button disabled={busy}
             onClick={() => confirmar === 'quitar' ? aplicar(null) : setConfirmar('quitar')}
-            className={`${btn} ${confirmar === 'quitar' ? 'bg-amber-500 text-gray-900' : 'bg-gray-700 hover:bg-gray-600 text-gray-100'}`}>
+            className={`${btn} ${confirmar === 'quitar' ? 'bg-acento text-texto' : 'bg-elevada hover:bg-relleno-2 text-texto'}`}>
             {confirmar === 'quitar' ? '¿Confirmar?' : 'Quitar a todos'}
           </button>
         </div>

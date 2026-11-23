@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Search, X, ChevronDown } from 'lucide-react'
+import { CabeceraPagina, Buscador, Pagina, ListaCatalogo } from '../components/ui/Pagina'
+import { CeldaDesplegable, Dato } from '../components/ui/ListaAgrupada'
 import { apiFetch } from '../api'
 
 export default function NaturesList() {
@@ -21,69 +22,32 @@ export default function NaturesList() {
   )
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="px-4 pt-5 pb-3 border-b border-gray-200 bg-white shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Naturalezas</h1>
-            <p className="text-xs text-gray-500 mt-0.5">{loading ? 'Cargando...' : `${filtered.length} naturalezas`}</p>
-          </div>
-          <div className="relative w-full sm:w-64">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
-              className="w-full pl-8 pr-7 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
-            {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"><X size={13} /></button>}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-            <tr className="text-left text-xs text-gray-500 uppercase tracking-wider">
-              <th className="py-3 px-4 font-medium">Nombre</th>
-              <th className="py-3 px-3 font-medium hidden sm:table-cell">Aumenta</th>
-              <th className="py-3 px-3 font-medium hidden sm:table-cell">Disminuye</th>
-              <th className="py-3 px-3 w-8" />
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-100">
-            {loading
-              ? Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i} className="animate-pulse border-b border-gray-100">
-                  <td className="py-3 px-4"><div className="h-3 bg-gray-200 rounded w-28" /></td>
-                  <td className="py-3 px-3 hidden sm:table-cell"><div className="h-3 bg-gray-200 rounded w-20" /></td>
-                  <td className="py-3 px-3 hidden sm:table-cell"><div className="h-3 bg-gray-200 rounded w-20" /></td>
-                  <td />
-                </tr>
-              ))
-              : filtered.map(n => {
-                const open = expandedId === n.nature_id
-                return [
-                  <tr key={n.nature_id} onClick={() => setExpandedId(open ? null : n.nature_id)}
-                    className={`cursor-pointer transition-colors ${open ? 'bg-red-50' : 'hover:bg-gray-50'}`}>
-                    <td className="py-2 px-4 font-semibold text-gray-800">{n.nature_name}</td>
-                    <td className="py-2 px-3 hidden sm:table-cell text-green-700 text-xs">{n.nature_effect_increase}</td>
-                    <td className="py-2 px-3 hidden sm:table-cell text-red-600 text-xs">{n.nature_effect_decrease}</td>
-                    <td className="py-2 px-3"><ChevronDown size={14} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} /></td>
-                  </tr>,
-                  open && (
-                    <tr key={`${n.nature_id}-detail`} className="bg-red-50">
-                      <td colSpan={4} className="px-6 pb-3 text-xs text-gray-600">
-                        <div className="grid grid-cols-2 gap-3 pt-2">
-                          {n.nature_d100 && <div><span className="font-semibold text-gray-700">D100: </span>{n.nature_d100}</div>}
-                          <div><span className="font-semibold text-green-700">Aumenta: </span>{n.nature_effect_increase} {n.nature_effect_increase_value && `(+${n.nature_effect_increase_value}%)`}</div>
-                          <div><span className="font-semibold text-red-600">Disminuye: </span>{n.nature_effect_decrease} {n.nature_effect_decrease_value && `(-${n.nature_effect_decrease_value}%)`}</div>
-                          {n.nature_notes && <div className="col-span-2"><span className="font-semibold text-gray-700">Notas: </span>{n.nature_notes}</div>}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                ]
-              })}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <Pagina>
+      <CabeceraPagina titulo="Naturalezas" subtitulo={loading ? 'Cargando…' : `${filtered.length} naturalezas`}
+        accion={<Buscador valor={search} onChange={setSearch} placeholder="Buscar" etiqueta="Buscar" />} />
+      <ListaCatalogo cargando={loading} vacio="No se encontraron naturalezas">
+        {filtered.map(n => {
+          const open = expandedId === n.nature_id
+          return (
+            <CeldaDesplegable key={n.nature_id} titulo={n.nature_name}
+              subtitulo={(n.nature_effect_increase || n.nature_effect_decrease) && (
+                <>
+                  {n.nature_effect_increase && <span className="text-ok">▲ {n.nature_effect_increase}</span>}
+                  {n.nature_effect_increase && n.nature_effect_decrease && '  '}
+                  {n.nature_effect_decrease && <span className="text-peligro">▼ {n.nature_effect_decrease}</span>}
+                </>
+              )}
+              abierta={open} onToggle={() => setExpandedId(open ? null : n.nature_id)}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                {n.nature_d100 && <Dato etiqueta="D100">{n.nature_d100}</Dato>}
+                <p><span className="font-semibold text-ok">Aumenta: </span>{n.nature_effect_increase} {n.nature_effect_increase_value && `(+${n.nature_effect_increase_value}%)`}</p>
+                <p><span className="font-semibold text-peligro">Disminuye: </span>{n.nature_effect_decrease} {n.nature_effect_decrease_value && `(-${n.nature_effect_decrease_value}%)`}</p>
+                {n.nature_notes && <Dato etiqueta="Notas" className="sm:col-span-2">{n.nature_notes}</Dato>}
+              </div>
+            </CeldaDesplegable>
+          )
+        })}
+      </ListaCatalogo>
+    </Pagina>
   )
 }

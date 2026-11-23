@@ -1,40 +1,58 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import PokemonDetailPanel from '../components/PokemonDetailPanel'
+import FichaPokemonCompleta from '../components/pokedex/FichaPokemonCompleta'
 import { apiFetch } from '../api'
+import { TYPE_COLORS, textoSobreColor } from '../lib/partidaShared'
+import { TypeBadge } from '../components/partida/TypeBadge'
+import { CabeceraPagina, Buscador, Capsulas, Capsula, Paginacion, Pagina, Vacio } from '../components/ui/Pagina'
+import { CeldaEsqueleto } from '../components/ui/ListaAgrupada'
+import Hoja from '../components/ui/Hoja'
+import useEsEscritorio from '../hooks/useEsEscritorio'
+import { ChevronRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 const LIMIT = 20
+
+// Como página, la lista recuerda búsqueda, filtros y página durante la sesión:
+// al tocar un Pokémon se va a su ficha completa y, al volver, sigue donde estaba.
+const CLAVE_ESTADO = 'pokedex-estado'
+const VACIO = { search: '', type: '', size: '', page: 1 }
+function leerEstado(pagina) {
+  if (!pagina) return VACIO
+  try { return { ...VACIO, ...JSON.parse(sessionStorage.getItem(CLAVE_ESTADO)) } } catch { return VACIO }
+}
 const SIZES = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan']
 
-const TYPE_COLORS = {
-  Normal:   { bg: '#A8A878', dark: false }, Fire:     { bg: '#F08030', dark: false },
-  Water:    { bg: '#6890F0', dark: false }, Grass:    { bg: '#78C850', dark: false },
-  Electric: { bg: '#F8D030', dark: true  }, Ice:      { bg: '#98D8D8', dark: true  },
-  Fighting: { bg: '#C03028', dark: false }, Poison:   { bg: '#A040A0', dark: false },
-  Ground:   { bg: '#E0C068', dark: true  }, Flying:   { bg: '#A890F0', dark: false },
-  Psychic:  { bg: '#F85888', dark: false }, Bug:      { bg: '#A8B820', dark: false },
-  Rock:     { bg: '#B8A038', dark: false }, Ghost:    { bg: '#705898', dark: false },
-  Dragon:   { bg: '#7038F8', dark: false }, Dark:     { bg: '#705848', dark: false },
-  Steel:    { bg: '#B8B8D0', dark: true  }, Fairy:    { bg: '#EE99AC', dark: true  },
-}
+const numero = (n) => n != null ? `#${String(n).padStart(4, '0')}` : ''
 
-function TypeBadge({ type }) {
-  const color = TYPE_COLORS[type] ?? { bg: '#888', dark: false }
+/* Fila de la Pokédex: sprite, nombre y número, tipos, SR */
+function FilaPokemon({ pk, activa, onClick }) {
+  const sprite = pk.pokemon_media_sprite
   return (
-    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold tracking-wide"
-      style={{ backgroundColor: color.bg, color: color.dark ? '#374151' : '#fff' }}>
-      {type}
-    </span>
-  )
-}
-
-function SkeletonRow() {
-  return (
-    <tr className="border-b border-gray-100 animate-pulse">
-      <td className="py-3 px-4"><div className="h-3 bg-gray-200 rounded w-28" /></td>
-      <td className="py-3 px-3"><div className="h-3 bg-gray-200 rounded w-20" /></td>
-      <td className="py-3 px-3 hidden sm:table-cell"><div className="h-3 bg-gray-200 rounded w-8" /></td>
-    </tr>
+    <button type="button" onClick={onClick} aria-current={activa ? 'true' : undefined}
+      className={`relative w-full min-h-[52px] pl-3 pr-4 py-1.5 grid
+                  before:absolute before:left-[62px] before:right-0 before:top-0 before:border-t before:border-separador first:before:hidden items-center gap-x-2.5 text-left transition-colors
+                  grid-cols-[40px_minmax(0,1fr)_auto_14px] sm:grid-cols-[40px_minmax(0,4fr)_minmax(0,5fr)_56px_14px]
+                  ${activa ? 'bg-tinte/10' : 'hover:bg-relleno'} focus-visible:outline-none focus-visible:bg-relleno`}>
+      <span className="w-10 h-10 grid place-items-center">
+        {sprite
+          ? <img src={sprite} alt="" loading="lazy" className="w-10 h-10 object-contain [image-rendering:pixelated]"
+              onError={e => { e.currentTarget.style.visibility = 'hidden' }} />
+          : <span className="w-7 h-7 rounded-full bg-relleno" />}
+      </span>
+      <span className="min-w-0 leading-tight">
+        <span className={`font-semibold text-[15px] truncate block sm:inline ${activa ? 'text-tinte' : 'text-texto'}`}>{pk.pokemon_name}</span>
+        <small className="block sm:inline sm:ml-1.5 text-xs font-medium text-texto-2 tabular-nums">
+          {numero(pk.pokemon_number)}<span className="sm:hidden"> · SR {pk.pokemon_sr}</span>
+        </small>
+      </span>
+      <span className="flex flex-wrap gap-1 justify-end sm:justify-start">
+        <TypeBadge type={pk.pokemon_type_1} tamano="sm" />
+        <TypeBadge type={pk.pokemon_type_2} tamano="sm" />
+      </span>
+      <span className="hidden sm:block text-[13px] text-texto-2 tabular-nums">SR {pk.pokemon_sr}</span>
+      <ChevronRight size={14} className="text-texto-2 opacity-60" aria-hidden />
+    </button>
   )
 }
 
@@ -44,23 +62,40 @@ function SkeletonRow() {
 // partida) para no enseñarla vacía mientras carga; a ese le basta con la
 // primera y las siguientes le dan igual. Opcional: como página suelta nadie lo
 // pasa y no cambia nada.
-export default function PokemonList({ title = 'Pokémon', onPick = null, starter = false, onChoose = null, moveDetail = false, onReady = null, initialSelectedId = null, initialInvokedLevel = null }) {
+//
+// pagina: se monta como pantalla de la app (con la barra lateral) y crece con
+// la ventana. Sin ella va dentro de una ventana de alto fijo (sala, creación
+// del Pokémon) y la lista se desplaza por dentro.
+export default function PokemonList({ title = 'Pokémon', onPick = null, starter = false, onChoose = null, moveDetail = false, onReady = null, initialSelectedId = null, initialInvokedLevel = null, pagina = false }) {
+  const navigate = useNavigate()
+  const [inicial] = useState(() => leerEstado(pagina))
   const [pokemon, setPokemon]           = useState([])
   const [total, setTotal]               = useState(0)
   const [loading, setLoading]           = useState(true)
-  const [search, setSearch]             = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [selectedType, setSelectedType] = useState('')
-  const [selectedSize, setSelectedSize] = useState('')
-  const [page, setPage]                 = useState(1)
+  const [search, setSearch]             = useState(inicial.search)
+  const [debouncedSearch, setDebouncedSearch] = useState(inicial.search)
+  const [selectedType, setSelectedType] = useState(inicial.type)
+  const [selectedSize, setSelectedSize] = useState(inicial.size)
+  const [page, setPage]                 = useState(inicial.page)
   const [types, setTypes]               = useState([])
   // Abre ya con el detalle de una especie puesto (p. ej. desde el Pokémon que
   // el máster invocó en la mesa). Quien monta esto con un id fijo lo hace
   // dentro de un modal que se remonta entero al reabrir, así que basta con
   // el valor inicial: no hace falta un efecto para seguir cambios.
-  const [selectedId, setSelectedId]     = useState(initialSelectedId)
+  // En la partida (sin onChoose ni onPick) tocar un Pokémon abre directo la
+  // ficha ampliada; el panel lateral queda para elegir (creación del Pokémon,
+  // asistente del master), donde lleva el botón "Seleccionar".
+  const directoAmpliada = !pagina && !onChoose && !onPick
+  const [selectedId, setSelectedId]     = useState(directoAmpliada ? null : initialSelectedId)
+  // Ficha completa abierta encima (solo dentro de una ventana: partida o
+  // creación del Pokémon). Como página no hace falta: se navega a /pokemon/:id.
+  const [ampliado, setAmpliado]         = useState(directoAmpliada ? initialSelectedId : null)
+  const esEscritorio = useEsEscritorio()
 
   const debounceRef = useRef(null)
+  // Última búsqueda aplicada: solo un texto nuevo vuelve a la página 1 (al
+  // montar con el estado guardado no hay que perder la página en que iba)
+  const buscadoRef  = useRef(inicial.search)
   const onReadyRef  = useRef(onReady)
   useEffect(() => { onReadyRef.current = onReady })
 
@@ -70,7 +105,11 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 350)
+    debounceRef.current = setTimeout(() => {
+      if (buscadoRef.current === search) return
+      buscadoRef.current = search
+      setDebouncedSearch(search); setPage(1)
+    }, 350)
     return () => clearTimeout(debounceRef.current)
   }, [search])
 
@@ -100,206 +139,122 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
       .finally(() => { setLoading(false); onReadyRef.current?.() })
   }, [debouncedSearch, selectedType, selectedSize, page, starter])
 
+  useEffect(() => {
+    if (!pagina) return
+    try {
+      sessionStorage.setItem(CLAVE_ESTADO, JSON.stringify({ search: debouncedSearch, type: selectedType, size: selectedSize, page }))
+    } catch { /* sin almacenamiento: no se recuerda, nada más */ }
+  }, [pagina, debouncedSearch, selectedType, selectedSize, page])
+
   const totalPages = Math.ceil(total / LIMIT)
   const fromItem   = total === 0 ? 0 : (page - 1) * LIMIT + 1
   const toItem     = Math.min(page * LIMIT, total)
-  const clearSearch = () => { setSearch(''); setPage(1) }
+  const cambiarBusqueda = (v) => { setSearch(v); if (!v) setPage(1) }
 
-  /* ── cabecera + filtros (compartida) ── */
+  /* ── cabecera + filtros ── */
   const Header = (
-    <div className="px-4 pt-5 pb-3 border-b border-gray-200 bg-white shrink-0">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">{title}</h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {loading ? 'Cargando...' : `Mostrando ${fromItem}–${toItem} de ${total}`}
-          </p>
-        </div>
-        <div className="relative w-full sm:w-64">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar pokémon..."
-            className="w-full pl-8 pr-7 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50
-                       focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent placeholder-gray-400" />
-          {search && (
-            <button onClick={clearSearch} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-              <X size={13} />
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <button onClick={() => handleTypeSelect('')}
-          className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-            selectedType === '' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
-          Todos
-        </button>
+    <CabeceraPagina titulo={title}
+      subtitulo={loading ? 'Cargando…' : `Mostrando ${fromItem}–${toItem} de ${total}`}
+      accion={<Buscador valor={search} onChange={cambiarBusqueda} placeholder="Buscar pokémon" etiqueta="Buscar pokémon" />}>
+      <Capsulas>
+        <Capsula activa={selectedType === ''} onClick={() => handleTypeSelect('')}>Todos</Capsula>
         {types.map(t => {
-          const color  = TYPE_COLORS[t.pokemon_types_name] ?? { bg: '#888' }
-          const active = selectedType === t.pokemon_types_name
+          const bg = TYPE_COLORS[t.pokemon_types_name]?.bg ?? '#888888'
           return (
-            <button key={t.pokemon_types_id} onClick={() => handleTypeSelect(t.pokemon_types_name)}
-              className="shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-all"
-              style={{ backgroundColor: active ? color.bg : 'white', color: active ? '#fff' : '#4B5563', borderColor: active ? color.bg : '#E5E7EB' }}>
+            <Capsula key={t.pokemon_types_id} activa={selectedType === t.pokemon_types_name}
+              onClick={() => handleTypeSelect(t.pokemon_types_name)} color={bg} colorTexto={textoSobreColor(bg)}>
               {t.pokemon_types_name}
-            </button>
+            </Capsula>
           )
         })}
-      </div>
+      </Capsulas>
       {/* Talla: segunda fila, debajo de los tipos */}
-      <div className="flex flex-wrap gap-2 mt-2">
-        <button onClick={() => handleSizeSelect('')}
-          className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-            selectedSize === '' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
-          Todas las tallas
-        </button>
+      <Capsulas>
+        <Capsula activa={selectedSize === ''} onClick={() => handleSizeSelect('')}>Todas las tallas</Capsula>
         {SIZES.map(sz => (
-          <button key={sz} onClick={() => handleSizeSelect(sz)}
-            className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-              selectedSize === sz ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
-            {sz}
-          </button>
+          <Capsula key={sz} activa={selectedSize === sz} onClick={() => handleSizeSelect(sz)}>{sz}</Capsula>
         ))}
+      </Capsulas>
+    </CabeceraPagina>
+  )
+
+  /* ── lista de pokémon ── */
+  const Lista = loading
+    ? (
+      <div className="bg-superficie rounded-grupo overflow-hidden divide-y divide-separador">
+        {Array.from({ length: 10 }).map((_, i) => <CeldaEsqueleto key={i} conIcono />)}
       </div>
-    </div>
-  )
-
-  /* ── tabla de pokémon ── */
-  const Table = (
-    <div className="flex-1 overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-          <tr className="text-left text-xs text-gray-500 uppercase tracking-wider">
-            <th className="py-3 px-4 font-medium">Nombre</th>
-            <th className="py-3 px-3 font-medium">Tipo</th>
-            <th className="py-3 px-3 font-medium hidden sm:table-cell">SR</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-100">
-          {loading
-            ? Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)
-            : pokemon.length === 0
-              ? (
-                <tr><td colSpan={3} className="py-16 text-center text-gray-400">
-                  <div className="flex flex-col items-center gap-2">
-                    <span className="text-4xl">🔍</span>
-                    <span className="text-sm">No se encontraron pokémon</span>
-                  </div>
-                </td></tr>
-              )
-              : pokemon.map(pk => {
-                const isSelected = pk.pokemon_id === selectedId
-                return (
-                  <tr key={pk.pokemon_id}
-                    onClick={() => onPick ? onPick(pk) : setSelectedId(isSelected ? null : pk.pokemon_id)}
-                    className={`cursor-pointer transition-colors group ${
-                      isSelected ? 'bg-red-50 border-l-2 border-red-500' : 'hover:bg-gray-50'}`}>
-                    <td className="py-2 px-4">
-                      <span className={`font-semibold transition-colors ${isSelected ? 'text-red-700' : 'text-gray-800 group-hover:text-red-700'}`}>
-                        {pk.pokemon_name}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3">
-                      <div className="flex gap-1 flex-wrap">
-                        {pk.pokemon_type_1 && <TypeBadge type={pk.pokemon_type_1} />}
-                        {pk.pokemon_type_2 && <TypeBadge type={pk.pokemon_type_2} />}
-                      </div>
-                    </td>
-                    <td className="py-2 px-3 hidden sm:table-cell text-gray-600 font-medium">{pk.pokemon_sr}</td>
-                  </tr>
-                )
-              })
-          }
-        </tbody>
-      </table>
-    </div>
-  )
-
-  /* ── paginación ── */
-  const Pagination = !loading && totalPages > 1 && (
-    <div className="px-4 py-3 border-t border-gray-200 bg-white flex items-center justify-between gap-2 shrink-0">
-      <span className="text-xs text-gray-500 hidden sm:block">
-        Pág. <span className="font-medium text-gray-800">{page}</span> / {totalPages}
-      </span>
-      <div className="flex items-center gap-1 mx-auto sm:mx-0">
-        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-          <ChevronLeft size={14} /> Ant.
-        </button>
-        <div className="flex gap-1">
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            let p
-            if (totalPages <= 5)                p = i + 1
-            else if (page <= 3)                 p = i + 1
-            else if (page >= totalPages - 2)    p = totalPages - 4 + i
-            else                                p = page - 2 + i
+    )
+    : pokemon.length === 0
+      ? <Vacio titulo="No se encontraron pokémon" detalle="Prueba con otro nombre o quita algún filtro." />
+      : (
+        <div className="bg-superficie rounded-grupo overflow-hidden">
+          {pokemon.map(pk => {
+            const isSelected = pk.pokemon_id === selectedId
             return (
-              <button key={p} onClick={() => setPage(p)}
-                className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${p === page ? 'bg-red-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
-                {p}
-              </button>
+              <FilaPokemon key={pk.pokemon_id} pk={pk} activa={isSelected}
+                onClick={() => onPick ? onPick(pk)
+                  : directoAmpliada ? setAmpliado(pk.pokemon_id)
+                  : pagina ? navigate(`/pokemon/${pk.pokemon_id}`)   // página: directo a la ficha completa
+                  : setSelectedId(isSelected ? null : pk.pokemon_id)} />
             )
           })}
         </div>
-        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-          Sig. <ChevronRight size={14} />
-        </button>
-      </div>
-    </div>
+      )
+
+  const Paginas = !loading && totalPages > 1 && (
+    <Paginacion pagina={page} total={totalPages} onCambiar={setPage} />
   )
 
+  const detalle = selectedId && (
+    <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} onChoose={onChoose} moveDetail={moveDetail}
+      invokedLevel={selectedId === initialSelectedId ? initialInvokedLevel : null}
+      onAmpliar={pagina ? null : setAmpliado} />
+  )
+
+  // Celular: el detalle sube en una hoja inferior
+  const hojaDetalle = selectedId && !esEscritorio && (
+    <Hoja onClose={() => setSelectedId(null)} sinRelleno alto="max-h-[90dvh]" z="z-[60]">
+      {detalle}
+    </Hoja>
+  )
+
+  if (pagina) {
+    return (
+      <Pagina>
+        {Header}
+        {Lista}
+        {Paginas}
+      </Pagina>
+    )
+  }
+
+  // Dentro de una ventana de alto fijo: la lista se desplaza por dentro
   return (
-    <>
-      {/* ════════════════════════════════════════════
-          Layout desktop: panel izquierdo + lista derecha
-          Umbral: lg (1024px)
-         ════════════════════════════════════════════ */}
-      <div className="hidden lg:flex h-full overflow-hidden">
-
-        {/* Panel de detalle – izquierda */}
-        {selectedId && (
-          <div className="w-[420px] shrink-0 border-r border-gray-200 flex flex-col overflow-hidden bg-white">
-            <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} onChoose={onChoose} moveDetail={moveDetail}
-              invokedLevel={selectedId === initialSelectedId ? initialInvokedLevel : null} />
-          </div>
-        )}
-
-        {/* Lista – derecha (o ancho completo sin selección) */}
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          {Header}
-          {Table}
-          {Pagination}
+    <div className="flex h-full overflow-hidden bg-fondo text-texto">
+      {/* Ficha completa a pantalla completa, sin salir de la partida. `key`:
+          al pasar a una evolución vuelve a empezar desde arriba. */}
+      {ampliado && (
+        <div key={ampliado} className="fixed inset-0 z-[66] overflow-y-auto bg-fondo text-texto animate-velo">
+          <FichaPokemonCompleta id={ampliado} etiquetaVolver="Volver a la Pokédex"
+            nivel={ampliado === initialSelectedId ? initialInvokedLevel : null}
+            onVolver={() => setAmpliado(null)} onIrA={setAmpliado} />
+        </div>
+      )}
+      {selectedId && esEscritorio && (
+        <div className="w-[420px] shrink-0 border-r border-separador flex flex-col overflow-hidden bg-superficie">
+          {detalle}
+        </div>
+      )}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {/* pr-14: deja libre la X de cerrar que pone la ventana arriba a la derecha */}
+        <div className="shrink-0 px-4 pt-4 pb-3 pr-14">{Header}</div>
+        <div className="flex-1 overflow-auto px-4 pb-4 flex flex-col gap-3">
+          {Lista}
+          {Paginas}
         </div>
       </div>
-
-      {/* ════════════════════════════════════════════
-          Layout móvil: lista normal + modal bottom sheet
-         ════════════════════════════════════════════ */}
-      <div className="lg:hidden flex flex-col h-full overflow-hidden">
-        {Header}
-        {Table}
-        {Pagination}
-
-        {/* Bottom sheet modal */}
-        {selectedId && (
-          <div
-            className="fixed inset-0 z-50 flex flex-col justify-end"
-            style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-            onClick={e => { if (e.target === e.currentTarget) setSelectedId(null) }}
-          >
-            <div className="bg-white rounded-t-2xl flex flex-col overflow-hidden"
-              style={{ maxHeight: '90dvh' }}>
-              {/* drag handle */}
-              <div className="flex justify-center pt-3 pb-1 shrink-0">
-                <div className="w-10 h-1 bg-gray-300 rounded-full" />
-              </div>
-              <PokemonDetailPanel id={selectedId} onClose={() => setSelectedId(null)} onSelectId={setSelectedId} onChoose={onChoose} moveDetail={moveDetail}
-              invokedLevel={selectedId === initialSelectedId ? initialInvokedLevel : null} />
-            </div>
-          </div>
-        )}
-      </div>
-    </>
+      {hojaDetalle}
+    </div>
   )
 }

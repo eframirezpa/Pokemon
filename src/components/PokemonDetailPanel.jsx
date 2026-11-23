@@ -1,176 +1,32 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Sparkles, ChevronRight, ChevronLeft, ExternalLink, Check } from 'lucide-react'
+import { X, ExternalLink } from 'lucide-react'
 import { apiFetch } from '../api'
 import MoveInfoModal from './MoveInfoModal'
 import { claveMove } from '../lib/moveName'
 import { xpAlAtrapar } from '../lib/xpAtrapar'
+import { genderLabel, numeroPokedex } from '../lib/pokedex'
+import { ListaAgrupada } from './ui/ListaAgrupada'
+import { CabeceraPokemon, Caracteristicas, DatosCombate, FilaDato, Habilidades, Evoluciones, Movimientos, NotasPokemon } from './pokedex/FichaPokemon'
 
-/* ── helpers (mismos que PokemonDetail) ── */
-const TYPE_COLORS = {
-  Normal:   { bg: '#A8A878', dark: false }, Fire:     { bg: '#F08030', dark: false },
-  Water:    { bg: '#6890F0', dark: false }, Grass:    { bg: '#78C850', dark: false },
-  Electric: { bg: '#F8D030', dark: true  }, Ice:      { bg: '#98D8D8', dark: true  },
-  Fighting: { bg: '#C03028', dark: false }, Poison:   { bg: '#A040A0', dark: false },
-  Ground:   { bg: '#E0C068', dark: true  }, Flying:   { bg: '#A890F0', dark: false },
-  Psychic:  { bg: '#F85888', dark: false }, Bug:      { bg: '#A8B820', dark: false },
-  Rock:     { bg: '#B8A038', dark: false }, Ghost:    { bg: '#705898', dark: false },
-  Dragon:   { bg: '#7038F8', dark: false }, Dark:     { bg: '#705848', dark: false },
-  Steel:    { bg: '#B8B8D0', dark: true  }, Fairy:    { bg: '#EE99AC', dark: true  },
-}
-const typeBg = t => TYPE_COLORS[t] ?? { bg: '#888', dark: false }
-const splitList = s => s ? s.split(',').map(x => x.trim()).filter(Boolean) : []
-const slugToTitle = s => s ? s.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : ''
-const statMod = v => { const m = Math.floor((v - 10) / 2); return m >= 0 ? `+${m}` : `${m}` }
-const genderLabel = r => {
-  if (!r) return 'Desconocido'
-  const [f, m] = r.split(':').map(Number)
-  if (!m) return 'Sin género'
-  const fp = Math.round((f / (f + m)) * 100)
-  return `♀ ${fp}%  ♂ ${100 - fp}%`
-}
+// Detalle de una especie al lado de la lista de la Pokédex (o en la hoja
+// inferior en el celular). Mismas piezas que la página completa, en compacto.
 
-function TypeBadge({ type }) {
-  const c = typeBg(type)
+/* Botón redondo gris de la barra superior */
+function BotonRedondo({ onClick, titulo, children }) {
   return (
-    <span className="px-2 py-0.5 rounded-full text-xs font-bold"
-      style={{ backgroundColor: c.bg, color: c.dark ? '#374151' : '#fff' }}>
-      {type}
-    </span>
-  )
-}
-
-function StatBox({ label, val }) {
-  return (
-    <div className="flex flex-col items-center min-w-[2.5rem]">
-      <span className="text-[10px] font-black uppercase text-[#7A200D] tracking-wider">{label}</span>
-      <span className="text-base font-bold text-gray-900 leading-tight">{val}</span>
-      <span className="text-xs text-gray-600">{statMod(val)}</span>
-    </div>
-  )
-}
-
-function TypeRow({ label, types }) {
-  if (!types?.length) return null
-  return (
-    <div className="flex flex-wrap items-start gap-x-2 gap-y-1 py-0.5">
-      <span className="text-xs font-semibold text-[#7A200D] uppercase tracking-wide min-w-[6rem] shrink-0">{label}</span>
-      <div className="flex flex-wrap gap-1">{types.map(t => <TypeBadge key={t} type={t} />)}</div>
-    </div>
-  )
-}
-
-function MovesSection({ title, moveNames, movesMap, onMoveClick }) {
-  const [open, setOpen] = useState(false)
-  if (!moveNames?.length) return null
-  const moves = moveNames.map(n => movesMap[claveMove(n)]).filter(Boolean)
-  return (
-    <div className="mb-3">
-      <button onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-1.5 bg-[#7A200D] text-white text-xs font-bold uppercase tracking-wider rounded-t">
-        {title}
-        <ChevronRight size={13} className={`transition-transform ${open ? 'rotate-90' : ''}`} />
-      </button>
-      {open && (
-        <div className="border border-[#d4a96a]/60 border-t-0 rounded-b overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="bg-[#f5e6c8]">
-              <tr className="text-[#7A200D] font-semibold text-[10px] uppercase">
-                <th className="py-1 px-2 text-left">Nombre</th>
-                <th className="py-1 px-2 text-left">Tipo</th>
-                <th className="py-1 px-2 text-center">PP</th>
-                <th className="py-1 px-2 text-left">Tiempo</th>
-                <th className="py-1 px-2 text-left">Rango</th>
-              </tr>
-            </thead>
-            <tbody className="bg-[#FDF1DC]">
-              {moves.length > 0 ? moves.map(m => {
-                const c = typeBg(m.move_type)
-                return (
-                  <tr key={m.move_id} className="border-b border-gray-100 hover:bg-amber-50/50">
-                    <td className="py-1 px-2 font-medium text-gray-800">
-                      {onMoveClick ? (
-                        <button onClick={() => onMoveClick(m)} title="Ver detalle del movimiento"
-                          className="text-left underline decoration-dotted decoration-[#7A200D]/50 underline-offset-2 hover:text-[#7A200D] transition-colors">
-                          {m.move_name}
-                        </button>
-                      ) : m.move_name}
-                    </td>
-                    <td className="py-1 px-2">
-                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-                        style={{ backgroundColor: c.bg, color: c.dark ? '#374151' : '#fff' }}>
-                        {m.move_type}
-                      </span>
-                    </td>
-                    <td className="py-1 px-2 text-center text-gray-500">{m.move_pp}</td>
-                    <td className="py-1 px-2 text-gray-500">{m.move_time}</td>
-                    <td className="py-1 px-2 text-gray-500">{m.move_range}</td>
-                  </tr>
-                )
-              }) : moveNames.map(n => (
-                <tr key={n} className="border-b border-gray-100">
-                  <td className="py-1 px-2 text-gray-600 italic">{n}</td><td colSpan={4} />
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function TmSection({ tmNumbers, tmsMap, movesMap = {}, onMoveClick }) {
-  const [open, setOpen] = useState(false)
-  if (!tmNumbers?.length) return null
-  return (
-    <div className="mb-3">
-      <button onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-1.5 bg-[#7A200D] text-white text-xs font-bold uppercase tracking-wider rounded-t">
-        TMs ({tmNumbers.length})
-        <ChevronRight size={13} className={`transition-transform ${open ? 'rotate-90' : ''}`} />
-      </button>
-      {open && (
-        <div className="border border-[#d4a96a]/60 border-t-0 rounded-b bg-[#FDF1DC] overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="bg-[#f5e6c8]">
-              <tr className="text-[#7A200D] font-semibold text-[10px] uppercase">
-                <th className="py-1 px-2 text-left">TM</th>
-                <th className="py-1 px-2 text-left">Nombre</th>
-                <th className="py-1 px-2 text-right">Costo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tmNumbers.map(n => {
-                const tm = tmsMap[n]
-                return (
-                  <tr key={n} className="border-b border-[#d4a96a]/30 hover:bg-amber-50/50">
-                    <td className="py-1 px-2 font-bold text-[#7A200D]">TM{String(n).padStart(2,'0')}</td>
-                    <td className="py-1 px-2 text-gray-800">
-                      {/* El TM enseña el movimiento del mismo nombre (TM.tm_name_id = moves.move_name_id) */}
-                      {tm && onMoveClick && movesMap[claveMove(tm.tm_name_id)] ? (
-                        <button onClick={() => onMoveClick(movesMap[claveMove(tm.tm_name_id)])} title="Ver detalle del movimiento"
-                          className="text-left underline decoration-dotted decoration-[#7A200D]/50 underline-offset-2 hover:text-[#7A200D] transition-colors">
-                          {slugToTitle(tm.tm_name_id)}
-                        </button>
-                      ) : (tm ? slugToTitle(tm.tm_name_id) : '—')}
-                    </td>
-                    <td className="py-1 px-2 text-gray-500 text-right tabular-nums">
-                      {tm?.tm_cost ? `${tm.tm_cost.toLocaleString()} po` : '—'}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+    <button type="button" onClick={onClick} title={titulo} aria-label={titulo}
+      className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 hover:text-texto transition-colors">
+      {children}
+    </button>
   )
 }
 
 /* ── main component ── */
-export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose, moveDetail = false, invokedLevel = null }) {
+// onAmpliar: si se pasa, "ampliar" abre la ficha completa donde diga quien
+// monta el panel (la Pokédex de la partida la pone encima de la sala) en vez
+// de navegar a la página de consulta.
+export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose, moveDetail = false, invokedLevel = null, onAmpliar = null }) {
   const navigate  = useNavigate()
   const [pk,       setPk]      = useState(null)
   const [evols,    setEvols]   = useState([])
@@ -220,34 +76,35 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose, 
       .catch(() => {})
   }, [pk])
 
-  if (loading) return (
-    <div className="flex flex-col h-full text-gray-800">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
-        <div className="h-4 bg-gray-200 rounded w-24 animate-pulse" />
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1"><X size={18} /></button>
+  const barra = (titulo, sub = null) => (
+    <div className="flex items-center gap-2 px-4 py-3 shrink-0 bg-superficie/90 backdrop-blur border-b border-separador">
+      <div className="flex-1 min-w-0 flex items-baseline gap-2">
+        <span className="font-semibold text-[15px] text-texto truncate">{titulo}</span>
+        {sub && <span className="text-xs text-texto-2 tabular-nums shrink-0">{sub}</span>}
       </div>
-      <div className="flex-1 flex items-center justify-center text-gray-400 text-sm animate-pulse">Cargando...</div>
+      {pk && !pk.error && (
+        <BotonRedondo onClick={() => onAmpliar ? onAmpliar(id) : navigate(`/pokemon/${id}`)} titulo="Ver ficha completa"><ExternalLink size={15} /></BotonRedondo>
+      )}
+      <BotonRedondo onClick={onClose} titulo="Cerrar"><X size={16} strokeWidth={2.4} /></BotonRedondo>
+    </div>
+  )
+
+  if (loading) return (
+    <div className="flex flex-col h-full min-h-[240px] bg-fondo text-texto">
+      {barra(<span className="inline-block h-3.5 w-24 rounded bg-relleno animate-pulse align-middle" />)}
+      <div className="p-4 flex flex-col gap-3">
+        <div className="h-[150px] rounded-tarjeta bg-relleno animate-pulse" />
+        <div className="h-14 rounded-xl bg-relleno animate-pulse" />
+      </div>
     </div>
   )
 
   if (!pk || pk.error) return (
-    <div className="flex flex-col h-full text-gray-800">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
-        <span className="text-sm text-gray-500">No encontrado</span>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1"><X size={18} /></button>
-      </div>
+    <div className="flex flex-col h-full bg-fondo text-texto">
+      {barra('No encontrado')}
     </div>
   )
 
-  const speeds = [
-    pk.pokemon_speed_1_name && `${pk.pokemon_speed_1_value} ${pk.pokemon_speed_1_name}`,
-    pk.pokemon_speed_2_name && `${pk.pokemon_speed_2_value} ${pk.pokemon_speed_2_name}`,
-  ].filter(Boolean).join(' · ')
-
-  const vulns = splitList(pk.pokemon_vulnerabilities)
-  const resis = splitList(pk.pokemon_resistances)
-  const immun = splitList(pk.pokemon_immunities)
-  const tmNumbers = splitList(pk.pokemon_moves_tm).map(Number).filter(n => !isNaN(n))
   const abilityEntries = [
     pk.pokemon_ability_1 && { id: pk.pokemon_ability_1, hidden: !!pk.pokemon_ability_1_is_hidden },
     pk.pokemon_ability_2 && { id: pk.pokemon_ability_2, hidden: !!pk.pokemon_ability_2_is_hidden },
@@ -255,256 +112,47 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose, 
     pk.pokemon_ability_4 && { id: pk.pokemon_ability_4, hidden: !!pk.pokemon_ability_4_is_hidden },
   ].filter(Boolean)
 
-  const mainImg  = shiny ? pk.pokemon_media_main_shiny : pk.pokemon_media_main
-  const evolFrom = evols.find(ev => Number(ev.evolution_to_pokemon_id)   === Number(id))
-  const evolTo   = evols.find(ev => Number(ev.evolution_from_pokemon_id) === Number(id))
+  // Al navegar (ej. a una evolución) esto sigue mostrando la especie que se
+  // está viendo, no la del Pokémon invocado: invokedLevel solo aplica
+  // mientras el detalle abierto es el suyo (lo filtra quien lo pasa,
+  // PokemonList).
+  const nivel = invokedLevel ?? pk.pokemon_min_level
+  const xp = xpAlAtrapar(nivel, pk.pokemon_sr)
+  const info = [
+    ['XP al atrapar', xp?.toLocaleString()],
+    ['Talla', pk.pokemon_size],
+    ['SR', pk.pokemon_sr],
+    [invokedLevel != null ? 'Nivel' : 'Nivel mín.', nivel],
+    ['Grupo huevo', pk.pokemon_egg_group],
+    ['Género', genderLabel(pk.pokemon_gender)],
+    ['Bioma', pk.pokemon_habitat_biomes],
+  ].filter(([, v]) => v != null && v !== '')
+
   // En modo selección (onChoose) no se permite navegar a evoluciones
-  const evoDisabled = !!onChoose
+  const irA = onChoose ? null : (eid) => onSelectId?.(eid)
+  const alMove = moveDetail ? openMoveInfo : undefined
 
   return (
-    <div className="flex flex-col h-full text-gray-800">
-      {/* ── sticky header ── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shrink-0 sticky top-0 z-10">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-bold text-gray-900 truncate">{pk.pokemon_name}</span>
-          <span className="text-xs text-gray-400 font-mono shrink-0">
-            #{String(pk.pokemon_number).padStart(4,'0')}
-          </span>
-          {pk.pokemon_type_1 && <TypeBadge type={pk.pokemon_type_1} />}
-          {pk.pokemon_type_2 && <TypeBadge type={pk.pokemon_type_2} />}
+    <div className="flex flex-col h-full bg-fondo text-texto">
+      {barra(pk.pokemon_name, numeroPokedex(pk.pokemon_number))}
+
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 [&>*]:shrink-0">
+        <CabeceraPokemon pk={pk} shiny={shiny} onShiny={() => setShiny(s => !s)} onChoose={onChoose} compacta />
+        <Caracteristicas pk={pk} />
+        <ListaAgrupada titulo="Información">
+          {info.map(([l, v]) => <FilaDato key={l} etiqueta={l}>{v}</FilaDato>)}
+        </ListaAgrupada>
+        {pk.pokemon_description && (
+          <p className="text-[13px] italic leading-relaxed text-texto-2 px-1">“{pk.pokemon_description}”</p>
+        )}
+        <div>
+          <h3 className="text-[13px] font-semibold text-texto-2 uppercase tracking-[.03em] px-4 pb-1.5">Combate</h3>
+          <DatosCombate pk={pk} />
         </div>
-        <div className="flex items-center gap-1 shrink-0 ml-2">
-          <button onClick={() => navigate(`/pokemon/${id}`)}
-            className="text-gray-400 hover:text-red-600 p-1 transition-colors" title="Ver página completa">
-            <ExternalLink size={16} />
-          </button>
-          <button onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 p-1 transition-colors" title="Cerrar">
-            <X size={18} />
-          </button>
-        </div>
-      </div>
-
-      {/* ── scrollable content ── */}
-      <div className="flex-1 overflow-y-auto">
-
-        {/* Image + evolution sprites */}
-        <div className="flex items-center py-4 bg-gray-50 border-b border-gray-100 px-3">
-          {/* Left: pre-evolution */}
-          <div className="w-16 shrink-0 flex justify-center">
-            {evolFrom && (
-              <button
-                onClick={() => { if (!evoDisabled) onSelectId?.(evolFrom.evolution_from_pokemon_id) }}
-                disabled={evoDisabled}
-                className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-all group ${
-                  evoDisabled ? 'cursor-default opacity-60' : 'hover:bg-white hover:shadow'}`}
-                title={evoDisabled ? evolFrom.from_name : `Ver ${evolFrom.from_name}`}
-              >
-                <img src={evolFrom.from_sprite} alt={evolFrom.from_name}
-                  className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
-                <span className="text-[9px] text-gray-400 group-hover:text-red-600 text-center leading-tight max-w-[56px] truncate">
-                  {evolFrom.from_name}
-                </span>
-                <span className="flex items-center gap-0.5 text-[9px] text-gray-400 group-hover:text-red-500">
-                  <ChevronLeft size={10} /> ev. from
-                </span>
-              </button>
-            )}
-          </div>
-
-          {evolFrom && <ChevronRight size={12} className="text-gray-300 shrink-0" />}
-
-          {/* Center: main sprite */}
-          <div className="flex-1 flex flex-col items-center gap-2">
-            <img src={mainImg} alt={pk.pokemon_name}
-              className="w-32 h-32 object-contain"
-              onError={e => { e.target.style.opacity = '0.2' }} />
-            <div className="flex items-center gap-2">
-              {pk.pokemon_media_main_shiny && (
-                <button onClick={() => setShiny(s => !s)}
-                  className={`flex items-center gap-1 text-xs px-3 py-1 rounded-full border transition-all ${
-                    shiny ? 'bg-yellow-400 border-yellow-500 text-yellow-900 font-semibold'
-                          : 'bg-white border-gray-200 text-gray-500 hover:border-yellow-400'}`}>
-                  <Sparkles size={11} /> Shiny
-                </button>
-              )}
-              {onChoose && (
-                <button onClick={() => onChoose(pk)}
-                  className="flex items-center gap-1 text-xs px-3 py-1 rounded-full bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
-                  <Check size={11} /> Seleccionar
-                </button>
-              )}
-            </div>
-          </div>
-
-          {evolTo && <ChevronRight size={12} className="text-gray-300 shrink-0" />}
-
-          {/* Right: next evolution */}
-          <div className="w-16 shrink-0 flex justify-center">
-            {evolTo && (
-              <button
-                onClick={() => { if (!evoDisabled) onSelectId?.(evolTo.evolution_to_pokemon_id) }}
-                disabled={evoDisabled}
-                className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-all group ${
-                  evoDisabled ? 'cursor-default opacity-60' : 'hover:bg-white hover:shadow'}`}
-                title={evoDisabled ? evolTo.to_name : `Ver ${evolTo.to_name}`}
-              >
-                <img src={evolTo.to_sprite} alt={evolTo.to_name}
-                  className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
-                <span className="text-[9px] text-gray-400 group-hover:text-red-600 text-center leading-tight max-w-[56px] truncate">
-                  {evolTo.to_name}
-                </span>
-                <span className="flex items-center gap-0.5 text-[9px] text-gray-400 group-hover:text-red-500">
-                  ev. to <ChevronRight size={10} />
-                </span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="px-4 py-4 space-y-4">
-
-          {/* Basic info */}
-          {(() => {
-            // Al navegar (ej. a una evolución) esto sigue mostrando la especie
-            // que se está viendo, no la del Pokémon invocado: invokedLevel solo
-            // aplica mientras el detalle abierto es el suyo (lo filtra quien
-            // lo pasa, PokemonList).
-            const nivel = invokedLevel ?? pk.pokemon_min_level
-            const xp = xpAlAtrapar(nivel, pk.pokemon_sr)
-            return (
-              <>
-                {xp != null && (
-                  <div className="flex justify-between py-0.5 border-b border-gray-100 text-xs">
-                    <span className="text-[#7A200D] font-semibold uppercase tracking-wide text-[10px]">XP al atrapar</span>
-                    <span className="text-gray-700 text-right">{xp.toLocaleString()}</span>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
-                  {[
-                    ['Talla',      pk.pokemon_size],
-                    ['SR',         pk.pokemon_sr],
-                    [invokedLevel != null ? 'Nivel' : 'Nivel mín.', nivel],
-                    ['Grupo huevo',pk.pokemon_egg_group],
-                    ['Género',     genderLabel(pk.pokemon_gender)],
-                    ['Bioma',      pk.pokemon_habitat_biomes],
-                  ].filter(([,v]) => v).map(([l, v]) => (
-                    <div key={l} className="flex justify-between py-0.5 border-b border-gray-100 col-span-1">
-                      <span className="text-[#7A200D] font-semibold uppercase tracking-wide text-[10px]">{l}</span>
-                      <span className="text-gray-700 text-right">{v}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )
-          })()}
-
-          {/* Flavor text */}
-          {pk.pokemon_description && (
-            <p className="text-xs text-gray-500 italic leading-relaxed border-l-2 border-amber-300 pl-3">
-              "{pk.pokemon_description}"
-            </p>
-          )}
-
-          {/* D&D Stat block */}
-          <div className="rounded-lg overflow-hidden"
-            style={{ borderTop: '5px solid #9C6E1B', borderBottom: '5px solid #9C6E1B', backgroundColor: '#FDF1DC' }}>
-            <div className="px-4 pt-3 pb-1">
-              <h2 className="text-lg font-black text-[#7A200D]">{pk.pokemon_name}</h2>
-              <p className="text-xs text-gray-600">{pk.pokemon_size} Pokémon</p>
-            </div>
-            <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
-            <div className="px-4 py-1.5 space-y-0.5 text-xs">
-              <p><span className="font-bold text-[#7A200D]">Clase de Armadura</span> {pk.pokemon_armor_class}</p>
-              <p><span className="font-bold text-[#7A200D]">Puntos de Golpe</span> {pk.pokemon_hit_points} ({pk.pokemon_hit_dice})</p>
-              <p><span className="font-bold text-[#7A200D]">Velocidad</span> {speeds || '—'}</p>
-            </div>
-            <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
-            <div className="px-4 py-2 flex justify-around">
-              {[['STR',pk.pokemon_str],['DEX',pk.pokemon_dex],['CON',pk.pokemon_con],
-                ['INT',pk.pokemon_int],['WIS',pk.pokemon_wis],['CHA',pk.pokemon_cha]]
-                .map(([l,v]) => <StatBox key={l} label={l} val={v} />)}
-            </div>
-            <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
-            <div className="px-4 py-1.5 space-y-0.5 text-xs">
-              {pk.pokemon_saving_throws && (
-                <p><span className="font-bold text-[#7A200D]">Tiradas de Salvación</span> {pk.pokemon_saving_throws}</p>
-              )}
-              {pk.pokemon_proficient_skills && (
-                <p><span className="font-bold text-[#7A200D]">Competencias</span> {pk.pokemon_proficient_skills}</p>
-              )}
-              {pk.pokemon_sense_1_name && (
-                <p><span className="font-bold text-[#7A200D]">Sentidos</span> {pk.pokemon_sense_1_name} {pk.pokemon_sense_1_value}</p>
-              )}
-            </div>
-            <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
-            <div className="px-4 py-1.5 space-y-1">
-              {vulns.length > 0 && <TypeRow label="Vulnerabilidades" types={vulns} />}
-              {resis.length > 0 && <TypeRow label="Resistencias"     types={resis} />}
-              {immun.length > 0 && <TypeRow label="Inmunidades"      types={immun} />}
-            </div>
-          </div>
-
-          {/* Abilities */}
-          {abilityEntries.length > 0 && (
-            <div>
-              <h3 className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Habilidades</h3>
-              <div className="space-y-2">
-                {abilityEntries.map(({ id: aid, hidden }) => {
-                  const ab = abilities[aid]
-                  return (
-                    <div key={aid} className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-sm font-bold text-gray-800">{ab ? ab.ability_name : `#${aid}`}</span>
-                        {hidden && <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-medium">Oculta</span>}
-                      </div>
-                      {ab?.ability_description && <p className="text-xs text-gray-500 leading-relaxed">{ab.ability_description}</p>}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Evolutions */}
-          {evols.length > 0 && (
-            <div>
-              <h3 className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Evolución</h3>
-              <div className="flex flex-wrap gap-3">
-                {evols.map(ev => (
-                  <div key={ev.evolution_id} className="flex items-center gap-1 bg-white border border-gray-100 rounded-xl px-3 py-2">
-                    <div className="flex flex-col items-center">
-                      <img src={ev.from_sprite} alt={ev.from_name} className="w-8 h-8 object-contain" />
-                      <span className="text-[10px] text-gray-500">{ev.from_name}</span>
-                    </div>
-                    <div className="flex flex-col items-center px-1 text-[10px] text-gray-400">
-                      <ChevronRight size={12} className="text-[#7A200D]" />
-                      <span className="capitalize">{ev.evolution_condition_1_type}</span>
-                      <span className="font-semibold text-gray-600">{ev.evolution_condition_1_value}</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <img src={ev.to_sprite} alt={ev.to_name} className="w-8 h-8 object-contain" />
-                      <span className="text-[10px] text-gray-500">{ev.to_name}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Moves */}
-          <div>
-            <h3 className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Movimientos</h3>
-            <MovesSection title="Inicio"   moveNames={splitList(pk.pokemon_moves_start)}   movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
-            <MovesSection title="Nivel 2"  moveNames={splitList(pk.pokemon_moves_level2)}  movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
-            <MovesSection title="Nivel 6"  moveNames={splitList(pk.pokemon_moves_level6)}  movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
-            <MovesSection title="Nivel 10" moveNames={splitList(pk.pokemon_moves_level10)} movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
-            <MovesSection title="Nivel 14" moveNames={splitList(pk.pokemon_moves_level14)} movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
-            <MovesSection title="Nivel 18" moveNames={splitList(pk.pokemon_moves_level18)} movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
-            <MovesSection title="Huevo"    moveNames={splitList(pk.pokemon_moves_egg)}     movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
-            <TmSection tmNumbers={tmNumbers} tmsMap={tmsMap} movesMap={movesMap} onMoveClick={moveDetail ? openMoveInfo : undefined} />
-          </div>
-        </div>
+        <Habilidades entradas={abilityEntries} abilities={abilities} compacta />
+        <Evoluciones evoluciones={evols} onNavigate={irA} />
+        <Movimientos pk={pk} movesMap={movesMap} tmsMap={tmsMap} onMoveClick={alMove} />
+        <NotasPokemon texto={pk.pokemon_notes} />
       </div>
 
       {/* Detalle del movimiento (estilo pokédex) */}

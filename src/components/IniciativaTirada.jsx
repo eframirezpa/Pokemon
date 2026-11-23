@@ -109,24 +109,24 @@ export default function IniciativaTirada({ partidaId, personajeId, esMaster, pok
   // ── Pantalla de selección: con qué ser vivo se juega esta iniciativa ──
   if (!esMaster && serVivo == null) {
     return (
-      <div className="fixed inset-0 z-[95] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
-        <div className="bg-gray-900 border border-amber-500/40 rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-700 flex items-center gap-2">
-            <Dices size={18} className="text-amber-400 shrink-0" />
+      <div className="fixed inset-0 z-[95] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+        <div className="bg-fondo text-texto border border-tinte/40 animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs shadow-hoja overflow-hidden">
+          <div className="px-5 py-4 border-b border-separador flex items-center gap-2">
+            <Dices size={18} className="text-tinte shrink-0" />
             <h3 className="font-bold text-white text-sm">¿Con quién tiras iniciativa?</h3>
           </div>
           <div className="px-5 py-4 space-y-2">
             <button onClick={() => setSerVivo('trainer')} disabled={cargando}
-              className="w-full flex items-center gap-3 bg-gray-800 hover:bg-gray-700 disabled:opacity-40
-                         border border-gray-700 rounded-xl px-3 py-2.5 transition-colors text-left">
-              <span className="shrink-0 w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-gray-300">
+              className="w-full flex items-center gap-3 bg-superficie hover:bg-relleno-2 disabled:opacity-40
+                         border border-separador rounded-xl px-3 py-2.5 transition-colors text-left">
+              <span className="shrink-0 w-9 h-9 rounded-full bg-elevada flex items-center justify-center text-texto">
                 <User size={18} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-bold text-white">Entrenador</span>
                 {trainerInfo && (
-                  <span className="block text-[11px] text-gray-400">
-                    Modificador <span className="font-bold text-amber-300">{trainerInfo.mod >= 0 ? `+${trainerInfo.mod}` : trainerInfo.mod}</span>
+                  <span className="block text-[11px] text-texto-2">
+                    Modificador <span className="font-bold text-tinte">{trainerInfo.mod >= 0 ? `+${trainerInfo.mod}` : trainerInfo.mod}</span>
                     {trainerInfo.conAlert && ' (incluye Alert)'}
                   </span>
                 )}
@@ -136,18 +136,18 @@ export default function IniciativaTirada({ partidaId, personajeId, esMaster, pok
 
             {pokemonInvocado != null && (
               <button onClick={() => setSerVivo('pokemon')} disabled={cargando}
-                className="w-full flex items-center gap-3 bg-gray-800 hover:bg-gray-700 disabled:opacity-40
-                           border border-gray-700 rounded-xl px-3 py-2.5 transition-colors text-left">
+                className="w-full flex items-center gap-3 bg-superficie hover:bg-relleno-2 disabled:opacity-40
+                           border border-separador rounded-xl px-3 py-2.5 transition-colors text-left">
                 <span className="shrink-0 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center overflow-hidden">
                   {pokeInfo?.sprite
                     ? <img src={pokeInfo.sprite} alt="" className="w-full h-full object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
-                    : <Dices size={16} className="text-gray-500" />}
+                    : <Dices size={16} className="text-texto-2" />}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-bold text-white truncate">{pokeInfo?.nombre || 'Pokémon'}</span>
                   {pokeInfo && (
-                    <span className="block text-[11px] text-gray-400">
-                      Modificador <span className="font-bold text-amber-300">{pokeInfo.mod >= 0 ? `+${pokeInfo.mod}` : pokeInfo.mod}</span>
+                    <span className="block text-[11px] text-texto-2">
+                      Modificador <span className="font-bold text-tinte">{pokeInfo.mod >= 0 ? `+${pokeInfo.mod}` : pokeInfo.mod}</span>
                       {pokeInfo.conAlert && ' (incluye Alert Pokemon)'}
                     </span>
                   )}
@@ -162,27 +162,27 @@ export default function IniciativaTirada({ partidaId, personajeId, esMaster, pok
   }
 
   return (
-    <div className="fixed inset-0 z-[95] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
-      <div className="bg-gray-900 border border-amber-500/40 rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-700 flex items-center gap-2">
-          <Dices size={18} className="text-amber-400 shrink-0" />
+    <div className="fixed inset-0 z-[95] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+      <div className="bg-fondo text-texto border border-tinte/40 animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador flex items-center gap-2">
+          <Dices size={18} className="text-tinte shrink-0" />
           <h3 className="font-bold text-white text-sm">Tira iniciativa</h3>
         </div>
 
         {cargando ? (
-          <div className="flex items-center justify-center py-10 text-gray-400 text-sm">
+          <div className="flex items-center justify-center py-10 text-texto-2 text-sm">
             <PokeballSpinner size={16} className="mr-2" /> Buscando tu modificador...
           </div>
         ) : (
           <div className="px-5 py-4 space-y-3">
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">Resultado del d20</label>
+              <label className="block text-[11px] font-bold text-texto-2 uppercase tracking-wide mb-1">Resultado del d20</label>
               <div className="flex items-center gap-2">
                 <input type="number" min="1" max="20" value={d20} autoFocus
                   onChange={e => setD20(e.target.value.replace(/[^0-9]/g, ''))}
                   onKeyDown={e => { if (e.key === 'Enter' && valido) enviar() }}
                   placeholder="1 - 20"
-                  className="w-full px-3 py-2 text-lg font-black text-center text-white bg-gray-800 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  className="w-full px-3 py-2 text-lg font-black text-center text-white bg-superficie border border-separador rounded-xl focus:outline-none focus:ring-2 focus:ring-tinte/60" />
                 {/* Solo el d20: el modificador lo suma la iniciativa aparte */}
                 <BotonDado notacion={notacion({ cantidad: 1, caras: 20, mod: Number(bono) || 0 })} etiqueta="iniciativa" usar="dado" onResultado={v => setD20(String(v))} className="w-11 h-11" />
               </div>
@@ -190,15 +190,15 @@ export default function IniciativaTirada({ partidaId, personajeId, esMaster, pok
 
             {esMaster ? (
               <div>
-                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">Tu modificador</label>
+                <label className="block text-[11px] font-bold text-texto-2 uppercase tracking-wide mb-1">Tu modificador</label>
                 <input type="number" value={modMaster}
                   onChange={e => setModMaster(e.target.value.replace(/[^0-9-]/g, ''))}
-                  className="w-full px-3 py-2 text-sm text-white bg-gray-800 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  className="w-full px-3 py-2 text-sm text-white bg-superficie border border-separador rounded-xl focus:outline-none focus:ring-2 focus:ring-tinte/60" />
               </div>
             ) : (
-              <p className="text-[11px] text-gray-400">
+              <p className="text-[11px] text-texto-2">
                 {serVivo === 'pokemon' ? `El modificador de ${pokeInfo?.nombre || 'tu Pokémon'} es` : 'Tu modificador de iniciativa es'}{' '}
-                <span className="font-bold text-amber-300">{bono >= 0 ? `+${bono}` : bono}</span>, se suma solo.
+                <span className="font-bold text-tinte">{bono >= 0 ? `+${bono}` : bono}</span>, se suma solo.
                 {(serVivo === 'pokemon' ? pokeInfo?.conAlert : trainerInfo?.conAlert) && (
                   <> Incluye el bono de proficiencia de {serVivo === 'pokemon' ? 'Alert Pokemon' : 'Alert'}.</>
                 )}
@@ -207,19 +207,19 @@ export default function IniciativaTirada({ partidaId, personajeId, esMaster, pok
 
             {/* El total en grande: es lo que se va a comparar con el resto */}
             <div className="flex items-center justify-center gap-2 py-1">
-              <span className="text-[11px] text-gray-500">Total</span>
-              <span className={`text-2xl font-black tabular-nums ${valido ? 'text-amber-300' : 'text-gray-600'}`}>
+              <span className="text-[11px] text-texto-2">Total</span>
+              <span className={`text-2xl font-black tabular-nums ${valido ? 'text-tinte' : 'text-texto-2'}`}>
                 {valido ? dado + bono : '—'}
               </span>
             </div>
 
-            {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
+            {error && <p className="text-xs text-tinte font-medium">{error}</p>}
           </div>
         )}
 
-        <div className="px-5 py-3 border-t border-gray-700">
+        <div className="px-5 py-3 border-t border-separador">
           <button onClick={enviar} disabled={!valido || busy || cargando}
-            className="w-full flex items-center justify-center gap-1.5 text-sm font-bold text-white bg-amber-600 hover:bg-amber-700
+            className="w-full flex items-center justify-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover
                        disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 rounded-xl transition-colors">
             {busy ? <PokeballSpinner size={15} /> : <Check size={15} />} Enviar
           </button>

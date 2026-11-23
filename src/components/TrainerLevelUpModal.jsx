@@ -62,17 +62,17 @@ function skillsProficientes(d) {
    desplegable que obliga a abrir y cerrar para comparar. */
 function SpecPicker({ specs, valor, onPick }) {
   return (
-    <div className="border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-64 overflow-y-auto">
+    <div className="border border-separador rounded-xl divide-y divide-separador max-h-64 overflow-y-auto">
       {(specs || []).length === 0 ? (
-        <p className="text-xs text-gray-400 italic px-3 py-3">Sin especialidades disponibles.</p>
+        <p className="text-xs text-texto-2 italic px-3 py-3">Sin especialidades disponibles.</p>
       ) : specs.map(s => {
         const sel = String(valor) === String(s.specialization_id)
         return (
           <button key={s.specialization_id} onClick={() => onPick(sel ? '' : String(s.specialization_id))}
             className={`w-full text-left flex items-center justify-between gap-2 px-3 py-2 transition-colors ${
-              sel ? 'bg-red-50' : 'hover:bg-gray-50'}`}>
+              sel ? 'bg-tinte/10' : 'hover:bg-relleno'}`}>
             <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
-              <span className={`text-sm font-medium truncate ${sel ? 'text-red-700' : 'text-gray-800'}`}>
+              <span className={`text-sm font-medium truncate ${sel ? 'text-tinte' : 'text-texto'}`}>
                 {s.specialization_name}
               </span>
               {s.specialization_pokemon_type_name && (
@@ -83,8 +83,8 @@ function SpecPicker({ specs, valor, onPick }) {
               <ResolvedBonusBadges bonos={specPreviewBonos(s)} />
             </div>
             <span className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-              sel ? 'border-red-600 bg-red-600' : 'border-gray-300'}`}>
-              {sel && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+              sel ? 'border-acento bg-acento' : 'border-separador'}`}>
+              {sel && <span className="w-1.5 h-1.5 rounded-full bg-superficie" />}
             </span>
           </button>
         )
@@ -96,10 +96,10 @@ function SpecPicker({ specs, valor, onPick }) {
 /* Tarjeta con el título de la feature y su contenido */
 function Bloque({ titulo, children, icon: Icon = Sparkles }) {
   return (
-    <div className="border border-gray-200 rounded-xl px-4 py-3">
+    <div className="border border-separador rounded-xl px-4 py-3">
       <div className="flex items-center gap-2 mb-2">
-        <Icon size={15} className="text-red-600 shrink-0" />
-        <h4 className="text-sm font-black text-gray-800">{titulo}</h4>
+        <Icon size={15} className="text-tinte shrink-0" />
+        <h4 className="text-sm font-black text-texto">{titulo}</h4>
       </div>
       {children}
     </div>
@@ -110,10 +110,10 @@ function Bloque({ titulo, children, icon: Icon = Sparkles }) {
 function DeA({ antes, despues, unidad }) {
   return (
     <div className="flex items-center gap-3 my-2">
-      <span className="text-2xl font-black text-gray-400">{antes ?? '—'}</span>
-      <ArrowRight size={18} className="text-red-500" />
-      <span className="text-2xl font-black text-green-600">{despues ?? '—'}</span>
-      {unidad && <span className="text-xs text-gray-500 self-end mb-1">{unidad}</span>}
+      <span className="text-2xl font-black text-texto-2">{antes ?? '—'}</span>
+      <ArrowRight size={18} className="text-tinte" />
+      <span className="text-2xl font-black text-ok">{despues ?? '—'}</span>
+      {unidad && <span className="text-xs text-texto-2 self-end mb-1">{unidad}</span>}
     </div>
   )
 }
@@ -125,9 +125,9 @@ function DetallePath({ path }) {
   if (!path) return null
   const bonos = path.bonos || []
   return (
-    <div className="mt-3 space-y-2.5 border-t border-gray-100 pt-3">
+    <div className="mt-3 space-y-2.5 border-t border-separador pt-3">
       {path.path_full_description && (
-        <p className="text-xs text-gray-600 leading-relaxed">{path.path_full_description}</p>
+        <p className="text-xs text-texto-2 leading-relaxed">{path.path_full_description}</p>
       )}
       {[2, 5, 9, 15].map(n => {
         const nombre = path[`path_level_${n}_feature_name`]
@@ -135,23 +135,23 @@ function DetallePath({ path }) {
         const bs     = bonos.filter(b => Number(b.level) === n)
         if (!nombre && !descr) return null
         return (
-          <div key={n} className="border-l-2 border-red-200 pl-3 py-1">
+          <div key={n} className="border-l-2 border-tinte/30 pl-3 py-1">
             <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-[10px] font-bold text-white bg-red-600 rounded px-1.5 py-0.5 shrink-0">Nivel {n}</span>
-              <span className="text-xs font-bold text-gray-800">{nombre}</span>
+              <span className="text-[10px] font-bold text-white bg-acento rounded px-1.5 py-0.5 shrink-0">Nivel {n}</span>
+              <span className="text-xs font-bold text-texto">{nombre}</span>
             </div>
-            {descr && <p className="text-xs text-gray-600 leading-relaxed mt-1">{descr}</p>}
+            {descr && <p className="text-xs text-texto-2 leading-relaxed mt-1">{descr}</p>}
             {bs.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {bs.map(b => (
                   <span key={b.id} title={b.notes || undefined}
-                    className="text-[10px] font-semibold text-gray-700 bg-white border border-gray-300 rounded-md px-1.5 py-0.5">
-                    <span className="text-red-700">{TIPO_BONO[b.type] || legible(b.type)}</span>
-                    {b.key && <span className="text-gray-500"> · {legible(b.key)}</span>}
-                    {b.value && <span className="text-green-700"> {b.value}</span>}
+                    className="text-[10px] font-semibold text-texto bg-superficie border border-separador rounded-md px-1.5 py-0.5">
+                    <span className="text-tinte">{TIPO_BONO[b.type] || legible(b.type)}</span>
+                    {b.key && <span className="text-texto-2"> · {legible(b.key)}</span>}
+                    {b.value && <span className="text-ok"> {b.value}</span>}
                     {b.resource_die && <span className="text-blue-700"> {b.resource_die}</span>}
                     {b.target && b.target !== 'trainer' && (
-                      <span className="text-gray-400"> ({TARGET_BONO[b.target] || legible(b.target)})</span>
+                      <span className="text-texto-2"> ({TARGET_BONO[b.target] || legible(b.target)})</span>
                     )}
                   </span>
                 ))}
@@ -180,36 +180,36 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, statsRuta = {},
         if (!r) {
           // Narrativa: se muestra para que el jugador sepa qué ganó, sin acción
           return (
-            <div key={b.path_bonus_id} className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
-              <span className="font-semibold text-gray-700">{describirPathBonus(b).texto}</span>
-              <span className="text-gray-400"> — lo lleva el DM</span>
+            <div key={b.path_bonus_id} className="text-[11px] text-texto-2 bg-superficie border border-separador rounded-lg px-2.5 py-1.5">
+              <span className="font-semibold text-texto">{describirPathBonus(b).texto}</span>
+              <span className="text-texto-2"> — lo lleva el DM</span>
             </div>
           )
         }
         if (r.modo === 'max_sr') {
           return (
-            <div key={b.path_bonus_id} className="text-xs bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
+            <div key={b.path_bonus_id} className="text-xs bg-ok/10 border border-green-200 rounded-lg px-2.5 py-1.5">
               <span className="font-bold text-green-800">+{r.valor} al máximo de SR</span>
-              <span className="text-gray-500"> · permanente</span>
+              <span className="text-texto-2"> · permanente</span>
             </div>
           )
         }
         if (r.modo === 'resource') {
           // No pide nada: se otorga al confirmar y se gestiona en el panel
           return (
-            <div key={b.path_bonus_id} className="text-xs bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
+            <div key={b.path_bonus_id} className="text-xs bg-ok/10 border border-green-200 rounded-lg px-2.5 py-1.5">
               <span className="font-bold text-green-800">{r.nombre}</span>
-              <span className="text-gray-500"> · puntos gastables, los verás en tu panel</span>
+              <span className="text-texto-2"> · puntos gastables, los verás en tu panel</span>
             </div>
           )
         }
         if (r.modo === 'stat_choice') {
           const sel = statsRuta[b.path_bonus_id] || ''
           return (
-            <div key={b.path_bonus_id} className="border border-gray-200 rounded-lg px-2.5 py-2">
-              <p className="text-xs font-bold text-gray-700 mb-1.5">
+            <div key={b.path_bonus_id} className="border border-separador rounded-lg px-2.5 py-2">
+              <p className="text-xs font-bold text-texto mb-1.5">
                 Elige una característica
-                <span className="text-gray-500 font-normal">
+                <span className="text-texto-2 font-normal">
                   {' '}· +{r.valor} para {TARGET_BONO[r.target] || legible(r.target)}
                 </span>
               </p>
@@ -217,8 +217,8 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, statsRuta = {},
                 {STAT_KEYS.map(k => (
                   <button key={k} onClick={() => setStatsRuta(v => ({ ...v, [b.path_bonus_id]: k }))}
                     className={`text-xs font-bold px-2 py-2 rounded-lg border transition-colors ${
-                      sel === k ? 'bg-green-600 border-green-600 text-white'
-                                : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                      sel === k ? 'bg-ok border-ok text-white'
+                                : 'border-separador text-texto hover:bg-relleno'}`}>
                     {STAT_LABEL[k]}
                   </button>
                 ))}
@@ -230,17 +230,17 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, statsRuta = {},
           // Como el recurso normal: no pide nada, se otorga al confirmar. Lo
           // propio suyo es el dado, que sube con los niveles.
           return (
-            <div key={b.path_bonus_id} className="text-xs bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
+            <div key={b.path_bonus_id} className="text-xs bg-ok/10 border border-green-200 rounded-lg px-2.5 py-1.5">
               <span className="font-bold text-green-800">{r.nombre}</span>
-              <span className="text-gray-700"> · {r.dado}</span>
-              <span className="text-gray-500"> · puntos gastables, los verás en tu panel</span>
+              <span className="text-texto"> · {r.dado}</span>
+              <span className="text-texto-2"> · puntos gastables, los verás en tu panel</span>
             </div>
           )
         }
         if (r.modo === 'spec_extra') {
           return (
-            <div key={b.path_bonus_id} className="border border-gray-200 rounded-lg px-2.5 py-2">
-              <p className="text-xs font-bold text-gray-700 mb-1.5">Ganas una especialización más</p>
+            <div key={b.path_bonus_id} className="border border-separador rounded-lg px-2.5 py-2">
+              <p className="text-xs font-bold text-texto mb-1.5">Ganas una especialización más</p>
               <SpecPicker specs={specs2} valor={specSel2} onPick={setSpecSel2} />
             </div>
           )
@@ -248,12 +248,12 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, statsRuta = {},
         if (r.modo === 'bond') {
           const lista = bondPreview || []
           return (
-            <div key={b.path_bonus_id} className="border border-gray-200 rounded-lg px-2.5 py-2">
-              <p className="text-xs font-bold text-gray-700 mb-1.5">
+            <div key={b.path_bonus_id} className="border border-separador rounded-lg px-2.5 py-2">
+              <p className="text-xs font-bold text-texto mb-1.5">
                 Tus Pokémon con vínculo positivo lo suben (+2 tu inicial)
               </p>
               {lista.length === 0 ? (
-                <p className="text-[11px] text-gray-400 italic">
+                <p className="text-[11px] text-texto-2 italic">
                   Ninguno de tus Pokémon tiene todavía un vínculo positivo. El bono se
                   aplicará solo en cuanto alguno lo tenga.
                 </p>
@@ -261,10 +261,10 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, statsRuta = {},
                 <div className="space-y-1">
                   {lista.map(x => (
                     <div key={x.id} className="flex items-center justify-between gap-2 text-xs">
-                      <span className="truncate text-gray-700">
+                      <span className="truncate text-texto">
                         <span className="font-semibold">{x.apodo}</span>
-                        {x.es_starter && <span className="text-[10px] text-amber-700"> · inicial</span>}
-                        <span className="text-gray-400"> · {x.nombre}</span>
+                        {x.es_starter && <span className="text-[10px] text-aviso"> · inicial</span>}
+                        <span className="text-texto-2"> · {x.nombre}</span>
                       </span>
                       <span className="shrink-0 text-[11px] font-black text-blue-700 bg-blue-100 border border-blue-300 rounded px-1.5 py-0.5">
                         +{x.extra}
@@ -279,12 +279,12 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, statsRuta = {},
         if (r.modo === 'stab') {
           const lista = preview || []
           return (
-            <div key={b.path_bonus_id} className="border border-gray-200 rounded-lg px-2.5 py-2">
-              <p className="text-xs font-bold text-gray-700 mb-1.5">
+            <div key={b.path_bonus_id} className="border border-separador rounded-lg px-2.5 py-2">
+              <p className="text-xs font-bold text-texto mb-1.5">
                 Tus Pokémon del tipo de tus especializaciones ganan STAB
               </p>
               {lista.length === 0 ? (
-                <p className="text-[11px] text-gray-400 italic">
+                <p className="text-[11px] text-texto-2 italic">
                   Ninguno de tus Pokémon coincide todavía con el tipo de tus especializaciones.
                   El bono se aplicará solo cuando alguno lo haga.
                 </p>
@@ -292,11 +292,11 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, statsRuta = {},
                 <div className="space-y-1">
                   {lista.map(x => (
                     <div key={x.id} className="flex items-center justify-between gap-2 text-xs">
-                      <span className="truncate text-gray-700">
+                      <span className="truncate text-texto">
                         <span className="font-semibold">{x.apodo}</span>
-                        <span className="text-gray-400"> · {[x.tipo_1, x.tipo_2].filter(Boolean).join(' / ')}</span>
+                        <span className="text-texto-2"> · {[x.tipo_1, x.tipo_2].filter(Boolean).join(' / ')}</span>
                       </span>
-                      <span className="shrink-0 text-[11px] font-black text-green-700 bg-green-50 border border-green-200 rounded px-1.5 py-0.5">
+                      <span className="shrink-0 text-[11px] font-black text-ok bg-ok/10 border border-green-200 rounded px-1.5 py-0.5">
                         STAB +{x.extra}
                       </span>
                     </div>
@@ -308,12 +308,12 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, statsRuta = {},
         }
         if (r.modo === 'fija') {
           return (
-            <div key={b.path_bonus_id} className="text-xs bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
+            <div key={b.path_bonus_id} className="text-xs bg-ok/10 border border-green-200 rounded-lg px-2.5 py-1.5">
               <span className="font-bold text-green-800">
                 {r.valor === 'expert' ? 'Experiencia' : 'Proficiencia'} en {skillLegible(r.llave)}
               </span>
               {r.target !== 'trainer' && (
-                <span className="text-gray-500"> ({TARGET_BONO[r.target] || legible(r.target)})</span>
+                <span className="text-texto-2"> ({TARGET_BONO[r.target] || legible(r.target)})</span>
               )}
             </div>
           )
@@ -325,23 +325,23 @@ function BonosDeRuta({ bonos, skillsList, elegidas, setElegidas, statsRuta = {},
         // mismo que se hace cuando no hay regla.
         if (r.modo !== 'elegir') {
           return (
-            <div key={b.path_bonus_id} className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
-              <span className="font-semibold text-gray-700">{describirPathBonus(b).texto}</span>
-              <span className="text-gray-400"> — lo lleva el DM</span>
+            <div key={b.path_bonus_id} className="text-[11px] text-texto-2 bg-superficie border border-separador rounded-lg px-2.5 py-1.5">
+              <span className="font-semibold text-texto">{describirPathBonus(b).texto}</span>
+              <span className="text-texto-2"> — lo lleva el DM</span>
             </div>
           )
         }
         const sel = elegidas[b.path_bonus_id] || []
         return (
-          <div key={b.path_bonus_id} className="border border-gray-200 rounded-lg px-2.5 py-2">
+          <div key={b.path_bonus_id} className="border border-separador rounded-lg px-2.5 py-2">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-bold text-gray-700">
+              <span className="text-xs font-bold text-texto">
                 Elige {r.cuantas} habilidad{r.cuantas > 1 ? 'es' : ''}
                 {r.target !== 'trainer' && (
-                  <span className="text-gray-500 font-normal"> para {TARGET_BONO[r.target] || legible(r.target)}</span>
+                  <span className="text-texto-2 font-normal"> para {TARGET_BONO[r.target] || legible(r.target)}</span>
                 )}
               </span>
-              <span className="text-[11px] font-bold text-gray-500">{sel.length}/{r.cuantas}</span>
+              <span className="text-[11px] font-bold text-texto-2">{sel.length}/{r.cuantas}</span>
             </div>
             <SkillPickMany skills={skillsList} proficientNames={yaProf} kind="prof"
               count={r.cuantas} chosen={sel}
@@ -505,16 +505,16 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
   }
 
   return (
-    <div className="fixed inset-0 z-[140] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
-      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 shrink-0 bg-red-600 text-white">
+    <div className="fixed inset-0 z-[140] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-lg max-h-[90vh] flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador shrink-0 bg-acento text-white">
           <p className="text-[11px] font-bold uppercase tracking-widest opacity-80">Subiste de nivel</p>
           <h3 className="text-xl font-black">Nivel {p.lvl}</h3>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {p.descripcion && (
-            <p className="text-xs text-gray-600 leading-relaxed bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            <p className="text-xs text-texto-2 leading-relaxed bg-superficie border border-separador rounded-lg px-3 py-2">
               {p.descripcion}
             </p>
           )}
@@ -522,26 +522,26 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
           {/* Dado de golpe: se tira en todos los niveles, como en los Pokémon.
               Lo tirado sube el HP máximo y el actual a la vez. */}
           <Bloque titulo={`Dado de golpe${p.hit_dice ? ` (${p.hit_dice})` : ''}`}>
-            <p className="text-xs text-gray-500 mb-2">
+            <p className="text-xs text-texto-2 mb-2">
               Arroja un dado de d{dadoMax || '?'} y escribe el resultado. Se suma a tu vida
               máxima y actual, junto con tu modificador de CON.
             </p>
             <div className="flex items-center gap-2">
               <input type="number" min={1} max={dadoMax || undefined} value={hpRoll}
                 onChange={e => setHpRoll(e.target.value)} placeholder={`1 a ${dadoMax || '?'}`}
-                className="w-28 px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                className="w-28 px-3 py-2 text-sm text-texto border border-separador rounded-lg bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
               <BotonDado notacion={dadoMax ? `1d${dadoMax}` : null} etiqueta="Dado de golpe (subida de nivel)"
                 onResultado={v => setHpRoll(String(v))} className="w-9 h-9" />
             </div>
             {hpRoll !== '' && !rollOk && (
-              <p className="text-[11px] text-red-600 font-medium mt-1">Debe ser un número entre 1 y {dadoMax}.</p>
+              <p className="text-[11px] text-tinte font-medium mt-1">Debe ser un número entre 1 y {dadoMax}.</p>
             )}
           </Bloque>
 
           {/* 1. Control Upgrade — informa el cambio de SR */}
           {has(F.CONTROL) && (
             <Bloque titulo="Control Upgrade">
-              <p className="text-xs text-gray-500">Species Rating máximo que puedes controlar</p>
+              <p className="text-xs text-texto-2">Species Rating máximo que puedes controlar</p>
               <DeA antes={p.max_sr_previo} despues={p.max_sr} unidad="SR" />
             </Bloque>
           )}
@@ -549,7 +549,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
           {/* 4. Pokeslot — informa el cambio de ranuras */}
           {has(F.POKESLOT) && (
             <Bloque titulo="Pokéslot">
-              <p className="text-xs text-gray-500">Ranuras de Pokémon en el cinturón</p>
+              <p className="text-xs text-texto-2">Ranuras de Pokémon en el cinturón</p>
               <DeA antes={p.pokeslots_previo} despues={p.pokeslots} unidad="slots" />
             </Bloque>
           )}
@@ -557,27 +557,27 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
           {/* 2. ASI — 2 puntos, mismo manejo que los Pokémon */}
           {has(F.ASI) && (
             <Bloque titulo="Ability Score Improvement">
-              <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-2 mb-2">
-                <span className="text-sm font-bold text-red-800">Puntos disponibles</span>
-                <span className="text-2xl font-black text-red-700">{restantes}</span>
+              <div className="flex items-center justify-between bg-peligro/10 border border-peligro/30 rounded-xl px-4 py-2 mb-2">
+                <span className="text-sm font-bold text-tinte">Puntos disponibles</span>
+                <span className="text-2xl font-black text-tinte">{restantes}</span>
               </div>
               {!stats ? (
-                <p className="text-xs text-gray-400 italic">Cargando atributos...</p>
+                <p className="text-xs text-texto-2 italic">Cargando atributos...</p>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   {STAT_KEYS.map(k => (
-                    <div key={k} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                    <div key={k} className="flex items-center justify-between bg-superficie border border-separador rounded-lg px-3 py-2">
                       <div className="min-w-0">
-                        <span className="text-xs font-black text-gray-700">{STAT_LABEL[k]}</span>
-                        <span className="text-sm font-bold text-gray-900 ml-2">{valor(k)}</span>
-                        {(adds[k] || 0) > 0 && <span className="text-[10px] font-bold text-green-600 ml-1">+{adds[k]}</span>}
-                        <span className="text-[11px] text-gray-400 ml-1">({fmtMod(modOf(k))})</span>
+                        <span className="text-xs font-black text-texto">{STAT_LABEL[k]}</span>
+                        <span className="text-sm font-bold text-texto ml-2">{valor(k)}</span>
+                        {(adds[k] || 0) > 0 && <span className="text-[10px] font-bold text-ok ml-1">+{adds[k]}</span>}
+                        <span className="text-[11px] text-texto-2 ml-1">({fmtMod(modOf(k))})</span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button onClick={() => dec(k)} disabled={(adds[k] || 0) <= 0} title="Quitar punto"
-                          className="w-6 h-6 flex items-center justify-center rounded-md border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-30"><Minus size={13} /></button>
+                          className="w-6 h-6 flex items-center justify-center rounded-md border border-separador text-texto-2 hover:bg-relleno disabled:opacity-30"><Minus size={13} /></button>
                         <button onClick={() => inc(k)} disabled={restantes <= 0 || valor(k) >= STAT_CAP} title="Agregar punto"
-                          className="w-6 h-6 flex items-center justify-center rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-30"><Plus size={13} /></button>
+                          className="w-6 h-6 flex items-center justify-center rounded-md bg-acento text-white hover:bg-acento-hover disabled:opacity-30"><Plus size={13} /></button>
                       </div>
                     </div>
                   ))}
@@ -594,7 +594,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
                   tipos="Origin,General"
                   maxFeats={featsElegidos.length > 0 ? 1 : (usados === 0 ? 1 : 0)} />
                 {featsElegidos.length === 0 && usados > 0 && (
-                  <p className="text-[11px] text-gray-500 mt-1">
+                  <p className="text-[11px] text-texto-2 mt-1">
                     Un rasgo cuesta los {ASI_PUNTOS} puntos. Quita los que repartiste para poder elegir uno.
                   </p>
                 )}
@@ -614,15 +614,15 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
           {has(F.RESOLVE) && (
             <Bloque titulo="Trainer's Resolve">
               {(p.saving_disponibles || []).length === 0 ? (
-                <p className="text-xs text-gray-500 italic">Ya eres proficiente en todas las tiradas de salvación.</p>
+                <p className="text-xs text-texto-2 italic">Ya eres proficiente en todas las tiradas de salvación.</p>
               ) : (
                 <>
-                  <p className="text-xs text-gray-500 mb-2">Ganas proficiencia en una tirada de salvación.</p>
+                  <p className="text-xs text-texto-2 mb-2">Ganas proficiencia en una tirada de salvación.</p>
                   <div className="grid grid-cols-3 gap-1.5">
                     {(p.saving_disponibles || []).map(k => (
                       <button key={k} onClick={() => setSavSel(k)}
                         className={`text-xs font-bold px-2 py-2 rounded-lg border transition-colors ${
-                          savSel === k ? 'bg-green-600 border-green-600 text-white' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                          savSel === k ? 'bg-ok border-ok text-white' : 'border-separador text-texto hover:bg-relleno'}`}>
                         {STAT_LABEL[k]}
                       </button>
                     ))}
@@ -636,14 +636,14 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
           {has(F.PATH) && (
             <Bloque titulo="Escoge tu clase" icon={Award}>
               <select value={pathSel} onChange={e => setPathSel(e.target.value)}
-                className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400">
-                <option value="" className="text-gray-900">Elige una ruta...</option>
-                {paths.map(x => <option key={x.path_id} value={x.path_id} className="text-gray-900">{x.path_name}</option>)}
+                className="w-full px-3 py-2 text-sm text-texto border border-separador rounded-lg bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50">
+                <option value="" className="text-texto">Elige una ruta...</option>
+                {paths.map(x => <option key={x.path_id} value={x.path_id} className="text-texto">{x.path_name}</option>)}
               </select>
               <DetallePath path={pathElegido} />
               {pathElegido && bonosDelNivel.length > 0 && (
-                <div className="mt-3 border-t border-gray-100 pt-3">
-                  <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Lo que ganas ahora</p>
+                <div className="mt-3 border-t border-separador pt-3">
+                  <p className="text-xs font-black uppercase tracking-widest text-texto-2 mb-2">Lo que ganas ahora</p>
                   <BonosDeRuta bonos={bonosDelNivel} skillsList={skillsList}
                     elegidas={pathSkills} setElegidas={setPathSkills} statsRuta={statsRuta} setStatsRuta={setStatsRuta}
                     preview={p.stab_preview} bondPreview={p.bond_preview}
@@ -651,7 +651,7 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
                 </div>
               )}
               {pathElegido && (
-                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mt-3">
+                <p className="text-[11px] text-aviso bg-aviso/10 border border-aviso/30 rounded-lg px-2.5 py-1.5 mt-3">
                   La ruta no se puede cambiar después.
                 </p>
               )}
@@ -662,16 +662,16 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
           {has(F.PATH_FEAT) && (
             <Bloque titulo={`Rasgo de ruta${p.path_name ? ` — ${p.path_name}` : ''}`} icon={Award}>
               {!p.path_name ? (
-                <p className="text-sm font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <p className="text-sm font-bold text-aviso bg-aviso/10 border border-aviso/30 rounded-lg px-3 py-2">
                   Primero debes elegir tu ruta en el nivel 2.
                 </p>
               ) : (
                 <>
                   {p.path_rasgo?.nombre && (
-                    <p className="text-sm font-black text-gray-800">{p.path_rasgo.nombre}</p>
+                    <p className="text-sm font-black text-texto">{p.path_rasgo.nombre}</p>
                   )}
                   {p.path_rasgo?.descripcion && (
-                    <p className="text-xs text-gray-600 leading-relaxed mt-1">{p.path_rasgo.descripcion}</p>
+                    <p className="text-xs text-texto-2 leading-relaxed mt-1">{p.path_rasgo.descripcion}</p>
                   )}
                   {bonosDelNivel.length > 0 && (
                     <div className="mt-2">
@@ -689,8 +689,8 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
           {/* 6, 7 y Pokemon Tracker — solo aviso */}
           {has(F.BOON) && (
             <Bloque titulo="Epic Boon" icon={Award}>
-              <p className="text-sm font-bold text-green-700 mb-2">¡Felicidades, ganaste Epic Boon!</p>
-              <p className="text-xs text-gray-500 mb-2">
+              <p className="text-sm font-bold text-ok mb-2">¡Felicidades, ganaste Epic Boon!</p>
+              <p className="text-xs text-texto-2 mb-2">
                 Elige un rasgo. Los de tipo Epic Boon van primero, sobre fondo verde.
               </p>
               <MasterPokemonFeats
@@ -704,13 +704,13 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
               es donde vive el catálogo de estas mejoras. */}
           {(p.feature_nivel || []).map(f => (
             <Bloque key={f.nombre} titulo={f.nombre} icon={Award}>
-              <p className="text-sm font-bold text-green-700 mb-1.5">¡Felicidades, ganaste {f.nombre}!</p>
-              <p className="text-xs text-gray-600 leading-relaxed">{f.texto}</p>
+              <p className="text-sm font-bold text-ok mb-1.5">¡Felicidades, ganaste {f.nombre}!</p>
+              <p className="text-xs text-texto-2 leading-relaxed">{f.texto}</p>
               {/* La expertise entra sola al confirmar. Si aún no era proficiente
                   se le da también la proficiencia: sin ella la expertise no
                   suma nada, porque duplica un bono que no tiene. */}
               {f.nombre === 'Pokemon Tracker' && (
-                <p className="mt-2 text-xs font-semibold text-green-700">
+                <p className="mt-2 text-xs font-semibold text-ok">
                   {p.animal_handling_prof
                     ? 'Además ganas Expertise en Animal Handling.'
                     : 'Además ganas proficiencia y Expertise en Animal Handling.'}
@@ -719,14 +719,14 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
             </Bloque>
           ))}
 
-          {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+          {error && <p className="text-xs text-peligro font-medium">{error}</p>}
         </div>
 
         {/* Sin botón de cerrar: la única salida es confirmar */}
-        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between gap-3 shrink-0">
-          <span className="text-xs text-gray-500">{faltante || 'Todo listo'}</span>
+        <div className="px-5 py-3 border-t border-separador flex items-center justify-between gap-3 shrink-0">
+          <span className="text-xs text-texto-2">{faltante || 'Todo listo'}</span>
           <button onClick={() => (has(F.PATH) ? setAlerta(true) : confirmar())} disabled={!!faltante || busy}
-            className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
+            className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
             {busy && <PokeballSpinner size={15} />} Confirmar
           </button>
         </div>
@@ -734,24 +734,24 @@ export default function TrainerLevelUpModal({ personajeId, pending, onConfirmed 
 
       {/* Elegir ruta no se puede deshacer: se pide confirmación aparte */}
       {alerta && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200">
-              <h3 className="font-bold text-gray-900">Confirmar ruta</h3>
+        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm shadow-hoja overflow-hidden">
+            <div className="px-5 py-4 border-b border-separador">
+              <h3 className="font-bold text-texto">Confirmar ruta</h3>
             </div>
             <div className="px-5 py-4 space-y-2">
-              <p className="text-sm text-gray-700">
-                Vas a elegir <span className="font-bold text-red-700">{pathElegido?.path_name}</span> como tu Trainer Path.
+              <p className="text-sm text-texto">
+                Vas a elegir <span className="font-bold text-tinte">{pathElegido?.path_name}</span> como tu Trainer Path.
               </p>
-              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <p className="text-xs text-aviso bg-aviso/10 border border-aviso/30 rounded-lg px-3 py-2">
                 Esta acción <span className="font-bold">no se puede deshacer</span>.
               </p>
             </div>
-            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+            <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2">
               <button onClick={() => setAlerta(false)} disabled={busy}
-                className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
+                className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
               <button onClick={confirmar} disabled={busy}
-                className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+                className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
                 {busy && <PokeballSpinner size={15} />} Confirmar
               </button>
             </div>

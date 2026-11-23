@@ -63,30 +63,30 @@ function SearchModal({ title, endpoint, render, onPick, onClose }) {
   // Hay siguiente página si conocemos el total, o si la página vino llena
   const hasNext = total != null ? (page + 1) * PAGE_SIZE < total : items.length === PAGE_SIZE
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
-          <h3 className="font-bold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-md max-h-[80vh] flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between shrink-0">
+          <h3 className="font-bold text-texto">{title}</h3>
+          <button onClick={onClose} className="text-texto-2 hover:text-texto"><X size={18} /></button>
         </div>
         <div className="px-5 pt-3 shrink-0">
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-texto-2" />
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..." autoFocus
-              className="w-full pl-8 pr-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+              className="w-full pl-8 pr-3 py-2 text-sm text-texto border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {loading ? (
-            <div className="flex items-center justify-center py-10 text-gray-400"><PokeballSpinner size={16} className="mr-2" /> Cargando...</div>
+            <div className="flex items-center justify-center py-10 text-texto-2"><PokeballSpinner size={16} className="mr-2" /> Cargando...</div>
           ) : items.length === 0 ? (
-            <p className="text-sm text-gray-400 italic text-center py-8">Sin resultados.</p>
+            <p className="text-sm text-texto-2 italic text-center py-8">Sin resultados.</p>
           ) : (
             <div className="space-y-1">
               {items.map(it => (
                 <button key={render.key(it)} onClick={() => { onPick(it); onClose() }}
-                  className="w-full text-left rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50 px-3 py-2 transition-colors">
+                  className="w-full text-left rounded-lg border border-separador hover:border-tinte/40 hover:bg-tinte/10 px-3 py-2 transition-colors">
                   {render.row(it)}
                 </button>
               ))}
@@ -94,14 +94,14 @@ function SearchModal({ title, endpoint, render, onPick, onClose }) {
           )}
         </div>
         {/* Paginador */}
-        <div className="px-5 py-2.5 border-t border-gray-200 flex items-center justify-between shrink-0">
+        <div className="px-5 py-2.5 border-t border-separador flex items-center justify-between shrink-0">
           <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0 || loading}
-            className="flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed">
+            className="flex items-center gap-1 text-xs font-semibold text-texto-2 hover:text-tinte disabled:opacity-30 disabled:cursor-not-allowed">
             <ChevronLeft size={15} /> Anterior
           </button>
-          <span className="text-xs text-gray-400">Página {page + 1}{total != null ? ` de ${Math.max(1, Math.ceil(total / PAGE_SIZE))}` : ''}</span>
+          <span className="text-xs text-texto-2">Página {page + 1}{total != null ? ` de ${Math.max(1, Math.ceil(total / PAGE_SIZE))}` : ''}</span>
           <button onClick={() => setPage(p => p + 1)} disabled={!hasNext || loading}
-            className="flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed">
+            className="flex items-center gap-1 text-xs font-semibold text-texto-2 hover:text-tinte disabled:opacity-30 disabled:cursor-not-allowed">
             Siguiente <ChevronRight size={15} />
           </button>
         </div>
@@ -115,11 +115,11 @@ function TypeSelect({ types, value, onChange, allowEmpty }) {
   return (
     <div className="relative">
       <select value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))}
-        className="appearance-none w-full pl-3 pr-8 py-2 text-sm border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-400">
+        className="appearance-none w-full pl-3 pr-8 py-2 text-sm border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50">
         {allowEmpty && <option value="">— Sin tipo —</option>}
         {types.map(t => <option key={t.pokemon_types_id} value={t.pokemon_types_id}>{t.pokemon_types_name}</option>)}
       </select>
-      <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+      <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-texto-2 pointer-events-none" />
     </div>
   )
 }
@@ -428,8 +428,8 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
   // Cargando el detalle (editar / clonar)
   if (loading) {
     return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-        <div className="bg-white rounded-2xl px-8 py-6 shadow-2xl flex items-center gap-2 text-gray-500">
+      <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+        <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja px-8 py-6 shadow-hoja flex items-center gap-2 text-texto-2">
           <PokeballSpinner size={18} /> Cargando...
         </div>
       </div>
@@ -442,26 +442,26 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
     const val = Number(levelInput)
     const invalid = !Number.isInteger(val) || val < minLevel || val > 20
     return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
         onClick={e => { if (e.target === e.currentTarget && !levelBusy) { setPendingPk(null) } }}>
-        <div className="bg-white rounded-2xl w-full max-w-xs flex flex-col shadow-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="font-bold text-gray-900">Nivel del Pokémon</h3>
-            <button onClick={() => { if (!levelBusy) setPendingPk(null) }} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+        <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs flex flex-col shadow-hoja overflow-hidden">
+          <div className="px-5 py-4 border-b border-separador flex items-center justify-between">
+            <h3 className="font-bold text-texto">Nivel del Pokémon</h3>
+            <button onClick={() => { if (!levelBusy) setPendingPk(null) }} className="text-texto-2 hover:text-texto"><X size={18} /></button>
           </div>
           <div className="px-5 py-4 space-y-2">
-            <p className="text-xs text-gray-500">{pendingPk.pokemon_name} · nivel mínimo {minLevel}</p>
+            <p className="text-xs text-texto-2">{pendingPk.pokemon_name} · nivel mínimo {minLevel}</p>
             <input type="number" min={minLevel} max={20} value={levelInput} autoFocus
               onChange={e => setLevelInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !invalid && !levelBusy) acceptLevel() }}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
-            {invalid && <p className="text-xs text-red-600">El nivel debe estar entre {minLevel} y 20.</p>}
+              className="w-full px-3 py-2 text-sm border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
+            {invalid && <p className="text-xs text-tinte">El nivel debe estar entre {minLevel} y 20.</p>}
           </div>
-          <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+          <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2">
             <button onClick={() => { if (!levelBusy) setPendingPk(null) }} disabled={levelBusy}
-              className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
+              className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
             <button onClick={acceptLevel} disabled={invalid || levelBusy}
-              className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+              className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
               {levelBusy && <PokeballSpinner size={15} />} Aceptar
             </button>
           </div>
@@ -473,10 +473,10 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
   // ── Paso 1: elegir Pokémon (solo al crear; todos, sin filtro inicial) ──
   if (!pokemon) {
     return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
         onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-        <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl">
-          <button onClick={onClose} className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
+        <div className="relative bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja overflow-hidden w-full max-w-5xl h-[85vh] flex flex-col shadow-hoja">
+          <button onClick={onClose} className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-relleno hover:bg-relleno-2 text-texto-2">
             <X size={18} />
           </button>
           <PokemonList title="Elige un Pokémon" onChoose={pickSpecies} />
@@ -490,43 +490,43 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
 
   // ── Paso 2: confirmación editable ──
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-      <div className="bg-white rounded-2xl w-full max-w-2xl h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-2xl h-[88vh] flex flex-col shadow-hoja overflow-hidden">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             {sprite && <img src={sprite} alt="" className="w-8 h-8 object-contain shrink-0" />}
-            <h2 className="font-bold text-gray-900 truncate">{heading} <span className="text-gray-400 font-normal">({pokemon.pokemon_name})</span></h2>
+            <h2 className="font-bold text-texto truncate">{heading} <span className="text-texto-2 font-normal">({pokemon.pokemon_name})</span></h2>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 shrink-0"><X size={18} /></button>
+          <button onClick={onClose} className="text-texto-2 hover:text-texto shrink-0"><X size={18} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           {/* Nivel, proficiencia y experiencia (no editables) */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1">Nivel {level}</span>
-            <span className="text-[11px] font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1">Proficiencia {fmtMod(proficiency)}</span>
-            <span className="text-[11px] font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1">Experiencia {experiencia.toLocaleString()}</span>
+            <span className="text-[11px] font-bold text-texto bg-relleno border border-separador rounded-lg px-2.5 py-1">Nivel {level}</span>
+            <span className="text-[11px] font-bold text-texto bg-relleno border border-separador rounded-lg px-2.5 py-1">Proficiencia {fmtMod(proficiency)}</span>
+            <span className="text-[11px] font-bold text-texto bg-relleno border border-separador rounded-lg px-2.5 py-1">Experiencia {experiencia.toLocaleString()}</span>
           </div>
 
           {/* Nombre + etiqueta */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Nombre</label>
+              <label className="block text-xs font-black uppercase tracking-widest text-texto-2 mb-1.5">Nombre</label>
               <input value={apodo} onChange={e => setApodo(e.target.value)} placeholder={pokemon.pokemon_name}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                className="w-full px-3 py-2 text-sm border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
             </div>
             <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Etiqueta</label>
+              <label className="block text-xs font-black uppercase tracking-widest text-texto-2 mb-1.5">Etiqueta</label>
               <input value={tag} onChange={e => setTag(e.target.value)} placeholder="created"
                 title="Procedencia del Pokémon. Se conserva si lo transfieres a un entrenador."
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                className="w-full px-3 py-2 text-sm border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
             </div>
           </div>
 
           {/* Tipos */}
           <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Tipos</label>
+            <label className="block text-xs font-black uppercase tracking-widest text-texto-2 mb-1.5">Tipos</label>
             <div className="grid grid-cols-2 gap-2">
               <TypeSelect types={types} value={type1} onChange={setType1} />
               <TypeSelect types={types} value={type2} onChange={setType2} allowEmpty />
@@ -539,15 +539,15 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
           {/* Género + HP */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Género</label>
-              {gOpts.length === 0 ? <p className="text-sm text-gray-400 italic">Sin género</p> : (
+              <label className="block text-xs font-black uppercase tracking-widest text-texto-2 mb-1.5">Género</label>
+              {gOpts.length === 0 ? <p className="text-sm text-texto-2 italic">Sin género</p> : (
                 <div className="flex gap-2">
                   {gOpts.map(o => {
                     const sel = genero === o.v
                     return (
                       <button key={o.v} onClick={() => setGenero(o.v)}
                         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold border-2 transition-colors ${
-                          sel ? `${o.on} text-white` : `border-gray-200 ${o.off} hover:border-gray-300 bg-white`}`}>
+                          sel ? `${o.on} text-white` : `border-separador ${o.off} hover:border-separador bg-superficie`}`}>
                         <o.Icon size={17} strokeWidth={2.5} /> {o.L}
                       </button>
                     )
@@ -556,22 +556,22 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
               )}
             </div>
             <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Hit Points</label>
+              <label className="block text-xs font-black uppercase tracking-widest text-texto-2 mb-1.5">Hit Points</label>
               <input type="number" min={0} value={hpShown}
                 onChange={e => setHp(e.target.value === '' ? '' : Math.max(0, (Number(e.target.value) || 0) - featFx.healing))}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                className="w-full px-3 py-2 text-sm border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
               {featFx.healing > 0 && (
-                <p className="text-[10px] font-semibold text-green-600 mt-0.5">incluye +{featFx.healing} por feats</p>
+                <p className="text-[10px] font-semibold text-ok mt-0.5">incluye +{featFx.healing} por feats</p>
               )}
             </div>
           </div>
 
           {/* Naturaleza (editable; al cambiar actualiza los bonos de stats) */}
           <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Naturaleza</label>
+            <label className="block text-xs font-black uppercase tracking-widest text-texto-2 mb-1.5">Naturaleza</label>
             <div className="relative">
               <select value={nature?.nature_id ?? ''} onChange={e => changeNature(natures.find(n => String(n.nature_id) === e.target.value) || null)}
-                className="appearance-none w-full pl-3 pr-8 py-2 text-sm border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-400">
+                className="appearance-none w-full pl-3 pr-8 py-2 text-sm border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50">
                 {natures.map(n => (
                   <option key={n.nature_id} value={n.nature_id}>
                     {n.nature_name}{n.nature_effect_increase && n.nature_effect_increase !== '-'
@@ -579,47 +579,47 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
                   </option>
                 ))}
               </select>
-              <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-texto-2 pointer-events-none" />
             </div>
           </div>
 
           {/* Held Item: opcional, un solo objeto (held item o berry). Al
               marcarlo se sortea uno; el select de abajo permite cambiarlo. */}
           <div>
-            <label className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500">
+            <label className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-texto-2">
               <input type="checkbox" checked={heldItemOn} onChange={e => toggleHeldItem(e.target.checked)}
                 className="w-3.5 h-3.5 accent-red-600" />
               Held Item
               {heldItemOn && heldItem && (
-                <span className="normal-case font-semibold text-gray-700 tracking-normal">— {heldItem.item_name}</span>
+                <span className="normal-case font-semibold text-texto tracking-normal">— {heldItem.item_name}</span>
               )}
             </label>
             {heldItemOn && (
               <div className="relative mt-1.5">
                 <select value={heldItem?.item_id ?? ''}
                   onChange={e => setHeldItem(heldItems.find(i => String(i.item_id) === e.target.value) || null)}
-                  className="appearance-none w-full pl-3 pr-8 py-2 text-sm border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-400">
+                  className="appearance-none w-full pl-3 pr-8 py-2 text-sm border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50">
                   <option value="">Elegir…</option>
                   {heldItems.map(i => (
                     <option key={i.item_id} value={i.item_id}>{i.item_name} ({i.item_type})</option>
                   ))}
                 </select>
-                <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-texto-2 pointer-events-none" />
               </div>
             )}
           </div>
 
           {/* Stats */}
           <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Stats</label>
+            <label className="block text-xs font-black uppercase tracking-widest text-texto-2 mb-1.5">Stats</label>
             <div className="grid grid-cols-3 gap-2">
               {STAT_FIELDS.map(([k, lbl]) => {
                 const mod = statModEff(k)
                 return (
-                  <div key={k} className="border border-gray-200 rounded-xl px-2.5 py-1.5">
+                  <div key={k} className="border border-separador rounded-xl px-2.5 py-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black text-gray-700">{lbl}</span>
-                      <span className={`text-[11px] font-bold ${mod < 0 ? 'text-red-600' : 'text-green-600'}`}>{fmtMod(mod)}</span>
+                      <span className="text-[10px] font-black text-texto">{lbl}</span>
+                      <span className={`text-[11px] font-bold ${mod < 0 ? 'text-tinte' : 'text-ok'}`}>{fmtMod(mod)}</span>
                     </div>
                     <input type="number" min={0} value={statShown(k)}
                       onChange={e => {
@@ -628,7 +628,7 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
                         if (Number(e.target.value) === statShown(k)) return
                         setStat(k, String((Number(e.target.value) || 0) - (featFx.statAdd[k] || 0)))
                       }}
-                      className="w-full mt-0.5 px-1 py-1 text-sm font-bold text-center border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+                      className="w-full mt-0.5 px-1 py-1 text-sm font-bold text-center border border-separador rounded-lg bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
                   </div>
                 )
               })}
@@ -638,8 +638,8 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
           {/* Skills */}
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-1.5">
-              <label className="text-xs font-black uppercase tracking-widest text-gray-500">Habilidades</label>
-              <span className="text-[9px] font-bold text-white bg-green-600 rounded px-1.5 py-0.5">Proficient</span>
+              <label className="text-xs font-black uppercase tracking-widest text-texto-2">Habilidades</label>
+              <span className="text-[9px] font-bold text-white bg-ok rounded px-1.5 py-0.5">Proficient</span>
               <span className="text-[9px] font-bold text-white bg-blue-700 rounded px-1.5 py-0.5">Expert</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
@@ -648,11 +648,11 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
                 return (
                 <div key={s.id_skill} className="flex items-center gap-2 py-0.5 min-w-0">
                   <button onClick={() => toggleSkill(s.id_skill, 'pref')} title="Proficiente"
-                    className={`w-4 h-4 rounded-[3px] border-2 shrink-0 ${eff.pref && !eff.expert ? 'bg-green-600 border-green-600' : eff.expert ? 'bg-green-600 border-green-600 opacity-50' : 'border-gray-300 bg-white'}`} />
+                    className={`w-4 h-4 rounded-[3px] border-2 shrink-0 ${eff.pref && !eff.expert ? 'bg-ok border-ok' : eff.expert ? 'bg-ok border-ok opacity-50' : 'border-separador bg-superficie'}`} />
                   <button onClick={() => toggleSkill(s.id_skill, 'expert')} title="Experto"
-                    className={`w-4 h-4 rounded-[3px] border-2 shrink-0 ${eff.expert ? 'bg-blue-700 border-blue-700' : 'border-gray-300 bg-white'}`} />
-                  <span className={`w-7 shrink-0 text-center text-[11px] font-bold ${skillMod(s) < 0 ? 'text-red-600' : 'text-gray-900'}`}>{fmtMod(skillMod(s))}</span>
-                  <span className="text-[12px] text-gray-800 truncate min-w-0">{s.skill_name} <span className="text-gray-400">({s.related})</span></span>
+                    className={`w-4 h-4 rounded-[3px] border-2 shrink-0 ${eff.expert ? 'bg-blue-700 border-blue-700' : 'border-separador bg-superficie'}`} />
+                  <span className={`w-7 shrink-0 text-center text-[11px] font-bold ${skillMod(s) < 0 ? 'text-tinte' : 'text-texto'}`}>{fmtMod(skillMod(s))}</span>
+                  <span className="text-[12px] text-texto truncate min-w-0">{s.skill_name} <span className="text-texto-2">({s.related})</span></span>
                 </div>
                 )
               })}
@@ -661,35 +661,35 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
 
           {/* Pasiva */}
           <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Pasiva</label>
+            <label className="block text-xs font-black uppercase tracking-widest text-texto-2 mb-1.5">Pasiva</label>
             <button onClick={() => setAbilityPicker(true)}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 hover:border-red-300 transition-colors text-left">
-              <span className={pasiva ? 'font-semibold text-gray-800' : 'text-gray-400'}>{pasiva ? pasiva.ability_name : 'Selecciona una pasiva...'}</span>
-              <Search size={15} className="text-gray-400 shrink-0" />
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm border border-separador rounded-xl bg-superficie hover:border-tinte/40 transition-colors text-left">
+              <span className={pasiva ? 'font-semibold text-texto' : 'text-texto-2'}>{pasiva ? pasiva.ability_name : 'Selecciona una pasiva...'}</span>
+              <Search size={15} className="text-texto-2 shrink-0" />
             </button>
           </div>
 
           {/* Movimientos */}
           <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-1.5">Movimientos</label>
+            <label className="block text-xs font-black uppercase tracking-widest text-texto-2 mb-1.5">Movimientos</label>
             <div className="space-y-1.5">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-gray-100">
-                <span className="text-sm font-semibold text-gray-700">{struggle?.move_name || 'Struggle'}</span>
-                <span className="text-[10px] font-bold text-gray-400">fijo</span>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-separador bg-relleno">
+                <span className="text-sm font-semibold text-texto">{struggle?.move_name || 'Struggle'}</span>
+                <span className="text-[10px] font-bold text-texto-2">fijo</span>
               </div>
               {moves.map((m, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <button onClick={() => setMovePicker({ index: i })}
-                    className="flex-1 flex items-center justify-between gap-2 px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 hover:border-red-300 transition-colors text-left">
-                    <span className="font-semibold text-gray-800 truncate">{m.move_name}</span>
-                    <Search size={15} className="text-gray-400 shrink-0" />
+                    className="flex-1 flex items-center justify-between gap-2 px-3 py-2 text-sm border border-separador rounded-xl bg-superficie hover:border-tinte/40 transition-colors text-left">
+                    <span className="font-semibold text-texto truncate">{m.move_name}</span>
+                    <Search size={15} className="text-texto-2 shrink-0" />
                   </button>
-                  <button onClick={() => removeMove(i)} title="Quitar" className="p-2 text-gray-400 hover:text-red-600"><Trash2 size={15} /></button>
+                  <button onClick={() => removeMove(i)} title="Quitar" className="p-2 text-texto-2 hover:text-tinte"><Trash2 size={15} /></button>
                 </div>
               ))}
               {moves.length < MAX_MOVES && (
                 <button onClick={() => setMovePicker({ add: true })}
-                  className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-gray-300 text-gray-500 hover:border-red-400 hover:text-red-600 text-sm font-semibold rounded-xl transition-colors">
+                  className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-separador text-texto-2 hover:border-tinte/60 hover:text-tinte text-sm font-semibold rounded-xl transition-colors">
                   <Plus size={15} /> Agregar movimiento
                 </button>
               )}
@@ -699,14 +699,14 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
           {/* Feats */}
           <MasterPokemonFeats feats={feats} setFeats={setFeats} level={level} stats={stats} skills={skills} skillsList={skillsList} />
 
-          {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
+          {error && <p className="text-sm text-peligro font-medium">{error}</p>}
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
-          <button onClick={onClose} disabled={saving} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-2 rounded-lg disabled:opacity-40">Cancelar</button>
+        <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2 shrink-0">
+          <button onClick={onClose} disabled={saving} className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-2 rounded-lg disabled:opacity-40">Cancelar</button>
           <button onClick={save} disabled={saving}
-            className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
+            className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-5 py-2 rounded-lg transition-colors">
             {saving && <PokeballSpinner size={15} />} Guardar
           </button>
         </div>
@@ -716,8 +716,8 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
       {abilityPicker && (
         <SearchModal title="Elegir pasiva" endpoint="/abilities"
           render={{ key: a => a.ability_id, row: a => (
-            <><span className="text-sm font-bold text-gray-800">{a.ability_name}</span>
-              {a.ability_description && <p className="text-xs text-gray-500 leading-snug mt-0.5 line-clamp-2">{a.ability_description}</p>}</>
+            <><span className="text-sm font-bold text-texto">{a.ability_name}</span>
+              {a.ability_description && <p className="text-xs text-texto-2 leading-snug mt-0.5 line-clamp-2">{a.ability_description}</p>}</>
           ) }}
           onPick={a => setPasiva({ ability_id: a.ability_id, ability_name: a.ability_name })}
           onClose={() => setAbilityPicker(false)} />
@@ -728,8 +728,8 @@ export default function MasterPokemonWizard({ mode = 'create', sourceId = null, 
         <SearchModal title="Elegir movimiento" endpoint="/moves"
           render={{ key: m => m.move_id, row: m => (
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold text-gray-800 truncate">{m.move_name}</span>
-              <span className="text-[10px] text-gray-500 shrink-0">{m.move_type} · PP {m.move_pp}</span>
+              <span className="text-sm font-semibold text-texto truncate">{m.move_name}</span>
+              <span className="text-[10px] text-texto-2 shrink-0">{m.move_type} · PP {m.move_pp}</span>
             </div>
           ) }}
           onPick={m => { if (movePicker.add) addMove(m); else replaceMove(movePicker.index, m) }}

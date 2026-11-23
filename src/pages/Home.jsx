@@ -1,58 +1,26 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShoppingBag, LogIn, Leaf, Star, BookOpen, Map, Heart, Shield, Tag, BookMarked, Swords, Sword, ChevronDown, Zap, Clock, Award, Route } from 'lucide-react'
+import { LogIn, Gamepad2 } from 'lucide-react'
 import LoginModal from '../components/LoginModal'
 import { AVISO_SESION } from '../api'
 import NotasParche, { BotonParche } from '../components/NotasParche'
+import { useAuth } from '../context/AuthContext'
+import { SECCIONES } from '../lib/navegacion'
+import { ListaAgrupada, Celda } from '../components/ui/ListaAgrupada'
+import { Pagina } from '../components/ui/Pagina'
 
-function PokeballIcon({ size = 20, className = '' }) {
+// Icono de la sección en un cuadro morado claro
+function IconoCelda({ Icon }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-      <path d="M2 12h20" stroke="currentColor" strokeWidth="2" />
-      <circle cx="12" cy="12" r="3" fill="white" stroke="currentColor" strokeWidth="2" />
-      <path d="M2 12a10 10 0 0 1 10-10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
+    <span className="w-7 h-7 rounded-lg bg-tinte/12 text-tinte grid place-items-center">
+      <Icon size={16} aria-hidden />
+    </span>
   )
 }
 
-const SECTIONS = [
-  {
-    title: 'Trainer',
-    Icon: PokeballIcon,
-    cards: [
-      { to: '/armor-types',                  label: 'Armaduras',       Icon: Shield,    desc: 'Tipos de protección y CA'              },
-      { to: '/backgrounds',                  label: 'Trasfondos',      Icon: BookOpen,  desc: 'Historias y habilidades de origen'     },
-      { to: '/feats?type=origin%2Cgeneral',  label: 'Rasgos',          Icon: Star,      desc: 'Rasgos de origen y generales'          },
-      { to: '/origins',                      label: 'Orígenes',        Icon: Map,       desc: 'Lugar de procedencia del entrenador'   },
-      { to: '/specializations',              label: 'Especializaciones', Icon: Award,   desc: 'Afinidad con un tipo de Pokémon'       },
-      { to: '/paths',                        label: 'Rutas',           Icon: Route,     desc: 'Camino del entrenador y sus rasgos'    },
-      { to: '/weapon-types',                 label: 'Tipos de Arma',   Icon: Sword,     desc: 'Categorías de armas y su daño'         },
-      { to: '/weapon-properties',            label: 'Prop. de Arma',   Icon: Tag,       desc: 'Propiedades especiales de armas'       },
-      { to: '/bonds',                        label: 'Vínculos',        Icon: Heart,     desc: 'Niveles de lealtad con Pokémon'        },
-    ],
-  },
-  {
-    title: 'Pokémon',
-    Icon: Zap,
-    cards: [
-      { to: '/pokemon',                  label: 'Pokédex',         Icon: BookMarked, desc: '1,139 criaturas con stats D&D 5e'     },
-      { to: '/feats?type=pokemon',       label: 'Rasgos',          Icon: Star,       desc: 'Rasgos exclusivos de Pokémon'          },
-      { to: '/natures',                  label: 'Naturalezas',     Icon: Leaf,       desc: 'Personalidad y afinidades de combate'  },
-      { to: '/moves',                    label: 'Movimientos',     Icon: Swords,     desc: 'Ataques y habilidades de combate'      },
-    ],
-  },
-  {
-    title: 'Items',
-    Icon: Clock,
-    cards: [
-      { to: '/items', label: 'Items', Icon: ShoppingBag, desc: 'Objetos, pociones y equipamiento' },
-    ],
-  },
-]
-
 export default function HomePage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   // Si la sesión venció, apiFetch nos trajo aquí: se abre el login y se explica
   // por qué, en vez de dejar al usuario adivinando por qué lo sacaron.
   const [expirada] = useState(() => {
@@ -61,82 +29,54 @@ export default function HomePage() {
     return hay
   })
   const [loginOpen, setLoginOpen] = useState(expirada)
-  const [openSection, setOpenSection] = useState(null)
-
-  const toggle = (title) => setOpenSection(prev => prev === title ? null : title)
 
   return (
-    <div className="flex flex-col items-center px-6 py-10 gap-4 max-w-2xl mx-auto w-full">
+    <Pagina>
+      {/* Banda morada con el nombre, el parche y el acceso */}
+      <section className="relative overflow-hidden rounded-tarjeta bg-acento text-white px-6 py-6 sm:px-7 sm:py-7">
+        {/* Pokébola de fondo, decorativa */}
+        <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 w-[300px] h-[300px] rounded-full border-[30px] border-white/[.14]" />
+        <span aria-hidden className="pointer-events-none absolute -right-16 top-[55px] w-[300px] h-[30px] bg-white/[.14]" />
 
-      <div className="w-full flex justify-end mb-2">
-        <button
-          onClick={() => setLoginOpen(true)}
-          className="flex items-center gap-2 bg-gray-900 hover:bg-red-600 text-white
-                     px-6 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                     shadow-sm hover:shadow-md"
-        >
-          <LogIn size={16} />
-          Iniciar Sesión
-        </button>
+        <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-[30px] sm:text-[34px] leading-[1.05] font-bold tracking-[-.022em]">Pokemon DnD</h1>
+            <p className="mt-1.5 text-[15px] text-[#F0DCFA] flex flex-wrap items-center gap-x-1.5">
+              <span>Consulta de reglas, Pokédex y partidas</span>
+              <span aria-hidden>·</span>
+              <BotonParche variante="banda" />
+            </p>
+          </div>
+          {user ? (
+            <button type="button" onClick={() => navigate(`/dashboard/${user.role}`)}
+              className="self-start sm:self-auto inline-flex items-center gap-2 h-10 px-5 rounded-full bg-white text-acento text-[15px] font-semibold hover:bg-white/90 transition-colors">
+              <Gamepad2 size={17} /> Mis partidas
+            </button>
+          ) : (
+            <button type="button" onClick={() => setLoginOpen(true)}
+              className="self-start sm:self-auto inline-flex items-center gap-2 h-10 px-5 rounded-full bg-white text-acento text-[15px] font-semibold hover:bg-white/90 transition-colors">
+              <LogIn size={17} /> Iniciar sesión
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* Las tres secciones de consulta */}
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 items-start">
+        {SECCIONES.map(({ titulo, enlaces }) => (
+          <ListaAgrupada key={titulo} titulo={titulo}>
+            {enlaces.map(({ to, label, Icon, desc }) => (
+              <Celda key={to} icono={<IconoCelda Icon={Icon} />} titulo={label} subtitulo={desc}
+                chevron onClick={() => navigate(to)} className="min-h-[52px]" />
+            ))}
+          </ListaAgrupada>
+        ))}
       </div>
 
-      <div className="w-full flex flex-col gap-2">
-        {SECTIONS.map(({ title, Icon, cards }) => {
-          const isOpen = openSection === title
-          return (
-            <div key={title} className="w-full border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-              <button
-                onClick={() => toggle(title)}
-                className={`w-full flex items-center justify-between px-5 py-4 text-left transition-colors
-                  ${isOpen ? 'bg-red-600 text-white' : 'bg-white text-gray-800 hover:bg-gray-50'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon size={20} className={isOpen ? 'text-white' : 'text-red-500'} />
-                  <span className="font-semibold text-base">{title}</span>
-                </div>
-                <ChevronDown
-                  size={18}
-                  className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-white' : 'text-gray-400'}`}
-                />
-              </button>
-
-              {isOpen && (
-                <div className="px-4 pb-4 pt-3 border-t border-gray-100">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {cards.map(({ to, label, Icon, desc }) => (
-                      <button
-                        key={to}
-                        onClick={() => navigate(to)}
-                        className="group flex flex-col items-center gap-2 bg-gray-50 border border-gray-200
-                                   rounded-2xl p-4 hover:shadow-md hover:border-red-300
-                                   hover:-translate-y-0.5 transition-all duration-200 text-left"
-                      >
-                        <div className="w-10 h-10 bg-red-50 group-hover:bg-red-100 rounded-xl
-                                        flex items-center justify-center transition-colors">
-                          <Icon size={20} className="text-red-600" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm">{label}</p>
-                          <p className="text-xs text-gray-500 mt-0.5 leading-snug">{desc}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Versión actual y sus novedades */}
-      <div className="flex justify-center pt-2 pb-4">
-        <BotonParche />
-      </div>
       <NotasParche />
 
       {loginOpen && <LoginModal aviso={expirada ? 'Tu sesión expiró. Vuelve a entrar para continuar.' : null}
         onClose={() => setLoginOpen(false)} />}
-    </div>
+    </Pagina>
   )
 }

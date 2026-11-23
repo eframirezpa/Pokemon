@@ -68,11 +68,10 @@ export default function PartidaPresentacion({ partida, onFinish }) {
           a onFinish igual, asi que el comportamiento no cambia. */}
       <button
         onClick={() => goTo(slides.length)}
-        className="absolute top-5 right-5 z-10 flex items-center gap-1.5 text-white/70
-                   hover:text-white text-sm px-3 py-1.5 rounded-lg hover:bg-white/10
-                   backdrop-blur-sm transition-all"
+        className="absolute top-5 right-5 z-10 h-9 px-4 rounded-full flex items-center gap-1.5 text-white text-sm font-semibold
+                   bg-[rgba(44,44,46,.6)] backdrop-blur-xl border border-white/15 hover:bg-[rgba(44,44,46,.8)] transition-colors"
       >
-        <SkipForward size={15} /> Skip
+        <SkipForward size={15} /> Saltar
       </button>
 
       {/* Texto + controles — sobre la imagen, parte inferior */}
@@ -80,23 +79,23 @@ export default function PartidaPresentacion({ partida, onFinish }) {
         text-center transition-all duration-400 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
 
         <div className="space-y-2 max-w-lg">
-          <h2 className="text-3xl font-bold text-white drop-shadow-lg">{slide.titulo}</h2>
-          <p className="text-gray-200 text-base leading-relaxed drop-shadow">{slide.leyenda}</p>
+          <h2 className="text-[34px] leading-tight font-bold tracking-[-.022em] text-white drop-shadow-lg">{slide.titulo}</h2>
+          <p className="text-white/85 text-[17px] leading-relaxed drop-shadow">{slide.leyenda}</p>
         </div>
 
         {/* Dots */}
         <div className="flex gap-2">
           {slides.map((_, i) => (
             <div key={i} className={`h-1.5 rounded-full transition-all duration-300
-              ${i === current ? 'w-6 bg-red-500' : 'w-1.5 bg-white/40'}`} />
+              ${i === current ? 'w-6 bg-[#D9A1FF]' : 'w-1.5 bg-white/40'}`} />
           ))}
         </div>
 
         {/* Botón */}
         <button
           onClick={() => goTo(current + 1)}
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white
-                     px-8 py-3 rounded-xl font-medium transition-colors shadow-lg"
+          className="flex items-center gap-2 bg-acento hover:bg-acento-hover text-white h-12
+                     px-8 rounded-full text-base font-semibold transition-colors shadow-[0_8px_24px_rgba(127,0,178,.5)]"
         >
           {current < slides.length - 1
             ? <><ChevronRight size={18} /> Siguiente</>

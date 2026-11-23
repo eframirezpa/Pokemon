@@ -44,9 +44,9 @@ export default function App() {
         {/* Páginas con header/footer */}
         <Route element={<Layout />}>
           <Route index element={<Home />} />
-          <Route path="pokemon" element={<PokemonList moveDetail />} />
+          <Route path="pokemon" element={<PokemonList title="Pokédex" moveDetail pagina />} />
           <Route path="pokemon/:id" element={<PokemonDetail />} />
-          <Route path="items" element={<ItemsList />} />
+          <Route path="items" element={<ItemsList pagina />} />
           <Route path="natures" element={<NaturesList />} />
           <Route path="feats" element={<FeatsList />} />
           <Route path="backgrounds" element={<BackgroundsList />} />

@@ -29,12 +29,12 @@ export default class ErrorBoundary extends Component {
   render() {
     if (!this.state.error) return this.props.children
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-900">
-        <div className="max-w-sm text-center">
-          <p className="text-white font-bold mb-2">Algo salió mal al cargar la pantalla</p>
-          <p className="text-xs text-gray-400 mb-4 break-words">{String(this.state.error?.message || this.state.error)}</p>
-          <button onClick={() => { try { sessionStorage.removeItem(YA_RECARGO) } catch { /* noop */ } window.location.reload() }}
-            className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-5 py-2 rounded-xl">
+      <div className="min-h-dvh flex items-center justify-center p-6 bg-fondo text-texto">
+        <div className="max-w-sm w-full bg-superficie rounded-hoja px-6 py-7 text-center flex flex-col items-center gap-2">
+          <p className="text-[17px] font-bold tracking-[-.02em]">Algo salió mal al cargar la pantalla</p>
+          <p className="text-[13px] text-texto-2 mb-3 break-words">{String(this.state.error?.message || this.state.error)}</p>
+          <button type="button" onClick={() => { try { sessionStorage.removeItem(YA_RECARGO) } catch { /* noop */ } window.location.reload() }}
+            className="h-12 w-full rounded-grupo bg-acento hover:bg-acento-hover text-white text-base font-semibold">
             Recargar
           </button>
         </div>

@@ -1,15 +1,132 @@
 @import "tailwindcss";
 
+/* ── Base de diseño (rediseño estilo app de Apple) ──────────────────────────
+   Cada color tiene un valor claro (consulta: inicio, Pokédex, fichas…) y uno
+   oscuro (juego: sala, panel de combate). El oscuro NO sigue al sistema del
+   usuario: se activa poniendo la clase `modo-oscuro` en un contenedor, así
+   consulta y juego conviven en la misma app.
+
+   Uso en Tailwind: bg-fondo, bg-superficie, bg-relleno, border-separador,
+   text-texto, text-texto-2, text-tinte, bg-acento, text-ok, text-peligro…
+   `acento` es el relleno de los botones (#7F00B2 en los dos modos); `tinte`
+   es el texto e iconos con acento, que en oscuro pasa a un morado claro para
+   que se lea. */
+:root {
+  --ap-fondo: #F2F2F7;
+  --ap-superficie: #FFFFFF;
+  --ap-elevada: #FFFFFF;                  /* superficie dentro de una hoja */
+  --ap-lateral: #E9E9EE;                  /* barra lateral */
+  --ap-relleno: rgba(118, 118, 128, .12); /* controles: buscador, cápsulas, pasos */
+  --ap-relleno-2: rgba(118, 118, 128, .22);
+  --ap-separador: rgba(60, 60, 67, .18);
+  --ap-texto: #1C1C1E;
+  --ap-texto-2: #5F5F66;
+  --ap-tinte: #7F00B2;
+  --ap-acento: #7F00B2;
+  --ap-acento-hover: #6A0096;
+  --ap-ok: #248A3D;
+  --ap-peligro: #C5221F;
+  --ap-aviso: #A15C00;
+  --ap-pista: #E0E0E6;                    /* fondo de barras (HP) */
+  --ap-cristal: rgba(255, 255, 255, .72);
+  --ap-cristal-borde: rgba(0, 0, 0, .08);
+  color-scheme: light;
+}
+.modo-oscuro {
+  /* Mismo gris azulado que el panel de combate (gray-800 de Tailwind, con sus
+     filas en gray-700 a media opacidad), para que las ventanas de la sala y el
+     panel se vean de la misma familia. Un poco más claro que el fondo de la
+     escena (#0B0B0F). Pedido del usuario, 2026-11-22. */
+  --ap-fondo: #1F2937;
+  --ap-superficie: #2B3544;              /* gray-700 al 50 % sobre gray-800 */
+  --ap-elevada: #374151;
+  --ap-lateral: #1F2937;
+  --ap-relleno: rgba(75, 85, 99, .5);    /* gray-600 */
+  --ap-relleno-2: rgba(75, 85, 99, .8);
+  --ap-separador: rgba(75, 85, 99, .7);
+  --ap-texto: #FFFFFF;
+  --ap-texto-2: #9CA3AF;                 /* gray-400 */
+  --ap-tinte: #D9A1FF;
+  --ap-acento: #7F00B2;
+  --ap-acento-hover: #9410CC;
+  --ap-ok: #30D158;
+  --ap-peligro: #FF6961;
+  --ap-aviso: #FFD60A;
+  --ap-pista: #4B5563;
+  --ap-cristal: rgba(44, 44, 46, .72);
+  --ap-cristal-borde: rgba(255, 255, 255, .12);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-fondo: var(--ap-fondo);
+  --color-superficie: var(--ap-superficie);
+  --color-elevada: var(--ap-elevada);
+  --color-lateral: var(--ap-lateral);
+  --color-relleno: var(--ap-relleno);
+  --color-relleno-2: var(--ap-relleno-2);
+  --color-separador: var(--ap-separador);
+  --color-texto: var(--ap-texto);
+  --color-texto-2: var(--ap-texto-2);
+  --color-tinte: var(--ap-tinte);
+  --color-acento: var(--ap-acento);
+  --color-acento-hover: var(--ap-acento-hover);
+  --color-ok: var(--ap-ok);
+  --color-peligro: var(--ap-peligro);
+  --color-aviso: var(--ap-aviso);
+  --color-pista: var(--ap-pista);
+  --color-cristal: var(--ap-cristal);
+  --color-cristal-borde: var(--ap-cristal-borde);
+}
+
+@theme {
+  /* Tipografía del sistema: San Francisco en Apple; en Linux, Windows y
+     Android cae a la del sistema. */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --radius-grupo: 14px;     /* listas agrupadas */
+  --radius-tarjeta: 24px;   /* tarjetas grandes (cabecera de ficha, banda de inicio) */
+  --radius-hoja: 26px;      /* ventanas y hojas inferiores */
+  --shadow-hoja: 0 30px 80px rgba(0, 0, 0, .35);
+  --shadow-cristal: 0 10px 30px rgba(0, 0, 0, .25);
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
+  letter-spacing: -.005em;
   -webkit-font-smoothing: antialiased;
-  background-color: #f9fafb;
-  color: #111827;
+  background-color: var(--ap-fondo);
+  color: var(--ap-texto);
+}
+
+/* Panel translúcido (cristal). Lo usa <Cristal>; queda como clase para los
+   sitios que no pueden envolver en un componente. */
+.cristal {
+  background: var(--ap-cristal);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--ap-cristal-borde);
+  box-shadow: var(--shadow-cristal);
+}
+
+/* Entrada de hojas: sube en el celular, aparece con escala en escritorio.
+   `backwards` y no `both`: al terminar no queda ningún transform puesto, que
+   si no la hoja pasaría a ser el marco de las ventanas `fixed` que se abran
+   dentro (el detalle de un movimiento quedaría encerrado en ella). */
+@keyframes hoja-sube { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes hoja-aparece { from { transform: scale(.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes velo-aparece { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cajon-entra { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+.animate-hoja { animation: hoja-sube .32s cubic-bezier(.32, .72, 0, 1) backwards; }
+@media (min-width: 640px) { .animate-hoja { animation: hoja-aparece .22s cubic-bezier(.32, .72, 0, 1) backwards; } }
+.animate-velo { animation: velo-aparece .2s ease-out both; }
+.animate-cajon { animation: cajon-entra .3s cubic-bezier(.32, .72, 0, 1) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-hoja, .animate-velo, .animate-cajon { animation: none; }
 }
 
 #root {
@@ -531,13 +648,13 @@ body {
 .animate-turno-anillo { animation: turno-anillo 1.4s ease-in-out infinite; border-radius: 9999px; }
 /* Aviso "¡Es tu turno!": aura que late y texto que crece levemente */
 @keyframes turno-aura {
-  0%, 100% { box-shadow: 0 0 18px 4px rgba(251,191,36,0.55), 0 0 40px 10px rgba(251,191,36,0.15); }
-  50%      { box-shadow: 0 0 40px 14px rgba(251,191,36,0.9), 0 0 90px 36px rgba(251,191,36,0.35); }
+  0%, 100% { box-shadow: 0 0 18px 4px rgba(180,92,230,0.55), 0 0 40px 10px rgba(127,0,178,0.2); }
+  50%      { box-shadow: 0 0 36px 12px rgba(180,92,230,0.85), 0 0 80px 30px rgba(127,0,178,0.35); }
 }
 .animate-turno-aura { animation: turno-aura 1.1s ease-in-out infinite; }
 @keyframes turno-texto {
-  0%, 100% { transform: scale(1);    text-shadow: 0 0 6px rgba(251,191,36,0.4); }
-  50%      { transform: scale(1.07); text-shadow: 0 0 16px rgba(251,191,36,0.95); }
+  0%, 100% { transform: scale(1);    text-shadow: 0 0 6px rgba(217,161,255,0.45); }
+  50%      { transform: scale(1.07); text-shadow: 0 0 16px rgba(217,161,255,0.95); }
 }
 .animate-turno-texto { animation: turno-texto 1.1s ease-in-out infinite; }
 /* En las tarjetas conserva su propio redondeo */

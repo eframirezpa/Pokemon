@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, History } from 'lucide-react'
 import { apiFetch } from '../api'
 
@@ -54,20 +55,23 @@ export default function ResumenSesion({ partidaId, userId }) {
   return (
     <>
       <button onClick={() => setAbierto(true)} title="Lo que pasó en la sesión anterior"
-        className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-amber-300 transition-colors">
+        className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-texto-2 hover:text-tinte transition-colors">
         <History size={12} /> Sesión anterior
       </button>
 
-      {abierto && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.65)' }}
+      {/* Portal a <body>: el botón vive en el panel de actividad, que es de
+          cristal (backdrop-filter) y encerraría la ventana dentro de él. Fuera
+          de la sala pierde la clase del contenedor, así que lleva la suya. */}
+      {abierto && createPortal(
+        <div className="modo-oscuro fixed inset-0 z-[90] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
           onClick={e => { if (e.target === e.currentTarget) cerrar() }}>
-          <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-700 flex items-start justify-between gap-3">
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-md max-h-[85vh] flex flex-col shadow-hoja overflow-hidden">
+            <div className="px-5 py-4 border-b border-separador flex items-start justify-between gap-3">
               <div>
                 <h3 className="font-black text-white text-lg leading-tight">En la sesión anterior…</h3>
-                <p className="text-xs text-gray-400 first-letter:uppercase">{fecha(sesion.desde)}</p>
+                <p className="text-xs text-texto-2 first-letter:uppercase">{fecha(sesion.desde)}</p>
               </div>
-              <button onClick={cerrar} className="text-gray-400 hover:text-white shrink-0"><X size={18} /></button>
+              <button onClick={cerrar} aria-label="Cerrar" className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 hover:text-texto shrink-0 disabled:opacity-40"><X size={16} strokeWidth={2.4} /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
@@ -77,20 +81,20 @@ export default function ResumenSesion({ partidaId, userId }) {
                     <div key={t} className="rounded-xl border px-3 py-2"
                       style={{ borderColor: `${color}55`, backgroundColor: `${color}14` }}>
                       <p className="text-2xl font-black tabular-nums" style={{ color }}>{sesion.conteos[t]}</p>
-                      <p className="text-[11px] font-bold text-gray-300">{label}</p>
+                      <p className="text-[11px] font-bold text-texto">{label}</p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">Hubo {sesion.total} movimientos en el registro.</p>
+                <p className="text-sm text-texto-2">Hubo {sesion.total} movimientos en el registro.</p>
               )}
 
               {sesion.destacados.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Momentos destacados</p>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-texto-2 mb-1.5">Momentos destacados</p>
                   <div className="space-y-1.5">
                     {sesion.destacados.map((d, i) => (
-                      <p key={i} className="text-sm text-gray-200 bg-gray-900/60 rounded-lg px-3 py-1.5 flex gap-2">
+                      <p key={i} className="text-sm text-texto bg-superficie rounded-lg px-3 py-1.5 flex gap-2">
                         <span aria-hidden>{ICONO[d.tipo] || '•'}</span><span>{d.texto}</span>
                       </p>
                     ))}
@@ -99,13 +103,14 @@ export default function ResumenSesion({ partidaId, userId }) {
               )}
             </div>
 
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-              <button onClick={cerrar} className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg">
+            <div className="px-5 py-3 border-t border-separador flex justify-end">
+              <button onClick={cerrar} className="h-10 px-6 rounded-full text-[15px] font-semibold text-white bg-acento hover:bg-acento-hover">
                 ¡A jugar!
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

@@ -44,6 +44,8 @@ import { Embers, Snow, ClimaEfecto } from './partida/WeatherEffects'
 import { ClimaPanel } from './partida/ClimaPanel'
 import { ClimaChip, ClimaIcono } from './partida/ClimaChip'
 import { TurnoIcono } from './partida/TurnoIcono'
+import BotonIcono from './partida/BotonIcono'
+import AvisoMaster from './partida/AvisoMaster'
 import { CLIMAS } from '../lib/clima'
 import { participanteEnTurno } from '../lib/turno'
 import PantallaRotaFx from './partida/PantallaRotaFx'
@@ -81,8 +83,8 @@ const ROLE_DASHBOARD = {
 
 const ROLE_COLORS = {
   trainer:    'text-blue-400',
-  espectador: 'text-gray-400',
-  master:     'text-red-400',
+  espectador: 'text-texto-2',
+  master:     'text-tinte',
 }
 
 
@@ -963,32 +965,50 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     <DadosProvider nombre={isMaster ? 'El DM' : (nombreJugador || user?.user_name || 'Alguien')}
       puedeOcultar={isMaster}
       onTirada={(t) => sendTirada({ ...t, user_id: user?.user_id })}>
-    <div className={`fixed inset-0 flex flex-col bg-gray-900 text-white overflow-hidden ${ocultarIconos ? 'iconos-ocultos' : ''}`}>
+    <div className={`modo-oscuro fixed inset-0 flex flex-col text-white overflow-hidden bg-[#0B0B0F] ${ocultarIconos ? 'iconos-ocultos' : ''}`}
+      style={{ backgroundImage: 'radial-gradient(ellipse 60% 38% at 50% 108%, #1B1B22 0, #1B1B22 60%, transparent 61%)' }}>
 
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-3 bg-gray-800 border-b border-gray-700 shrink-0">
-        {/* Mensaje del master: solo lo ven los demás, el master ya sabe lo que envió */}
-        {!isMaster && (
-          <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
-            <img src={eventActive ? '/evento0/avatar.png' : '/avatars/chuckface.png'} alt="Master"
-              className="w-8 h-8 rounded-full border-2 border-amber-500/60 object-cover shrink-0 bg-gray-700" />
-            <p className="text-sm text-gray-100 leading-snug truncate">{masterMessage}</p>
-          </div>
-        )}
-        {/* Enviar mensaje: a la izquierda del botón de salir (solo master) */}
-        {isMaster && (
-          <div className="flex-1 min-w-0 mr-3">
+      {/* modo-oscuro en la raíz: todas las ventanas de la sala que usan los
+          colores del rediseño salen en el gris del panel de combate. */}
+      {/* Barra superior: solo la del master, que escribe sus mensajes desde
+          ahí (su rediseño es de la etapa 5). Los jugadores no la tienen: el
+          mensaje del master es un aviso plegable arriba a la izquierda y
+          "Salir" una cápsula arriba a la derecha. */}
+      {isMaster ? (
+        // Mismo alto que la barra de antes (el panel del master se apoya en ella),
+        // pero como cápsulas de cristal: el mensaje a la izquierda y "Salir"
+        // a la derecha, igual que en la sala de los jugadores.
+        // En el celular el turno no cabe junto al mensaje: baja a una segunda fila.
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-1.5 min-h-14 shrink-0">
+          <div className="cristal flex-1 min-w-[9rem] rounded-full p-1">
             <MasterSendMessage onSend={sendMasterMessage} compact />
           </div>
-        )}
-        <button
-          onClick={() => navigate(ROLE_DASHBOARD[user?.role] ?? '/')}
-          className="ml-auto shrink-0 flex items-center gap-2 text-sm text-red-400 hover:text-red-300
-                     hover:bg-red-900/30 px-3 py-1.5 rounded-lg transition-all"
-        >
-          <LogOut size={14} /> Salir
-        </button>
-      </div>
+          {/* Turno y clima del máster, en la barra como los de los jugadores */}
+          <div className="order-last basis-full pl-12 sm:pl-0 sm:order-none sm:basis-auto min-w-0 flex items-center justify-center gap-2 empty:hidden">
+            <TurnoIcono iniciativa={iniciativa} userId={user?.user_id} onTerminar={terminarTurno} busy={turnoBusy} partidaId={id} />
+            {clima && <ClimaIcono clima={clima} />}
+          </div>
+          <button type="button" onClick={() => navigate(ROLE_DASHBOARD[user?.role] ?? '/')}
+            title="Salir de la partida" aria-label="Salir de la partida"
+            className="cristal shrink-0 w-11 h-11 rounded-full grid place-items-center
+                       text-peligro hover:bg-[rgba(72,72,74,.85)] transition-colors">
+            <LogOut size={18} />
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Hueco del alto de la barra que había: el campo queda donde estaba
+              y no se mete debajo del aviso ni de "Salir" */}
+          <div className="h-14 shrink-0" aria-hidden />
+          <AvisoMaster mensaje={masterMessage} avatar={eventActive ? '/evento0/avatar.png' : '/avatars/chuckface.png'} />
+          <button type="button" onClick={() => navigate(ROLE_DASHBOARD[user?.role] ?? '/')}
+            title="Salir de la partida" aria-label="Salir de la partida"
+            className="modo-oscuro cristal fixed right-3 top-3 z-[47] w-11 h-11 rounded-full grid place-items-center
+                       text-peligro hover:bg-[rgba(72,72,74,.85)] transition-colors">
+            <LogOut size={18} />
+          </button>
+        </>
+      )}
 
       {/* Efectos de evento (solo trainer/espectador) */}
       {!isMaster && fireActive && <Embers />}
@@ -1023,37 +1043,38 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       )}
 
       {/* Actividad: botón abajo a la derecha; el registro se abre encima de él
-          y no le quita espacio a la sala ni tapa los iconos */}
-      <button onClick={abrirCerrarLog} title={logOpen ? 'Cerrar la actividad' : 'Ver la actividad'}
-        className={`fixed right-3 bottom-3 z-[46] flex items-center justify-center w-11 h-11 rounded-full shadow-lg border transition-colors ${
-          logOpen ? 'bg-amber-500 border-amber-300 text-gray-900' : 'bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200'}`}>
-        <ScrollText size={19} />
+          y no le quita espacio a la sala. z-[49]: por encima de los avatares
+          del campo (z-[48]), que lo tapaban, y por debajo de los modales (z-50). */}
+      <BotonIcono onClick={abrirCerrarLog} activo={logOpen} tamano="lg" className="fixed right-3 bottom-3 z-[49]"
+        title={logOpen ? 'Cerrar la actividad' : 'Ver la actividad'}>
+        <ScrollText size={20} />
         {nuevasLog > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-600 border border-red-300 text-[10px] font-black flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-[#FF453A] text-white text-[10px] font-bold grid place-items-center tabular-nums">
             {nuevasLog > 99 ? '99+' : nuevasLog}
           </span>
         )}
-      </button>
+      </BotonIcono>
       {logOpen && (
-        <div className="fixed right-3 bottom-16 z-[46] w-[min(26rem,calc(100vw-1.5rem))] h-[min(18rem,55dvh)]
-                        flex flex-col rounded-2xl border border-gray-700 bg-gray-800/95 shadow-2xl backdrop-blur-sm">
-          <div className="flex items-center justify-between gap-2 px-4 pt-2.5 pb-1.5 border-b border-gray-700 shrink-0">
+        <div className="modo-oscuro cristal fixed right-3 bottom-[4.25rem] z-[49] w-[min(26rem,calc(100vw-1.5rem))] h-[min(18rem,55dvh)]
+                        flex flex-col rounded-[20px] text-texto overflow-hidden">
+          <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-separador shrink-0">
             <div className="flex items-center gap-3 min-w-0">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Actividad</p>
+              <p className="text-[13px] font-semibold text-white">Actividad</p>
               <ResumenSesion partidaId={id} userId={user?.user_id} />
               <BotonParche />
             </div>
-            <button onClick={abrirCerrarLog} className="text-gray-400 hover:text-white shrink-0" title="Cerrar"><X size={15} /></button>
+            <button onClick={abrirCerrarLog} aria-label="Cerrar" title="Cerrar"
+              className="w-7 h-7 rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 shrink-0"><X size={14} strokeWidth={2.4} /></button>
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
             {log.length === 0
-              ? <p className="text-xs text-gray-500 italic">Sin actividad aún...</p>
+              ? <p className="text-xs text-texto-2 italic">Sin actividad aún…</p>
               : log.map((e, i) => (
                 <p key={i} className="text-xs leading-relaxed">
-                  <span className="text-gray-500 text-[10px] mr-2">
+                  <span className="text-texto-2 text-[10px] mr-2 tabular-nums">
                     {new Date(e.time).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </span>
-                  <span className={ROLE_COLORS[e.role] ?? 'text-gray-300'}>{e.text}</span>
+                  <span className={ROLE_COLORS[e.role] ?? 'text-texto'}>{e.text}</span>
                 </p>
               ))
             }
@@ -1063,15 +1084,14 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       )}
 
       {/* Mostrar / esconder los iconos de la izquierda */}
-      <button onClick={alternarIconos} title={ocultarIconos ? 'Mostrar los iconos' : 'Esconder los iconos'}
-        className="fixed left-3 bottom-3 z-[46] flex items-center justify-center w-11 h-11 rounded-full shadow-lg border
-                   bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200 transition-colors">
-        {ocultarIconos ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
-      </button>
+      <BotonIcono onClick={alternarIconos} tamano="lg" className="fixed left-3 bottom-3 z-[46]"
+        title={ocultarIconos ? 'Mostrar los iconos' : 'Esconder los iconos'}>
+        {ocultarIconos ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+      </BotonIcono>
 
       {/* Alerta "Hielo y Fuego" abajo a la izquierda, al lado del control de iconos */}
       {eventActive && (
-        <div className="fixed left-16 bottom-3.5 z-[45] flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-red-400">
+        <div className="fixed left-16 bottom-3.5 z-[45] flex items-center gap-1.5 bg-acento text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-tinte/60">
           <Snowflake size={14} className="text-cyan-200" />
           <span>Hielo y Fuego</span>
           <Flame size={14} className="text-orange-300" />
@@ -1186,58 +1206,50 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       <div className="relative flex flex-1 overflow-hidden">
 
         {/* Botón flotante — abre la ventana Party */}
-        <button
+        <BotonIcono
           onClick={() => setShowParty(true)}
-          className="icono-izq fixed left-3 top-16 z-30 flex items-center justify-center w-10 h-10
-                     rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                     border border-gray-600 transition-all"
+          className="icono-izq fixed left-3 top-16 z-30"
           title="Party"
         >
           <Users size={18} />
-        </button>
+        </BotonIcono>
 
         {/* Botón flotante — mapa de la región. Lo ven todos: los jugadores para
             mirar dónde está la party, el máster para moverla. Al máster le toca
             más abajo porque arriba ya tiene sus dos botones. */}
-        <button
+        <BotonIcono
           onClick={() => setShowMapa(true)}
-          className={`icono-izq fixed left-3 z-40 flex items-center justify-center w-10 h-10
-                     rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                     border border-gray-600 transition-all ${isMaster ? 'top-52' : 'top-28'}`}
+          className={`icono-izq fixed left-3 z-40 ${isMaster ? 'top-52' : 'top-28'}`}
           title={isMaster ? 'Mapa · fijar el pin de la party' : 'Mapa'}
         >
           <Globe size={18} />
-        </button>
+        </BotonIcono>
 
         {/* Botón flotante — notas (jugador con personaje) */}
         {!isMaster && personajeId != null && (
-          <button
+          <BotonIcono
             onClick={() => setShowNotas(true)}
-            className="icono-izq fixed left-3 top-40 z-40 flex items-center justify-center w-10 h-10
-                       rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                       border border-gray-600 transition-all"
+            className="icono-izq fixed left-3 top-40 z-40"
             title="Pokenotas"
           >
             <NotebookPen size={18} />
-          </button>
+          </BotonIcono>
         )}
 
         {/* Botón flotante — personajes registrados en la partida (solo master) */}
         {isMaster && (
-          <button
+          <BotonIcono
             onClick={() => setShowInfo(true)}
-            className="icono-izq fixed left-3 top-28 z-30 flex items-center justify-center w-10 h-10
-                       rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                       border border-gray-600 transition-all"
+            className="icono-izq fixed left-3 top-28 z-30"
             title="Personajes registrados"
           >
             <Info size={18} />
-          </button>
+          </BotonIcono>
         )}
 
         {/* Botón flotante — iniciativa (solo master) */}
         {isMaster && (
-          <button
+          <BotonIcono
             onClick={() => {
               // Los nombres de personaje se piden aquí: la presencia solo trae
               // el del usuario, y en la ronda debe salir el del personaje.
@@ -1249,27 +1261,23 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 }).catch(() => {})
               setShowIniciativa(true)
             }}
-            className={`icono-izq fixed left-3 top-64 z-40 flex items-center justify-center w-10 h-10
-                       rounded-full shadow-lg border transition-all ${
-                       iniciativa ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-400'
-                                  : 'bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600'}`}
+            className="icono-izq fixed left-3 top-64 z-40"
+            activo={!!iniciativa}
             title={iniciativa ? 'Iniciativa en curso' : 'Pedir iniciativa'}
           >
             <Dices size={18} />
-          </button>
+          </BotonIcono>
         )}
 
         {/* Botón flotante — catálogo de items (solo master) */}
         {isMaster && (
-          <button
+          <BotonIcono
             onClick={() => setShowItems(true)}
-            className="icono-izq fixed left-3 top-40 z-30 flex items-center justify-center w-10 h-10
-                       rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                       border border-gray-600 transition-all"
+            className="icono-izq fixed left-3 top-40 z-30"
             title="Items"
           >
             <Backpack size={18} />
-          </button>
+          </BotonIcono>
         )}
 
         {/* Botón flotante — dados (master). El trainer lo tiene en su columna. */}
@@ -1277,25 +1285,13 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
         {/* Botón flotante — Pokédex de consulta (master), debajo de los dados */}
         {isMaster && (
-          <button
+          <BotonIcono
             onClick={() => { setPokedexInspectListo(false); setPokedexInspectId(null); setPokedexInspectLevel(null); setPokedexLibre(true) }}
-            className="icono-izq fixed left-3 top-88 z-40 flex items-center justify-center w-10 h-10
-                       rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-lg
-                       border border-gray-600 transition-all"
+            className="icono-izq fixed left-3 top-88 z-40"
             title="Abrir Pokédex"
           >
             <Smartphone size={18} />
-          </button>
-        )}
-
-        {/* Turno y clima del máster: debajo de sus dados, con la misma estética
-            que la columna del entrenador. El bloque no captura clics, solo sus
-            piezas: la barra de turno desplegada es más ancha que un icono. */}
-        {isMaster && (iniciativa?.estado === 'activa' || clima) && (
-          <div className="icono-izq fixed left-3 top-100 z-40 flex flex-col items-start gap-2 pointer-events-none">
-            <TurnoIcono iniciativa={iniciativa} userId={user?.user_id} onTerminar={terminarTurno} busy={turnoBusy} />
-            {clima && <div className="shrink-0 pointer-events-auto"><ClimaIcono clima={clima} /></div>}
-          </div>
+          </BotonIcono>
         )}
 
         {/* Center — master panel + content + activity log */}
@@ -1366,7 +1362,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 Pokémon y NPC comparten la misma columna: así se apilan solos y
                 no hay que calcularle la altura a nadie. */}
             {!isMaster && (activePokemons.length > 0 || activeNpcs.length > 0) && (
-              <div className={`absolute top-4 right-4 z-10 flex gap-2 origin-top-right ${isPhone ? 'scale-[0.65]' : 'scale-100'} ${isPhoneLandscape ? 'flex-row-reverse' : 'flex-col'}`}>
+              <div className={`absolute top-4 right-4 z-10 flex gap-2 origin-top-right ${isPhone ? 'scale-[0.65]' : 'scale-100'} ${isPhoneLandscape ? 'flex-row-reverse items-start' : 'flex-col items-end'}`}>
                 {activePokemons.map(p => (
                   <PokemonHpCard key={p.uid} p={p}
                     onPokeball={hasPokeballs && !p.inBall && capturaFx?.uid !== p.uid ? openThrowPanel : null} ballSprite={ballIcon}
@@ -1379,18 +1375,18 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             {/* Panel para elegir qué pokébola lanzar — arriba y centrado */}
             {liveThrowTarget && (
               <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 w-72 max-w-[90vw]">
-                <div className="bg-white rounded-2xl border-2 border-gray-700 shadow-2xl overflow-hidden">
-                  <div className="px-4 py-2.5 border-b border-gray-200 flex items-center justify-between gap-2">
+                <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja border-2 border-separador shadow-hoja overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-separador flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <h4 className="font-black text-gray-900 text-sm leading-tight">Lanzar pokébola</h4>
-                      <p className="text-[11px] text-gray-500 truncate">
+                      <h4 className="font-black text-texto text-sm leading-tight">Lanzar pokébola</h4>
+                      <p className="text-[11px] text-texto-2 truncate">
                         {liveThrowTarget.hidden ? '???' : liveThrowTarget.name}
                       </p>
                     </div>
                     <button onClick={() => setThrowTarget(null)} title="Cerrar"
-                      className="shrink-0 text-gray-400 hover:text-gray-700"><X size={18} /></button>
+                      className="shrink-0 text-texto-2 hover:text-texto"><X size={18} /></button>
                   </div>
-                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                  <div className="max-h-64 overflow-y-auto divide-y divide-separador">
                     {pokeballs.map(b => (
                       <div key={b.id_personaje_equipo} className="flex items-center gap-2 px-4 py-2">
                         {b.item_media_sprite && (
@@ -1398,11 +1394,11 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                             onError={e => { e.target.style.opacity = '0.3' }} />
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-gray-900 truncate">{b.item_name}</p>
-                          <p className="text-[11px] text-gray-500">Disponibles: {b.cantidad}</p>
+                          <p className="text-xs font-bold text-texto truncate">{b.item_name}</p>
+                          <p className="text-[11px] text-texto-2">Disponibles: {b.cantidad}</p>
                         </div>
                         <button onClick={() => throwBall(b)} disabled={throwing}
-                          className="shrink-0 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-3 py-1.5 rounded-lg transition-colors">
+                          className="shrink-0 text-xs font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-3 py-1.5 rounded-lg transition-colors">
                           Lanzar
                         </button>
                       </div>
@@ -1481,7 +1477,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                     <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 flex flex-col items-center whitespace-nowrap animate-crit-salida">
                       {/* Con qué arma pegó y, si no fue crítico, el valor del ataque */}
                       {attackFx.arma && (
-                        <span className="px-4 py-1.5 rounded-full bg-gray-900/90 border-2 border-amber-400 text-white font-black text-lg shadow-xl animate-arma-etiqueta">
+                        <span className="px-4 py-1.5 rounded-full bg-superficie border-2 border-tinte/60 text-white font-black text-lg shadow-xl animate-arma-etiqueta">
                           {attackFx.moveName}{!attackFx.critico && attackFx.ataque != null ? ` · ${attackFx.ataque}` : ''}
                         </span>
                       )}
@@ -1492,7 +1488,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                           ¡Pifia!
                         </span>
                       )}
-                      {attackFx.critico && <span className="block text-xl font-black italic uppercase tracking-wide text-amber-300 animate-crit-letrero
+                      {attackFx.critico && <span className="block text-xl font-black italic uppercase tracking-wide text-tinte animate-crit-letrero
                         [text-shadow:0_0_14px_rgba(251,191,36,0.9),2px_2px_0_#b91c1c,-2px_-2px_0_#b91c1c,2px_-2px_0_#b91c1c,-2px_2px_0_#b91c1c]">
                         ¡Golpe crítico!
                       </span>}
@@ -1572,13 +1568,13 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       {/* Aviso de captura: 5 s centrado en pantalla, para toda la partida (master incluido) */}
       {showCaptura && captura.trainer && (
         <div className="fixed inset-0 z-[95] flex items-center justify-center pointer-events-none p-4">
-          <div className="animate-event-pop bg-white/95 border-4 border-amber-400 rounded-2xl shadow-2xl px-6 py-5 max-w-md text-center">
+          <div className="animate-event-pop bg-fondo text-texto border-4 border-tinte/60 rounded-[24px] shadow-hoja px-6 py-5 max-w-md text-center">
             <img src={POKEBALL_SPRITE} alt="" className="w-12 h-12 object-contain mx-auto mb-2 animate-pokeball-wobble"
               onError={e => { e.target.style.opacity = '0.3' }} />
-            <p className="text-lg font-black text-gray-900 leading-snug">
+            <p className="text-lg font-black text-texto leading-snug">
               {captura.texto ? captura.texto : (
-                <>En hora buena, el trainer <span className="text-red-600">{captura.trainer}</span> ha atrapado {captura.pokemon
-                  ? <>a <span className="text-red-600">{captura.pokemon}</span></> : 'un Pokémon'}</>
+                <>En hora buena, el trainer <span className="text-tinte">{captura.trainer}</span> ha atrapado {captura.pokemon
+                  ? <>a <span className="text-tinte">{captura.pokemon}</span></> : 'un Pokémon'}</>
               )}
             </p>
           </div>
@@ -1587,22 +1583,22 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
       {/* Transferencia de un Pokémon del master a un entrenador (solo master) */}
       {transferPoke && isMaster && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
-          <div className="bg-white rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-2 shrink-0">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm max-h-[85vh] flex flex-col shadow-hoja overflow-hidden">
+            <div className="px-5 py-4 border-b border-separador flex items-center justify-between gap-2 shrink-0">
               <div className="min-w-0">
-                <h3 className="font-black text-gray-900 text-base leading-tight">Transferencia de pokémon</h3>
-                <p className="text-xs text-gray-500 truncate">{transferPoke.name} · Nv {transferPoke.level}</p>
+                <h3 className="font-black text-texto text-base leading-tight">Transferencia de pokémon</h3>
+                <p className="text-xs text-texto-2 truncate">{transferPoke.name} · Nv {transferPoke.level}</p>
               </div>
-              <button onClick={cerrarTransferencia} title="Cerrar" className="shrink-0 text-gray-400 hover:text-gray-700">
+              <button onClick={cerrarTransferencia} title="Cerrar" className="shrink-0 text-texto-2 hover:text-texto">
                 <X size={20} />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-3">
-              <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-2">Trainers conectados</p>
+              <p className="text-[11px] font-black uppercase tracking-wider text-texto-2 mb-2">Trainers conectados</p>
               {trainersConectados.length === 0 ? (
-                <p className="text-sm text-gray-400 italic py-3">No hay trainers conectados con personaje en la partida.</p>
+                <p className="text-sm text-texto-2 italic py-3">No hay trainers conectados con personaje en la partida.</p>
               ) : (
                 <div className="space-y-1.5">
                   {trainersConectados.map(t => {
@@ -1610,27 +1606,27 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                     return (
                       <button key={t.personaje_id} onClick={() => setTransferDest(t)}
                         className={`w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors
-                          ${sel ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
+                          ${sel ? 'border-acento bg-tinte/10' : 'border-separador hover:border-separador bg-superficie'}`}>
                         {t.avatar_face_url && (
-                          <img src={t.avatar_face_url} alt="" className="w-8 h-8 object-contain rounded-full bg-gray-100 shrink-0"
+                          <img src={t.avatar_face_url} alt="" className="w-8 h-8 object-contain rounded-full bg-relleno shrink-0"
                             onError={e => { e.target.style.opacity = '0.2' }} />
                         )}
-                        <span className="flex-1 min-w-0 text-sm font-bold text-gray-900 truncate">{nombreTrainer(t)}</span>
-                        <span className={`shrink-0 w-4 h-4 rounded-full border-2 ${sel ? 'border-red-600 bg-red-600' : 'border-gray-300'}`} />
+                        <span className="flex-1 min-w-0 text-sm font-bold text-texto truncate">{nombreTrainer(t)}</span>
+                        <span className={`shrink-0 w-4 h-4 rounded-full border-2 ${sel ? 'border-acento bg-acento' : 'border-separador'}`} />
                       </button>
                     )
                   })}
                 </div>
               )}
-              {transferError && <p className="text-xs text-red-600 font-medium mt-3">{transferError}</p>}
+              {transferError && <p className="text-xs text-tinte font-medium mt-3">{transferError}</p>}
             </div>
 
-            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
-              <button onClick={cerrarTransferencia} className="text-sm font-semibold text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg">
+            <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2 shrink-0">
+              <button onClick={cerrarTransferencia} className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-2 rounded-lg">
                 Cancelar
               </button>
               <button onClick={() => setTransferConfirm(true)} disabled={!transferDest}
-                className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
+                className="text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
                 Continuar
               </button>
             </div>
@@ -1640,21 +1636,21 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
       {/* Confirmación de la transferencia */}
       {transferConfirm && transferPoke && transferDest && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs shadow-hoja overflow-hidden">
             <div className="px-5 py-4 flex items-start gap-3">
-              <AlertTriangle size={22} className="text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-sm text-gray-700">
+              <AlertTriangle size={22} className="text-aviso shrink-0 mt-0.5" />
+              <p className="text-sm text-texto">
                 ¿Está seguro de transferir el pokemon <b>{transferPoke.name}</b> al trainer <b>{nombreTrainer(transferDest)}</b>?
               </p>
             </div>
-            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+            <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2">
               <button onClick={() => setTransferConfirm(false)} disabled={transferBusy}
-                className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">
+                className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg disabled:opacity-40">
                 Cancelar
               </button>
               <button onClick={confirmarTransferencia} disabled={transferBusy}
-                className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+                className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
                 {transferBusy ? <PokeballSpinner size={15} /> : null} Confirmar
               </button>
             </div>
@@ -1673,9 +1669,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         <div className="fixed inset-0 z-[75] flex items-center justify-center p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
           onClick={e => { if (e.target === e.currentTarget) setInspectPoke(null) }}>
-          <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-3xl h-[85vh] flex flex-col shadow-2xl">
+          <div className="relative bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja overflow-hidden w-full max-w-3xl h-[85vh] flex flex-col shadow-hoja">
             <button onClick={() => setInspectPoke(null)}
-              className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
+              className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-relleno hover:bg-relleno-2 text-texto-2">
               <X size={18} />
             </button>
             <PokemonDetailView personajeId={inspectPoke.personajeId} idpp={inspectPoke.idpp}
@@ -1689,9 +1685,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         <div className="fixed inset-0 z-[75] flex items-center justify-center p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
           onClick={e => { if (e.target === e.currentTarget) setInspectMasterPoke(null) }}>
-          <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-3xl h-[85vh] flex flex-col shadow-2xl">
+          <div className="relative bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja overflow-hidden w-full max-w-3xl h-[85vh] flex flex-col shadow-hoja">
             <button onClick={() => setInspectMasterPoke(null)}
-              className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
+              className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-relleno hover:bg-relleno-2 text-texto-2">
               <X size={18} />
             </button>
             <PokemonDetailView endpoint={`/master/pokemon/${inspectMasterPoke}`} master onBack={() => setInspectMasterPoke(null)} />
@@ -1754,19 +1750,19 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             <LoadingOverlay label="Pokédex" onClose={cerrarPokedexInspect} z="z-[75]" />
           )}
           <div
-            className={`fixed inset-0 z-[70] flex items-center justify-center p-4 ${
+            className={`modo-oscuro fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 ${
               pokedexInspectListo ? '' : 'invisible pointer-events-none'}`}
-            style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
             onClick={e => { if (e.target === e.currentTarget) cerrarPokedexInspect() }}
           >
-            <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl">
+            <div className="relative bg-fondo text-texto rounded-t-hoja sm:rounded-hoja overflow-hidden w-full max-w-5xl h-[92dvh] sm:h-[85vh] flex flex-col shadow-hoja">
               <button
                 onClick={cerrarPokedexInspect}
-                className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center
-                           rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+                aria-label="Cerrar"
+                className="absolute top-3 right-3 z-20 w-[30px] h-[30px] grid place-items-center
+                           rounded-full bg-relleno hover:bg-relleno-2 text-texto-2 transition-colors"
                 title="Cerrar"
               >
-                <X size={18} />
+                <X size={16} strokeWidth={2.4} />
               </button>
               <PokemonList title="Pokédex" moveDetail initialSelectedId={pokedexInspectId} initialInvokedLevel={pokedexInspectLevel}
                 onReady={() => setPokedexInspectListo(true)} />
@@ -1781,12 +1777,12 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       {/* Tirada de otro jugador: arriba al centro, unos segundos */}
       {tiradaAjena && (
         <div key={tiradaAjena.at} className="fixed top-36 left-1/2 -translate-x-1/2 z-[85] pointer-events-none animate-event-pop">
-          <div className="bg-gray-800/95 border border-gray-600 rounded-xl px-4 py-2 shadow-xl text-center">
-            <p className="text-xs text-gray-300">
+          <div className="bg-superficie border border-separador rounded-xl px-4 py-2 shadow-xl text-center">
+            <p className="text-xs text-texto">
               <span className="font-bold text-white">{tiradaAjena.nombre}</span> tiró{tiradaAjena.etiqueta ? ` ${tiradaAjena.etiqueta}` : ''}
             </p>
             <p className="text-2xl font-black text-white tabular-nums leading-tight">{tiradaAjena.total}</p>
-            <p className="text-[10px] text-gray-400">{tiradaAjena.detalle}</p>
+            <p className="text-[10px] text-texto-2">{tiradaAjena.detalle}</p>
           </div>
         </div>
       )}

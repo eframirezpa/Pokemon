@@ -32,3 +32,29 @@ export const sonarTurno = () => {
     setTimeout(() => ctx.close(), 800)
   } catch { /* sin sonido */ }
 }
+
+/** Posición del turno para comparar: ronda 2 turno 0 va después de ronda 1 turno 5. */
+export const posicionTurno = (ini) => (Number(ini?.ronda) || 1) * 1000 + (Number(ini?.turno) || 0)
+
+/**
+ * ¿Debe volver a desplegarse sola la barra de turno que el jugador plegó?
+ *
+ * `plegado` es { en: posición del turno en que la plegó } (o null si está
+ * desplegada). Se despliega si empezó un combate nuevo (el turno actual va
+ * antes que el guardado) o si llegó un turno nuevo en que juega el
+ * participante justo anterior al jugador o el propio jugador. Plegarla en uno
+ * de esos turnos la deja plegada en ese mismo turno.
+ */
+export const debeDesplegarTurno = (plegado, iniciativa, userId) => {
+  if (!plegado || iniciativa?.estado !== 'activa') return false
+  const ps = iniciativa.participantes || []
+  if (!ps.length) return false
+  const turno = Number(iniciativa.turno) || 0
+  const pos = posicionTurno(iniciativa)
+  if (pos < plegado.en) return true
+  if (pos === plegado.en) return false
+  const yo = String(userId)
+  const enTurno = ps[turno]
+  const siguiente = ps[(turno + 1) % ps.length]
+  return String(enTurno?.user_id) === yo || String(siguiente?.user_id) === yo
+}

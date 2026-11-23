@@ -11,8 +11,8 @@ function Row({ label, value }) {
   if (!has(value)) return null
   return (
     <div className="flex justify-between gap-3 py-1 border-b border-gray-700/60">
-      <span className="text-[10px] font-black text-amber-400/90 uppercase tracking-wide shrink-0">{label}</span>
-      <span className="text-xs text-gray-100 text-right whitespace-pre-line">{value}</span>
+      <span className="text-[10px] font-black text-tinte uppercase tracking-wide shrink-0">{label}</span>
+      <span className="text-xs text-texto text-right whitespace-pre-line">{value}</span>
     </div>
   )
 }
@@ -21,10 +21,10 @@ function Row({ label, value }) {
 function InfoCard({ title, description, values }) {
   if (!has(title) && !has(description) && !has(values)) return null
   return (
-    <div className="bg-gray-700/50 rounded-lg p-2">
+    <div className="bg-superficie rounded-lg p-2">
       {has(title) && <p className="text-xs font-bold text-white mb-0.5">{title}</p>}
-      {has(description) && <p className="text-[11px] text-gray-400 leading-relaxed">{description}</p>}
-      {has(values) && <p className="text-[11px] text-gray-200 mt-0.5">{values}</p>}
+      {has(description) && <p className="text-[11px] text-texto-2 leading-relaxed">{description}</p>}
+      {has(values) && <p className="text-[11px] text-texto mt-0.5">{values}</p>}
     </div>
   )
 }
@@ -35,15 +35,15 @@ const joinVals = (...vals) => vals.filter(has).join(', ')
 function FeatChip({ feat, fallbackName, onClick }) {
   if (!feat && !has(fallbackName)) return null
   return (
-    <div className="bg-gray-700/50 rounded-lg p-2">
+    <div className="bg-superficie rounded-lg p-2">
       <p className="text-xs font-bold text-white mb-0.5">Rasgo</p>
       {feat ? (
         <button onClick={() => onClick(feat)} title="Ver detalle del rasgo"
-          className="text-[11px] text-gray-200 underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-amber-300 transition-colors">
+          className="text-[11px] text-texto underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-tinte transition-colors">
           {feat.feat_name}
         </button>
       ) : (
-        <p className="text-[11px] text-gray-200">{fallbackName}</p>
+        <p className="text-[11px] text-texto">{fallbackName}</p>
       )}
     </div>
   )
@@ -54,10 +54,10 @@ function OriginCard({ o, feat, onFeatClick }) {
   if (!o) return null
   return (
     <div className="space-y-1.5">
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-        Origen — <span className="text-gray-200">{o.origin_name}</span>
+      <p className="text-[10px] font-bold text-texto-2 uppercase tracking-widest">
+        Origen — <span className="text-texto">{o.origin_name}</span>
       </p>
-      {has(o.origin_description) && <p className="text-[11px] text-gray-300 leading-relaxed">{o.origin_description}</p>}
+      {has(o.origin_description) && <p className="text-[11px] text-texto leading-relaxed">{o.origin_description}</p>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
         <InfoCard title={o.origin_ability_scores_name} description={o.origin_ability_scores_description}
           values={joinVals(o.origin_ability_scores_value_1, o.origin_ability_scores_value_2)} />
@@ -66,7 +66,7 @@ function OriginCard({ o, feat, onFeatClick }) {
         <FeatChip feat={feat} fallbackName={o.origin_feat_name} onClick={onFeatClick} />
       </div>
       {has(o.origin_notes) && (
-        <p className="text-[11px] text-gray-400"><span className="font-bold text-gray-300">Notas: </span>{o.origin_notes}</p>
+        <p className="text-[11px] text-texto-2"><span className="font-bold text-texto">Notas: </span>{o.origin_notes}</p>
       )}
     </div>
   )
@@ -77,10 +77,10 @@ function BackgroundCard({ b, feat, onFeatClick }) {
   if (!b) return null
   return (
     <div className="space-y-1.5">
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-        Background — <span className="text-gray-200">{b.background_name}</span>
+      <p className="text-[10px] font-bold text-texto-2 uppercase tracking-widest">
+        Background — <span className="text-texto">{b.background_name}</span>
       </p>
-      {has(b.background_description) && <p className="text-[11px] text-gray-300 leading-relaxed">{b.background_description}</p>}
+      {has(b.background_description) && <p className="text-[11px] text-texto leading-relaxed">{b.background_description}</p>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
         <InfoCard title={b.background_ability_scores_name} description={b.background_ability_scores_description}
           values={joinVals(b.background_ability_scores_value_1, b.background_ability_scores_value_2, b.background_ability_scores_value_3)} />
@@ -95,7 +95,7 @@ function BackgroundCard({ b, feat, onFeatClick }) {
         <FeatChip feat={feat} fallbackName={b.background_feat_name} onClick={onFeatClick} />
       </div>
       {has(b.background_notes) && (
-        <p className="text-[11px] text-gray-400"><span className="font-bold text-gray-300">Notas: </span>{b.background_notes}</p>
+        <p className="text-[11px] text-texto-2"><span className="font-bold text-texto">Notas: </span>{b.background_notes}</p>
       )}
     </div>
   )
@@ -143,39 +143,39 @@ export default function PartidaInfoPanel({ partidaId, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="relative bg-gray-900 rounded-2xl w-full max-w-3xl max-h-[88vh] flex flex-col shadow-2xl overflow-hidden border border-gray-700">
-        <div className="px-5 py-3 border-b border-gray-700 flex items-center justify-between shrink-0">
+      <div className="relative bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-3xl max-h-[88vh] flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-5 py-3 border-b border-separador flex items-center justify-between shrink-0">
           <h3 className="font-black text-white text-lg flex items-center gap-2"><Info size={18} /> Personajes registrados</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={18} /></button>
+          <button onClick={onClose} className="text-texto-2 hover:text-white"><X size={18} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {loading ? (
-            <p className="text-center text-gray-500 text-sm py-10">Cargando…</p>
+            <p className="text-center text-texto-2 text-sm py-10">Cargando…</p>
           ) : chars.length === 0 ? (
-            <p className="text-center text-gray-500 text-sm py-10">No hay personajes registrados en la partida.</p>
+            <p className="text-center text-texto-2 text-sm py-10">No hay personajes registrados en la partida.</p>
           ) : chars.map(c => {
             const open = openId === c.id_personaje
             const d = info[c.id_personaje]
             const full = d?.full
             return (
-              <div key={c.id_personaje} className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+              <div key={c.id_personaje} className="bg-superficie border border-separador rounded-xl overflow-hidden">
                 <button onClick={() => toggle(c.id_personaje)}
-                  className="w-full flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-gray-700/60 transition-colors">
+                  className="w-full flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-superficie transition-colors">
                   <span className="text-sm font-bold text-white truncate">{c.nombre_personaje || 'Sin nombre'}</span>
-                  <ChevronDown size={16} className={`text-gray-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={16} className={`text-texto-2 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
                 </button>
 
                 {open && (
                   <div className="px-4 pb-3 border-t border-gray-700/60">
                     {loadingId === c.id_personaje || !d ? (
-                      <div className="flex items-center justify-center py-6 text-gray-500 text-sm">
+                      <div className="flex items-center justify-center py-6 text-texto-2 text-sm">
                         <PokeballSpinner size={15} className="mr-2" /> Cargando…
                       </div>
                     ) : !full ? (
-                      <p className="text-center text-gray-500 text-sm py-6">No se pudo cargar la información.</p>
+                      <p className="text-center text-texto-2 text-sm py-6">No se pudo cargar la información.</p>
                     ) : (
                       <div className="pt-2 space-y-3">
                         {/* Narrativa del personaje */}
@@ -194,11 +194,11 @@ export default function PartidaInfoPanel({ partidaId, onClose }) {
                         {/* Rasgos extra (clic → detalle con sus bonos) */}
                         {(full.extra_feats || []).length > 0 && (
                           <div>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Rasgos extra</p>
+                            <p className="text-[10px] font-bold text-texto-2 uppercase tracking-widest mb-1.5">Rasgos extra</p>
                             <div className="space-y-1">
                               {full.extra_feats.map((ef, i) => (
                                 <button key={ef.personaje_feat_id} onClick={() => setFeatInfo(ef)}
-                                  className="block w-full text-left text-xs text-gray-200 hover:text-amber-300 underline decoration-dotted decoration-gray-500 underline-offset-2 transition-colors">
+                                  className="block w-full text-left text-xs text-texto hover:text-tinte underline decoration-dotted decoration-gray-500 underline-offset-2 transition-colors">
                                   Rasgo extra {i + 1}: {ef.feat_name}
                                 </button>
                               ))}

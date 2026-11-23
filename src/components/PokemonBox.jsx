@@ -11,6 +11,7 @@ import LoadingOverlay from './LoadingOverlay'
 import HeldItemsModal from './HeldItemsModal'
 import ItemDetailPanel from './ItemDetailPanel'
 import EvolucionModal from './EvolucionModal'
+import { TypeBadge as TypeBadgeBase } from './partida/TypeBadge'
 
 const TYPE_COLORS = {
   Normal:'#A8A878', Fire:'#F08030', Water:'#6890F0', Grass:'#78C850', Electric:'#F8D030',
@@ -21,19 +22,14 @@ const TYPE_COLORS = {
 const fmtSign = v => (Number(v) >= 0 ? `+${v}` : `${v}`)
 const fmtMod  = m => (m >= 0 ? `+${m}` : `${m}`)
 
-function TypeBadge({ type }) {
-  if (!type) return null
-  return (
-    <span className="text-[10px] font-bold text-white rounded-full px-2 py-0.5"
-      style={{ backgroundColor: TYPE_COLORS[type] || '#9CA3AF' }}>{type}</span>
-  )
-}
+// Etiqueta de tipo compartida (texto oscuro sobre los tipos claros)
+const TypeBadge = ({ type }) => <TypeBadgeBase type={type} tamano="sm" />
 
 function ReadCheck({ pref, expert }) {
   // Vacío si no tiene nada; verde si es proficiente; azul si es experto
   const fill = expert ? 'bg-blue-700 border-blue-700'
-    : pref ? 'bg-green-600 border-green-600'
-    : 'border-gray-400 bg-white'
+    : pref ? 'bg-ok border-ok'
+    : 'border-texto-2/50 bg-superficie'
   return (
     <span className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 ${fill}`}>
       {(pref || expert) && <Check size={10} className="text-white" strokeWidth={3} />}
@@ -48,10 +44,10 @@ function MoveRow({ m, onClick, pasiva = false }) {
   return (
     <Tag onClick={onClick}
       className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left ${
-        pasiva ? 'bg-purple-100 border-purple-300' : 'bg-green-100 border-green-300'} ${
-        onClick ? (pasiva ? 'hover:border-purple-500 transition-colors' : 'hover:border-green-500 transition-colors') : ''}`}>
+        pasiva ? 'bg-tinte/15 border-tinte/40' : 'bg-ok/15 border-ok/40'} ${
+        onClick ? (pasiva ? 'hover:border-tinte transition-colors' : 'hover:border-ok/70 transition-colors') : ''}`}>
       <div className="flex items-center gap-2 min-w-0">
-        <span className="font-semibold text-sm text-gray-800 truncate">
+        <span className="font-semibold text-sm text-texto truncate">
           {pasiva ? m.ability_name : m.move_name}
         </span>
         <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0"
@@ -60,7 +56,7 @@ function MoveRow({ m, onClick, pasiva = false }) {
         </span>
       </div>
       {!pasiva && (
-        <span className="text-[10px] text-gray-500 shrink-0 text-right">
+        <span className="text-[10px] text-texto-2 shrink-0 text-right">
           PP {m.move_pp} · {m.move_time} · {m.move_range}
         </span>
       )}
@@ -89,7 +85,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
       .catch(() => {})
   }, [url])
 
-  if (!d) return <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Cargando…</div>
+  if (!d) return <div className="flex-1 flex items-center justify-center text-texto-2 text-sm">Cargando…</div>
 
   const stats = d.stats || {}
   const level = Number(d.pokemon_level) || 1
@@ -159,15 +155,15 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
   }
 
   return (
-    <div className="flex flex-col h-full text-gray-800">
+    <div className="flex flex-col h-full text-texto">
       {/* header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shrink-0">
-        <button onClick={onBack} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900">
+      <div className="flex items-center justify-between gap-3 pl-3 pr-14 py-3 border-b border-separador shrink-0">
+        <button onClick={onBack} className="flex items-center gap-0.5 text-[15px] text-tinte hover:opacity-75 shrink-0">
           <ChevronLeft size={16} /> Volver
         </button>
         <div className="flex items-center gap-2 min-w-0">
-          <span className="font-bold text-gray-900 truncate">{d.pokemon_apodo}</span>
-          <span className="font-bold text-gray-900 shrink-0">({level})</span>
+          <span className="font-bold text-texto truncate">{d.pokemon_apodo}</span>
+          <span className="font-bold text-texto shrink-0">({level})</span>
           {d.pokemon_type_1 && <TypeBadge type={d.pokemon_type_1} />}
           {d.pokemon_type_2 && <TypeBadge type={d.pokemon_type_2} />}
         </div>
@@ -181,23 +177,23 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
             {mainImg && <img src={mainImg} alt={d.pokemon_apodo} className="w-[168px] h-[168px] object-contain"
               onError={e => { e.target.style.opacity = '0.2' }} />}
             <div className="flex items-center gap-2">
-              <span className="text-lg font-black text-gray-900">{d.pokemon_apodo} ({level})</span>
+              <span className="text-lg font-black text-texto">{d.pokemon_apodo} ({level})</span>
               {genero === 'Female' && <Venus size={18} className="text-pink-500" strokeWidth={2.5} />}
               {genero === 'Male' && <Mars size={18} className="text-blue-500" strokeWidth={2.5} />}
               {d.pokemon_is_shiny && (
-                <span title="Shiny" className="flex items-center gap-0.5 text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-300 rounded-md px-1.5 py-0.5">
+                <span title="Shiny" className="flex items-center gap-0.5 text-[10px] font-black text-aviso bg-aviso/10 border border-aviso/40 rounded-md px-1.5 py-0.5">
                   <Sparkles size={11} strokeWidth={2.5} /> Shiny
                 </span>
               )}
             </div>
-            <span className="text-xs text-gray-400">{d.pokemon_name}</span>
+            <span className="text-xs text-texto-2">{d.pokemon_name}</span>
             <div className="flex gap-1 mt-1">
               <TypeBadge type={d.pokemon_type_1} />
               <TypeBadge type={d.pokemon_type_2} />
             </div>
             {nature && (
               <div className="flex items-center gap-1.5 mt-1">
-                <span className="text-xs font-semibold text-gray-600">{nature.nature_name}</span>
+                <span className="text-xs font-semibold text-texto-2">{nature.nature_name}</span>
               </div>
             )}
             {/* Objeto que lleva encima. Solo lo traen los del máster: los del
@@ -210,7 +206,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                   <img src={d.held_item_sprite} alt="" className="w-5 h-5 object-contain shrink-0"
                     onError={e => { e.currentTarget.style.display = 'none' }} />
                 )}
-                <span className="text-[11px] font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5
+                <span className="text-[11px] font-bold text-texto bg-relleno border border-separador rounded-full px-2 py-0.5
                                  underline decoration-dotted decoration-gray-400 underline-offset-2">
                   {d.held_item_name}
                 </span>
@@ -221,36 +217,34 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
               <div className="flex items-center gap-2 mt-2">
                 {onAction && (
                   <button onClick={doAction} disabled={busy}
-                    className="text-xs px-3 py-1 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-semibold transition-colors">
+                    className="text-xs px-3 py-1 rounded-full bg-acento hover:bg-acento-hover disabled:opacity-60 text-white font-semibold transition-colors">
                     {busy ? 'Guardando…' : actionLabel}
                   </button>
                 )}
                 {onInvoke && (
                   <button onClick={() => onInvoke(idpp, mainImg, d.pokemon_size)}
-                    className="text-xs px-3 py-1 rounded-full bg-gray-800 hover:bg-gray-900 text-white font-semibold transition-colors">
+                    className="text-xs px-3 py-1 rounded-full bg-acento hover:bg-acento-hover text-white font-semibold transition-colors">
                     Invocar
                   </button>
                 )}
               </div>
             )}
-            {error && <span className="text-xs text-red-600 font-medium mt-1">{error}</span>}
+            {error && <span className="text-xs text-peligro font-medium mt-1">{error}</span>}
           </div>
 
           {/* Stat block */}
-          <div className="rounded-lg overflow-hidden"
-            style={{ borderTop: '5px solid #9C6E1B', borderBottom: '5px solid #9C6E1B', backgroundColor: '#FDF1DC' }}>
-            <div className="px-4 py-1.5 space-y-0.5 text-xs text-gray-800">
-              {master && <p><span className="font-bold text-[#7A200D]">Nivel</span> {level}</p>}
-              <p><span className="font-bold text-[#7A200D]">Clase de Armadura</span> {d.personaje_pokemon_ac}</p>
+          <div className="bg-superficie rounded-grupo overflow-hidden divide-y divide-separador">
+            <div className="px-4 py-1.5 space-y-0.5 text-xs text-texto">
+              {master && <p><span className="font-bold text-tinte">Nivel</span> {level}</p>}
+              <p><span className="font-bold text-tinte">Clase de Armadura</span> {d.personaje_pokemon_ac}</p>
               {/* pokemon_hp ya llega con el modCON y el healing de feats aplicados */}
-              <p><span className="font-bold text-[#7A200D]">Puntos de Golpe</span> {d.pokemon_current_hp ?? 0}/{d.pokemon_hp ?? 0} ({d.pokemon_hit_dice})</p>
+              <p><span className="font-bold text-tinte">Puntos de Golpe</span> {d.pokemon_current_hp ?? 0}/{d.pokemon_hp ?? 0} ({d.pokemon_hit_dice})</p>
               {/* Los disponibles sobre el total, igual que en la ficha del entrenador */}
-              <p><span className="font-bold text-[#7A200D]">Hit Dice Pool</span> {d.pokemon_hit_dice_left ?? 0}/{d.hit_dice_pool ?? 0}</p>
-              <p><span className="font-bold text-[#7A200D]">Experiencia</span> {(d.pokemon_experiencia ?? 0).toLocaleString()}
+              <p><span className="font-bold text-tinte">Hit Dice Pool</span> {d.pokemon_hit_dice_left ?? 0}/{d.hit_dice_pool ?? 0}</p>
+              <p><span className="font-bold text-tinte">Experiencia</span> {(d.pokemon_experiencia ?? 0).toLocaleString()}
                 {d.exp_next != null ? `/${d.exp_next.toLocaleString()}` : ' · Máx'}</p>
-              {speeds && <p><span className="font-bold text-[#7A200D]">Velocidad</span> {speeds}</p>}
+              {speeds && <p><span className="font-bold text-tinte">Velocidad</span> {speeds}</p>}
             </div>
-            <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
             <div className="px-4 py-2 flex justify-around">
               {[['STR', 'str'], ['DEX', 'dex'], ['CON', 'con'], ['INT', 'int'], ['WIS', 'wis'], ['CHA', 'cha']].map(([lbl, k]) => {
                 // Proficiente en la tirada de salvación: se marca en verde igual
@@ -259,55 +253,53 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                 return (
                   <div key={k} title={esProf ? 'Proficiente en su tirada de salvación' : undefined}
                     className={`flex flex-col items-center px-2 py-0.5 rounded-lg border ${
-                      esProf ? 'bg-green-100 border-green-500' : 'border-transparent'}`}>
-                    <span className={`text-[10px] font-black ${esProf ? 'text-green-700' : 'text-[#7A200D]'}`}>{lbl}</span>
-                    <span className="text-base font-bold text-gray-900 leading-tight">{statVal(k)}</span>
-                    <span className="text-xs text-gray-600">{fmtSign(modOf(k))}</span>
+                      esProf ? 'bg-ok/15 border-ok/70' : 'border-transparent'}`}>
+                    <span className={`text-[10px] font-black ${esProf ? 'text-ok' : 'text-tinte'}`}>{lbl}</span>
+                    <span className="text-base font-bold text-texto leading-tight">{statVal(k)}</span>
+                    <span className="text-xs text-texto-2">{fmtSign(modOf(k))}</span>
                   </div>
                 )
               })}
             </div>
-            <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
             <div className="px-4 py-2 flex justify-around items-stretch">
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black text-[#7A200D]">EXH</span>
-                <span className="text-base font-bold text-gray-900 leading-tight">{d.personaje_pokemon_exahust_lvl}</span>
+                <span className="text-[10px] font-black text-tinte">EXH</span>
+                <span className="text-base font-bold text-texto leading-tight">{d.personaje_pokemon_exahust_lvl}</span>
               </div>
-              <div className="flex flex-col items-center justify-center rounded-lg px-2 bg-green-100">
-                <span className="text-[10px] font-black text-green-700">DSTS</span>
-                <span className="text-base font-bold text-green-700 leading-tight">{d.personaje_pokemon_dsts}</span>
+              <div className="flex flex-col items-center justify-center rounded-lg px-2 bg-ok/15">
+                <span className="text-[10px] font-black text-ok">DSTS</span>
+                <span className="text-base font-bold text-ok leading-tight">{d.personaje_pokemon_dsts}</span>
               </div>
-              <div className="flex flex-col items-center justify-center rounded-lg px-2 bg-red-100">
-                <span className="text-[10px] font-black text-red-700">DSTF</span>
-                <span className="text-base font-bold text-red-700 leading-tight">{d.personaje_pokemon_dstf}</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black text-[#7A200D]">STAB</span>
-                <span className="text-base font-bold text-gray-900 leading-tight">{fmtSign(stab)}</span>
+              <div className="flex flex-col items-center justify-center rounded-lg px-2 bg-tinte/15">
+                <span className="text-[10px] font-black text-peligro">DSTF</span>
+                <span className="text-base font-bold text-peligro leading-tight">{d.personaje_pokemon_dstf}</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black text-[#7A200D]">PROF</span>
-                <span className="text-base font-bold text-gray-900 leading-tight">{fmtSign(prof)}</span>
+                <span className="text-[10px] font-black text-tinte">STAB</span>
+                <span className="text-base font-bold text-texto leading-tight">{fmtSign(stab)}</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black text-[#7A200D]">AC</span>
-                <span className="text-base font-bold text-gray-900 leading-tight">{d.personaje_pokemon_ac}</span>
+                <span className="text-[10px] font-black text-tinte">PROF</span>
+                <span className="text-base font-bold text-texto leading-tight">{fmtSign(prof)}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-black text-tinte">AC</span>
+                <span className="text-base font-bold text-texto leading-tight">{d.personaje_pokemon_ac}</span>
               </div>
               {/* SR: el rango de la especie. Sin signo, que no es un bono: llega
                   como "13" o como fracción ("1/2"). */}
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black text-[#7A200D]">SR</span>
-                <span className="text-base font-bold text-gray-900 leading-tight">{d.pokemon_sr ?? '—'}</span>
+                <span className="text-[10px] font-black text-tinte">SR</span>
+                <span className="text-base font-bold text-texto leading-tight">{d.pokemon_sr ?? '—'}</span>
               </div>
             </div>
-            <hr style={{ borderColor: '#9C6E1B', borderTopWidth: 2 }} />
-            <div className="px-4 py-1.5 space-y-0.5 text-xs text-gray-800">
-              {d.pokemon_saving_throw_prof && <p><span className="font-bold text-[#7A200D]">Tiradas de Salvación</span> {d.pokemon_saving_throw_prof}</p>}
+            <div className="px-4 py-1.5 space-y-0.5 text-xs text-texto">
+              {d.pokemon_saving_throw_prof && <p><span className="font-bold text-tinte">Tiradas de Salvación</span> {d.pokemon_saving_throw_prof}</p>}
               {(() => {
                 const senses = [1, 2]
                   .map(i => d[`pokemon_sense_${i}_name`] && `${d[`pokemon_sense_${i}_value`]} ${d[`pokemon_sense_${i}_name`]}`)
                   .filter(Boolean).join(' · ')
-                return senses && <p><span className="font-bold text-[#7A200D]">Sentidos</span> {senses}</p>
+                return senses && <p><span className="font-bold text-tinte">Sentidos</span> {senses}</p>
               })()}
               {d.bond_name && (() => {
                 // Si la ruta del entrenador otorga el rasgo de vínculo se marca
@@ -318,7 +310,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                 return (
                   <>
                     <p className={ruta ? 'bg-blue-100 border border-blue-300 rounded px-1.5 py-0.5 inline-flex items-center gap-1.5' : ''}>
-                      <span className="font-bold text-[#7A200D]">Vínculo</span> {d.bond_name}
+                      <span className="font-bold text-tinte">Vínculo</span> {d.bond_name}
                       {ruta && (
                         <span className="text-[10px] font-black text-blue-700 uppercase tracking-wide"
                           title={`Vínculo mejorado por tu Trainer Path: ${ruta}`}>
@@ -326,7 +318,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                         </span>
                       )}
                     </p>
-                    {d.bond_description && <p className="text-gray-500">{d.bond_description}</p>}
+                    {d.bond_description && <p className="text-texto-2">{d.bond_description}</p>}
                   </>
                 )
               })()}
@@ -340,8 +332,8 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
           {skills.length > 0 && (
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                <p className="text-xs font-black uppercase tracking-widest text-gray-600">Habilidades</p>
-                <span className="text-[9px] font-bold text-white bg-green-600 rounded px-1.5 py-0.5">Proficient</span>
+                <p className="text-xs font-black uppercase tracking-widest text-texto-2">Habilidades</p>
+                <span className="text-[9px] font-bold text-white bg-ok rounded px-1.5 py-0.5">Proficient</span>
                 <span className="text-[9px] font-bold text-white bg-blue-700 rounded px-1.5 py-0.5">Expert</span>
               </div>
               <div className="grid grid-cols-2 gap-x-3 sm:gap-x-5 gap-y-3">
@@ -354,13 +346,13 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                         return (
                           <div key={i} className="flex items-center gap-1.5 min-w-0">
                             <ReadCheck pref={sf.pref} expert={sf.expert} />
-                            <span className={`w-7 shrink-0 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
-                              v < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                            <span className={`w-7 shrink-0 text-center text-[11px] font-bold border-b border-texto-2/50 leading-tight ${
+                              v < 0 ? 'text-peligro' : 'text-texto'}`}>
                               {fmtMod(v)}
                             </span>
                             <span className="text-[11px] leading-tight truncate min-w-0">
-                              <span className="font-semibold text-gray-800">{s.skill_name}</span>
-                              <span className="text-gray-400"> ({s.skill_related_ability})</span>
+                              <span className="font-semibold text-texto">{s.skill_name}</span>
+                              <span className="text-texto-2"> ({s.skill_related_ability})</span>
                             </span>
                           </div>
                         )
@@ -375,7 +367,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
           {/* Movimientos — las pasivas van al final de la misma lista */}
           {((d.moves || []).length > 0 || (d.pasivas || []).length > 0) && (
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Movimientos</p>
+              <p className="text-xs font-black uppercase tracking-widest text-texto-2 mb-2">Movimientos</p>
               <div className="space-y-1.5">
                 {/* El detalle del movimiento se abre en todas las vistas:
                     cinturón, femputadora y Pokémon del master */}
@@ -392,7 +384,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
           {/* Feats (master o entrenador) */}
           {(d.feats || []).length > 0 && (
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-gray-600 mb-2">Feats</p>
+              <p className="text-xs font-black uppercase tracking-widest text-texto-2 mb-2">Feats</p>
               <div className="space-y-1.5">
                 {d.feats.map((f, i) => {
                   const shownBonos = (f.bonos || []).map(b => {
@@ -401,9 +393,9 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
                   })
                   return (
                   <button key={f.master_pokemon_feat_id ?? f.personaje_pokemon_feat_id ?? i} onClick={() => setFeatInfo({ ...f, bonos: shownBonos })}
-                    className="w-full text-left flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 hover:border-red-300 transition-colors">
-                    <span className="text-sm font-semibold text-gray-800 truncate">
-                      <span className="text-gray-400 font-normal mr-1.5">Rasgo {i + 1}:</span>{f.feat_name}
+                    className="w-full text-left flex items-center justify-between gap-2 bg-superficie border border-separador rounded-lg px-3 py-2 hover:border-tinte/40 transition-colors">
+                    <span className="text-sm font-semibold text-texto truncate">
+                      <span className="text-texto-2 font-normal mr-1.5">Rasgo {i + 1}:</span>{f.feat_name}
                     </span>
                     <div className="flex items-center gap-1 flex-wrap justify-end">
                       <ResolvedBonusBadges bonos={shownBonos} />
@@ -421,18 +413,18 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
 
       {/* Detalle de una pasiva */}
       {abilityInfo && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
           onClick={e => { if (e.target === e.currentTarget) setAbilityInfo(null) }}>
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-2">
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm shadow-hoja overflow-hidden">
+            <div className="px-4 py-3 border-b border-separador flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
-                <h4 className="font-bold text-gray-900 text-sm truncate">{abilityInfo.ability_name}</h4>
+                <h4 className="font-bold text-texto text-sm truncate">{abilityInfo.ability_name}</h4>
                 <span className="text-[10px] font-bold text-white rounded px-1.5 py-0.5 shrink-0" style={{ backgroundColor: '#7C3AED' }}>pasiva</span>
               </div>
-              <button onClick={() => setAbilityInfo(null)} className="text-gray-400 hover:text-gray-700 shrink-0"><X size={16} /></button>
+              <button onClick={() => setAbilityInfo(null)} aria-label="Cerrar" className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 hover:text-texto shrink-0 disabled:opacity-40"><X size={16} strokeWidth={2.4} /></button>
             </div>
             <div className="px-4 py-3">
-              <p className="text-xs text-gray-600 leading-relaxed">
+              <p className="text-xs text-texto-2 leading-relaxed">
                 {abilityInfo.ability_description || 'Sin descripción.'}
               </p>
             </div>
@@ -443,9 +435,9 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
 
       {/* Detalle del held item */}
       {itemDetailId != null && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
           onClick={e => { if (e.target === e.currentTarget) setItemDetailId(null) }}>
-          <div className="bg-white rounded-2xl w-full max-w-sm h-[70vh] shadow-2xl overflow-hidden">
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm h-[70vh] shadow-hoja overflow-hidden">
             <ItemDetailPanel id={itemDetailId} onClose={() => setItemDetailId(null)} />
           </div>
         </div>
@@ -491,28 +483,28 @@ function AddExpModal({ personajeId, pokemon, onClose, onDone }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget && !busy) onClose() }}>
-      <div className="bg-white rounded-2xl w-full max-w-xs flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="font-bold text-gray-900">Agregar experiencia</h3>
-          <button onClick={onClose} disabled={busy} className="text-gray-400 hover:text-gray-700 disabled:opacity-40"><X size={18} /></button>
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between">
+          <h3 className="font-bold text-texto">Agregar experiencia</h3>
+          <button onClick={onClose} disabled={busy} aria-label="Cerrar" className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 hover:text-texto shrink-0 disabled:opacity-40"><X size={16} strokeWidth={2.4} /></button>
         </div>
         <div className="px-5 py-4 space-y-2">
-          <p className="text-xs text-gray-500">{pokemon.pokemon_apodo} · Nv {level} · EXP actual {curExp.toLocaleString()}
+          <p className="text-xs text-texto-2">{pokemon.pokemon_apodo} · Nv {level} · EXP actual {curExp.toLocaleString()}
             {nextT != null && <> · falta {(Math.max(0, nextT - curExp)).toLocaleString()} para subir</>}</p>
           <input type="number" min={1} max={maxAdd ?? undefined} value={amount} autoFocus
             onChange={e => { setAmount(e.target.value); setError('') }}
             onKeyDown={e => { if (e.key === 'Enter' && !busy) submit() }}
             placeholder="Cantidad de experiencia"
-            className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
-          <p className="text-[10px] text-gray-400">Máximo a agregar: {maxAdd != null ? maxAdd.toLocaleString() : '…'}</p>
-          {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+            className="w-full px-3 py-2 text-sm text-texto border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
+          <p className="text-[10px] text-texto-2">Máximo a agregar: {maxAdd != null ? maxAdd.toLocaleString() : '…'}</p>
+          {error && <p className="text-xs text-peligro font-medium">{error}</p>}
         </div>
-        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
-          <button onClick={onClose} disabled={busy} className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
+        <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2">
+          <button onClick={onClose} disabled={busy} className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
           <button onClick={submit} disabled={busy || !amount}
-            className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+            className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
             {busy ? <PokeballSpinner size={15} /> : <ArrowUp size={15} />} Agregar
           </button>
         </div>
@@ -628,13 +620,12 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
   if (primeraCarga) return <LoadingOverlay label={title} onClose={onClose} z="z-[60]" />
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-3xl h-[85vh] flex flex-col shadow-2xl">
-        <button onClick={onClose}
-          className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
-          <X size={18} />
+      <div className="relative bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja overflow-hidden w-full max-w-3xl h-[85vh] flex flex-col shadow-hoja">
+        <button onClick={onClose} aria-label="Cerrar" title="Cerrar"
+          className="absolute top-3 right-3 z-20 w-[30px] h-[30px] grid place-items-center rounded-full bg-relleno hover:bg-relleno-2 text-texto-2">
+          <X size={16} strokeWidth={2.4} />
         </button>
 
         {expFor && (
@@ -664,37 +655,37 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
           la mesa, así que no se salta de Disloyal a Incredible de una vez.
           Ya no toca los puntos: son un recurso aparte. */}
       {bondFor && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+        <div className="fixed inset-0 z-[95] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
           onClick={e => { if (e.target === e.currentTarget && !bondBusy) setBondFor(null) }}>
-          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200">
-              <h3 className="font-bold text-gray-900">Editar bond</h3>
-              <p className="text-[11px] text-gray-500 truncate">{bondFor.pokemon_apodo}</p>
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs shadow-hoja overflow-hidden">
+            <div className="px-5 py-4 border-b border-separador">
+              <h3 className="font-bold text-texto">Editar bond</h3>
+              <p className="text-[11px] text-texto-2 truncate">{bondFor.pokemon_apodo}</p>
             </div>
             <div className="px-5 py-4">
               {bondOpts === null ? (
-                <p className="text-sm text-gray-500 flex items-center gap-2"><PokeballSpinner size={14} /> Cargando…</p>
+                <p className="text-sm text-texto-2 flex items-center gap-2"><PokeballSpinner size={14} /> Cargando…</p>
               ) : (
                 <>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">Vínculo</label>
+                  <label className="block text-xs font-bold text-texto-2 mb-1">Vínculo</label>
                   <div className="relative">
                     <select value={bondVal ?? ''} onChange={e => setBondVal(Number(e.target.value))} disabled={bondBusy}
-                      className="appearance-none w-full pl-3 pr-8 py-2 text-sm text-gray-900 border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-400">
+                      className="appearance-none w-full pl-3 pr-8 py-2 text-sm text-texto border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50">
                       {bondOpts.opciones.map(o => (
                         <option key={o.bond_id} value={o.bond_id}>
                           {o.bond_name}{Number(o.bond_id) === Number(bondOpts.actual) ? ' (actual)' : ''}
                         </option>
                       ))}
                     </select>
-                    <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-texto-2 pointer-events-none" />
                   </div>
-                  <p className="text-[11px] text-gray-400 mt-2">Solo se puede subir o bajar un nivel.</p>
+                  <p className="text-[11px] text-texto-2 mt-2">Solo se puede subir o bajar un nivel.</p>
                 </>
               )}
             </div>
-            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+            <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2">
               <button onClick={() => setBondFor(null)} disabled={bondBusy}
-                className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
+                className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg disabled:opacity-40">Cancelar</button>
               <button onClick={async () => {
                   setBondBusy(true)
                   try {
@@ -703,7 +694,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                     setBondFor(null); load()
                   } catch { /* noop */ } finally { setBondBusy(false) }
                 }} disabled={bondBusy}
-                className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
+                className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-4 py-1.5 rounded-lg transition-colors">
                 {bondBusy && <PokeballSpinner size={15} />} Guardar
               </button>
             </div>
@@ -717,9 +708,9 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
             actionLabel={actionLabel} onAction={handleAction} onInvoke={onInvoke} />
         ) : (
           <>
-            <div className="px-5 py-4 border-b border-gray-200 shrink-0">
+            <div className="px-5 py-4 border-b border-separador shrink-0">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-gray-900">{title}</h2>
+                <h2 className="text-lg font-black text-texto">{title}</h2>
                 {/* Atajo al otro sitio: del cinturón a la femputadora y al revés,
                     sin tener que cerrar y volver a abrir desde la barra lateral. */}
                 {onSwitchMode && (
@@ -730,36 +721,36 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                   </button>
                 )}
               </div>
-              <p className="text-xs text-gray-500">{subtitle}</p>
+              <p className="text-xs text-texto-2">{subtitle}</p>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               {/* El cinturón tiene cupo, así que mover puede fallar y hay que decirlo */}
               {errorMover && (
-                <p className="mb-3 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                <p className="mb-3 text-xs text-peligro font-medium bg-peligro/10 border border-peligro/30 rounded-lg px-3 py-2">
                   {errorMover}
                 </p>
               )}
               {loading ? (
-                <p className="flex items-center justify-center gap-2 text-gray-400 text-sm py-10">
+                <p className="flex items-center justify-center gap-2 text-texto-2 text-sm py-10">
                   <PokeballSpinner size={16} /> Cargando…
                 </p>
               ) : list.length === 0 ? (
-                <p className="text-center text-gray-400 text-sm py-10">
+                <p className="text-center text-texto-2 text-sm py-10">
                   {isBelt ? 'No tienes Pokémon en el cinturón.' : 'No tienes Pokémon almacenados.'}
                 </p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {list.map(p => (
                     <div key={p.id_personaje_pokemon} onClick={() => setSelected(p.id_personaje_pokemon)}
-                      className="relative flex flex-col items-center gap-1 p-3 rounded-xl border border-gray-200 hover:border-red-400 hover:shadow transition-all bg-white cursor-pointer">
+                      className="relative flex flex-col items-center gap-1 p-3 rounded-xl border border-separador hover:border-tinte/60 hover:shadow transition-all bg-superficie cursor-pointer">
                       {p.pokemon_is_shiny && (
-                        <span title="Shiny" className="absolute top-1.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-300 rounded-md px-1 py-0.5">
+                        <span title="Shiny" className="absolute top-1.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 text-[9px] font-black text-aviso bg-aviso/10 border border-aviso/40 rounded-md px-1 py-0.5">
                           <Sparkles size={10} strokeWidth={2.5} /> Shiny
                         </span>
                       )}
                       {editable && Number(p.pokemon_level) < 20 && (
                         <button onClick={e => { e.stopPropagation(); setExpFor(p) }} title="Subir experiencia"
-                          className="absolute top-1.5 right-1.5 flex items-center gap-0.5 text-[9px] font-black text-white bg-red-600 hover:bg-red-700 rounded-md px-1.5 py-0.5 shadow transition-colors">
+                          className="absolute top-1.5 right-1.5 flex items-center gap-0.5 text-[9px] font-black text-white bg-acento hover:bg-acento-hover rounded-md px-1.5 py-0.5 shadow transition-colors">
                           EXP <ArrowUp size={11} strokeWidth={3} />
                         </button>
                       )}
@@ -782,8 +773,8 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                       <button onClick={e => { e.stopPropagation(); setHeldFor(p) }}
                         title="Held items"
                         className="absolute top-8 left-1.5 z-10 flex items-center justify-center
-                                   w-6 h-6 rounded-full bg-green-600 hover:bg-green-700 text-white shadow
-                                   border border-green-700 transition-all">
+                                   w-6 h-6 rounded-full bg-ok hover:brightness-110 text-white shadow
+                                   border border-ok transition-all">
                         <Briefcase size={11} strokeWidth={2.5} />
                       </button>
 
@@ -825,7 +816,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                       {!isBelt && (
                         <>
                           <button onClick={e => { e.stopPropagation(); setReleaseFor(p) }} title="Liberar Pokémon"
-                            className="absolute bottom-1.5 left-1.5 text-white bg-green-600 hover:bg-green-700 rounded-md p-1 shadow transition-colors">
+                            className="absolute bottom-1.5 left-1.5 text-white bg-ok hover:brightness-110 rounded-md p-1 shadow transition-colors">
                             <DoorOpen size={16} />
                           </button>
                           <button onClick={e => { e.stopPropagation(); abrirTransferencia(p) }} title="Transferir a otro entrenador"
@@ -837,15 +828,15 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                       <img src={(p.pokemon_is_shiny && p.pokemon_media_sprite_shiny) ? p.pokemon_media_sprite_shiny : (p.pokemon_media_sprite || p.pokemon_media_main)}
                         alt={p.pokemon_apodo}
                         className="animate-poke-hop-3 w-16 h-16 object-contain" onError={e => { e.target.style.opacity = '0.2' }} />
-                      <span className="text-sm font-semibold text-gray-800 truncate max-w-full">{p.pokemon_apodo}</span>
+                      <span className="text-sm font-semibold text-texto truncate max-w-full">{p.pokemon_apodo}</span>
                       {/* El nivel acompaña a la especie; el nombre trunca pero el nivel siempre se ve */}
-                      <span className="flex items-baseline gap-1 max-w-full text-[11px] text-gray-400">
+                      <span className="flex items-baseline gap-1 max-w-full text-[11px] text-texto-2">
                         <span className="truncate">{p.pokemon_name}</span>
                         <span className="shrink-0">Nivel {p.pokemon_level}</span>
                       </span>
                       {/* Procedencia: va bajo el nombre de especie, no bajo el apodo */}
                       {p.pokemon_tag && (
-                        <span className="text-[9px] font-bold uppercase tracking-wide text-gray-500 bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 truncate max-w-full">
+                        <span className="text-[9px] font-bold uppercase tracking-wide text-texto-2 bg-relleno border border-separador rounded px-1.5 py-0.5 truncate max-w-full">
                           {p.pokemon_tag}
                         </span>
                       )}
@@ -878,23 +869,23 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
 
       {/* Liberar Pokémon — primera advertencia */}
       {releaseFor && !releaseSure && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200">
-              <h4 className="font-black text-gray-900 text-base">Liberar pokemon</h4>
-              <p className="text-xs text-gray-500 mt-0.5 truncate">{releaseFor.pokemon_apodo}</p>
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs shadow-hoja overflow-hidden">
+            <div className="px-5 py-4 border-b border-separador">
+              <h4 className="font-black text-texto text-base">Liberar pokemon</h4>
+              <p className="text-xs text-texto-2 mt-0.5 truncate">{releaseFor.pokemon_apodo}</p>
             </div>
             <div className="px-5 py-4 flex items-start gap-3">
-              <AlertTriangle size={22} className="text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-sm text-gray-700">
+              <AlertTriangle size={22} className="text-aviso shrink-0 mt-0.5" />
+              <p className="text-sm text-texto">
                 Estas apunto de liberar al pokemon, esta accion no se puede deshacer
               </p>
             </div>
-            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+            <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2">
               <button onClick={() => { setReleaseFor(null); setErrorAccion('') }}
-                className="text-sm font-semibold text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg">Cancelar</button>
+                className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg">Cancelar</button>
               <button onClick={() => setReleaseSure(true)}
-                className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 px-4 py-1.5 rounded-lg transition-colors">Aceptar</button>
+                className="text-sm font-bold text-white bg-acento hover:bg-acento-hover px-4 py-1.5 rounded-lg transition-colors">Aceptar</button>
             </div>
           </div>
         </div>
@@ -902,16 +893,16 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
 
       {/* Liberar Pokémon — confirmación final */}
       {releaseFor && releaseSure && (
-        <div className="fixed inset-0 z-[115] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
-          <div className="bg-white rounded-2xl w-full max-w-[16rem] shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[115] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-[16rem] shadow-hoja overflow-hidden">
             <div className="px-5 py-5 text-center">
-              <AlertTriangle size={26} className="text-red-600 mx-auto mb-2" />
-              <p className="text-base font-black text-gray-900">¿Totalmente seguro?</p>
-              {errorAccion && <p className="text-xs text-red-600 font-medium mt-2">{errorAccion}</p>}
+              <AlertTriangle size={26} className="text-peligro mx-auto mb-2" />
+              <p className="text-base font-black text-texto">¿Totalmente seguro?</p>
+              {errorAccion && <p className="text-xs text-peligro font-medium mt-2">{errorAccion}</p>}
             </div>
-            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-center gap-2">
+            <div className="px-5 py-3 border-t border-separador flex items-center justify-center gap-2">
               <button onClick={() => { setReleaseSure(false); setReleaseFor(null); setErrorAccion('') }} disabled={busyAccion}
-                className="text-sm font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 disabled:opacity-40 px-5 py-1.5 rounded-lg transition-colors">NO</button>
+                className="text-sm font-bold text-texto bg-relleno-2 hover:bg-elevada disabled:opacity-40 px-5 py-1.5 rounded-lg transition-colors">NO</button>
               <button disabled={busyAccion}
                 onClick={async () => {
                   setBusyAccion(true); setErrorAccion('')
@@ -925,7 +916,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                     setReleaseSure(false); setReleaseFor(null); load(); onMoved?.()
                   } catch { setErrorAccion('No se pudo liberar') } finally { setBusyAccion(false) }
                 }}
-                className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-5 py-1.5 rounded-lg transition-colors">
+                className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 px-5 py-1.5 rounded-lg transition-colors">
                 {busyAccion ? <PokeballSpinner size={14} /> : null} SI
               </button>
             </div>
@@ -935,20 +926,20 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
 
       {/* Transferir a otro entrenador */}
       {transferFor && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className="bg-white rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-2 shrink-0">
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+          <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm max-h-[85vh] flex flex-col shadow-hoja overflow-hidden">
+            <div className="px-5 py-4 border-b border-separador flex items-center justify-between gap-2 shrink-0">
               <div className="min-w-0">
-                <h4 className="font-black text-gray-900 text-base leading-tight">Transferencia de pokémon</h4>
-                <p className="text-xs text-gray-500 truncate">{transferFor.pokemon_apodo}</p>
+                <h4 className="font-black text-texto text-base leading-tight">Transferencia de pokémon</h4>
+                <p className="text-xs text-texto-2 truncate">{transferFor.pokemon_apodo}</p>
               </div>
               <button onClick={() => { setTransferFor(null); setTransferDest(null); setErrorAccion('') }}
-                className="text-gray-400 hover:text-gray-700 shrink-0"><X size={20} /></button>
+                aria-label="Cerrar" className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 hover:text-texto shrink-0 disabled:opacity-40"><X size={16} strokeWidth={2.4} /></button>
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-3">
-              <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-2">Entrenadores conectados</p>
+              <p className="text-[11px] font-black uppercase tracking-wider text-texto-2 mb-2">Entrenadores conectados</p>
               {trainers.length === 0 ? (
-                <p className="text-sm text-gray-400 italic py-3">No hay otros entrenadores conectados.</p>
+                <p className="text-sm text-texto-2 italic py-3">No hay otros entrenadores conectados.</p>
               ) : (
                 <div className="space-y-1.5">
                   {trainers.map(t => {
@@ -956,21 +947,21 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                     return (
                       <button key={t.id_personaje} onClick={() => setTransferDest(t)}
                         className={`w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors ${
-                          sel ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
-                        <span className="flex-1 min-w-0 text-sm font-bold text-gray-900 truncate">
+                          sel ? 'border-acento bg-tinte/10' : 'border-separador hover:border-separador bg-superficie'}`}>
+                        <span className="flex-1 min-w-0 text-sm font-bold text-texto truncate">
                           {t.nombre_personaje || 'Sin nombre'}
                         </span>
-                        <span className={`shrink-0 w-4 h-4 rounded-full border-2 ${sel ? 'border-red-600 bg-red-600' : 'border-gray-300'}`} />
+                        <span className={`shrink-0 w-4 h-4 rounded-full border-2 ${sel ? 'border-acento bg-acento' : 'border-separador'}`} />
                       </button>
                     )
                   })}
                 </div>
               )}
-              {errorAccion && <p className="text-xs text-red-600 font-medium mt-3">{errorAccion}</p>}
+              {errorAccion && <p className="text-xs text-peligro font-medium mt-3">{errorAccion}</p>}
             </div>
-            <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
+            <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2 shrink-0">
               <button onClick={() => { setTransferFor(null); setTransferDest(null); setErrorAccion('') }}
-                className="text-sm font-semibold text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg">Cancelar</button>
+                className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-2 rounded-lg">Cancelar</button>
               <button disabled={!transferDest || busyAccion}
                 onClick={async () => {
                   setBusyAccion(true); setErrorAccion('')
@@ -986,7 +977,7 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                     setTransferFor(null); setTransferDest(null); load(); onMoved?.()
                   } catch { setErrorAccion('No se pudo transferir') } finally { setBusyAccion(false) }
                 }}
-                className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
+                className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-5 py-2 rounded-lg transition-colors">
                 {busyAccion ? <PokeballSpinner size={14} /> : null} Transferir
               </button>
             </div>

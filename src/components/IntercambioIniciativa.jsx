@@ -84,7 +84,7 @@ export default function IntercambioIniciativa({
         <div className="fixed bottom-20 right-4 z-[90]">
           <button onClick={() => setEligiendo(true)}
             title="Intercambiar iniciativa (Alert)"
-            className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold
+            className="flex items-center gap-1.5 bg-acento hover:bg-acento-hover text-white text-xs font-bold
                        px-3 py-2 rounded-full shadow-2xl transition-colors">
             <ArrowLeftRight size={14} /> Intercambiar iniciativa
           </button>
@@ -92,38 +92,38 @@ export default function IntercambioIniciativa({
       )}
 
       {propuestaEnviada && (
-        <div className="fixed bottom-20 right-4 z-[90] flex items-center gap-2 bg-gray-900 border border-amber-500/40
-                         text-amber-200 text-xs font-semibold px-3 py-2 rounded-full shadow-2xl">
+        <div className="fixed bottom-20 right-4 z-[90] flex items-center gap-2 bg-superficie border border-tinte/40
+                         text-tinte text-xs font-semibold px-3 py-2 rounded-full shadow-2xl">
           <PokeballSpinner size={13} /> Esperando a {propuestaEnviada.aNombre}...
         </div>
       )}
 
       {aviso && (
-        <div className="fixed bottom-20 right-4 z-[90] bg-gray-900 border border-amber-500/40
-                         text-amber-200 text-xs font-semibold px-3 py-2 rounded-full shadow-2xl">
+        <div className="fixed bottom-20 right-4 z-[90] bg-superficie border border-tinte/40
+                         text-tinte text-xs font-semibold px-3 py-2 rounded-full shadow-2xl">
           {aviso}
         </div>
       )}
 
       {/* Elegir a quién proponerle */}
       {eligiendo && (
-        <div className="fixed inset-0 z-[96] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+        <div className="fixed inset-0 z-[96] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
           onClick={e => { if (e.target === e.currentTarget) setEligiendo(false) }}>
-          <div className="bg-gray-900 border border-amber-500/40 rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-700 flex items-center justify-between">
+          <div className="bg-fondo text-texto border border-tinte/40 animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs shadow-hoja overflow-hidden">
+            <div className="px-5 py-4 border-b border-separador flex items-center justify-between">
               <h3 className="font-bold text-white text-sm">¿Con quién intercambias?</h3>
-              <button onClick={() => setEligiendo(false)} className="text-gray-400 hover:text-white"><X size={18} /></button>
+              <button onClick={() => setEligiendo(false)} className="text-texto-2 hover:text-white"><X size={18} /></button>
             </div>
             <div className="px-5 py-4 space-y-1.5">
               {candidatos.length === 0 && (
-                <p className="text-xs text-gray-500 italic">Nadie más ha tirado todavía.</p>
+                <p className="text-xs text-texto-2 italic">Nadie más ha tirado todavía.</p>
               )}
               {candidatos.map(c => (
                 <button key={c.clave} onClick={() => proponer(c)}
-                  className="w-full flex items-center justify-between gap-2 bg-gray-800 hover:bg-gray-700
-                             border border-gray-700 rounded-xl px-3 py-2 transition-colors text-left">
+                  className="w-full flex items-center justify-between gap-2 bg-superficie hover:bg-relleno-2
+                             border border-separador rounded-xl px-3 py-2 transition-colors text-left">
                   <span className="text-sm font-bold text-white truncate">{c.nombre}</span>
-                  <span className="text-xs font-black tabular-nums text-amber-300 shrink-0">{c.total}</span>
+                  <span className="text-xs font-black tabular-nums text-tinte shrink-0">{c.total}</span>
                 </button>
               ))}
             </div>
@@ -133,27 +133,27 @@ export default function IntercambioIniciativa({
 
       {/* Propuesta que me llega a mí */}
       {swapPropuesta && (
-        <div className="fixed inset-0 z-[96] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
-          <div className="bg-gray-900 border border-amber-500/40 rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-700 flex items-center gap-2">
-              <ArrowLeftRight size={18} className="text-amber-400 shrink-0" />
+        <div className="fixed inset-0 z-[96] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+          <div className="bg-fondo text-texto border border-tinte/40 animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs shadow-hoja overflow-hidden">
+            <div className="px-5 py-4 border-b border-separador flex items-center gap-2">
+              <ArrowLeftRight size={18} className="text-tinte shrink-0" />
               <h3 className="font-bold text-white text-sm">Propuesta de intercambio</h3>
             </div>
             <div className="px-5 py-4">
-              <p className="text-sm text-gray-200">
-                <span className="font-bold text-amber-300">{swapPropuesta.deNombre}</span> quiere darte su{' '}
+              <p className="text-sm text-texto">
+                <span className="font-bold text-tinte">{swapPropuesta.deNombre}</span> quiere darte su{' '}
                 <span className="font-black tabular-nums">{swapPropuesta.deTotal}</span> a cambio de tu{' '}
                 <span className="font-black tabular-nums">{swapPropuesta.aTotal}</span>.
               </p>
             </div>
-            <div className="px-5 py-3 border-t border-gray-700 flex items-center gap-2">
+            <div className="px-5 py-3 border-t border-separador flex items-center gap-2">
               <button onClick={() => responder(false)} disabled={busy}
-                className="flex-1 text-sm font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700
+                className="flex-1 text-sm font-semibold text-texto hover:text-white bg-superficie hover:bg-relleno-2
                            disabled:opacity-40 px-3 py-2 rounded-xl transition-colors">
                 Rechazar
               </button>
               <button onClick={() => responder(true)} disabled={busy}
-                className="flex-1 flex items-center justify-center gap-1.5 text-sm font-bold text-white bg-amber-600 hover:bg-amber-700
+                className="flex-1 flex items-center justify-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover
                            disabled:opacity-40 px-3 py-2 rounded-xl transition-colors">
                 {busy ? <PokeballSpinner size={14} /> : <Check size={14} />} Aceptar
               </button>

@@ -8,7 +8,7 @@ import NumerosFlotantes from '../NumerosFlotantes'
 function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo }) {
   const [collapsed, setCollapsed] = useState(false)
   return (
-    <div className="relative bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-lg self-start">
+    <div className="relative bg-superficie border border-separador rounded-xl p-3 shadow-lg self-start">
       <NumerosFlotantes valor={pokemon.hp_current} />
       {/* Encabezado (toggle repliega/expande) */}
       <div
@@ -17,13 +17,13 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
       >
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <ChevronDown size={14} className={`text-gray-400 shrink-0 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+            <ChevronDown size={14} className={`text-texto-2 shrink-0 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
             <span className="text-white font-bold text-sm truncate">{pokemon.name}</span>
-            <span className="text-[10px] text-gray-400 shrink-0">Lv.{pokemon.level}</span>
+            <span className="text-[10px] text-texto-2 shrink-0">Lv.{pokemon.level}</span>
             {/* Guardar/soltar de la pokébola: dentro se ve un rayo para liberarlo */}
             <button
               onClick={e => { e.stopPropagation(); onToggleBall(pokemon.uid) }}
-              className={`shrink-0 transition-colors flex items-center justify-center ${pokemon.inBall ? 'text-amber-400 hover:text-amber-300' : 'text-gray-500 hover:text-white'}`}
+              className={`shrink-0 transition-colors flex items-center justify-center ${pokemon.inBall ? 'text-tinte hover:text-tinte' : 'text-texto-2 hover:text-white'}`}
               title={pokemon.inBall ? 'Sacar de la pokébola' : 'Guardar en la pokébola'}
             >
               {pokemon.inBall
@@ -34,7 +34,7 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
             {/* Transferir el Pokémon a un entrenador */}
             <button
               onClick={e => { e.stopPropagation(); onTransfer(pokemon) }}
-              className="shrink-0 text-gray-500 hover:text-white transition-colors"
+              className="shrink-0 text-texto-2 hover:text-white transition-colors"
               title="Transferir a un entrenador"
             >
               <ArrowRightLeft size={18} />
@@ -47,8 +47,8 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
                 master: es un dato que el jugador no deberia ver antes de decidir. */}
             {expAlAtrapar(pokemon.level, pokemon.sr) != null && (
               <span title={`Experiencia al atraparlo · 200 x Lv.${pokemon.level} x SR ${pokemon.sr}`}
-                className="shrink-0 text-[9px] font-black tabular-nums text-amber-300
-                           bg-amber-500/10 border border-amber-500/40 rounded px-1.5 py-0.5">
+                className="shrink-0 text-[9px] font-black tabular-nums text-tinte
+                           bg-tinte/10 border border-tinte/40 rounded px-1.5 py-0.5">
                 {expAlAtrapar(pokemon.level, pokemon.sr).toLocaleString()} EXP
               </span>
             )}
@@ -58,7 +58,7 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
           {pokemon.master_pokemon_id != null && (
             <button
               onClick={e => { e.stopPropagation(); onInspect(pokemon.master_pokemon_id) }}
-              className="text-gray-500 hover:text-white transition-colors"
+              className="text-texto-2 hover:text-white transition-colors"
               title="Ver información del Pokémon"
             >
               <Search size={16} />
@@ -66,12 +66,12 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
           )}
           <button
             onClick={e => { e.stopPropagation(); onToggleHidden(pokemon.uid) }}
-            className={`transition-colors ${pokemon.hidden ? 'text-amber-400 hover:text-amber-300' : 'text-gray-500 hover:text-white'}`}
+            className={`transition-colors ${pokemon.hidden ? 'text-tinte hover:text-tinte' : 'text-texto-2 hover:text-white'}`}
             title={pokemon.hidden ? 'Revelar a los jugadores' : 'Ocultar a los jugadores'}
           >
             {pokemon.hidden ? <Eye size={16} /> : <EyeOff size={16} />}
           </button>
-          <button onClick={e => { e.stopPropagation(); onRemove(pokemon.uid) }} className="text-gray-500 hover:text-red-400 transition-colors" title="Quitar">
+          <button onClick={e => { e.stopPropagation(); onRemove(pokemon.uid) }} className="text-texto-2 hover:text-tinte transition-colors" title="Quitar">
             <X size={16} />
           </button>
         </div>
@@ -82,12 +82,12 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
           {/* Controles de vida */}
           <div className="flex items-center gap-2 mt-3">
             <button onClick={() => onHp(pokemon.uid, -1)}
-              className="w-8 h-8 shrink-0 rounded-lg bg-gray-700 hover:bg-red-600 flex items-center justify-center text-white transition-colors">
+              className="w-8 h-8 shrink-0 rounded-lg bg-elevada hover:bg-acento-hover flex items-center justify-center text-white transition-colors">
               <Minus size={15} />
             </button>
             <div className="flex-1">
               {/* Barra de solo lectura: la vida solo se mueve de a un punto con los botones */}
-              <div className="w-full h-2.5 rounded-full bg-gray-700 overflow-hidden">
+              <div className="w-full h-2.5 rounded-full bg-elevada overflow-hidden">
                 <div className="h-full rounded-full transition-all"
                   style={{ width: `${hpPct(pokemon)}%`, backgroundColor: hpColor(hpPct(pokemon)) }} />
               </div>
@@ -96,28 +96,28 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
               </p>
             </div>
             <button onClick={() => onHp(pokemon.uid, 1)}
-              className="w-8 h-8 shrink-0 rounded-lg bg-gray-700 hover:bg-green-600 flex items-center justify-center text-white transition-colors">
+              className="w-8 h-8 shrink-0 rounded-lg bg-elevada hover:bg-ok flex items-center justify-center text-white transition-colors">
               <Plus size={15} />
             </button>
           </div>
 
           {/* Movimientos según el nivel */}
           {pokemon.moves?.length > 0 && (
-            <div className="mt-3 border-t border-gray-700 pt-2">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Movimientos</p>
+            <div className="mt-3 border-t border-separador pt-2">
+              <p className="text-[10px] font-bold text-texto-2 uppercase tracking-widest mb-1.5">Movimientos</p>
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {pokemon.moves.map((m, i) => (
-                  <div key={i} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded-lg px-2 py-1.5">
+                  <div key={i} className="flex items-center justify-between gap-2 bg-superficie rounded-lg px-2 py-1.5">
                     <div className="flex items-center gap-2 min-w-0">
                       <button onClick={e => { e.stopPropagation(); onMoveInfo?.(m) }} title="Ver detalle del movimiento"
-                        className="text-white text-xs font-medium truncate underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-amber-300 transition-colors">
+                        className="text-white text-xs font-medium truncate underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-tinte transition-colors">
                         {m.name}
                       </button>
                       <TypeBadge type={m.type} />
                     </div>
                     <button
                       onClick={() => onCast(pokemon, m.name, m.type)}
-                      className="shrink-0 text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 px-2.5 py-1 rounded-md transition-colors"
+                      className="shrink-0 text-[10px] font-bold text-white bg-acento hover:bg-acento-hover px-2.5 py-1 rounded-md transition-colors"
                     >
                       Lanzar
                     </button>
@@ -144,20 +144,20 @@ export function MasterPokemonFieldPanel({ pokemons, max = 4, onAdd, onHp, onRemo
         <button
           onClick={onAdd}
           disabled={full}
-          className="shrink-0 flex-1 flex items-center justify-center gap-1.5 py-2 bg-gray-800 hover:bg-gray-700
-                     disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800
-                     border border-gray-700 text-gray-200 text-xs font-semibold rounded-xl transition-colors"
+          className="shrink-0 flex-1 flex items-center justify-center gap-1.5 py-2 bg-superficie hover:bg-relleno-2
+                     disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-relleno
+                     border border-separador text-texto text-xs font-semibold rounded-xl transition-colors"
         >
-          <Plus size={15} /> Pokémon <span className="text-gray-400">({pokemons.length}/{max})</span>
+          <Plus size={15} /> Pokémon <span className="text-texto-2">({pokemons.length}/{max})</span>
         </button>
         {/* Repliega la rejilla de invocados sin perderlos de la partida */}
         <button
           onClick={() => setCollapsed(c => !c)}
           disabled={pokemons.length === 0}
           title={collapsed ? 'Expandir Pokémon invocados' : 'Comprimir Pokémon invocados'}
-          className="shrink-0 w-10 flex items-center justify-center bg-gray-800 hover:bg-gray-700
-                     disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-800
-                     border border-gray-700 text-gray-300 rounded-xl transition-colors"
+          className="shrink-0 w-10 flex items-center justify-center bg-superficie hover:bg-relleno-2
+                     disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-relleno
+                     border border-separador text-texto rounded-xl transition-colors"
         >
           <ChevronDown size={16} className={`transition-transform duration-300 ${collapsed ? '-rotate-90' : ''}`} />
         </button>
@@ -166,13 +166,13 @@ export function MasterPokemonFieldPanel({ pokemons, max = 4, onAdd, onHp, onRemo
       {/* Captura automática: encendida, la pokébola de un entrenador pide la
           tirada y el servidor decide. Apagada, decides tú como siempre. */}
       {onCapturaAuto && (
-        <label className="mt-2 flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl cursor-pointer select-none"
+        <label className="mt-2 flex items-center gap-2 px-3 py-2 bg-superficie border border-separador rounded-xl cursor-pointer select-none"
           title="Con esto activo, la pokébola pide una tirada de Animal Handling contra la DC y el resultado se aplica solo">
           <input type="checkbox" checked={capturaAuto} onChange={e => onCapturaAuto(e.target.checked)}
             className="w-4 h-4 accent-red-600 shrink-0" />
           <img src={POKEBALL_SPRITE} alt="" className="w-5 h-5 object-contain shrink-0" />
-          <span className="text-xs font-semibold text-gray-200">Atrapado automático</span>
-          <span className={`ml-auto text-[10px] font-bold ${capturaAuto ? 'text-green-400' : 'text-gray-500'}`}>
+          <span className="text-xs font-semibold text-texto">Atrapado automático</span>
+          <span className={`ml-auto text-[10px] font-bold ${capturaAuto ? 'text-ok' : 'text-texto-2'}`}>
             {capturaAuto ? 'Activo' : 'Decide el DM'}
           </span>
         </label>

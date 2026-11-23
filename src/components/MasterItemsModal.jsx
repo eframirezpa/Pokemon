@@ -20,11 +20,11 @@ export default function MasterItemsModal({ onClose }) {
   const recargar = () => setRefresco(n => n + 1)
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="relative bg-white rounded-2xl overflow-hidden w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl">
+      <div className="relative bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja overflow-hidden w-full max-w-4xl h-[85vh] flex flex-col shadow-hoja">
         <button onClick={onClose} title="Cerrar"
-          className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
+          className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-relleno hover:bg-relleno-2 text-texto-2">
           <X size={18} />
         </button>
         <ItemsList

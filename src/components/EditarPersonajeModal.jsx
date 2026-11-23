@@ -76,7 +76,7 @@ function analyzeTextBonus(b) {
 function BonusBadge({ b }) {
   const type = lower(b.type)
   if (type === 'healing') {
-    return <span className="text-[9px] font-bold text-green-700 bg-green-50 border border-green-200 rounded px-1 shrink-0">{(b.llave || '').toUpperCase()} +{b.valor}</span>
+    return <span className="text-[9px] font-bold text-ok bg-ok/10 border border-green-200 rounded px-1 shrink-0">{(b.llave || '').toUpperCase()} +{b.valor}</span>
   }
   if (type === 'stat') {
     const st = analyzeStatBonus(b)
@@ -94,7 +94,7 @@ function BonusBadge({ b }) {
     const text = sk.mode === 'choose'
       ? `${isExpert ? 'expert' : 'prof'} a elección`
       : `${isExpert ? 'expert' : 'prof'} en: ${b.llave}`
-    const cls = isExpert ? 'text-blue-800 bg-blue-100 border-blue-300' : 'text-green-800 bg-green-100 border-green-300'
+    const cls = isExpert ? 'text-blue-800 bg-blue-100 border-blue-300' : 'text-green-800 bg-ok/15 border-ok/40'
     return <span className={`text-[9px] font-bold rounded px-1 shrink-0 border ${cls}`}>{text}</span>
   }
   const ap = analyzeArmorProfBonus(b)
@@ -107,7 +107,7 @@ function BonusBadge({ b }) {
   if (analyzeTextBonus(b)) {
     return <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1 shrink-0">{b.llave} X {b.valor}</span>
   }
-  return <span className="text-[9px] font-bold text-gray-600 bg-gray-100 border border-gray-200 rounded px-1 shrink-0">{b.type}{b.llave ? `: ${b.llave}` : ''}</span>
+  return <span className="text-[9px] font-bold text-texto-2 bg-relleno border border-separador rounded px-1 shrink-0">{b.type}{b.llave ? `: ${b.llave}` : ''}</span>
 }
 
 /* Badges de todos los bonos de un feat (definición, en el listado de disponibles) */
@@ -124,7 +124,7 @@ function StatSingleSelect({ options, selected, onPick, disabled }) {
         return (
           <button key={k} onClick={() => onPick(k)} disabled={disabled}
             className={`text-xs font-bold px-2 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
-              sel ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-400' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+              sel ? 'border-acento bg-tinte/10 text-tinte ring-1 ring-tinte/50' : 'border-separador text-texto hover:bg-relleno'}`}>
             {statLabel(k)}
           </button>
         )
@@ -141,17 +141,17 @@ function StatDistribute({ options, total, maxPer, dist, setDist, disabled }) {
   const dec = k => { if ((dist[k] || 0) > 0) setDist({ ...dist, [k]: dist[k] - 1 }) }
   return (
     <div>
-      <p className="text-[11px] text-gray-500 mb-1.5">Puntos por repartir: <span className={`font-bold ${remaining === 0 ? 'text-gray-400' : 'text-red-600'}`}>{remaining}</span></p>
+      <p className="text-[11px] text-texto-2 mb-1.5">Puntos por repartir: <span className={`font-bold ${remaining === 0 ? 'text-texto-2' : 'text-tinte'}`}>{remaining}</span></p>
       <div className="grid grid-cols-2 gap-1.5">
         {options.map(k => (
-          <div key={k} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-2 py-1">
-            <span className="text-xs font-bold text-gray-800">{statLabel(k)}</span>
+          <div key={k} className="flex items-center justify-between bg-superficie border border-separador rounded-lg px-2 py-1">
+            <span className="text-xs font-bold text-texto">{statLabel(k)}</span>
             <div className="flex items-center gap-1.5">
               <button onClick={() => dec(k)} disabled={disabled || (dist[k] || 0) === 0}
-                className="w-6 h-6 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-30 flex items-center justify-center"><Minus size={13} /></button>
-              <span className="w-5 text-center text-sm font-bold tabular-nums text-gray-900">{dist[k] || 0}</span>
+                className="w-6 h-6 rounded bg-superficie border border-separador text-texto hover:bg-relleno disabled:opacity-30 flex items-center justify-center"><Minus size={13} /></button>
+              <span className="w-5 text-center text-sm font-bold tabular-nums text-texto">{dist[k] || 0}</span>
               <button onClick={() => inc(k)} disabled={disabled || remaining === 0 || (dist[k] || 0) >= maxPer}
-                className="w-6 h-6 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-30 flex items-center justify-center"><Plus size={13} /></button>
+                className="w-6 h-6 rounded bg-superficie border border-separador text-texto hover:bg-relleno disabled:opacity-30 flex items-center justify-center"><Plus size={13} /></button>
             </div>
           </div>
         ))}
@@ -169,7 +169,7 @@ function ArmorOrSelect({ options, selected, onPick, disabled }) {
         return (
           <button key={opt} onClick={() => onPick(sel ? null : opt)} disabled={disabled}
             className={`text-left text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
-              sel ? 'border-slate-500 bg-slate-100 text-slate-800 ring-1 ring-slate-400' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+              sel ? 'border-slate-500 bg-slate-100 text-slate-800 ring-1 ring-slate-400' : 'border-separador text-texto hover:bg-relleno'}`}>
             {opt}
           </button>
         )
@@ -247,18 +247,18 @@ function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, bu
   const allResolved    = statsResolved && skillsResolved && armorsResolved && terrainsResolved
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget && !busy) onCancel() }}>
-      <div className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
-          <h3 className="font-bold text-gray-900 truncate">Agregar rasgo</h3>
-          <button onClick={onCancel} disabled={busy} className="text-gray-400 hover:text-gray-700 shrink-0 ml-2 disabled:opacity-40"><X size={18} /></button>
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-md max-h-[88vh] flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between shrink-0">
+          <h3 className="font-bold text-texto truncate">Agregar rasgo</h3>
+          <button onClick={onCancel} disabled={busy} className="text-texto-2 hover:text-texto shrink-0 ml-2 disabled:opacity-40"><X size={18} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {/* Rasgo + bonos */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-bold text-gray-900">{feat.feat_name}</span>
+            <span className="text-sm font-bold text-texto">{feat.feat_name}</span>
             <FeatBonusBadges bonuses={bonuses} />
           </div>
 
@@ -266,19 +266,19 @@ function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, bu
           {stats.map((st, i) => {
             if (!st || st.mode === 'fixed') return null
             return (
-              <div key={`stat-${i}`} className="border border-gray-200 rounded-xl px-3 py-2.5">
+              <div key={`stat-${i}`} className="border border-separador rounded-xl px-3 py-2.5">
                 {st.mode === 'single' ? (
                   <>
-                    <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
-                      Elige un atributo <span className="text-gray-400 normal-case font-semibold">(+{st.value})</span>
+                    <p className="text-xs font-black uppercase tracking-widest text-texto-2 mb-2">
+                      Elige un atributo <span className="text-texto-2 normal-case font-semibold">(+{st.value})</span>
                     </p>
                     <StatSingleSelect options={st.options} selected={single[i]} disabled={busy}
                       onPick={k => setSingle(s => ({ ...s, [i]: k }))} />
                   </>
                 ) : (
                   <>
-                    <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
-                      Reparte los puntos <span className="text-gray-400 normal-case font-semibold">({st.raw})</span>
+                    <p className="text-xs font-black uppercase tracking-widest text-texto-2 mb-2">
+                      Reparte los puntos <span className="text-texto-2 normal-case font-semibold">({st.raw})</span>
                     </p>
                     <StatDistribute options={st.options} total={st.total} maxPer={st.maxPer}
                       dist={dist[i] || {}} setDist={d => setDist(s => ({ ...s, [i]: d }))} disabled={busy} />
@@ -293,14 +293,14 @@ function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, bu
             const count = idxs.length
             const chosen = skillSel[kind] || []
             return (
-              <div key={`skill-${kind}`} className="border border-gray-200 rounded-xl px-3 py-2.5">
+              <div key={`skill-${kind}`} className="border border-separador rounded-xl px-3 py-2.5">
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-black uppercase tracking-widest text-gray-500">
-                    {count === 1 ? 'Elige una habilidad' : `Elige ${count} habilidades`} <span className={`normal-case font-semibold ${kind === 'expert' ? 'text-blue-700' : 'text-green-700'}`}>({kind === 'expert' ? 'expertise' : 'proficiencia'})</span>
+                  <p className="text-xs font-black uppercase tracking-widest text-texto-2">
+                    {count === 1 ? 'Elige una habilidad' : `Elige ${count} habilidades`} <span className={`normal-case font-semibold ${kind === 'expert' ? 'text-blue-700' : 'text-ok'}`}>({kind === 'expert' ? 'expertise' : 'proficiencia'})</span>
                   </p>
-                  <span className="text-[11px] text-gray-500">{chosen.length}/{count}</span>
+                  <span className="text-[11px] text-texto-2">{chosen.length}/{count}</span>
                 </div>
-                <p className="text-[11px] text-gray-400 mb-2">Las que ya tienes aparecen en verde; puedes elegirlas igual.</p>
+                <p className="text-[11px] text-texto-2 mb-2">Las que ya tienes aparecen en verde; puedes elegirlas igual.</p>
                 <SkillPickMany skills={allSkills} proficientNames={proficientNames} kind={kind} count={count}
                   chosen={chosen} onToggle={name => toggleSkill(kind, name, count)} disabled={busy} />
               </div>
@@ -311,8 +311,8 @@ function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, bu
           {armors.map((ap, i) => {
             if (!ap || ap.mode !== 'or') return null
             return (
-              <div key={`armor-${i}`} className="border border-gray-200 rounded-xl px-3 py-2.5">
-                <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
+              <div key={`armor-${i}`} className="border border-separador rounded-xl px-3 py-2.5">
+                <p className="text-xs font-black uppercase tracking-widest text-texto-2 mb-2">
                   Elige una proficiencia de armadura
                 </p>
                 <ArmorOrSelect options={ap.options} selected={armorSel[i]} disabled={busy}
@@ -325,14 +325,14 @@ function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, bu
           {terrains.map((tr, i) => {
             if (!tr) return null
             return (
-              <div key={`terrain-${i}`} className="border border-gray-200 rounded-xl px-3 py-2.5">
-                <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
+              <div key={`terrain-${i}`} className="border border-separador rounded-xl px-3 py-2.5">
+                <p className="text-xs font-black uppercase tracking-widest text-texto-2 mb-2">
                   Elige un terreno
                 </p>
                 <select value={terrainSel[i] || ''} disabled={busy}
                   onChange={e => setTerrainSel(s => ({ ...s, [i]: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50
-                             focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50">
+                  className="w-full px-3 py-2 text-sm text-texto border border-separador rounded-xl bg-superficie
+                             focus:outline-none focus:ring-2 focus:ring-tinte/50 disabled:opacity-50">
                   <option value="">Elegir…</option>
                   {tr.options.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
@@ -341,23 +341,23 @@ function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, bu
           })}
 
           {/* Aviso irreversible */}
-          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-800">
+          <div className="flex items-start gap-2 bg-aviso/10 border border-aviso/30 rounded-lg px-3 py-2">
+            <AlertTriangle size={16} className="text-aviso shrink-0 mt-0.5" />
+            <p className="text-xs text-aviso">
               Esta acción <span className="font-bold">no se puede deshacer</span>. El rasgo quedará agregado al personaje de forma permanente.
             </p>
           </div>
 
-          {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+          {error && <p className="text-xs text-peligro font-medium">{error}</p>}
         </div>
 
-        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
+        <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2 shrink-0">
           <button onClick={onCancel} disabled={busy}
-            className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">
+            className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg disabled:opacity-40">
             Cancelar
           </button>
           <button onClick={() => onConfirm(choices)} disabled={busy || !allResolved}
-            className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
+            className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
             {busy ? <PokeballSpinner size={15} /> : <Plus size={15} />} Confirmar
           </button>
         </div>
@@ -369,32 +369,32 @@ function ConfirmAddFeat({ feat, allSkills, proficientNames, textChoices = {}, bu
 /* Confirmación de borrado de un feat extra (irreversible) */
 function ConfirmDeleteFeat({ feat, busy, error, onCancel, onConfirm }) {
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget && !busy) onCancel() }}>
-      <div className="bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
-          <h3 className="font-bold text-gray-900 truncate">Eliminar rasgo</h3>
-          <button onClick={onCancel} disabled={busy} className="text-gray-400 hover:text-gray-700 shrink-0 ml-2 disabled:opacity-40"><X size={18} /></button>
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between shrink-0">
+          <h3 className="font-bold text-texto truncate">Eliminar rasgo</h3>
+          <button onClick={onCancel} disabled={busy} className="text-texto-2 hover:text-texto shrink-0 ml-2 disabled:opacity-40"><X size={18} /></button>
         </div>
 
         <div className="px-5 py-4 space-y-3">
-          <p className="text-sm text-gray-700">
-            ¿Eliminar el rasgo <span className="font-bold text-gray-900">{feat.feat_name}</span> del personaje?
+          <p className="text-sm text-texto">
+            ¿Eliminar el rasgo <span className="font-bold text-texto">{feat.feat_name}</span> del personaje?
           </p>
-          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-800">Esta acción <span className="font-bold">no se puede deshacer</span>.</p>
+          <div className="flex items-start gap-2 bg-aviso/10 border border-aviso/30 rounded-lg px-3 py-2">
+            <AlertTriangle size={16} className="text-aviso shrink-0 mt-0.5" />
+            <p className="text-xs text-aviso">Esta acción <span className="font-bold">no se puede deshacer</span>.</p>
           </div>
-          {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+          {error && <p className="text-xs text-peligro font-medium">{error}</p>}
         </div>
 
-        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
+        <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2 shrink-0">
           <button onClick={onCancel} disabled={busy}
-            className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">
+            className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg disabled:opacity-40">
             Cancelar
           </button>
           <button onClick={onConfirm} disabled={busy}
-            className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
+            className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
             {busy ? <PokeballSpinner size={15} /> : <Trash2 size={15} />} Eliminar
           </button>
         </div>
@@ -409,40 +409,40 @@ function ConfirmDeleteFeat({ feat, busy, error, onCancel, onConfirm }) {
 function ConfirmSpec({ spec, mode, busy, error, onCancel, onConfirm }) {
   const del = mode === 'delete'
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget && !busy) onCancel() }}>
-      <div className="bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
-          <h3 className="font-bold text-gray-900 truncate">{del ? 'Eliminar especialidad' : 'Agregar especialidad'}</h3>
-          <button onClick={onCancel} disabled={busy} className="text-gray-400 hover:text-gray-700 shrink-0 ml-2 disabled:opacity-40"><X size={18} /></button>
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-sm flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between shrink-0">
+          <h3 className="font-bold text-texto truncate">{del ? 'Eliminar especialidad' : 'Agregar especialidad'}</h3>
+          <button onClick={onCancel} disabled={busy} className="text-texto-2 hover:text-texto shrink-0 ml-2 disabled:opacity-40"><X size={18} /></button>
         </div>
 
         <div className="px-5 py-4 space-y-3">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-texto">
             {del ? '¿Eliminar la especialidad ' : '¿Agregar la especialidad '}
-            <span className="font-bold text-gray-900">{spec.specialization_name}</span>
+            <span className="font-bold text-texto">{spec.specialization_name}</span>
             {del ? ' del personaje?' : ' al personaje?'}
           </p>
           {spec.specialization_description && (
-            <p className="text-xs text-gray-600 leading-relaxed">{spec.specialization_description}</p>
+            <p className="text-xs text-texto-2 leading-relaxed">{spec.specialization_description}</p>
           )}
           <div className="flex items-center gap-1.5 flex-wrap">
             <ResolvedBonusBadges bonos={del ? spec.bonos : specPreviewBonos(spec)} />
           </div>
-          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-800">Esta acción <span className="font-bold">no se puede deshacer</span>.</p>
+          <div className="flex items-start gap-2 bg-aviso/10 border border-aviso/30 rounded-lg px-3 py-2">
+            <AlertTriangle size={16} className="text-aviso shrink-0 mt-0.5" />
+            <p className="text-xs text-aviso">Esta acción <span className="font-bold">no se puede deshacer</span>.</p>
           </div>
-          {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+          {error && <p className="text-xs text-peligro font-medium">{error}</p>}
         </div>
 
-        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2 shrink-0">
+        <div className="px-5 py-3 border-t border-separador flex items-center justify-end gap-2 shrink-0">
           <button onClick={onCancel} disabled={busy}
-            className="text-sm font-semibold text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg disabled:opacity-40">
+            className="text-sm font-semibold text-texto-2 hover:text-texto px-3 py-1.5 rounded-lg disabled:opacity-40">
             Cancelar
           </button>
           <button onClick={onConfirm} disabled={busy}
-            className="flex items-center gap-1.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
+            className="flex items-center gap-1.5 text-sm font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors">
             {busy ? <PokeballSpinner size={15} />
               : del ? <Trash2 size={15} /> : <Plus size={15} />}
             {del ? 'Eliminar' : 'Agregar'}
@@ -465,25 +465,25 @@ function CaptureTextModal({ steps, onCancel, onDone }) {
   const next = () => { if (!canNext) return; if (isLast) onDone(vals.map(v => v.trim())); else setIdx(i => i + 1) }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-      <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo">
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-xs shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between">
           <div>
-            <h4 className="font-bold text-gray-900 text-sm">{step.llave} {step.num}</h4>
-            {steps.length > 1 && <p className="text-[11px] text-gray-400 mt-0.5">{idx + 1} de {steps.length}</p>}
+            <h4 className="font-bold text-texto text-sm">{step.llave} {step.num}</h4>
+            {steps.length > 1 && <p className="text-[11px] text-texto-2 mt-0.5">{idx + 1} de {steps.length}</p>}
           </div>
-          <button onClick={onCancel} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+          <button onClick={onCancel} className="text-texto-2 hover:text-texto"><X size={18} /></button>
         </div>
         <div className="px-5 py-4">
           <input value={cur} onChange={e => setCur(e.target.value)} autoFocus
             onKeyDown={e => { if (e.key === 'Enter') next() }} placeholder="Escribe aquí..."
-            className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+            className="w-full px-3 py-2 text-sm text-texto border border-separador rounded-lg bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
         </div>
-        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between">
+        <div className="px-5 py-3 border-t border-separador flex items-center justify-between">
           <button onClick={idx === 0 ? onCancel : () => setIdx(i => i - 1)}
-            className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg">{idx === 0 ? 'Cancelar' : 'Atrás'}</button>
+            className="text-sm text-texto-2 hover:text-texto px-3 py-2 rounded-lg">{idx === 0 ? 'Cancelar' : 'Atrás'}</button>
           <button onClick={next} disabled={!canNext}
-            className="bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
+            className="bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
             {isLast ? 'Listo' : 'Siguiente'}
           </button>
         </div>
@@ -518,27 +518,27 @@ function WeaponPickModal({ llave, count, martialOnly = false, onCancel, onDone }
   const list = weapons.filter(w => !search || w.weapon_type_name?.toLowerCase().includes(search.toLowerCase()))
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onCancel() }}>
-      <div className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-md max-h-[88vh] flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between shrink-0">
           <div>
-            <h4 className="font-bold text-gray-900 text-sm">{llave}</h4>
-            <p className="text-[11px] text-gray-500 mt-0.5">Elige {count} {count === 1 ? 'arma' : 'armas'} · {chosen.length}/{count}</p>
+            <h4 className="font-bold text-texto text-sm">{llave}</h4>
+            <p className="text-[11px] text-texto-2 mt-0.5">Elige {count} {count === 1 ? 'arma' : 'armas'} · {chosen.length}/{count}</p>
           </div>
-          <button onClick={onCancel} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+          <button onClick={onCancel} className="text-texto-2 hover:text-texto"><X size={18} /></button>
         </div>
 
         <div className="px-4 pt-3 pb-2 shrink-0">
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-texto-2" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar arma..."
-              className="w-full pl-8 pr-3 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
+              className="w-full pl-8 pr-3 py-1.5 text-sm text-texto border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
           </div>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-gray-400"><PokeballSpinner size={18} className="mr-2" /> Cargando...</div>
+          <div className="flex items-center justify-center py-16 text-texto-2"><PokeballSpinner size={18} className="mr-2" /> Cargando...</div>
         ) : (
           <div className="flex-1 overflow-y-auto px-4 pb-3">
             <div className="grid grid-cols-2 gap-1.5">
@@ -547,9 +547,9 @@ function WeaponPickModal({ llave, count, martialOnly = false, onCancel, onDone }
                 return (
                   <button key={w.weapon_type_id} onClick={() => toggle(w.weapon_type_name)} disabled={!sel && isFull}
                     className={`text-left text-xs px-2 py-1.5 rounded-lg border transition-colors disabled:opacity-40 ${
-                      sel ? 'bg-green-600 text-white border-green-600' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                      sel ? 'bg-ok text-white border-ok' : 'border-separador text-texto hover:bg-relleno'}`}>
                     <span className="font-semibold">{w.weapon_type_name}</span>
-                    <span className={sel ? 'text-white/70' : 'text-gray-400'}> ({w.weapon_type_dnd_category?.replace(/ Weapons$/i, '')})</span>
+                    <span className={sel ? 'text-white/70' : 'text-texto-2'}> ({w.weapon_type_dnd_category?.replace(/ Weapons$/i, '')})</span>
                   </button>
                 )
               })}
@@ -557,10 +557,10 @@ function WeaponPickModal({ llave, count, martialOnly = false, onCancel, onDone }
           </div>
         )}
 
-        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between shrink-0">
-          <button onClick={onCancel} className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg">Cancelar</button>
+        <div className="px-5 py-3 border-t border-separador flex items-center justify-between shrink-0">
+          <button onClick={onCancel} className="text-sm text-texto-2 hover:text-texto px-3 py-2 rounded-lg">Cancelar</button>
           <button onClick={() => onDone(chosen)} disabled={chosen.length !== count}
-            className="bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
+            className="bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
             Listo
           </button>
         </div>
@@ -790,20 +790,20 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
-          <h3 className="font-bold text-gray-900 truncate">Editar jugador{nombre ? ` — ${nombre}` : ''}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 shrink-0 ml-2"><X size={18} /></button>
+      <div className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full max-w-lg max-h-[90vh] flex flex-col shadow-hoja overflow-hidden">
+        <div className="px-5 py-4 border-b border-separador flex items-center justify-between shrink-0">
+          <h3 className="font-bold text-texto truncate">Editar jugador{nombre ? ` — ${nombre}` : ''}</h3>
+          <button onClick={onClose} className="text-texto-2 hover:text-texto shrink-0 ml-2"><X size={18} /></button>
         </div>
 
         {/* Pestañas */}
-        <div className="flex items-center gap-1 px-3 pt-3 border-b border-gray-200 shrink-0">
+        <div className="flex items-center gap-1 px-3 pt-3 border-b border-separador shrink-0">
           {[['feats', 'Feats'], ['especialidades', 'Especialidades']].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}
               className={`px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 -mb-px transition-colors ${
-                tab === key ? 'border-red-600 text-red-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                tab === key ? 'border-acento text-tinte' : 'border-transparent text-texto-2 hover:text-texto'}`}>
               {label}
             </button>
           ))}
@@ -811,29 +811,29 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
 
         {tab === 'especialidades' ? (
           loading ? (
-            <div className="flex items-center justify-center py-20 text-gray-400">
+            <div className="flex items-center justify-center py-20 text-texto-2">
               <PokeballSpinner size={18} className="mr-2" /> Cargando...
             </div>
           ) : (
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
               {/* Agregar una especialidad */}
               <div>
-                <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Agregar especialidad</p>
+                <p className="text-xs font-black uppercase tracking-widest text-texto-2 mb-2">Agregar especialidad</p>
                 <div className="relative mb-2">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-texto-2" />
                   <input value={specSearch} onChange={e => setSpecSearch(e.target.value)} placeholder="Buscar especialidad..."
-                    className="w-full pl-8 pr-7 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
-                  {specSearch && <button onClick={() => setSpecSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"><X size={13} /></button>}
+                    className="w-full pl-8 pr-7 py-1.5 text-sm text-texto border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
+                  {specSearch && <button onClick={() => setSpecSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-texto-2"><X size={13} /></button>}
                 </div>
-                {errorSpec && !confirmSpec && !confirmSpecDel && <p className="text-xs text-red-600 font-medium mb-2">{errorSpec}</p>}
-                <div className="border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                {errorSpec && !confirmSpec && !confirmSpecDel && <p className="text-xs text-peligro font-medium mb-2">{errorSpec}</p>}
+                <div className="border border-separador rounded-xl divide-y divide-separador max-h-64 overflow-y-auto">
                   {specAvailable.length === 0 ? (
-                    <p className="text-xs text-gray-400 italic px-3 py-3">Sin especialidades disponibles.</p>
+                    <p className="text-xs text-texto-2 italic px-3 py-3">Sin especialidades disponibles.</p>
                   ) : specAvailable.map(s => (
-                    <div key={s.specialization_id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50">
+                    <div key={s.specialization_id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-relleno">
                       <div className="text-left min-w-0 flex items-center gap-1.5 flex-wrap">
                         <button onClick={() => setSpecInfo(s)} title="Ver detalle"
-                          className="text-sm font-medium text-gray-800 truncate underline decoration-dotted decoration-gray-300 underline-offset-2 hover:text-red-700">
+                          className="text-sm font-medium text-texto truncate underline decoration-dotted decoration-gray-300 underline-offset-2 hover:text-tinte">
                           {s.specialization_name}
                         </button>
                         {s.specialization_pokemon_type_name &&<span className="text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded px-1 shrink-0">{s.specialization_pokemon_type_name}</span>}
@@ -841,7 +841,7 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
                       </div>
                       <button onClick={() => { setErrorSpec(''); setConfirmSpec(s) }} disabled={busySpec || specLimit}
                         title={specLimit ? specLimitMsg : undefined}
-                        className="shrink-0 flex items-center gap-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
+                        className="shrink-0 flex items-center gap-1 text-xs font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
                         <Plus size={13} /> Agregar
                       </button>
                     </div>
@@ -849,33 +849,33 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
                 </div>
                 {specLimit && (
                   <div className="mt-2 flex items-center gap-2 bg-yellow-50 border border-yellow-300 rounded-lg px-3 py-2">
-                    <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-                    <p className="text-xs font-bold text-amber-800">{specLimitMsg}</p>
+                    <AlertTriangle size={15} className="text-aviso shrink-0" />
+                    <p className="text-xs font-bold text-aviso">{specLimitMsg}</p>
                   </div>
                 )}
               </div>
 
               {/* Especialidades ya agregadas */}
               <div>
-                <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Especialidades</p>
+                <p className="text-xs font-black uppercase tracking-widest text-texto-2 mb-2">Especialidades</p>
                 {specs.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">Aún no hay especialidades.</p>
+                  <p className="text-xs text-texto-2 italic">Aún no hay especialidades.</p>
                 ) : (
                   <div className="space-y-1.5">
                     {specs.map((s, i) => (
-                      <div key={s.specialization_id} className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                      <div key={s.specialization_id} className="flex items-center justify-between gap-2 bg-superficie border border-separador rounded-lg px-3 py-2">
                         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                          <span className="text-sm font-semibold text-gray-800 truncate">
-                            <span className="text-gray-400 font-normal mr-1.5">Especialidad {i + 1}:</span>
+                          <span className="text-sm font-semibold text-texto truncate">
+                            <span className="text-texto-2 font-normal mr-1.5">Especialidad {i + 1}:</span>
                             <button onClick={() => setSpecInfo(s)} title="Ver detalle"
-                              className="underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-red-700">
+                              className="underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-tinte">
                               {s.specialization_name}
                             </button>
                           </span>
                           <ResolvedBonusBadges bonos={s.bonos} />
                         </div>
                         <button onClick={() => { setErrorSpec(''); setConfirmSpecDel(s) }} title="Eliminar especialidad"
-                          className="shrink-0 text-gray-400 hover:text-red-600">
+                          className="shrink-0 text-texto-2 hover:text-tinte">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -886,38 +886,38 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
             </div>
           )
         ) : loading ? (
-          <div className="flex items-center justify-center py-20 text-gray-400">
+          <div className="flex items-center justify-center py-20 text-texto-2">
             <PokeballSpinner size={18} className="mr-2" /> Cargando...
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
             {/* Agregar un rasgo (feats General / Origin) */}
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Agregar rasgo</p>
+              <p className="text-xs font-black uppercase tracking-widest text-texto-2 mb-2">Agregar rasgo</p>
               <div className="relative mb-2">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-texto-2" />
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar rasgo..."
-                  className="w-full pl-8 pr-7 py-1.5 text-sm text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400" />
-                {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"><X size={13} /></button>}
+                  className="w-full pl-8 pr-7 py-1.5 text-sm text-texto border border-separador rounded-xl bg-superficie focus:outline-none focus:ring-2 focus:ring-tinte/50" />
+                {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-texto-2"><X size={13} /></button>}
               </div>
-              {error && !confirm && <p className="text-xs text-red-600 font-medium mb-2">{error}</p>}
-              <div className="border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-64 overflow-y-auto">
+              {error && !confirm && <p className="text-xs text-peligro font-medium mb-2">{error}</p>}
+              <div className="border border-separador rounded-xl divide-y divide-separador max-h-64 overflow-y-auto">
                 {available.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic px-3 py-3">Sin rasgos disponibles.</p>
+                  <p className="text-xs text-texto-2 italic px-3 py-3">Sin rasgos disponibles.</p>
                 ) : available.map(f => {
                   const status = featStatus(f)
                   return (
-                  <div key={f.feat_id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50">
+                  <div key={f.feat_id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-relleno">
                     <button onClick={() => setFeatInfo(f)} title="Ver detalle"
                       className="text-left min-w-0 flex items-center gap-1.5 flex-wrap">
-                      <span className="text-sm font-medium text-gray-800 truncate underline decoration-dotted decoration-gray-300 underline-offset-2 hover:text-red-700">{f.feat_name}</span>
-                      {Number(f.feat_is_repeatable) === 1 && <span className="text-[9px] font-bold text-green-700 bg-green-50 border border-green-200 rounded px-1 shrink-0">repetible</span>}
+                      <span className="text-sm font-medium text-texto truncate underline decoration-dotted decoration-gray-300 underline-offset-2 hover:text-tinte">{f.feat_name}</span>
+                      {Number(f.feat_is_repeatable) === 1 && <span className="text-[9px] font-bold text-ok bg-ok/10 border border-green-200 rounded px-1 shrink-0">repetible</span>}
                       <FeatBonusBadges bonuses={f.feat_bonuses} />
-                      {!status.met && <span className="text-[9px] font-bold text-red-700 bg-red-50 border border-red-200 rounded px-1 shrink-0">{status.reason}</span>}
+                      {!status.met && <span className="text-[9px] font-bold text-peligro bg-peligro/10 border border-peligro/30 rounded px-1 shrink-0">{status.reason}</span>}
                     </button>
                     <button onClick={() => openConfirm(f)} disabled={busy || !status.met}
                       title={status.met ? undefined : status.reason}
-                      className="shrink-0 flex items-center gap-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
+                      className="shrink-0 flex items-center gap-1 text-xs font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors">
                       <Plus size={13} /> Agregar
                     </button>
                   </div>
@@ -928,21 +928,21 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
 
             {/* Rasgos extra ya agregados */}
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Rasgos extra</p>
+              <p className="text-xs font-black uppercase tracking-widest text-texto-2 mb-2">Rasgos extra</p>
               {extraFeats.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">Aún no hay rasgos extra.</p>
+                <p className="text-xs text-texto-2 italic">Aún no hay rasgos extra.</p>
               ) : (
                 <div className="space-y-1.5">
                   {extraFeats.map((f, i) => {
                     const deCreacion = featCreacionId.has(Number(f.personaje_feat_id))
                     return (
-                    <div key={f.personaje_feat_id} className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                    <div key={f.personaje_feat_id} className="flex items-center justify-between gap-2 bg-superficie border border-separador rounded-lg px-3 py-2">
                       <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                        <span className="text-sm font-semibold text-gray-800 truncate">
-                          <span className="text-gray-400 font-normal mr-1.5">Rasgo extra {i + 1}:</span>{f.feat_name}
+                        <span className="text-sm font-semibold text-texto truncate">
+                          <span className="text-texto-2 font-normal mr-1.5">Rasgo extra {i + 1}:</span>{f.feat_name}
                         </span>
                         {deCreacion && (
-                          <span className="text-[10px] font-bold text-gray-600 bg-gray-200 border border-gray-300 rounded px-1.5 py-0.5">
+                          <span className="text-[10px] font-bold text-texto-2 bg-relleno-2 border border-separador rounded px-1.5 py-0.5">
                             de la creación
                           </span>
                         )}
@@ -950,12 +950,12 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
                         <ArmorProfBadges profs={f.armor_profs} />
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <button onClick={() => setFeatInfo(f)} title="Ver detalle" className="text-gray-400 hover:text-red-600">
+                        <button onClick={() => setFeatInfo(f)} title="Ver detalle" className="text-texto-2 hover:text-tinte">
                           <Info size={16} />
                         </button>
                         <button onClick={() => { setErrorDel(''); setConfirmDel(f) }} disabled={deCreacion}
                           title={deCreacion ? 'Lo otorgan el origen o el background: no se puede quitar' : 'Eliminar rasgo'}
-                          className="text-gray-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-400">
+                          className="text-texto-2 hover:text-tinte disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-texto-2">
                           <Trash2 size={16} />
                         </button>
                       </div>

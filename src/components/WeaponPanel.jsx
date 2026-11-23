@@ -44,28 +44,28 @@ export default function WeaponPanel({ personajeId, profs = null }) {
   ].filter(Boolean).map(id => props[id] || { name: String(id), description: '' })
 
   if (armas === null) {
-    return <p className="text-[11px] text-gray-500 flex items-center gap-1.5"><PokeballSpinner size={12} /> Cargando…</p>
+    return <p className="text-[11px] text-texto-2 flex items-center gap-1.5"><PokeballSpinner size={12} /> Cargando…</p>
   }
-  if (error) return <p className="text-[11px] text-red-400 font-medium">{error}</p>
+  if (error) return <p className="text-[11px] text-tinte font-medium">{error}</p>
 
   return (
     <div className="space-y-1">
       {armas.length === 0 ? (
-        <p className="text-[11px] text-gray-500 italic">Ninguna arma equipada.</p>
+        <p className="text-[11px] text-texto-2 italic">Ninguna arma equipada.</p>
       ) : armas.map(w => {
         const open = abierto === w.id_personaje_weapon
         const prof = profs ? profs.isWeaponProf(w) : !!w.personaje_weapon_prof
         const dano = [w.weapon_type_damage_dice, w.weapon_type_damage_type].filter(Boolean).join(' ')
         return (
-          <div key={w.id_personaje_weapon} className="bg-gray-700/50 rounded-lg px-2 py-1.5">
+          <div key={w.id_personaje_weapon} className="bg-superficie rounded-lg px-2 py-1.5">
             <div className="flex items-center justify-between gap-2">
               <button onClick={() => setAbierto(open ? null : w.id_personaje_weapon)}
-                className="min-w-0 flex-1 text-left text-white text-xs font-medium truncate hover:text-amber-300 transition-colors">
+                className="min-w-0 flex-1 text-left text-white text-xs font-medium truncate hover:text-tinte transition-colors">
                 {w.weapon_type_name}
               </button>
               {/* Igual que en Stats y Saves: el verde marca la proficiencia */}
               <span className={`shrink-0 text-[9px] font-bold uppercase tracking-wide rounded px-1.5 py-0.5 border ${
-                prof ? 'text-green-300 bg-green-900/40 border-green-600' : 'text-gray-400 bg-gray-800/60 border-gray-600'}`}>
+                prof ? 'text-green-300 bg-green-900/40 border-ok' : 'text-texto-2 bg-superficie border-separador'}`}>
                 {prof ? 'prof' : 'no prof'}
               </span>
             </div>
@@ -80,20 +80,20 @@ export default function WeaponPanel({ personajeId, profs = null }) {
             {open && (
               <div className="mt-1.5 space-y-1.5">
                 {w.weapon_type_dnd_category && (
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">{w.weapon_type_dnd_category}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-texto-2">{w.weapon_type_dnd_category}</p>
                 )}
                 {propiedadesDe(w).length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {propiedadesDe(w).map((p, i) => (
                       <span key={i} title={p.description || undefined}
-                        className="text-[9px] font-bold text-gray-300 bg-gray-800/60 border border-gray-600 rounded px-1.5 py-0.5">
+                        className="text-[9px] font-bold text-texto bg-superficie border border-separador rounded px-1.5 py-0.5">
                         {p.name}
                       </span>
                     ))}
                   </div>
                 )}
                 {w.weapon_type_description && (
-                  <p className="text-[11px] text-gray-400 leading-relaxed">{w.weapon_type_description}</p>
+                  <p className="text-[11px] text-texto-2 leading-relaxed">{w.weapon_type_description}</p>
                 )}
               </div>
             )}
@@ -107,8 +107,8 @@ export default function WeaponPanel({ personajeId, profs = null }) {
 /* Etiqueta compacta "Daño 1d4 piercing" */
 function Dato({ label, value }) {
   return (
-    <span className="text-[9px] font-bold text-gray-300 bg-gray-800/60 border border-gray-600 rounded px-1.5 py-0.5">
-      <span className="text-gray-500 uppercase">{label}</span> {value}
+    <span className="text-[9px] font-bold text-texto bg-superficie border border-separador rounded px-1.5 py-0.5">
+      <span className="text-texto-2 uppercase">{label}</span> {value}
     </span>
   )
 }

@@ -1,11 +1,22 @@
-import { TYPE_COLORS } from '../../lib/partidaShared'
+import { TYPE_COLORS, textoSobreColor } from '../../lib/partidaShared'
 
-export function TypeBadge({ type }) {
+// Etiqueta de tipo de Pokémon. Es la única de la app: listas, fichas, sala y
+// asistentes la usan. El texto sale casi negro sobre los tipos claros y blanco
+// sobre los oscuros (Fighting, Poison, Ghost, Dragon, Dark), por contraste.
+//
+// tamano: 'xs' (9 px, tarjetas de la sala), 'sm' (11 px, listas), 'md' (12 px, fichas)
+const TAMANOS = {
+  xs: 'px-1.5 py-0.5 rounded text-[9px] leading-none',
+  sm: 'px-2 py-0.5 rounded-full text-[11px] leading-[1.3]',
+  md: 'px-2.5 py-0.5 rounded-full text-xs leading-[1.35]',
+}
+
+export function TypeBadge({ type, tamano = 'xs' }) {
   if (!type) return null
-  const c = TYPE_COLORS[type] ?? { bg: '#888', dark: false }
+  const bg = TYPE_COLORS[type]?.bg ?? '#888888'
   return (
-    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold leading-none"
-      style={{ backgroundColor: c.bg, color: c.dark ? '#374151' : '#fff' }}>
+    <span className={`inline-block font-bold whitespace-nowrap ${TAMANOS[tamano] ?? TAMANOS.xs}`}
+      style={{ backgroundColor: bg, color: textoSobreColor(bg) }}>
       {type}
     </span>
   )

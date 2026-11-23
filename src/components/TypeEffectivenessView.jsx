@@ -20,7 +20,7 @@ function Line({ label, color, types }) {
     <div className="flex items-start gap-2">
       <span className={`text-[10px] font-black uppercase tracking-wide shrink-0 w-24 pt-0.5 ${color}`}>{label}</span>
       <div className="flex flex-wrap gap-1">
-        {types.length === 0 ? <span className="text-[11px] text-gray-400 italic">—</span>
+        {types.length === 0 ? <span className="text-[11px] text-texto-2 italic">—</span>
           : types.map(t => <TypeChip key={t} type={t} />)}
       </div>
     </div>
@@ -39,7 +39,7 @@ export default function TypeEffectivenessView({ typeId1, typeId2, typeName1, typ
         : effectivenessByNames(te, typeName1, typeName2))
     : { resist: [], vuln: [], immune: [] }
 
-  const labelCls = dark ? 'text-gray-400' : 'text-gray-500'
+  const labelCls = dark ? 'text-gray-400' : 'text-texto-2'
 
   // Los tipos propios del Pokémon. Los nombres salen de las mismas filas ya
   // cargadas cuando llegan ids, así que no hay una consulta extra.
@@ -54,10 +54,10 @@ export default function TypeEffectivenessView({ typeId1, typeId2, typeName1, typ
       <p className={`text-[11px] font-black uppercase tracking-widest mb-1.5 ${labelCls}`}>{title}</p>
       <div className="space-y-1.5">
         {showTypes && (
-          <Line label="Tipo" color={dark ? 'text-gray-300' : 'text-gray-700'} types={tipos} />
+          <Line label="Tipo" color={dark ? 'text-gray-300' : 'text-texto'} types={tipos} />
         )}
         <Line label="Resiste"    color="text-green-600"  types={eff.resist} />
-        <Line label="Vulnerable" color="text-red-600"    types={eff.vuln} />
+        <Line label="Vulnerable" color="text-peligro"    types={eff.vuln} />
         <Line label="Inmune"     color="text-indigo-500" types={eff.immune} />
       </div>
     </div>

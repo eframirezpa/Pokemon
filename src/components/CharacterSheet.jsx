@@ -9,14 +9,15 @@ import { buildProfs, titleCase } from '../lib/profs'
 import PathInfoModal from './PathInfoModal'
 import { hpValues } from '../lib/hp'
 import PokeballSpinner from './PokeballSpinner'
+import BarraHP from './ui/BarraHP'
 import LoadingOverlay from './LoadingOverlay'
 
 /* Checkbox de solo lectura (estilo de la imagen) */
 function ReadCheck({ pref, expert }) {
   // Vacío si no tiene nada; verde si es proficiente; azul si es experto
   const fill = expert ? 'bg-blue-700 border-blue-700'
-    : pref ? 'bg-green-600 border-green-600'
-    : 'border-gray-400 bg-white'
+    : pref ? 'bg-ok border-ok'
+    : 'border-texto-2/50 bg-superficie'
   return (
     <span className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 ${fill}`}>
       {(pref || expert) && <Check size={10} className="text-white" strokeWidth={3} />}
@@ -32,25 +33,26 @@ const fmtMod = m => (m >= 0 ? `+${m}` : `${m}`)
 const FEAT_MEDIUM_ARMOR_MASTER = 33 // sube a +3 el tope del modificador de DEX en la armadura
 
 function InfoBox({ label, value, danger = false, green = false, red = false }) {
-  const box = green ? 'border-green-600 bg-green-100' : red ? 'border-red-600 bg-red-100' : 'border-gray-800 bg-white'
-  const lbl = green ? 'text-green-700' : red ? 'text-red-700' : 'text-gray-500'
-  const val = danger ? 'text-red-600' : green ? 'text-green-700' : red ? 'text-red-700' : 'text-gray-900'
+  // Verde y rojo conservan su significado (salvaciones de muerte a favor / en contra)
+  const box = green ? 'bg-ok/12' : red ? 'bg-peligro/12' : 'bg-superficie'
+  const lbl = green ? 'text-ok' : red ? 'text-peligro' : 'text-texto-2'
+  const val = danger ? 'text-peligro' : green ? 'text-ok' : red ? 'text-peligro' : 'text-texto'
   return (
-    <div className={`border-2 rounded-xl px-2 py-1 text-center ${box}`}>
-      <p className={`text-[9px] font-black uppercase leading-tight ${lbl}`}>{label}</p>
-      <p className={`text-lg font-black leading-tight ${val}`}>{(value ?? '') === '' ? '—' : value}</p>
+    <div className={`rounded-xl px-2 py-1.5 text-center min-w-[52px] ${box}`}>
+      <p className={`text-[10px] font-semibold uppercase leading-tight truncate ${lbl}`}>{label}</p>
+      <p className={`text-lg font-bold tracking-[-.02em] tabular-nums leading-tight ${val}`}>{(value ?? '') === '' ? '—' : value}</p>
     </div>
   )
 }
 
 function Row({ label, value, prof = false }) {
   return (
-    <div className="flex justify-between gap-3 py-1 border-b border-gray-100">
+    <div className="flex justify-between gap-3 py-1 border-b border-separador">
       <span className="flex items-center gap-1.5 shrink-0">
-        <span className="text-xs font-semibold text-red-700 uppercase tracking-wide">{label}</span>
-        {prof && <span className="text-[10px] font-bold text-white bg-green-600 rounded px-1.5 py-0.5">prof</span>}
+        <span className="text-xs font-semibold text-tinte uppercase tracking-wide">{label}</span>
+        {prof && <span className="text-[10px] font-bold text-white bg-ok rounded px-1.5 py-0.5">prof</span>}
       </span>
-      <span className="text-sm text-gray-700 text-right">{(value ?? '') === '' ? '—' : value}</span>
+      <span className="text-sm text-texto text-right">{(value ?? '') === '' ? '—' : value}</span>
     </div>
   )
 }
@@ -59,10 +61,10 @@ function Row({ label, value, prof = false }) {
 function FeatRow({ label, feat, onClick }) {
   if (!feat) return null
   return (
-    <div className="flex justify-between gap-3 py-1 border-b border-gray-100">
-      <span className="text-xs font-semibold text-red-700 uppercase tracking-wide shrink-0">{label}</span>
+    <div className="flex justify-between gap-3 py-1 border-b border-separador">
+      <span className="text-xs font-semibold text-tinte uppercase tracking-wide shrink-0">{label}</span>
       <button onClick={onClick} title="Ver detalle del rasgo"
-        className="text-sm text-right text-gray-700 underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-red-700 transition-colors">
+        className="text-sm text-right text-texto underline decoration-dotted decoration-texto-2/50 underline-offset-2 hover:text-tinte transition-colors">
         {feat.feat_name}
       </button>
     </div>
@@ -81,8 +83,8 @@ function SeccionNarrativa({ titulo, children }) {
   return (
     <section>
       <div className="flex items-center gap-2 mb-2">
-        <h4 className="text-[11px] font-black uppercase tracking-widest text-gray-400 shrink-0">{titulo}</h4>
-        <span className="flex-1 h-px bg-gray-200" />
+        <h4 className="text-[11px] font-black uppercase tracking-widest text-texto-2 shrink-0">{titulo}</h4>
+        <span className="flex-1 h-px bg-relleno-2" />
       </div>
       {children}
     </section>
@@ -94,8 +96,8 @@ function SeccionNarrativa({ titulo, children }) {
 function Parrafo({ label, children }) {
   return (
     <div>
-      <p className="text-[10px] font-black uppercase tracking-wide text-red-700 mb-0.5">{label}</p>
-      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line break-words">{children}</p>
+      <p className="text-[10px] font-black uppercase tracking-wide text-tinte mb-0.5">{label}</p>
+      <p className="text-sm text-texto leading-relaxed whitespace-pre-line break-words">{children}</p>
     </div>
   )
 }
@@ -104,8 +106,8 @@ function Parrafo({ label, children }) {
 function Enlace({ children, onClick, title }) {
   return (
     <button onClick={onClick} title={title}
-      className="text-left text-sm font-bold text-gray-900 underline decoration-dotted decoration-gray-400
-                 underline-offset-2 hover:text-red-700 transition-colors">
+      className="text-left text-sm font-bold text-texto underline decoration-dotted decoration-texto-2/50
+                 underline-offset-2 hover:text-tinte transition-colors">
       {children}
     </button>
   )
@@ -113,8 +115,8 @@ function Enlace({ children, onClick, title }) {
 
 function Tarjeta({ etiqueta, children }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-gray-50/60 px-3 py-2.5">
-      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-0.5">{etiqueta}</p>
+    <div className="rounded-xl border border-separador bg-fondo px-3 py-2.5">
+      <p className="text-[10px] font-black uppercase tracking-widest text-texto-2 mb-0.5">{etiqueta}</p>
       {children}
     </div>
   )
@@ -123,13 +125,13 @@ function Tarjeta({ etiqueta, children }) {
 function TarjetaCuna({ etiqueta, nombre, descripcion, feat, onFeat }) {
   return (
     <Tarjeta etiqueta={etiqueta}>
-      <p className="text-sm font-bold text-gray-900 leading-tight">{nombre || '—'}</p>
-      {descripcion && <p className="mt-1 text-[11px] text-gray-500 leading-relaxed">{descripcion}</p>}
+      <p className="text-sm font-bold text-texto leading-tight">{nombre || '—'}</p>
+      {descripcion && <p className="mt-1 text-[11px] text-texto-2 leading-relaxed">{descripcion}</p>}
       {feat && (
-        <p className="mt-1.5 text-xs text-gray-500">
+        <p className="mt-1.5 text-xs text-texto-2">
           Rasgo:{' '}
           <button onClick={() => onFeat(feat)} title="Ver detalle del rasgo"
-            className="font-bold text-gray-800 underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-red-700 transition-colors">
+            className="font-bold text-texto underline decoration-dotted decoration-texto-2/50 underline-offset-2 hover:text-tinte transition-colors">
             {feat.feat_name}
           </button>
         </p>
@@ -169,7 +171,7 @@ function FichaNarrativa({ data, profs, feats, featMet, onFeat, onPath, onSpec, o
                   {data.path.path_name}
                 </Enlace>
                 {data.path.path_full_description && (
-                  <p className="mt-1 text-[11px] text-gray-500 leading-relaxed line-clamp-3">
+                  <p className="mt-1 text-[11px] text-texto-2 leading-relaxed line-clamp-3">
                     {data.path.path_full_description}
                   </p>
                 )}
@@ -180,7 +182,7 @@ function FichaNarrativa({ data, profs, feats, featMet, onFeat, onPath, onSpec, o
                         className={`text-[10px] font-bold rounded px-1.5 py-0.5 border ${
                           (b.value || '').toLowerCase() === 'expert'
                             ? 'text-blue-700 bg-blue-50 border-blue-200'
-                            : 'text-green-700 bg-green-50 border-green-200'}`}
+                            : 'text-ok bg-ok/10 border-ok/30'}`}
                         title={`Nivel ${b.level}${(b.target || '') !== 'trainer' ? ` · ${b.target}` : ''}`}>
                         {b.llave}{(b.value || '').toLowerCase() === 'expert' ? ' exp' : ''}
                         {(b.target || '') === 'all_pokemon' && <span className="font-normal"> (pkmn)</span>}
@@ -197,13 +199,13 @@ function FichaNarrativa({ data, profs, feats, featMet, onFeat, onPath, onSpec, o
                     {s.specialization_name}
                   </Enlace>
                   {s.specialization_pokemon_type_name && (
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500 shrink-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-texto-2 shrink-0">
                       {s.specialization_pokemon_type_name}
                     </span>
                   )}
                 </div>
                 {s.specialization_description && (
-                  <p className="mt-1 text-[11px] text-gray-500 leading-relaxed">{s.specialization_description}</p>
+                  <p className="mt-1 text-[11px] text-texto-2 leading-relaxed">{s.specialization_description}</p>
                 )}
                 {(s.bonos || []).length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1"><ResolvedBonusBadges bonos={s.bonos} /></div>
@@ -221,11 +223,11 @@ function FichaNarrativa({ data, profs, feats, featMet, onFeat, onPath, onSpec, o
               const met = featMet(f)
               return (
                 <div key={f.personaje_feat_id}
-                  className={`flex items-center justify-between gap-2 rounded-xl border border-gray-200 px-3 py-2 ${met ? '' : 'opacity-60'}`}>
+                  className={`flex items-center justify-between gap-2 rounded-xl border border-separador px-3 py-2 ${met ? '' : 'opacity-60'}`}>
                   <div className="min-w-0">
                     <Enlace onClick={() => onFeat(f)} title="Ver detalle del rasgo">{f.feat_name}</Enlace>
                     {!met && (
-                      <p className="text-[10px] font-bold text-amber-700 mt-0.5">No cumple prerequisitos</p>
+                      <p className="text-[10px] font-bold text-aviso mt-0.5">No cumple prerequisitos</p>
                     )}
                   </div>
                   {/* El interruptor es la única función que solo vive aquí: un
@@ -234,8 +236,8 @@ function FichaNarrativa({ data, profs, feats, featMet, onFeat, onPath, onSpec, o
                     title={f.personaje_feat_is_available ? 'Marcar como no disponible' : 'Marcar como disponible'}
                     className={`shrink-0 flex items-center gap-1.5 text-[10px] font-bold rounded-full border px-2 py-1 transition-colors ${
                       f.personaje_feat_is_available
-                        ? 'text-green-700 bg-green-50 border-green-300 hover:bg-green-100'
-                        : 'text-amber-800 bg-yellow-50 border-yellow-300 hover:bg-yellow-100'}`}>
+                        ? 'text-ok bg-ok/10 border-ok/40 hover:bg-ok/15'
+                        : 'text-aviso bg-aviso/10 border-aviso/30 hover:bg-aviso/15'}`}>
                     {f.personaje_feat_is_available
                       ? <><Check size={11} strokeWidth={3} /> Activado</>
                       : <><Clock size={11} /> No disponible</>}
@@ -252,7 +254,7 @@ function FichaNarrativa({ data, profs, feats, featMet, onFeat, onPath, onSpec, o
           <div className="flex flex-wrap gap-1.5">
             {profs.tools.map(t => (
               <span key={t.name}
-                className="text-xs font-semibold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg px-2 py-1">
+                className="text-xs font-semibold text-texto bg-relleno border border-separador rounded-lg px-2 py-1">
                 {t.name}
               </span>
             ))}
@@ -262,7 +264,7 @@ function FichaNarrativa({ data, profs, feats, featMet, onFeat, onPath, onSpec, o
 
       <SeccionNarrativa titulo="Historia">
         {historia.length === 0 ? (
-          <p className="text-xs text-gray-400 italic">Sin notas narrativas todavía.</p>
+          <p className="text-xs text-texto-2 italic">Sin notas narrativas todavía.</p>
         ) : (
           <div className="space-y-2.5">
             {historia.map(([label, texto], i) => <Parrafo key={i} label={label}>{texto}</Parrafo>)}
@@ -439,29 +441,30 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
   if (loading) return <LoadingOverlay label="Personaje" onClose={onClose} z="z-[70]" />
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4 bg-black/40 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+      <div className="animate-hoja bg-fondo text-texto rounded-t-hoja sm:rounded-hoja w-full max-w-xl max-h-[92dvh] sm:max-h-[90vh] flex flex-col shadow-hoja overflow-hidden">
+        <div className="sm:hidden flex justify-center pt-2 shrink-0" aria-hidden><span className="w-9 h-[5px] rounded-full bg-texto-2/40" /></div>
+        <div className="px-5 pt-2 pb-3 sm:pt-4 border-b border-separador flex items-center justify-between shrink-0">
           <div className="flex items-baseline gap-2 min-w-0">
-            <h3 className="font-bold text-gray-900 truncate">{data?.nombre_personaje || 'Personaje'}</h3>
-            {data && <span className="text-sm font-semibold text-gray-500 shrink-0">Nivel {data.personaje_level ?? 1}</span>}
+            <h3 className="text-[17px] font-bold tracking-[-.02em] text-texto truncate">{data?.nombre_personaje || 'Personaje'}</h3>
+            {data && <span className="text-sm font-semibold text-texto-2 shrink-0">Nivel {data.personaje_level ?? 1}</span>}
             {/* Los pokelvls solo se ven en la ficha: el panel de combate no los
                 lleva, así que en la vista narrativa suben a la cabecera. */}
             {data && narrativo && (
-              <span className="text-xs font-semibold text-gray-400 shrink-0">{data.personaje_pokelvls ?? 0} poke lvs</span>
+              <span className="text-xs font-semibold text-texto-2 shrink-0">{data.personaje_pokelvls ?? 0} poke lvs</span>
             )}
-            {data && <span className="text-sm font-bold text-green-700 shrink-0">{(data.pokedollars_personaje || 0).toLocaleString()} ₽</span>}
+            {data && <span className="text-sm font-bold text-ok shrink-0">{(data.pokedollars_personaje || 0).toLocaleString()} ₽</span>}
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 shrink-0 ml-2"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Cerrar" className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2 shrink-0 ml-2"><X size={16} strokeWidth={2.4} /></button>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-gray-400">
+          <div className="flex items-center justify-center py-20 text-texto-2">
             <PokeballSpinner size={18} className="mr-2" /> Cargando...
           </div>
         ) : !data ? (
-          <div className="py-20 text-center text-gray-400 text-sm">No se pudo cargar el personaje.</div>
+          <div className="py-20 text-center text-texto-2 text-sm">No se pudo cargar el personaje.</div>
         ) : narrativo ? (
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
             <FichaNarrativa data={data} profs={profs} feats={extraFeatsVisibles} featMet={featMet}
@@ -475,8 +478,6 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
               // + healing de feats/especialidades (mismo cálculo que el control de combate).
               // El HP actual es un valor absoluto de combate, no se le suman los bonos.
               const { max, cur } = hpValues(data)
-              const pct = max > 0 ? Math.max(0, Math.min(100, Math.round((cur / max) * 100))) : 0
-              const color = pct > 50 ? '#22c55e' : pct > 20 ? '#eab308' : '#ef4444'
               // AC recalculado: armadura + modificador de DEX (con los bonos de feats). Sin armadura → AC guardado.
               const ac = (() => {
                 const a = data.armor
@@ -502,13 +503,11 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                   {/* Barra de vida + AC / Prof / Init */}
                   <div className="flex items-end gap-2">
                     <div className="flex-1">
-                      <div className="flex justify-between text-[10px] font-bold text-gray-500 mb-0.5">
+                      <div className="flex justify-between text-[11px] font-semibold text-texto-2 mb-1">
                         <span className="uppercase tracking-wide">Hit Points</span>
-                        <span className="text-gray-700">{cur} / {max}</span>
+                        <span className="text-texto tabular-nums">{cur} / {max}</span>
                       </div>
-                      <div className="h-3.5 bg-gray-200 rounded-full overflow-hidden border border-gray-300">
-                        <div className="h-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: color }} />
-                      </div>
+                      <BarraHP valor={cur} max={max} />
                     </div>
                     <InfoBox label="AC"   value={ac} />
                     {/* SR: el rango que puede llevar. Mismo orden que el panel
@@ -549,8 +548,8 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
             {stats && (
               <div>
                 <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                  <p className="text-xs font-black uppercase tracking-widest text-gray-500">Atributos</p>
-                  <span className="text-[9px] font-bold text-white bg-green-600 rounded px-1.5 py-0.5">Proficient</span>
+                  <p className="text-xs font-black uppercase tracking-widest text-texto-2">Atributos</p>
+                  <span className="text-[9px] font-bold text-white bg-ok rounded px-1.5 py-0.5">Proficient</span>
                 </div>
                 <div className="grid grid-cols-3 gap-x-2 sm:gap-x-4 gap-y-3">
                   {[STATS.slice(0, 2), STATS.slice(2, 4), STATS.slice(4)].map((col, ci) => (
@@ -564,13 +563,13 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                         return (
                           <div key={key} className="flex items-center gap-1.5 min-w-0">
                             <ReadCheck pref={prof} />
-                            <span className={`w-7 shrink-0 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
-                              mod < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                            <span className={`w-7 shrink-0 text-center text-[11px] font-bold border-b border-texto-2/50 leading-tight ${
+                              mod < 0 ? 'text-tinte' : 'text-texto'}`}>
                               {fmtMod(mod)}
                             </span>
                             <span className="text-[11px] leading-tight truncate min-w-0">
-                              <span className="font-semibold text-gray-800">{label}</span>
-                              <span className="text-gray-400"> ({final})</span>
+                              <span className="font-semibold text-texto">{label}</span>
+                              <span className="text-texto-2"> ({final})</span>
                             </span>
                           </div>
                         )
@@ -598,8 +597,8 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
               return (
                 <div>
                   <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                    <p className="text-xs font-black uppercase tracking-widest text-gray-500">Habilidades</p>
-                    <span className="text-[9px] font-bold text-white bg-green-600 rounded px-1.5 py-0.5">Proficient</span>
+                    <p className="text-xs font-black uppercase tracking-widest text-texto-2">Habilidades</p>
+                    <span className="text-[9px] font-bold text-white bg-ok rounded px-1.5 py-0.5">Proficient</span>
                     <span className="text-[9px] font-bold text-white bg-blue-700 rounded px-1.5 py-0.5">Expert</span>
                   </div>
                   <div className="grid grid-cols-2 gap-x-3 sm:gap-x-5 gap-y-3">
@@ -612,13 +611,13 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                             return (
                               <div key={i} className="flex items-center gap-1.5 min-w-0">
                                 <ReadCheck pref={pref} expert={expert} />
-                                <span className={`w-7 shrink-0 text-center text-[11px] font-bold border-b border-gray-400 leading-tight ${
-                                  v != null && v < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                                <span className={`w-7 shrink-0 text-center text-[11px] font-bold border-b border-texto-2/50 leading-tight ${
+                                  v != null && v < 0 ? 'text-tinte' : 'text-texto'}`}>
                                   {v == null ? '' : fmtMod(v)}
                                 </span>
                                 <span className="text-[11px] leading-tight truncate min-w-0">
-                                  <span className="font-semibold text-gray-800">{s.skill_name}</span>
-                                  <span className="text-gray-400"> ({s.skill_related_ability})</span>
+                                  <span className="font-semibold text-texto">{s.skill_name}</span>
+                                  <span className="text-texto-2"> ({s.skill_related_ability})</span>
                                 </span>
                               </div>
                             )
@@ -635,16 +634,16 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                 bonos que ya otorgó, como las proficiencias de feats; el valor es
                 el nombre de la ruta, y al pulsarlo se abre su detalle completo. */}
             {data.path && (
-              <div className="pt-1 border-t border-gray-100">
+              <div className="pt-1 border-t border-separador">
                 <div className="flex justify-between gap-3 py-1">
                   <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                    <span className="text-xs font-semibold text-red-700 uppercase tracking-wide shrink-0">Trainer Path</span>
+                    <span className="text-xs font-semibold text-tinte uppercase tracking-wide shrink-0">Trainer Path</span>
                     {(data.path_bonos || []).map(b => (
                       <span key={b.id}
                         className={`text-[10px] font-bold rounded px-1.5 py-0.5 border ${
                           (b.value || '').toLowerCase() === 'expert'
                             ? 'text-blue-700 bg-blue-50 border-blue-200'
-                            : 'text-green-700 bg-green-50 border-green-200'}`}
+                            : 'text-ok bg-ok/10 border-ok/30'}`}
                         title={`Nivel ${b.level}${(b.target || '') !== 'trainer' ? ` · ${b.target}` : ''}`}>
                         {b.llave}{(b.value || '').toLowerCase() === 'expert' ? ' exp' : ''}
                         {(b.target || '') === 'all_pokemon' && <span className="font-normal"> (pkmn)</span>}
@@ -652,7 +651,7 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
                     ))}
                   </div>
                   <button onClick={() => setPathInfo(data.path)}
-                    className="text-sm text-right text-gray-700 hover:text-red-700 underline decoration-dotted decoration-gray-400 underline-offset-2 shrink-0 transition-colors">
+                    className="text-sm text-right text-texto hover:text-tinte underline decoration-dotted decoration-texto-2/50 underline-offset-2 shrink-0 transition-colors">
                     {data.path.path_name}
                   </button>
                 </div>
@@ -660,7 +659,7 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
             )}
 
             {/* Info general al final: saving, equipo, origen/background, rasgos y herramientas */}
-            <div className="pt-1 border-t border-gray-100">
+            <div className="pt-1 border-t border-separador">
               <Row label="Saving Throw" value={savingThrows} />
               {data.armor && (
                 <Row label="Armadura" value={data.armor.armor_type_name}
@@ -681,38 +680,38 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
               {extraFeatsVisibles.map((f, i) => {
                 const met = featMet(f)
                 return (
-                <div key={f.personaje_feat_id} className={`flex items-center justify-between gap-3 py-1 border-b border-gray-100 ${met ? '' : 'opacity-60'}`}>
+                <div key={f.personaje_feat_id} className={`flex items-center justify-between gap-3 py-1 border-b border-separador ${met ? '' : 'opacity-60'}`}>
                   <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                    <span className={`text-xs font-semibold uppercase tracking-wide shrink-0 ${met ? 'text-red-700' : 'text-gray-400'}`}>Rasgo {i + 1}</span>
-                    {!met && <span className="text-[10px] font-bold text-amber-800 bg-yellow-100 border border-yellow-300 rounded px-1.5 py-0.5">No cumple prerequisitos</span>}
+                    <span className={`text-xs font-semibold uppercase tracking-wide shrink-0 ${met ? 'text-tinte' : 'text-texto-2'}`}>Rasgo {i + 1}</span>
+                    {!met && <span className="text-[10px] font-bold text-aviso bg-aviso/15 border border-aviso/30 rounded px-1.5 py-0.5">No cumple prerequisitos</span>}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
                     <button onClick={() => setFeatInfo(f)} title="Ver detalle del rasgo"
-                      className={`text-sm text-right underline decoration-dotted decoration-gray-400 underline-offset-2 transition-colors ${met ? 'text-gray-700 hover:text-red-700' : 'text-gray-400 hover:text-gray-600'}`}>
+                      className={`text-sm text-right underline decoration-dotted decoration-texto-2/50 underline-offset-2 transition-colors ${met ? 'text-texto hover:text-tinte' : 'text-texto-2 hover:text-texto-2'}`}>
                       {f.feat_name}
                     </button>
                     <button onClick={() => toggleFeat(f)}
                       className={`w-4 h-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-colors ${
-                        f.personaje_feat_is_available ? 'bg-green-600 border-green-600' : 'border-gray-300 bg-white hover:border-green-400'}`}
+                        f.personaje_feat_is_available ? 'bg-ok border-ok' : 'border-separador bg-superficie hover:border-ok/60'}`}
                       title={f.personaje_feat_is_available ? 'Marcar como no disponible' : 'Marcar como disponible'}>
                       {f.personaje_feat_is_available && <Check size={11} className="text-white" strokeWidth={3} />}
                     </button>
                     {f.personaje_feat_is_available ? (
-                      <span className="text-[10px] font-bold text-green-700 bg-green-100 border border-green-300 rounded px-1.5 py-0.5">Activado</span>
+                      <span className="text-[10px] font-bold text-ok bg-ok/15 border border-ok/40 rounded px-1.5 py-0.5">Activado</span>
                     ) : (
-                      <span className="text-[10px] font-bold text-red-600 bg-yellow-100 border border-yellow-300 rounded px-1.5 py-0.5 inline-flex items-center gap-1">No disponible <Clock size={11} /></span>
+                      <span className="text-[10px] font-bold text-aviso bg-aviso/15 border border-aviso/30 rounded px-1.5 py-0.5 inline-flex items-center gap-1">No disponible <Clock size={11} /></span>
                     )}
                   </div>
                 </div>
                 )
               })}
               {(data.specializations || []).map((s, i) => (
-                <div key={s.specialization_id} className="flex items-center justify-between gap-3 py-1 border-b border-gray-100">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-red-700 shrink-0">Especialidad {i + 1}</span>
+                <div key={s.specialization_id} className="flex items-center justify-between gap-3 py-1 border-b border-separador">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-tinte shrink-0">Especialidad {i + 1}</span>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
                     <ResolvedBonusBadges bonos={s.bonos} />
                     <button onClick={() => setSpecInfo(s)} title="Ver detalle de la especialidad"
-                      className="text-sm text-right text-gray-700 underline decoration-dotted decoration-gray-400 underline-offset-2 hover:text-red-700 transition-colors">
+                      className="text-sm text-right text-texto underline decoration-dotted decoration-texto-2/50 underline-offset-2 hover:text-tinte transition-colors">
                       {s.specialization_name}
                     </button>
                   </div>
@@ -732,7 +731,7 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
             <div>
               <button
                 onClick={() => setShowMochila(o => !o)}
-                className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-red-700 hover:text-red-800 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-tinte hover:text-tinte transition-colors"
               >
                 <ChevronDown size={14} className={`transition-transform ${showMochila ? 'rotate-180' : ''}`} />
                 Mochila
@@ -750,7 +749,7 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
             <div>
               <button
                 onClick={() => setShowDetalles(o => !o)}
-                className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-red-700 hover:text-red-800 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-tinte hover:text-tinte transition-colors"
               >
                 <ChevronDown size={14} className={`transition-transform ${showDetalles ? 'rotate-180' : ''}`} />
                 Detalles Narrativos
