@@ -10,6 +10,7 @@ import Equipamiento from '../components/Equipamiento'
 import PokemonBox from '../components/PokemonBox'
 import FormulaAtaqueModal from '../components/FormulaAtaqueModal'
 import PendingImprovementModal from '../components/PendingImprovementModal'
+import RepartoXpEntrenador from '../components/partida/RepartoXpEntrenador'
 import EvolucionModal from '../components/EvolucionModal'
 import BotonBandejaDados from '../components/dados/BotonBandejaDados'
 import NumerosFlotantes from '../components/NumerosFlotantes'
@@ -972,6 +973,12 @@ export default function TrainerPartida() {
       {pending.length > 0 && personajeId && (
         <PendingImprovementModal key={pending[0].id} personajeId={personajeId} pending={pending[0]}
           onConfirmed={() => trasMejora(pending[0].id_personaje_pokemon)} />
+      )}
+      {/* Experiencia que le asignó el DM: a qué Pokémon va. Espera a que no
+          haya mejoras de nivel abiertas, para no pisarse con ellas. */}
+      {pending.length === 0 && personajeId && (
+        <RepartoXpEntrenador partidaId={id} personajeId={personajeId} pokemonInvocado={pokemonInvocado}
+          revisar={partyVersion} onHecho={trasEventoPokemon} />
       )}
       {evoAuto && (
         <EvolucionModal personajeId={personajeId} pokemon={evoAuto}
