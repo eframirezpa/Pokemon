@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRightLeft, ChevronDown, Eye, EyeOff, Minus, Plus, Search, X, Zap } from 'lucide-react'
+import { ArrowRightLeft, ChevronDown, Eye, EyeOff, Minus, Plus, Search, X, Zap, Swords } from 'lucide-react'
 import { POKEBALL_SPRITE, hpPct, hpColor } from '../../lib/partidaShared'
 import { xpAlDerrotar, xpAlAtrapar } from '../../lib/xpAtrapar'
 import { TypeBadge } from './TypeBadge'
@@ -136,7 +136,7 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
 /* Panel de Pokémon del master — botón + grid de Pokémon (máx. según `max`).
    Se llama "FieldPanel" (y no "MasterPokemonPanel") para no chocar con
    src/components/MasterPokemonPanel.jsx, el modal "Mis Pokémon" del dashboard. */
-export function MasterPokemonFieldPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo, capturaAuto = false, onCapturaAuto = null }) {
+export function MasterPokemonFieldPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo, capturaAuto = false, onCapturaAuto = null, danoAuto = true, onDanoAuto = null }) {
   const full = pokemons.length >= max
   const [collapsed, setCollapsed] = useState(false)
   return (
@@ -175,6 +175,22 @@ export function MasterPokemonFieldPanel({ pokemons, max = 4, onAdd, onHp, onRemo
           <span className="text-xs font-semibold text-texto">Atrapado automático</span>
           <span className={`ml-auto text-[10px] font-bold ${capturaAuto ? 'text-ok' : 'text-texto-2'}`}>
             {capturaAuto ? 'Activo' : 'Decide el DM'}
+          </span>
+        </label>
+      )}
+
+      {/* Daño automático de los ataques del DM: encendido, resta la vida del
+          objetivo. Apagado (situación especial o bug), el ataque se elige y se
+          anuncia igual -objetivo, tirada, daño en el chat- pero no resta vida. */}
+      {onDanoAuto && (
+        <label className="mt-2 flex items-center gap-2 px-3 py-2 bg-superficie border border-separador rounded-xl cursor-pointer select-none"
+          title="Activo: tus ataques restan la vida del objetivo. Apagado: se anuncian igual, sin restar vida">
+          <input type="checkbox" checked={danoAuto} onChange={e => onDanoAuto(e.target.checked)}
+            className="w-4 h-4 accent-[#7F00B2] shrink-0" />
+          <Swords size={16} className="text-tinte shrink-0" />
+          <span className="text-xs font-semibold text-texto">Daño automático</span>
+          <span className={`ml-auto text-[10px] font-bold ${danoAuto ? 'text-ok' : 'text-texto-2'}`}>
+            {danoAuto ? 'Resta vida' : 'No resta vida'}
           </span>
         </label>
       )}

@@ -37,3 +37,30 @@ test('daño fijo y nunca negativo', () => {
   assert.strictEqual(danoArma(dadosArma(blowgun), { mod: 2 }).total, 3)
   assert.strictEqual(danoArma(dadosArma(blowgun), { mod: -3 }).total, 0)
 })
+
+import { statDeArma, esArmaDeRango, GOLPE_SIN_ARMA } from '../src/lib/armaDano.js'
+
+const stats = (str, dex) => [
+  { key: 'STR', valor: str, mod: Math.floor((str - 10) / 2) },
+  { key: 'DEX', valor: dex, mod: Math.floor((dex - 10) / 2) },
+]
+
+test('stat del ataque: rango DEX, cuerpo a cuerpo STR, sin arma STR', () => {
+  const arco = { weapon_type_dnd_category: 'Martial Ranged Weapons' }
+  const hacha = { weapon_type_dnd_category: 'Martial Melee Weapons', weapon_type_property_1: 12 }
+  assert.strictEqual(esArmaDeRango(arco), true)
+  assert.strictEqual(statDeArma(arco, stats(16, 12)).key, 'DEX')
+  assert.strictEqual(statDeArma(hacha, stats(10, 18)).key, 'STR')
+  assert.strictEqual(statDeArma(null, stats(8, 18)).key, 'STR')
+})
+
+test('Finesse: el mayor entre STR y DEX; empate STR', () => {
+  const daga = { weapon_type_dnd_category: 'Simple Melee Weapons', weapon_type_property_1: 3, weapon_type_property_2: 5 }
+  assert.strictEqual(statDeArma(daga, stats(10, 16)).key, 'DEX')
+  assert.strictEqual(statDeArma(daga, stats(16, 10)).key, 'STR')
+  assert.strictEqual(statDeArma(daga, stats(14, 14)).key, 'STR')
+})
+
+test('sin arma: 1 + STR, sin dados (el crítico no lo dobla)', () => {
+  assert.deepStrictEqual(danoArma(GOLPE_SIN_ARMA, { mod: 3, critico: true }), { total: 4, dados: 1, mod: 3, notacion: '1' })
+})

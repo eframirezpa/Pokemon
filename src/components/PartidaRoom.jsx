@@ -152,6 +152,16 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [xpRevisar, setXpRevisar] = useState(0)
   // Ataque de un Pokémon del DM contra un jugador: { atacante, move }
   const [ataqueDm, setAtaqueDm] = useState(null)
+  // Check del DM para apagar el daño automático (situación especial o bug).
+  // Solo cambia su propia pantalla, así que se guarda en su navegador por partida.
+  const claveDanoAuto = `dano-auto-${id}`
+  const [danoAuto, setDanoAuto] = useState(() => {
+    try { return localStorage.getItem(claveDanoAuto) !== '0' } catch { return true }
+  })
+  const cambiarDanoAuto = (v) => {
+    setDanoAuto(v)
+    try { localStorage.setItem(claveDanoAuto, v ? '1' : '0') } catch { /* sin almacenamiento */ }
+  }
   const { user }    = useAuth()
   const logEndRef   = useRef(null)
 
@@ -1090,6 +1100,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           }}
           onAplicado={sendPartyUpdate}
           sendSalvacionPedida={sendSalvacionPedida} salvacionResultado={salvacionResultado}
+          restarVida={danoAuto}
           onCerrar={() => setAtaqueDm(null)} />
       )}
 
@@ -1386,6 +1397,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onInspect={setInspectMasterPoke}
                 capturaAuto={capturaAuto}
                 onCapturaAuto={cambiarCapturaAuto}
+                danoAuto={danoAuto}
+                onDanoAuto={cambiarDanoAuto}
               />
               <MasterNpcFieldPanel
                 npcs={activeNpcs}

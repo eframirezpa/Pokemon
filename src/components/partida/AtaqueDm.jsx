@@ -19,14 +19,15 @@ const STATS = ['str', 'dex', 'con', 'int', 'wis', 'cha']
  *
  * El DM tira con los dados de la app, igual que los jugadores (las mismas
  * ventanas de fórmula y de daño). La app compara con la AC del objetivo, resta
- * la vida si acierta y lo deja en el chat. Con tirada de salvación, el DM
+ * la vida si acierta (salvo con "Daño automático" apagado: entonces solo se
+ * anuncia) y lo deja en el chat. Con tirada de salvación, el DM
  * marca el resultado y, si la superó, elige daño completo, mitad o nada.
  *
  *   atacante: entrada del campo (PartidaRoom): { master_pokemon_id, name, hidden, sprite, talla, type1, type2, level }
  *   move:     el movimiento completo (de /master/pokemon/:id)
  */
 export default function AtaqueDm({ partidaId, atacante, move, presentes = [], invocados = {}, onAnunciar, onAplicado, onCerrar,
-                                   sendSalvacionPedida = null, salvacionResultado = null }) {
+                                   sendSalvacionPedida = null, salvacionResultado = null, restarVida = true }) {
   const [paso, setPaso] = useState('objetivo')   // objetivo · formula · salvacion · dano · listo
   const [datosAtacante, setDatosAtacante] = useState(null)
   const [efectividades, setEfectividades] = useState(null)
@@ -114,8 +115,10 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
     const url = objetivo.tipo === 'trainer'
       ? `/personaje/${objetivo.id_personaje}/combate`
       : `/personaje/${objetivo.id_personaje}/pokemon/${objetivo.id_personaje_pokemon}/combate`
-    if (dano > 0) await apiFetch(url, { method: 'PATCH', body: JSON.stringify({ current_hp: nuevo }) }).catch(() => {})
-    anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}: ${detalle} · ${dano > 0 ? `${dano} de daño (vida ${cur} → ${nuevo})` : 'sin daño'}`,
+    // Con "Daño automático" apagado se anuncia igual, pero la vida no se toca
+    if (restarVida && dano > 0) await apiFetch(url, { method: 'PATCH', body: JSON.stringify({ current_hp: nuevo }) }).catch(() => {})
+    const textoDano = dano <= 0 ? 'sin daño' : restarVida ? `${dano} de daño (vida ${cur} → ${nuevo})` : `${dano} de daño`
+    anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}: ${detalle} · ${textoDano}`,
       { dano, critico: !!tirada?.critico })
     onAplicado?.()
     onCerrar()

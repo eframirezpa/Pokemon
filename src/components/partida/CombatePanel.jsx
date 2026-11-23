@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Backpack, ChevronDown, ChevronUp, Pencil, Sword, X } from 'lucide-react'
+import { Backpack, Check, ChevronDown, ChevronUp, Pencil, RefreshCw, Sword, X } from 'lucide-react'
 import PokeballIcon from '../PokeballIcon'
 import BarraHP from '../ui/BarraHP'
 import Paso from '../ui/Paso'
@@ -14,7 +14,7 @@ import { EstadoTrigger } from '../EstadosControl'
 import { ICONO_REDONDO } from '../../lib/trainerCombatShared'
 import { apiFetch } from '../../api'
 import { armaFx, spriteArma } from '../../lib/armasFx'
-import { usaMunicion, dadosArma, tiradaArma, danoArma } from '../../lib/armaDano'
+import { usaMunicion, dadosArma, tiradaArma, danoArma, statDeArma, GOLPE_SIN_ARMA, TIPO_GOLPE_SIN_ARMA } from '../../lib/armaDano'
 import ObjetivoSelector from '../ObjetivoSelector'
 
 
@@ -236,8 +236,10 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
   const [dado, setDado] = useState('')
   // El modificador de la fórmula sale de un STAT (crudo, sin proficiencia de
   // skill), no de una habilidad: la lista y el cálculo salen de v.stats, la
-  // misma fuente que pinta la pestaña Stats.
-  const [statSel, setStatSel] = useState(null)
+  // misma fuente que pinta la pestaña Stats. Se calcula del arma (statDeArma);
+  // statManual guarda lo que el jugador cambie a mano (null = el calculado) y
+  // vuelve a null al cambiar de arma o al abrir la fórmula.
+  const [statManual, setStatManual] = useState(null)
   // Proficiencia: se calcula del arma elegida (más abajo, conProf). profManual
   // guarda lo que el jugador cambie a mano; null = seguir el cálculo. Se vuelve
   // a null al cambiar de arma o al abrir la fórmula.
@@ -248,8 +250,13 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
   const [eligiendoStat, setEligiendoStat] = useState(false)
   // Armas equipadas, para elegir con cuál se ataca: decide la animación que ve
   // la mesa. armaSel null = la primera equipada; 'ninguna' = sin arma.
-  const [armasEquipadas, setArmasEquipadas] = useState([])
+  // Todas las armas del entrenador (como en la Mochila); las equipadas salen de aquí
+  const [todasArmas, setTodasArmas] = useState([])
+  const armasEquipadas = todasArmas.filter(x => x.personaje_weapon_in_use)
   const [armaSel, setArmaSel] = useState(null)
+  // Ventana para cambiar de arma (la lista de la Mochila, sin agregar)
+  const [eligiendoArma, setEligiendoArma] = useState(false)
+  const [avisoArma, setAvisoArma] = useState('')
   // Daño del arma: lo que sumaron los dados (texto, '' = sin escribir).
   // No es obligatorio: se puede atacar sin anunciar daño.
   const [danoValor, setDanoValor] = useState('')
@@ -268,7 +275,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
     let vivo = true
     apiFetch(`/personaje/${personajeId}/weapon`)
       .then(r => r.json())
-      .then(w => { if (vivo) setArmasEquipadas((Array.isArray(w) ? w : []).filter(x => x.personaje_weapon_in_use)) })
+      .then(w => { if (vivo) setTodasArmas(Array.isArray(w) ? w : []) })
       .catch(() => {})
     apiFetch(`/personaje/${personajeId}/equipo`)
       .then(r => r.json())
@@ -284,6 +291,39 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
     ? (weaponProfs ? weaponProfs.isWeaponProf(armaElegida) : !!armaElegida.personaje_weapon_prof)
     : false
   const conProf = profManual ?? profAuto
+  // Stat del ataque: el que toca según el arma, salvo que el jugador lo cambie
+  const statSel = statManual ?? statDeArma(armaElegida, v?.stats || [])
+
+  // Elegir arma desde la lista: si no está en uso se equipa (el back valida
+  // cuántas caben), y queda elegida para este ataque.
+  const recargarArmas = () => apiFetch(`/personaje/${personajeId}/weapon`).then(r => r.json())
+    .then(w => { setTodasArmas(Array.isArray(w) ? w : []); return w }).catch(() => null)
+  const elegirArma = async (w) => {
+    setAvisoArma('')
+    if (w && !w.personaje_weapon_in_use) {
+      const res = await apiFetch(`/personaje/${personajeId}/weapon/${w.id_personaje_weapon}`, {
+        method: 'PATCH', body: JSON.stringify({ in_use: true }),
+      }).catch(() => null)
+      const data = await res?.json().catch(() => ({}))
+      if (data && data.applied === false && data.reason === 'max') {
+        setAvisoArma('Ya tienes 2 armas de una mano en uso. Desequipa una primero.')
+        await recargarArmas(); return
+      }
+      await recargarArmas()
+    }
+    setArmaSel(w ? w.id_personaje_weapon : 'ninguna'); setProfManual(null); setStatManual(null); setDanoValor('')
+    setEligiendoArma(false)
+  }
+  const alternarEnUso = async (w) => {
+    setAvisoArma('')
+    const res = await apiFetch(`/personaje/${personajeId}/weapon/${w.id_personaje_weapon}`, {
+      method: 'PATCH', body: JSON.stringify({ in_use: !w.personaje_weapon_in_use }),
+    }).catch(() => null)
+    const data = await res?.json().catch(() => ({}))
+    if (data && data.applied === false && data.reason === 'max') setAvisoArma('Ya tienes 2 armas de una mano en uso. Desequipa una primero.')
+    await recargarArmas()
+    if (armaElegida?.id_personaje_weapon === w.id_personaje_weapon && w.personaje_weapon_in_use) { setArmaSel(null); setStatManual(null); setProfManual(null) }
+  }
   // Lista de stats de la fórmula: en pantallas bajas queda debajo de todo, así
   // que al abrirla se desplaza la ventana hasta dejarla a la vista.
   const statsRef = useRef(null)
@@ -349,7 +389,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
             {recursos && (v.stats || []).length > 0 && (
               <button onClick={() => {
                   setTabPanel('stats')
-                  setDado(''); setStatSel(null); setProfManual(null); setEligiendoStat(false)
+                  setDado(''); setStatManual(null); setProfManual(null); setEligiendoStat(false)
                   setBonus(String(bonoRuta.total || 0))
                   // El panel está centrado y su altura depende del contenido, así
                   // que el borde solo se sabe midiendo en el momento de abrir.
@@ -858,7 +898,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                 </span>
               </div>
               <p className="mt-3 text-[11px] text-texto-2 text-center leading-relaxed">
-                El modificador sale del stat que elijas, en la pestaña Stats.
+                El stat sale del arma: de rango DEX, cuerpo a cuerpo STR, Finesse el mayor; sin arma STR. Tócalo para cambiarlo.
               </p>
 
               {/* Calculadora, solo en el panel del entrenador: es quien ataca con
@@ -878,9 +918,12 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                 const critico = n20 === 20
                 const signo = m => (m >= 0 ? `+${m}` : `${m}`)
                 // Daño del arma elegida (null si no tiene dados: red, sin arma)
-                const dadosArmaSel = dadosArma(armaElegida)
+                // Sin arma: 1 + STR, bludgeoning, sin dados (no hay crítico que doblar)
+                const dadosArmaSel = armaElegida ? dadosArma(armaElegida) : GOLPE_SIN_ARMA
+                const tipoDano = armaElegida ? armaElegida.weapon_type_damage_type : TIPO_GOLPE_SIN_ARMA
                 const tiradaDano = tiradaArma(dadosArmaSel, critico)
-                const dano = danoArma(dadosArmaSel, { valor: danoValor, mod: modStat, critico })
+                const danoCalc = danoArma(dadosArmaSel, { valor: danoValor, mod: modStat, critico })
+                const dano = danoCalc ? { ...danoCalc, tipo: tipoDano || null } : null
                 const danoFuera = !!tiradaDano && danoValor !== '' && !dano
                 // Munición elegida; por defecto el primer proyectil de la mochila
                 const municionElegida = municionSel === 'otra' ? null
@@ -1015,14 +1058,13 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                         dado: sin tirada no hay ataque, y un 'poder de 0' en el
                         historial solo puede ser un clic de más. */}
                     {/* Con qué se pega: solo cambia la animación y el anuncio */}
-                    {onAtaque && armasEquipadas.length > 0 && (
+                    {onAtaque && (
                       <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-texto-2">Con</span>
                         {[...armasEquipadas, null].map(a => {
                           const activa = a ? armaElegida?.id_personaje_weapon === a.id_personaje_weapon : !armaElegida
                           return (
                             <button key={a ? a.id_personaje_weapon : 'ninguna'}
-                              onClick={() => { setArmaSel(a ? a.id_personaje_weapon : 'ninguna'); setProfManual(null); setDanoValor('') }}
+                              onClick={() => { setArmaSel(a ? a.id_personaje_weapon : 'ninguna'); setProfManual(null); setStatManual(null); setDanoValor('') }}
                               className={`flex items-center gap-1 rounded-lg pl-1 pr-2 py-0.5 text-[11px] font-bold transition-colors ${
                                 activa ? 'bg-tinte/15 ring-1 ring-tinte/60 text-tinte' : 'bg-superficie text-texto hover:bg-relleno-2'}`}>
                               <img src={spriteArma(armaFx(a).sprite)} alt="" className="w-5 h-5" />
@@ -1030,6 +1072,58 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                             </button>
                           )
                         })}
+                        {/* Cambiar de arma: la lista de la Mochila */}
+                        <button type="button" onClick={() => { setAvisoArma(''); setEligiendoArma(true) }}
+                          title="Cambiar de arma" aria-label="Cambiar de arma"
+                          className="group w-7 h-7 rounded-full bg-acento/20 text-tinte grid place-items-center hover:bg-acento hover:text-white transition-colors">
+                          <RefreshCw size={14} className="animate-[spin_3s_linear_infinite] group-hover:animate-[spin_1s_linear_infinite]" />
+                        </button>
+                      </div>
+                    )}
+
+                    {eligiendoArma && (
+                      <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
+                        onClick={e => { if (e.target === e.currentTarget) setEligiendoArma(false) }}>
+                        <div role="dialog" aria-label="Cambiar de arma"
+                          className="bg-fondo text-texto animate-hoja rounded-t-hoja sm:rounded-hoja w-full sm:max-w-sm max-h-[80dvh] flex flex-col shadow-hoja overflow-hidden">
+                          <div className="px-5 py-3.5 border-b border-separador flex items-center justify-between">
+                            <h4 className="font-bold text-[17px]">Cambiar de arma</h4>
+                            <button onClick={() => setEligiendoArma(false)} aria-label="Cerrar"
+                              className="w-[30px] h-[30px] rounded-full bg-relleno grid place-items-center text-texto-2 hover:bg-relleno-2"><X size={16} strokeWidth={2.4} /></button>
+                          </div>
+                          {avisoArma && <p className="px-5 pt-2 text-[13px] text-aviso">{avisoArma}</p>}
+                          <div className="px-5 py-1.5 grid grid-cols-[auto_1fr] gap-x-3 text-[10px] font-bold text-texto-2 uppercase">
+                            <span>En uso</span><span>Arma · toca para atacar con ella</span>
+                          </div>
+                          <div className="flex-1 overflow-y-auto divide-y divide-separador">
+                            {[...todasArmas, null].map(w => {
+                              const prof = w ? (weaponProfs ? weaponProfs.isWeaponProf(w) : !!w.personaje_weapon_prof) : false
+                              const activa = w ? armaElegida?.id_personaje_weapon === w.id_personaje_weapon : !armaElegida
+                              return (
+                                <div key={w ? w.id_personaje_weapon : 'ninguna'} className="grid grid-cols-[auto_1fr] gap-x-3 items-center px-5 py-2.5">
+                                  {w ? (
+                                    <button onClick={() => alternarEnUso(w)} aria-label={w.personaje_weapon_in_use ? 'Desequipar' : 'Equipar'}
+                                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
+                                        w.personaje_weapon_in_use ? 'bg-acento border-acento' : 'border-separador bg-superficie hover:border-tinte/60'}`}>
+                                      {w.personaje_weapon_in_use && <Check size={13} className="text-white" strokeWidth={3} />}
+                                    </button>
+                                  ) : <span className="w-5" />}
+                                  <button onClick={() => elegirArma(w)}
+                                    className={`min-w-0 text-left flex items-center gap-2 rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${activa ? 'bg-tinte/15' : 'hover:bg-relleno'}`}>
+                                    <img src={spriteArma(armaFx(w).sprite)} alt="" className="w-6 h-6 shrink-0" />
+                                    <span className="min-w-0">
+                                      <span className="block font-semibold text-sm truncate">{w ? w.weapon_type_name : 'Sin arma'}</span>
+                                      <span className="block text-[11px] text-texto-2 truncate">
+                                        {w ? `${w.weapon_type_dnd_category} · ${w.weapon_type_damage_dice} ${w.weapon_type_damage_type}` : `1 + STR · ${TIPO_GOLPE_SIN_ARMA}`}
+                                        {w && <> · <span className={prof ? 'text-ok' : 'text-texto-2'}>{prof ? 'proficiente' : 'no proficiente'}</span></>}
+                                      </span>
+                                    </span>
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
                       </div>
                     )}
 
@@ -1039,7 +1133,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                     {onAtaque && dadosArmaSel && n20 !== 1 && (
                       <div className="mt-3 border-t border-separador pt-3">
                         <p className="text-center text-[10px] font-black uppercase tracking-widest text-texto-2 mb-1.5">
-                          Daño{armaElegida?.weapon_type_damage_type ? ` · ${armaElegida.weapon_type_damage_type}` : ''}{critico ? ' · doble de dados' : ''}
+                          Daño{tipoDano ? ` · ${tipoDano}` : ''}{critico && tiradaDano ? ' · doble de dados' : ''}{!armaElegida ? ' · sin arma: 1 + STR' : ''}
                         </p>
                         <div className="flex items-center justify-center gap-0.5 flex-wrap">
                           <div className={`w-11 h-9 rounded-xl border-2 flex items-center justify-center font-black text-base tabular-nums
@@ -1146,7 +1240,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                       <div ref={statsRef} className="mt-3 grid grid-cols-3 gap-1 pr-0.5 scroll-mb-4">
                         {(v.stats || []).map(st => (
                           <button key={st.key}
-                            onClick={() => { setStatSel(st); setEligiendoStat(false) }}
+                            onClick={() => { setStatManual(st); setEligiendoStat(false) }}
                             className={`flex items-center justify-between gap-1.5 rounded-lg px-2 py-1.5 min-w-0 text-left
                                         transition-colors ${
                               statSel?.key === st.key

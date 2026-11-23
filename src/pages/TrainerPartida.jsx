@@ -1525,7 +1525,7 @@ export default function TrainerPartida() {
             registrarIntervencion(id, objetivo, { personajeId, tipo: 'ataque' })
             // Daño: total y de dónde sale (dados + modificador del stat)
             const textoDano = dano
-              ? ` · daño ${dano.total}${arma?.weapon_type_damage_type ? ` ${arma.weapon_type_damage_type}` : ''} (${dano.notacion}: ${dano.dados}${dano.mod ? ` ${dano.mod > 0 ? '+' : '−'} ${Math.abs(dano.mod)}` : ''})`
+              ? ` · daño ${dano.total}${(dano.tipo || arma?.weapon_type_damage_type) ? ` ${dano.tipo || arma.weapon_type_damage_type}` : ''} (${dano.notacion}: ${dano.dados}${dano.mod ? ` ${dano.mod > 0 ? '+' : '−'} ${Math.abs(dano.mod)}` : ''})`
               : ''
             partidaApiRef.current?.anunciar?.(
               `${quien} ha atacado${objetivo?.nombreChat ? ` ${/^el /.test(objetivo.nombreChat) ? objetivo.nombreChat.replace(/^el /, 'al ') : `a ${objetivo.nombreChat}`}` : ''}${arma ? ` con ${arma.weapon_type_name}` : ''}${municion ? ` (${municion.item_name})` : ''} con un poder de ${poder}${critico ? ' ¡crítico!' : ''}${pifia ? ' ¡pifia!' : ''}${textoDano}`,

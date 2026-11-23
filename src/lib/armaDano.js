@@ -48,3 +48,39 @@ export const danoArma = (dados, { valor = '', mod = 0, critico = false } = {}) =
   if (!Number.isFinite(v) || v < t.min || v > t.max) return null
   return { total: Math.max(0, v + mod), dados: v, mod, notacion: t.notacion }
 }
+
+// ── Con qué stat se ataca (reglas de la mesa) ──
+//  - Arma de rango (weapon_type_dnd_category "… Ranged Weapons"): DEX.
+//  - Arma cuerpo a cuerpo: STR, salvo con Finesse (weapon_property_id 3), que
+//    usa el de mayor puntaje entre STR y DEX (empate: STR).
+//  - Sin arma: STR.
+export const PROPIEDAD_FINESSE = 3
+
+const tienePropiedad = (arma, id, nombre) => !!arma && [1, 2, 3, 4, 5, 6].some(i => {
+  const p = String(arma[`weapon_type_property_${i}`] ?? '').trim().toLowerCase()
+  return p === String(id) || p === nombre
+})
+
+export const esArmaDeRango = (arma) => {
+  const cat = String(arma?.weapon_type_dnd_category || '')
+  if (/ranged/i.test(cat)) return true
+  if (/melee/i.test(cat)) return false
+  return Number(arma?.weapon_type_is_ranged) === 1
+}
+
+/** stats: [{ key: 'STR', valor, mod }, …] (los del entrenador). Devuelve el stat. */
+export const statDeArma = (arma, stats = []) => {
+  const st = (k) => stats.find(s => String(s.key).toUpperCase() === k) || null
+  if (!arma) return st('STR')
+  if (esArmaDeRango(arma)) return st('DEX')
+  if (tienePropiedad(arma, PROPIEDAD_FINESSE, 'finesse')) {
+    const str = st('STR'), dex = st('DEX')
+    return Number(dex?.valor) > Number(str?.valor) ? dex : str
+  }
+  return st('STR')
+}
+
+// Golpe sin arma: 1 + STR, bludgeoning. Es fijo, así que no hay dados que
+// doblar: el crítico no cambia el daño.
+export const GOLPE_SIN_ARMA = { tipo: 'fijo', valor: 1 }
+export const TIPO_GOLPE_SIN_ARMA = 'bludgeoning'
