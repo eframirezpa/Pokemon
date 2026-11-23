@@ -194,7 +194,7 @@ export default function ItemsList({ title = 'Items', onPick = null, excludeType 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* pr-14: deja libre la X de cerrar que pone la ventana arriba a la derecha */}
         <div className="shrink-0 px-4 pt-4 pb-3 pr-14">{Header}</div>
-        <div className="flex-1 overflow-auto px-4 pb-4 flex flex-col gap-3">
+        <div className="flex-1 overflow-auto px-4 pb-4 flex flex-col gap-3 [&>*]:shrink-0">
           {Lista}
           {Paginas}
         </div>
