@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ArrowRightLeft, ChevronDown, Eye, EyeOff, Minus, Plus, Search, X, Zap } from 'lucide-react'
-import { POKEBALL_SPRITE, hpPct, hpColor, expAlAtrapar } from '../../lib/partidaShared'
+import { POKEBALL_SPRITE, hpPct, hpColor } from '../../lib/partidaShared'
+import { xpAlDerrotar, xpAlAtrapar } from '../../lib/xpAtrapar'
 import { TypeBadge } from './TypeBadge'
 import NumerosFlotantes from '../NumerosFlotantes'
 
@@ -43,13 +44,13 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
           <div className="flex items-center gap-1 mt-1 pl-5">
             <TypeBadge type={pokemon.type1} />
             <TypeBadge type={pokemon.type2} />
-            {/* Lo que gana el entrenador que lo atrape. Solo en la tarjeta del
-                master: es un dato que el jugador no deberia ver antes de decidir. */}
-            {expAlAtrapar(pokemon.level, pokemon.sr) != null && (
-              <span title={`Experiencia al atraparlo · 200 x Lv.${pokemon.level} x SR ${pokemon.sr}`}
+            {/* Lo que otorga al derrotarlo (atraparlo da 1/5). Solo en la tarjeta
+                del master: es un dato que el jugador no debería ver antes de decidir. */}
+            {xpAlDerrotar(pokemon.level, pokemon.sr) != null && (
+              <span title={`Al derrotarlo · 200 x Lv.${pokemon.level} x SR ${pokemon.sr}. Al atraparlo: ${xpAlAtrapar(pokemon.level, pokemon.sr).toLocaleString()} (1/5)`}
                 className="shrink-0 text-[9px] font-black tabular-nums text-tinte
                            bg-tinte/10 border border-tinte/40 rounded px-1.5 py-0.5">
-                {expAlAtrapar(pokemon.level, pokemon.sr).toLocaleString()} EXP
+                {xpAlDerrotar(pokemon.level, pokemon.sr).toLocaleString()} EXP
               </span>
             )}
           </div>

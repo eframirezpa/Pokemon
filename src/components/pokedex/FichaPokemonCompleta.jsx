@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { apiFetch } from '../../api'
 import { claveMove } from '../../lib/moveName'
-import { xpAlAtrapar } from '../../lib/xpAtrapar'
+import { xpAlAtrapar, xpAlDerrotar } from '../../lib/xpAtrapar'
 import { genderLabel, numeroPokedex } from '../../lib/pokedex'
 import MoveInfoModal from '../MoveInfoModal'
 import { Pagina, Vacio } from '../ui/Pagina'
@@ -126,6 +126,7 @@ export default function FichaPokemonCompleta({ id, onVolver, etiquetaVolver = 'P
   const xp = xpAlAtrapar(nivel ?? pk.pokemon_min_level, pk.pokemon_sr)
   const info = [
     ['N.°', numeroPokedex(pk.pokemon_number)],
+    ['XP al derrotar', xpAlDerrotar(nivel ?? pk.pokemon_min_level, pk.pokemon_sr)?.toLocaleString()],
     ['XP al atrapar', xp?.toLocaleString()],
     ['Talla', pk.pokemon_size],
     ['SR', pk.pokemon_sr],

@@ -28,14 +28,18 @@ export default function MovesList() {
       ...(search    && { search }),
       ...(typeFilter && { type: typeFilter }),
     })
+    // vigente: se busca en cada tecla, y una respuesta lenta de una búsqueda
+    // anterior no debe pisar a la nueva. Devuelve con qué descartarla.
+    let vigente = true
     apiFetch(`/moves?${qs}`)
       .then(r => r.json())
-      .then(d => { setItems(d.data ?? []); setTotal(d.total ?? 0) })
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false))
+      .then(d => { if (vigente) { setItems(d.data ?? []); setTotal(d.total ?? 0) } })
+      .catch(() => { if (vigente) setItems([]) })
+      .finally(() => { if (vigente) setLoading(false) })
+    return () => { vigente = false }
   }, [page, search, typeFilter])
 
-  useEffect(() => { fetchMoves() }, [fetchMoves])
+  useEffect(() => fetchMoves(), [fetchMoves])
 
   const handleSearch = () => { setPage(0); setSearch(inputVal) }
 

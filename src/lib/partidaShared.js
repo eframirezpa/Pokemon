@@ -51,12 +51,3 @@ export const TONE = {
   gray:  { box: 'bg-gray-200 border-gray-400',   text: 'text-gray-700',  btn: 'bg-gray-500 hover:bg-gray-600' },
 }
 
-export const expAlAtrapar = (level, sr) => {
-  const txt = String(sr ?? '').trim()
-  if (!txt) return null
-  const [num, den] = txt.split('/')
-  const valorSr = den ? Number(num) / Number(den) : Number(num)
-  const nivel = Number(level)
-  if (!Number.isFinite(valorSr) || !Number.isFinite(nivel) || valorSr <= 0 || nivel <= 0) return null
-  return Math.ceil(200 * nivel * valorSr)
-}

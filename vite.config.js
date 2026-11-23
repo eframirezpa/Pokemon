@@ -16,6 +16,10 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': 'http://localhost:3001',
+      // Sprites de las partidas: en local el back los guarda en su disco y
+      // devuelve '/partida/<id>/spriteN.png' (en producción van a Supabase con
+      // URL completa). Sin esto el front respondía con su index.html.
+      '^/partida/': 'http://localhost:3001',
     },
   },
   build: {

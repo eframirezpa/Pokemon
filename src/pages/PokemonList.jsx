@@ -130,13 +130,17 @@ export default function PokemonList({ title = 'Pokémon', onPick = null, starter
     if (selectedType)    params.set('type',   selectedType)
     if (selectedSize)    params.set('size',   selectedSize)
     if (starter)         params.set('starter', '1')
+    // vigente: al escribir o cambiar de página rápido, una respuesta lenta de
+    // una consulta anterior no pisa a la nueva.
+    let vigente = true
     apiFetch(`/pokemon?${params}`)
       .then(r => r.json())
-      .then(d => { setPokemon(d.data ?? []); setTotal(d.total ?? 0) })
-      .catch(() => setPokemon([]))
+      .then(d => { if (vigente) { setPokemon(d.data ?? []); setTotal(d.total ?? 0) } })
+      .catch(() => { if (vigente) setPokemon([]) })
       // onReadyRef y no onReady: si quien nos monta pasa una función nueva en
       // cada render, tenerla como dependencia relanzaría la consulta en bucle.
-      .finally(() => { setLoading(false); onReadyRef.current?.() })
+      .finally(() => { if (vigente) { setLoading(false); onReadyRef.current?.() } })
+    return () => { vigente = false }
   }, [debouncedSearch, selectedType, selectedSize, page, starter])
 
   useEffect(() => {

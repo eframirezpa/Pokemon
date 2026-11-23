@@ -4,7 +4,7 @@ import { X, ExternalLink } from 'lucide-react'
 import { apiFetch } from '../api'
 import MoveInfoModal from './MoveInfoModal'
 import { claveMove } from '../lib/moveName'
-import { xpAlAtrapar } from '../lib/xpAtrapar'
+import { xpAlAtrapar, xpAlDerrotar } from '../lib/xpAtrapar'
 import { genderLabel, numeroPokedex } from '../lib/pokedex'
 import { ListaAgrupada } from './ui/ListaAgrupada'
 import { CabeceraPokemon, Caracteristicas, DatosCombate, FilaDato, Habilidades, Evoluciones, Movimientos, NotasPokemon } from './pokedex/FichaPokemon'
@@ -119,6 +119,7 @@ export default function PokemonDetailPanel({ id, onClose, onSelectId, onChoose, 
   const nivel = invokedLevel ?? pk.pokemon_min_level
   const xp = xpAlAtrapar(nivel, pk.pokemon_sr)
   const info = [
+    ['XP al derrotar', xpAlDerrotar(nivel ?? pk.pokemon_min_level, pk.pokemon_sr)?.toLocaleString()],
     ['XP al atrapar', xp?.toLocaleString()],
     ['Talla', pk.pokemon_size],
     ['SR', pk.pokemon_sr],

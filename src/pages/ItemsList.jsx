@@ -95,11 +95,14 @@ export default function ItemsList({ title = 'Items', onPick = null, excludeType 
     if (debouncedSearch) params.set('search', debouncedSearch)
     if (selectedType)    params.set('type',   selectedType)
     if (excludeType)     params.set('excludeType', excludeType)
+    // vigente: una respuesta lenta de una consulta anterior no pisa a la nueva
+    let vigente = true
     apiFetch(`/items?${params}`)
       .then(r => r.json())
-      .then(d => { setItems(d.data ?? []); setTotal(d.total ?? 0) })
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false))
+      .then(d => { if (vigente) { setItems(d.data ?? []); setTotal(d.total ?? 0) } })
+      .catch(() => { if (vigente) setItems([]) })
+      .finally(() => { if (vigente) setLoading(false) })
+    return () => { vigente = false }
   }, [debouncedSearch, selectedType, page, excludeType, refreshKey])
 
   const totalPages = Math.ceil(total / LIMIT)

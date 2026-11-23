@@ -1,4 +1,7 @@
-// Experiencia que otorga un Pokémon salvaje al ser atrapado: 200 x nivel x SR.
+// Experiencia que otorga un Pokémon (reglas de Pokémon 5e, poke5e.app):
+//   derrotarlo → 200 x nivel x SR
+//   atraparlo  → 1/5 de eso ("Catching a Pokémon also gives experience, but
+//                at 1/5 the normal amount")
 //
 // El SR sale de la pokédex como fracción en texto ("1/8", "1/4"...) o como
 // número entero; "Varies" y similares no se pueden calcular y se descartan.
@@ -13,11 +16,16 @@ const parseSR = (sr) => {
   return Number.isFinite(n) ? n : null
 }
 
-export const xpAlAtrapar = (level, sr) => {
+export const xpAlDerrotar = (level, sr) => {
   const lvl = Number(level)
   const srNum = parseSR(sr)
-  if (!Number.isFinite(lvl) || lvl <= 0 || srNum == null) return null
+  if (!Number.isFinite(lvl) || lvl <= 0 || srNum == null || srNum <= 0) return null
   return Math.round(200 * lvl * srNum)
+}
+
+export const xpAlAtrapar = (level, sr) => {
+  const xp = xpAlDerrotar(level, sr)
+  return xp == null ? null : Math.round(xp / 5)
 }
 
 // Línea de experiencia para el chat. El reparto lo hace el DM a mano; esto solo

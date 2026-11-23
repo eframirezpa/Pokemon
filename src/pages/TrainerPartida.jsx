@@ -57,8 +57,6 @@ function ExhaustMarca({ nivel }) {
 }
 
 
-// Botón lateral del lápiz (editar jugador): oculto a prueba
-const MOSTRAR_EDITAR_JUGADOR = false
 /* Ficha de cristal bajo un avatar del campo: nombre, vida en cifras y barra HP.
    Sin datos de vida (party aún cargando) no se pinta. */
 function FichaCampo({ nombre, cur, max }) {
@@ -1335,9 +1333,8 @@ export default function TrainerPartida() {
               </button>
             )}
 
-            {/* Editar jugador: oculto a prueba (2026-11-16), hace tiempo que no se
-                usa. Si no hace falta, se borra junto con su modal y showEdit. */}
-            {MOSTRAR_EDITAR_JUGADOR && personajeId && (
+            {/* Editar jugador: activo solo si el master lo permite a este jugador */}
+            {personajeId && (
               <button
                 onClick={() => { if (isEditable) setShowEdit(true) }}
                 disabled={!isEditable}

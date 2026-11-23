@@ -51,7 +51,7 @@ import { participanteEnTurno } from '../lib/turno'
 import PantallaRotaFx from './partida/PantallaRotaFx'
 import ArmaAtaqueFx from './partida/ArmaAtaqueFx'
 import { ladoTalla } from '../lib/tallas'
-import { xpAlAtrapar, textoXpDerrota, textoXpCaptura } from '../lib/xpAtrapar'
+import { xpAlAtrapar, xpAlDerrotar, textoXpDerrota, textoXpCaptura } from '../lib/xpAtrapar'
 import { sonarPifia } from '../lib/sonidos'
 
 // Explosión puntiaguda que acompaña al número del crítico
@@ -776,7 +776,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     // Derrotado: la vida acaba de llegar a 0. Queda en el chat la experiencia
     // que otorga y la mesa lo ve como mensaje del DM.
     if (p.hp_current > 0 && nuevo === 0) {
-      const texto = textoXpDerrota(p.hidden ? 'Un Pokémon salvaje' : p.name, xpAlAtrapar(p.level, p.sr))
+      const texto = textoXpDerrota(p.hidden ? 'Un Pokémon salvaje' : p.name, xpAlDerrotar(p.level, p.sr))
       sendMasterMessage(texto)
       sendActivity(texto, 'master', 'experiencia')
     }
