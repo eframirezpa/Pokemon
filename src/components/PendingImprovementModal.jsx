@@ -50,7 +50,7 @@ function HpRollField({ dice, max, value, onChange }) {
   return (
     <div className="rounded-xl bg-aviso/10 border border-aviso/40 px-4 py-3">
       <label htmlFor="hp-roll" className="block text-[11px] font-black uppercase tracking-wider text-aviso mb-1.5">
-        Puntos de golpe ganados
+        Hit Points ganados
       </label>
       <div className="flex items-center gap-2">
         <input

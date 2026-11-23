@@ -236,9 +236,9 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
           <div className="bg-superficie rounded-grupo overflow-hidden divide-y divide-separador">
             <div className="px-4 py-1.5 space-y-0.5 text-xs text-texto">
               {master && <p><span className="font-bold text-tinte">Nivel</span> {level}</p>}
-              <p><span className="font-bold text-tinte">Clase de Armadura</span> {d.personaje_pokemon_ac}</p>
+              <p><span className="font-bold text-tinte">Armor Class</span> {d.personaje_pokemon_ac}</p>
               {/* pokemon_hp ya llega con el modCON y el healing de feats aplicados */}
-              <p><span className="font-bold text-tinte">Puntos de Golpe</span> {d.pokemon_current_hp ?? 0}/{d.pokemon_hp ?? 0} ({d.pokemon_hit_dice})</p>
+              <p><span className="font-bold text-tinte">Hit Points</span> {d.pokemon_current_hp ?? 0}/{d.pokemon_hp ?? 0} ({d.pokemon_hit_dice})</p>
               {/* Los disponibles sobre el total, igual que en la ficha del entrenador */}
               <p><span className="font-bold text-tinte">Hit Dice Pool</span> {d.pokemon_hit_dice_left ?? 0}/{d.hit_dice_pool ?? 0}</p>
               <p><span className="font-bold text-tinte">Experiencia</span> {(d.pokemon_experiencia ?? 0).toLocaleString()}

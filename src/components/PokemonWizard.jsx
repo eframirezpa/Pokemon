@@ -474,8 +474,8 @@ export default function PokemonWizard({ personajeId, onClose, onCreated }) {
                 {/* Stat block */}
                 <div className="bg-superficie rounded-grupo overflow-hidden divide-y divide-separador">
                   <div className="px-4 py-1.5 space-y-0.5 text-xs text-texto">
-                    <p><span className="font-bold text-tinte">Clase de Armadura</span> {pokemon.pokemon_armor_class}</p>
-                    <p><span className="font-bold text-tinte">Puntos de Golpe</span> {pokemon.pokemon_hit_points} ({pokemon.pokemon_hit_dice})</p>
+                    <p><span className="font-bold text-tinte">Armor Class</span> {pokemon.pokemon_armor_class}</p>
+                    <p><span className="font-bold text-tinte">Hit Points</span> {pokemon.pokemon_hit_points} ({pokemon.pokemon_hit_dice})</p>
                     {speeds && <p><span className="font-bold text-tinte">Velocidad</span> {speeds}</p>}
                   </div>
                   <div className="px-4 py-2 flex justify-around">

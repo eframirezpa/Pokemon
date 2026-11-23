@@ -13,7 +13,7 @@ import { splitList, slugToTitle, statMod, numeroPokedex } from '../../lib/pokede
 
 /* Tarjeta de cabecera teñida con el color del primer tipo, con la pokébola
    de fondo. Lleva el sprite, nombre, tipos, botones y las tres fichas de
-   combate (CA, PG, velocidad). */
+   combate (AC, HP, velocidad). */
 export function CabeceraPokemon({ pk, shiny, onShiny, onChoose = null, compacta = false }) {
   const bg = TYPE_COLORS[pk.pokemon_type_1]?.bg ?? '#A8A878'
   const img = shiny ? pk.pokemon_media_main_shiny : pk.pokemon_media_main
@@ -58,15 +58,15 @@ export function CabeceraPokemon({ pk, shiny, onShiny, onChoose = null, compacta 
   )
 }
 
-/* CA, PG y velocidad en tres fichas sobre la tarjeta de color */
+/* AC, HP y velocidad en tres fichas sobre la tarjeta de color */
 function FichasCombate({ pk, compacta, className }) {
   // Nombres cortos donde no caben los largos (panel lateral y celular)
   const corto = (c, l) => compacta ? c : <><span className="sm:hidden">{c}</span><span className="hidden sm:inline">{l}</span></>
   const extraSpeeds = [2, 3, 4].map(i => pk[`pokemon_speed_${i}_name`] && `${pk[`pokemon_speed_${i}_value`]} ${pk[`pokemon_speed_${i}_name`]}`).filter(Boolean)
   return (
     <div className={`grid-cols-3 gap-2 ${className}`}>
-      <Ficha sobreColor etiqueta={corto('CA', 'Clase de Armadura')} valor={pk.pokemon_armor_class ?? '—'} />
-      <Ficha sobreColor etiqueta={corto('PG', 'Puntos de Golpe')} valor={pk.pokemon_hit_points ?? '—'} sub={pk.pokemon_hit_dice} />
+      <Ficha sobreColor etiqueta={corto('AC', 'Armor Class')} valor={pk.pokemon_armor_class ?? '—'} />
+      <Ficha sobreColor etiqueta={corto('HP', 'Hit Points')} valor={pk.pokemon_hit_points ?? '—'} sub={pk.pokemon_hit_dice} />
       <Ficha sobreColor etiqueta="Velocidad" valor={pk.pokemon_speed_1_value ?? '—'}
         sub={[pk.pokemon_speed_1_name, ...extraSpeeds].filter(Boolean).join(' · ')} />
     </div>

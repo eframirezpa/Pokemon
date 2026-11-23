@@ -6,7 +6,7 @@ export const SECCIONES = [
   {
     titulo: 'Trainer',
     enlaces: [
-      { to: '/armor-types',                 label: 'Armaduras',         Icon: Shield,     desc: 'Tipos de protección y CA' },
+      { to: '/armor-types',                 label: 'Armaduras',         Icon: Shield,     desc: 'Tipos de protección y AC' },
       { to: '/backgrounds',                 label: 'Trasfondos',        Icon: BookOpen,   desc: 'Historias y habilidades de origen' },
       { to: '/feats?type=origin%2Cgeneral', label: 'Rasgos',            Icon: Star,       desc: 'Rasgos de origen y generales' },
       { to: '/origins',                     label: 'Orígenes',          Icon: Map,        desc: 'Lugar de procedencia del entrenador' },

@@ -1,4 +1,4 @@
-// Dato con etiqueta en un cuadro: "CA 13", "STR 11 +0".
+// Dato con etiqueta en un cuadro: "AC 13", "STR 11 +0".
 //
 //   etiqueta — texto pequeño arriba (gris, en negrita)
 //   valor    — número o texto grande
