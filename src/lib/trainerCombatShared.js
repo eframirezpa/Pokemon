@@ -2,12 +2,13 @@
 
 // AC del entrenador con la MISMA regla que la ficha: base de la armadura más el
 // modificador de DEX, topado por la armadura (Medium Armor Master sube ese tope
-// de +2 a +3). Sin armadura, el AC guardado. Replicarlo evita que el panel y la
+// de +2 a +3). Sin armadura, 10 + DEX (regla de D&D). Replicarlo evita que el panel y la
 // ficha muestren números distintos.
 const FEAT_MEDIUM_ARMOR_MASTER = 33
 export function acDelTrainer(d, dexMod) {
   const a = d.armor
-  if (!a) return d.personaje_ac
+  // Sin armadura: 10 + DEX. Al quitarla, el AC guardado queda en null.
+  if (!a) return 10 + (Number(dexMod) || 0)
   let v = a.armor_type_base_ac || 0
   if (a.armor_type_uses_dex_modifier === 1) {
     if (a.armor_type_max_dex_modifier != null) {
@@ -16,6 +17,8 @@ export function acDelTrainer(d, dexMod) {
       v += Math.min(dexMod, cap)
     } else v += dexMod
   }
+  // Como la ficha: el bono propio de la armadura (si trae)
+  if (a.armor_type_ac_bonus != null) v += Number(a.armor_type_ac_bonus) || 0
   return v
 }
 

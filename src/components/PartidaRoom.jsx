@@ -14,6 +14,7 @@ import NotasParche, { BotonParche } from './NotasParche'
 import { apiFetch } from '../api'
 import { registrarIntervencion, crearXpPendiente } from '../lib/xpMesa'
 import RepartoXpDm from './partida/RepartoXpDm'
+import AtaqueDm from './partida/AtaqueDm'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import { useSalaDeJuego } from '../hooks/useSalaDeJuego'
 import Hoja from './ui/Hoja'
@@ -148,6 +149,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [confirmarSalir, setConfirmarSalir] = useState(false)
   // Experiencia en mesa: cada cambio hace que el pop-up del DM revise lo pendiente
   const [xpRevisar, setXpRevisar] = useState(0)
+  // Ataque de un Pokémon del DM contra un jugador: { atacante, move }
+  const [ataqueDm, setAtaqueDm] = useState(null)
   const { user }    = useAuth()
   const logEndRef   = useRef(null)
 
@@ -973,6 +976,10 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
   const handleCast = (pokemon, moveName, moveType) => {
     if (!pokemon) return
+    // Con el movimiento completo: objetivo, tirada contra su AC y daño
+    // aplicado (AtaqueDm). Sin él, solo se anuncia, como antes.
+    const move = (pokemon.moves || []).find(m => m.move_name === moveName)
+    if (move) { setAtaqueDm({ atacante: pokemon, move }); return }
     // Si está oculto, los jugadores no deben ver el nombre real (solo lo ve el master en su panel)
     const displayName = pokemon.hidden ? 'el pokemon' : pokemon.name
     sendMasterMessage(`${displayName} ha usado el movimiento ${moveName}`)
@@ -1069,6 +1076,19 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             sendActivity(`Experiencia por ${xp.xp_pokemon}: ${reparto.map(r => `${r.nombre || 'Entrenador'} ${Number(r.xp).toLocaleString('es')} XP`).join(', ')}`, 'master', 'experiencia')
             sendPartyUpdate()
           }} />
+      )}
+
+      {isMaster && ataqueDm && (
+        <AtaqueDm key={`${ataqueDm.atacante.uid}-${ataqueDm.move.move_name}`} partidaId={id}
+          atacante={ataqueDm.atacante} move={ataqueDm.move} presentes={presentes} invocados={invocados}
+          onAnunciar={(texto, ataque) => {
+            sendMasterMessage(texto)
+            sendActivity(texto, 'master', 'ataque')
+            // soloFx: la línea del registro ya la escribe AtaqueDm, más completa
+            sendAttack({ ...ataque, soloFx: true })
+          }}
+          onAplicado={sendPartyUpdate}
+          onCerrar={() => setAtaqueDm(null)} />
       )}
 
       {confirmarSalir && (

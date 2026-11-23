@@ -1,0 +1,257 @@
+import { useEffect, useState } from 'react'
+import { Crosshair, Megaphone, Shield, Heart, Check, X as Equis } from 'lucide-react'
+import { apiFetch } from '../../api'
+import Hoja from '../ui/Hoja'
+import Boton from '../ui/Boton'
+import FormulaAtaqueModal from '../FormulaAtaqueModal'
+import DanoMoveModal from '../DanoMoveModal'
+import { tieneDano, esCuracion } from '../../lib/danoMove'
+import { relacionContra, danoTrasRelacion, etiquetaRelacion, cuentaRelacion, aplicaStab } from '../../lib/objetivos'
+import { getEffectivenessRows, effectivenessByNames, typeNamesByIds } from '../../lib/typeEffect'
+import { construirSkillsTrainer, statModPokemon } from '../../lib/trainerStats'
+import { acDelTrainer } from '../../lib/trainerCombatShared'
+import { hpValues } from '../../lib/hp'
+
+const STATS = ['str', 'dex', 'con', 'int', 'wis', 'cha']
+
+/**
+ * Ataque de un Pokémon del DM contra un jugador (plan-xp-y-mesa, etapa 5).
+ *
+ * El DM tira con los dados de la app, igual que los jugadores (las mismas
+ * ventanas de fórmula y de daño). La app compara con la AC del objetivo, resta
+ * la vida si acierta y lo deja en el chat. Con tirada de salvación, el DM
+ * marca el resultado y, si la superó, elige daño completo, mitad o nada.
+ *
+ *   atacante: entrada del campo (PartidaRoom): { master_pokemon_id, name, hidden, sprite, talla, type1, type2, level }
+ *   move:     el movimiento completo (de /master/pokemon/:id)
+ */
+export default function AtaqueDm({ partidaId, atacante, move, presentes = [], invocados = {}, onAnunciar, onAplicado, onCerrar }) {
+  const [paso, setPaso] = useState('objetivo')   // objetivo · formula · salvacion · dano · listo
+  const [datosAtacante, setDatosAtacante] = useState(null)
+  const [efectividades, setEfectividades] = useState(null)
+  const [party, setParty] = useState(null)
+  const [objetivo, setObjetivo] = useState(null) // { tipo, nombre, ac, hp, hpMax, tipos, saves, ruta, ... }
+  const [cargando, setCargando] = useState(false)
+  const [tirada, setTirada] = useState(null)     // { ataque, dificultad, critico, power, pifia }
+  const [salvacion, setSalvacion] = useState(null) // 'fallo' | 'completo' | 'mitad' | 'nada'
+
+  useEffect(() => {
+    let vigente = true
+    apiFetch(`/master/pokemon/${atacante.master_pokemon_id}`).then(r => r.json()).then(d => { if (vigente) setDatosAtacante(d) }).catch(() => {})
+    apiFetch(`/personaje/party?id_partida=${partidaId}`).then(r => r.json()).then(d => { if (vigente) setParty(Array.isArray(d) ? d : []) }).catch(() => {})
+    getEffectivenessRows().then(e => { if (vigente) setEfectividades(e) })
+    return () => { vigente = false }
+  }, [partidaId, atacante.master_pokemon_id])
+
+  const nombreAtacante = atacante.hidden ? 'El Pokémon' : atacante.name
+  const stats = datosAtacante ? STATS.map(k => ({
+    key: k.toUpperCase(), mod: statModPokemon(datosAtacante, k), prof: !!datosAtacante.stats?.[`pokemon_stats_${k}_prof`],
+  })) : []
+  const prof = Number(datosAtacante?.pokemon_proficient) || 2
+  const stab = aplicaStab(move.move_type, [atacante.type1, atacante.type2].filter(Boolean)) ? (Number(datosAtacante?.personaje_pokemon_stab) || 0) : 0
+
+  // Objetivos: los entrenadores conectados y su Pokémon invocado
+  const objetivos = []
+  const vistos = new Set()
+  for (const p of presentes) {
+    if (p.role === 'master' || p.personaje_id == null) continue
+    const k = String(p.personaje_id)
+    if (vistos.has(k)) continue
+    vistos.add(k)
+    const c = (party || []).find(x => String(x.id_personaje) === k)
+    if (!c) continue
+    objetivos.push({ clave: `t-${k}`, tipo: 'trainer', id_personaje: c.id_personaje, nombre: c.nombre_personaje,
+      sprite: p.avatar_face_url || null, hp: c.personaje_current_hp ?? c.personaje_hp, hpMax: c.personaje_hp })
+    const inv = k in invocados ? invocados[k] : p.pokemon_invocado
+    const pk = inv != null ? (c.pokemons || []).find(x => String(x.id_personaje_pokemon) === String(inv)) : null
+    if (pk) objetivos.push({ clave: `p-${pk.id_personaje_pokemon}`, tipo: 'pokemon', id_personaje: c.id_personaje,
+      id_personaje_pokemon: pk.id_personaje_pokemon, nombre: pk.pokemon_apodo, dueno: c.nombre_personaje,
+      sprite: (pk.pokemon_is_shiny && pk.pokemon_media_sprite_shiny) || pk.pokemon_media_sprite || pk.pokemon_media_main,
+      hp: pk.pokemon_current_hp ?? pk.pokemon_hp, hpMax: pk.pokemon_hp })
+  }
+
+  // AC, tipos y salvaciones del objetivo elegido: de su ficha, con las mismas
+  // reglas que usa la pantalla del jugador
+  const elegir = async (o) => {
+    setCargando(true)
+    try {
+      if (o.tipo === 'trainer') {
+        const d = await apiFetch(`/personaje/${o.id_personaje}/full`).then(r => r.json())
+        const { dexMod, stats: st } = construirSkillsTrainer(d)
+        const { max } = hpValues(d)
+        setObjetivo({ ...o, ac: acDelTrainer(d, dexMod), tipos: [], hpMax: max ?? o.hpMax, saves: st })
+      } else {
+        const d = await apiFetch(`/personaje/${o.id_personaje}/pokemon/${o.id_personaje_pokemon}`).then(r => r.json())
+        const tipos = typeNamesByIds(efectividades, d.personaje_pokemon_type_1, d.personaje_pokemon_type_2)
+        setObjetivo({ ...o, ac: Number(d.personaje_pokemon_ac) || null,
+          tipos: tipos.length ? tipos : [d.pokemon_type_1, d.pokemon_type_2].filter(Boolean),
+          saves: STATS.map(k => ({ key: k.toUpperCase(), mod: statModPokemon(d, k), prof: !!d.stats?.[`pokemon_stats_${k}_prof`] })) })
+      }
+      setPaso('formula')
+    } catch { /* sin ficha no se puede seguir: queda en el selector */ } finally { setCargando(false) }
+  }
+
+  const relacion = objetivo?.tipo === 'pokemon' && efectividades
+    ? relacionContra(effectivenessByNames(efectividades, objetivo.tipos[0], objetivo.tipos[1]), move.move_type)
+    : 'neutral'
+  const contra = objetivo ? (objetivo.tipo === 'pokemon' ? `${objetivo.nombre} (de ${objetivo.dueno})` : objetivo.nombre) : null
+
+  // ¿La tirada fue de ataque (contra AC) o solo de salvación?
+  const tieneAtaque = tirada?.ataque != null
+
+  const anunciar = (texto, extra = {}) => onAnunciar?.(texto, {
+    pokemonName: atacante.name, moveName: move.move_name, type: move.move_type, hidden: !!atacante.hidden,
+    sprite: atacante.sprite, talla: atacante.talla, objetivo: contra, ...extra,
+  })
+
+  // Resta la vida del objetivo y avisa a la mesa
+  const aplicar = async (dano, detalle) => {
+    const cur = Number(objetivo.hp) || 0
+    const nuevo = Math.max(0, cur - dano)
+    const url = objetivo.tipo === 'trainer'
+      ? `/personaje/${objetivo.id_personaje}/combate`
+      : `/personaje/${objetivo.id_personaje}/pokemon/${objetivo.id_personaje_pokemon}/combate`
+    if (dano > 0) await apiFetch(url, { method: 'PATCH', body: JSON.stringify({ current_hp: nuevo }) }).catch(() => {})
+    anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}: ${detalle} · ${dano > 0 ? `${dano} de daño (vida ${cur} → ${nuevo})` : 'sin daño'}`,
+      { dano, critico: !!tirada?.critico })
+    onAplicado?.()
+    onCerrar()
+  }
+
+  // Tras la fórmula: con ataque se compara con la AC; con salvación, el DM marca el resultado
+  const trasFormula = (ataque, dificultad, critico, power, pifia) => {
+    const t = { ataque, dificultad, critico, power, pifia }
+    setTirada(t)
+    if (ataque != null) {
+      // Sin AC en su ficha (personaje sin armadura ni AC guardada): decide el DM
+      if (objetivo.ac == null && !critico && !pifia) { setPaso('acierto'); return }
+      seguirConAcierto(t, critico || (!pifia && ataque >= objetivo.ac))
+      return
+    }
+    if (dificultad != null) { setPaso('salvacion'); return }
+    anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}`)
+    onCerrar()
+  }
+
+  // Acertó o falló contra la AC (o según el DM, si no hay AC)
+  const seguirConAcierto = (t, ok) => {
+    const { ataque, dificultad, critico, pifia } = t
+    const ac = objetivo.ac ?? '—'
+    if (!ok) {
+      anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}: falló${pifia ? ' (¡pifia!)' : ''} (ataque ${ataque} vs AC ${ac})`, { ataque, pifia })
+      onCerrar(); return
+    }
+    if (!tieneDano(move) || esCuracion(move)) {
+      anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}: acertó (ataque ${ataque} vs AC ${ac})${dificultad != null ? ` · salvación de ${move.move_save_attribute} DC ${dificultad} para su efecto` : ''}`, { ataque, critico })
+      onCerrar(); return
+    }
+    setPaso('dano')
+  }
+
+  if (paso === 'acierto') {
+    return (
+      <Hoja titulo="¿Acertó?" z="z-[126]" ancho="sm:max-w-sm" onClose={onCerrar}>
+        <p className="text-[15px]">
+          Ataque <b className="tabular-nums">{tirada.ataque}</b> contra <b>{contra}</b>.
+        </p>
+        <p className="text-[13px] text-texto-2 mt-1">Su ficha no tiene AC (sin armadura ni AC guardada): decide tú.</p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Boton variante="tintado" onClick={() => seguirConAcierto(tirada, false)}><Equis size={16} /> Falló</Boton>
+          <Boton onClick={() => seguirConAcierto(tirada, true)}><Check size={16} /> Acertó</Boton>
+        </div>
+      </Hoja>
+    )
+  }
+
+  if (paso === 'formula' && datosAtacante) {
+    return (
+      <FormulaAtaqueModal move={move} prof={prof} stats={stats} bonoRuta={{ total: 0, detalle: [] }}
+        onClose={onCerrar} onAtacar={trasFormula} />
+    )
+  }
+
+  if (paso === 'dano') {
+    return (
+      <DanoMoveModal move={move} nivel={atacante.level} stats={stats} critico={!!tirada?.critico} power={tirada?.power}
+        stab={stab} objetivo={contra} relacion={relacion}
+        onOmitir={onCerrar}
+        onConfirmar={(r) => {
+          const base = danoTrasRelacion(r.total, relacion)
+          const final = salvacion === 'mitad' ? Math.floor(base / 2) : salvacion === 'nada' ? 0 : base
+          const partes = [
+            tieneAtaque ? `acertó${tirada.critico ? ' ¡crítico!' : ''} (ataque ${tirada.ataque} vs AC ${objetivo.ac ?? '—'})` : null,
+            salvacion ? (salvacion === 'fallo' ? `falló la salvación de ${move.move_save_attribute}` : `superó la salvación (${salvacion === 'completo' ? 'daño completo' : salvacion})`) : null,
+            etiquetaRelacion(relacion) ? `${etiquetaRelacion(relacion)} ${cuentaRelacion(relacion)}` : null,
+          ].filter(Boolean).join(' · ')
+          aplicar(final, partes)
+        }} />
+    )
+  }
+
+  if (paso === 'salvacion') {
+    const resolver = (s) => {
+      setSalvacion(s)
+      if (s === 'nada' || !tieneDano(move) || esCuracion(move)) {
+        anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}: ${s === 'fallo' ? `falló la salvación de ${move.move_save_attribute} (DC ${tirada.dificultad})` : `superó la salvación de ${move.move_save_attribute} (DC ${tirada.dificultad})`}${s === 'nada' ? ' · sin daño' : ''}`)
+        onCerrar(); return
+      }
+      setPaso('dano')
+    }
+    return (
+      <Hoja titulo="Tirada de salvación" z="z-[126]" ancho="sm:max-w-sm" onClose={onCerrar}>
+        <p className="text-[15px]">
+          <b>{contra}</b> tira salvación de <b>{move.move_save_attribute}</b> contra <b>DC {tirada.dificultad}</b>.
+        </p>
+        <p className="text-[13px] text-texto-2 mt-1">Pídesela en la mesa y marca el resultado.</p>
+        <div className="mt-4 space-y-2">
+          <Boton tamano="lg" onClick={() => resolver('fallo')}><Equis size={18} /> La falló: efecto completo</Boton>
+          <p className="text-[12px] font-semibold uppercase tracking-[.06em] text-texto-2 pt-2">La superó</p>
+          <div className="grid grid-cols-3 gap-2">
+            <Boton variante="tintado" onClick={() => resolver('completo')}>Completo</Boton>
+            <Boton variante="tintado" onClick={() => resolver('mitad')}>Mitad</Boton>
+            <Boton variante="tintado" onClick={() => resolver('nada')}>Nada</Boton>
+          </div>
+        </div>
+      </Hoja>
+    )
+  }
+
+  // Paso 1: a quién ataca
+  return (
+    <Hoja z="z-[126]" ancho="sm:max-w-md" onClose={onCerrar}
+      titulo={<span className="flex items-center gap-2"><Crosshair size={18} className="text-tinte" /> {move.move_name}</span>}>
+      <p className="text-[13px] text-texto-2 -mt-1 mb-3">{atacante.name}{atacante.hidden ? ' (oculto)' : ''} · ¿a quién ataca?</p>
+      {!party || !efectividades ? (
+        <p className="text-[13px] text-texto-2">Cargando la party…</p>
+      ) : (
+        <ul className="rounded-xl bg-superficie divide-y divide-separador overflow-hidden">
+          {objetivos.length === 0 && <li className="px-3 py-3 text-[13px] text-texto-2">No hay entrenadores conectados.</li>}
+          {objetivos.map(o => (
+            <li key={o.clave}>
+              <button type="button" disabled={cargando || !datosAtacante} onClick={() => elegir(o)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-relleno disabled:opacity-50 ${o.tipo === 'pokemon' ? 'pl-8' : ''}`}>
+                {o.sprite
+                  ? <img src={o.sprite} alt="" className={`w-9 h-9 shrink-0 ${o.tipo === 'trainer' ? 'rounded-full object-cover bg-relleno' : 'object-contain'}`} onError={e => { e.currentTarget.style.visibility = 'hidden' }} />
+                  : <span className="w-9 h-9 rounded-full bg-relleno shrink-0" />}
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[15px] font-semibold truncate">{o.nombre}</span>
+                  <span className="block text-[12px] text-texto-2">{o.tipo === 'pokemon' ? `Pokémon de ${o.dueno}` : 'Entrenador'}</span>
+                </span>
+                <span className="flex items-center gap-1 text-[12px] text-texto-2 tabular-nums shrink-0">
+                  <Heart size={12} className="text-peligro" /> {o.hp}/{o.hpMax}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1 text-[12px] text-texto-2"><Shield size={12} /> La AC se lee de su ficha al elegirlo</span>
+        <Boton variante="tintado" tamano="sm" onClick={() => { anunciar(`${nombreAtacante} ha usado el movimiento ${move.move_name}`, { objetivo: null }); onCerrar() }}>
+          <Megaphone size={14} /> Solo anunciar
+        </Boton>
+      </div>
+      {cargando && <p className="mt-2 flex items-center gap-1.5 text-[12px] text-texto-2"><Check size={12} /> Leyendo su ficha…</p>}
+    </Hoja>
+  )
+}

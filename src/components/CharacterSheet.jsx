@@ -478,10 +478,10 @@ export default function CharacterSheet({ id, onClose, partyVersion = 0, onChange
               // + healing de feats/especialidades (mismo cálculo que el control de combate).
               // El HP actual es un valor absoluto de combate, no se le suman los bonos.
               const { max, cur } = hpValues(data)
-              // AC recalculado: armadura + modificador de DEX (con los bonos de feats). Sin armadura → AC guardado.
+              // AC recalculado: armadura + modificador de DEX (con los bonos de feats). Sin armadura → 10 + DEX.
               const ac = (() => {
                 const a = data.armor
-                if (!a) return data.personaje_ac
+                if (!a) return 10 + abilMod('dex')
                 let v = a.armor_type_base_ac || 0
                 if (a.armor_type_uses_dex_modifier === 1) {
                   const dexMod = abilMod('dex')
