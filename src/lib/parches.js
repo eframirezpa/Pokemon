@@ -18,7 +18,7 @@ export const PARCHES = [
       'La tirada de iniciativa muestra el bono en el chat.',
       'Ataque con arma: daño del arma y gasto de munición opcional.',
       'Especialidades: +1 a todas las skill checks de tus Pokémon de ese tipo.',
-      'Se ocultó el botón de editar jugador (lápiz).',
+      'El botón de editar jugador (lápiz) solo se activa si el DM lo permite.',
       'Derrotar o atrapar un Pokémon deja en el chat la experiencia que otorga.',
       'Al renombrar un Pokémon atrapado, el género se ve grande y se recuerda al guardar.',
       'Todo ataque pide objetivo; el chat dice a quién se atacó.',

@@ -17,6 +17,7 @@ import { participanteEnTurno, sonarTurno, vibrarTurno } from '../lib/turno'
 import EditarPersonajeModal from '../components/EditarPersonajeModal'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../api'
+import { registrarIntervencion } from '../lib/xpMesa'
 import { hpValues } from '../lib/hp'
 import BarraHP from '../components/ui/BarraHP'
 import DescansoModal from '../components/DescansoModal'
@@ -835,6 +836,8 @@ export default function TrainerPartida() {
       const t = textoRelacion(objetivo, relacionObjetivo(m), m.move_type, dano.total)
       if (t) partidaApiRef.current?.registrar?.(t, 'ataque')
     }
+    // Experiencia en mesa: este Pokémon intervino contra el del DM
+    registrarIntervencion(id, objetivoLanzado, { personajeId, pokemonId: pokemonInvocado, tipo: 'ataque' })
     setObjetivoLanzado(null)
     setCastCooldown(true)
     if (castTimer.current) clearTimeout(castTimer.current)
@@ -1511,6 +1514,8 @@ export default function TrainerPartida() {
           getObjetivos={() => partidaApiRef.current?.getObjetivos?.() || []}
           onAtaque={(poder, { critico = false, arma = null, pifia = false, dano = null, municion = null, objetivo = null } = {}) => {
             const quien = nombrePj || 'El entrenador'
+            // Experiencia en mesa: intervino el entrenador (sin Pokémon)
+            registrarIntervencion(id, objetivo, { personajeId, tipo: 'ataque' })
             // Daño: total y de dónde sale (dados + modificador del stat)
             const textoDano = dano
               ? ` · daño ${dano.total}${arma?.weapon_type_damage_type ? ` ${arma.weapon_type_damage_type}` : ''} (${dano.notacion}: ${dano.dados}${dano.mod ? ` ${dano.mod > 0 ? '+' : '−'} ${Math.abs(dano.mod)}` : ''})`

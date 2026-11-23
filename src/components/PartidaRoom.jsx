@@ -12,6 +12,8 @@ import BotonBandejaDados from './dados/BotonBandejaDados'
 import ResumenSesion from './ResumenSesion'
 import NotasParche, { BotonParche } from './NotasParche'
 import { apiFetch } from '../api'
+import { registrarIntervencion, crearXpPendiente } from '../lib/xpMesa'
+import RepartoXpDm from './partida/RepartoXpDm'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import { useSalaDeJuego } from '../hooks/useSalaDeJuego'
 import Hoja from './ui/Hoja'
@@ -144,6 +146,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   useSalaDeJuego()
   // "Salir" es un icono pequeño junto al turno: se pide confirmación
   const [confirmarSalir, setConfirmarSalir] = useState(false)
+  // Experiencia en mesa: cada cambio hace que el pop-up del DM revise lo pendiente
+  const [xpRevisar, setXpRevisar] = useState(0)
   const { user }    = useAuth()
   const logEndRef   = useRef(null)
 
@@ -348,6 +352,9 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     setThrowing(true)
     const target = throwTarget
     setThrowTarget(null)
+    // Experiencia en mesa: la Poké Ball cuenta como intervención. Con la
+    // captura automática la anota el servidor al resolver.
+    registrarIntervencion(id, { tipo: 'pokemon', uid: target.uid }, { personajeId, tipo: 'pokebola' })
 
     // Mide origen (icono del jugador) y destino (tarjeta del Pokémon) en pantalla
     const origin = document.querySelector('[data-throw-origin]')?.getBoundingClientRect()
@@ -783,6 +790,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     // Derrotado: la vida acaba de llegar a 0. Queda en el chat la experiencia
     // que otorga y la mesa lo ve como mensaje del DM.
     if (p.hp_current > 0 && nuevo === 0) {
+      // Queda pendiente para repartirla al cerrar la iniciativa
+      crearXpPendiente(id, p, 'derrota').then(() => setXpRevisar(v => v + 1))
       const texto = textoXpDerrota(p.hidden ? 'Un Pokémon salvaje' : p.name, xpAlDerrotar(p.level, p.sr))
       sendMasterMessage(texto)
       sendActivity(texto, 'master', 'experiencia')
@@ -859,6 +868,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         setTransferError(j.error || 'No se pudo transferir'); setTransferBusy(false); return
       }
       const j = await res.json()
+      // Atrapado a mano: queda la experiencia (1/5) pendiente de repartir
+      crearXpPendiente(id, transferPoke, 'captura').then(() => setXpRevisar(v => v + 1))
       // Desaparece del campo para el master y para todos los jugadores
       sendPokemons(activePokemons.filter(p => p.uid !== transferPoke.uid))
       const nombrePokemon = j.pokemon_apodo || j.pokemon_name || transferPoke.name
@@ -1047,6 +1058,17 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           <img src="/evento0/avatar.png" alt="Evento"
             className="w-96 h-96 object-contain drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)] animate-event-pop" />
         </div>
+      )}
+
+      {/* Experiencia en mesa: el DM reparte cada Pokémon derrotado o atrapado
+          (al cerrar la iniciativa, o en el momento si no hay combate) */}
+      {isMaster && (
+        <RepartoXpDm partidaId={id} revisar={`${xpRevisar}-${iniciativa?.estado ?? 'sin'}-${capturaFx ? 1 : 0}`}
+          presentes={presentes} invocados={invocados}
+          onConfirmada={(xp, reparto) => {
+            sendActivity(`Experiencia por ${xp.xp_pokemon}: ${reparto.map(r => `${r.nombre || 'Entrenador'} ${Number(r.xp).toLocaleString('es')} XP`).join(', ')}`, 'master', 'experiencia')
+            sendPartyUpdate()
+          }} />
       )}
 
       {confirmarSalir && (
