@@ -25,7 +25,8 @@ const STATS = ['str', 'dex', 'con', 'int', 'wis', 'cha']
  *   atacante: entrada del campo (PartidaRoom): { master_pokemon_id, name, hidden, sprite, talla, type1, type2, level }
  *   move:     el movimiento completo (de /master/pokemon/:id)
  */
-export default function AtaqueDm({ partidaId, atacante, move, presentes = [], invocados = {}, onAnunciar, onAplicado, onCerrar }) {
+export default function AtaqueDm({ partidaId, atacante, move, presentes = [], invocados = {}, onAnunciar, onAplicado, onCerrar,
+                                   sendSalvacionPedida = null, salvacionResultado = null }) {
   const [paso, setPaso] = useState('objetivo')   // objetivo · formula · salvacion · dano · listo
   const [datosAtacante, setDatosAtacante] = useState(null)
   const [efectividades, setEfectividades] = useState(null)
@@ -34,6 +35,7 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
   const [cargando, setCargando] = useState(false)
   const [tirada, setTirada] = useState(null)     // { ataque, dificultad, critico, power, pifia }
   const [salvacion, setSalvacion] = useState(null) // 'fallo' | 'completo' | 'mitad' | 'nada'
+  const [idSalvacion, setIdSalvacion] = useState(null) // la pedida al jugador; su respuesta trae el mismo id
 
   useEffect(() => {
     let vigente = true
@@ -79,13 +81,14 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
         const d = await apiFetch(`/personaje/${o.id_personaje}/full`).then(r => r.json())
         const { dexMod, stats: st } = construirSkillsTrainer(d)
         const { max } = hpValues(d)
-        setObjetivo({ ...o, ac: acDelTrainer(d, dexMod), tipos: [], hpMax: max ?? o.hpMax, saves: st })
+        setObjetivo({ ...o, ac: acDelTrainer(d, dexMod), tipos: [], hpMax: max ?? o.hpMax, saves: st, prof: Number(d.personaje_prof) || 2 })
       } else {
         const d = await apiFetch(`/personaje/${o.id_personaje}/pokemon/${o.id_personaje_pokemon}`).then(r => r.json())
         const tipos = typeNamesByIds(efectividades, d.personaje_pokemon_type_1, d.personaje_pokemon_type_2)
         setObjetivo({ ...o, ac: Number(d.personaje_pokemon_ac) || null,
           tipos: tipos.length ? tipos : [d.pokemon_type_1, d.pokemon_type_2].filter(Boolean),
-          saves: STATS.map(k => ({ key: k.toUpperCase(), mod: statModPokemon(d, k), prof: !!d.stats?.[`pokemon_stats_${k}_prof`] })) })
+          saves: STATS.map(k => ({ key: k.toUpperCase(), mod: statModPokemon(d, k), prof: !!d.stats?.[`pokemon_stats_${k}_prof`] })),
+          prof: Number(d.pokemon_proficient) || 2 })
       }
       setPaso('formula')
     } catch { /* sin ficha no se puede seguir: queda en el selector */ } finally { setCargando(false) }
@@ -128,10 +131,26 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
       seguirConAcierto(t, critico || (!pifia && ataque >= objetivo.ac))
       return
     }
-    if (dificultad != null) { setPaso('salvacion'); return }
+    if (dificultad != null) { pedirSalvacion(dificultad); setPaso('salvacion'); return }
     anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}`)
     onCerrar()
   }
+
+  // La salvación se le pide al jugador dueño del objetivo, con el bono ya
+  // calculado de su ficha (modificador + proficiencia si es competente)
+  const atributoSalv = String(move.move_save_attribute || '').trim().toUpperCase()
+  const bonoSalv = (() => {
+    const sv = (objetivo?.saves || []).find(x => x.key === atributoSalv)
+    return sv ? (Number(sv.mod) || 0) + (sv.prof ? (objetivo.prof || 2) : 0) : 0
+  })()
+  const pedirSalvacion = (dc) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    setIdSalvacion(id)
+    sendSalvacionPedida?.({ id, personaje_id: objetivo.id_personaje, objetivo: contra, atacante: nombreAtacante,
+      move: move.move_name, atributo: atributoSalv, dc, bono: bonoSalv })
+  }
+  const respuesta = salvacionResultado && salvacionResultado.id === idSalvacion ? salvacionResultado : null
+  const textoTiradaSalv = respuesta ? ` (sacó ${respuesta.total}: d20 ${respuesta.d20} ${respuesta.bono >= 0 ? '+' : '−'} ${Math.abs(respuesta.bono)})` : ''
 
   // Acertó o falló contra la AC (o según el DM, si no hay AC)
   const seguirConAcierto = (t, ok) => {
@@ -180,7 +199,7 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
           const final = salvacion === 'mitad' ? Math.floor(base / 2) : salvacion === 'nada' ? 0 : base
           const partes = [
             tieneAtaque ? `acertó${tirada.critico ? ' ¡crítico!' : ''} (ataque ${tirada.ataque} vs AC ${objetivo.ac ?? '—'})` : null,
-            salvacion ? (salvacion === 'fallo' ? `falló la salvación de ${move.move_save_attribute}` : `superó la salvación (${salvacion === 'completo' ? 'daño completo' : salvacion})`) : null,
+            salvacion ? (salvacion === 'fallo' ? `falló la salvación de ${atributoSalv}${textoTiradaSalv}` : `superó la salvación${textoTiradaSalv} (${salvacion === 'completo' ? 'daño completo' : salvacion})`) : null,
             etiquetaRelacion(relacion) ? `${etiquetaRelacion(relacion)} ${cuentaRelacion(relacion)}` : null,
           ].filter(Boolean).join(' · ')
           aplicar(final, partes)
@@ -192,25 +211,41 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
     const resolver = (s) => {
       setSalvacion(s)
       if (s === 'nada' || !tieneDano(move) || esCuracion(move)) {
-        anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}: ${s === 'fallo' ? `falló la salvación de ${move.move_save_attribute} (DC ${tirada.dificultad})` : `superó la salvación de ${move.move_save_attribute} (DC ${tirada.dificultad})`}${s === 'nada' ? ' · sin daño' : ''}`)
+        anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}: ${s === 'fallo' ? 'falló' : 'superó'} la salvación de ${atributoSalv} (DC ${tirada.dificultad})${textoTiradaSalv}${s === 'nada' ? ' · sin daño' : ''}`)
         onCerrar(); return
       }
       setPaso('dano')
     }
+    const supera = respuesta ? respuesta.total >= Number(tirada.dificultad) : null
     return (
       <Hoja titulo="Tirada de salvación" z="z-[126]" ancho="sm:max-w-sm" onClose={onCerrar}>
         <p className="text-[15px]">
-          <b>{contra}</b> tira salvación de <b>{move.move_save_attribute}</b> contra <b>DC {tirada.dificultad}</b>.
+          <b>{contra}</b> tira salvación de <b>{atributoSalv}</b> contra <b>DC {tirada.dificultad}</b>
+          <span className="text-texto-2"> ({bonoSalv >= 0 ? '+' : ''}{bonoSalv})</span>.
         </p>
-        <p className="text-[13px] text-texto-2 mt-1">Pídesela en la mesa y marca el resultado.</p>
+        {respuesta ? (
+          <p className={`mt-3 rounded-xl px-3 py-2 text-[15px] font-semibold ${supera ? 'bg-ok/15 text-ok' : 'bg-peligro/15 text-peligro'}`}>
+            Sacó {respuesta.total} (d20 {respuesta.d20} {respuesta.bono >= 0 ? '+' : '−'} {Math.abs(respuesta.bono)}): {supera ? 'la superó' : 'la falló'}
+          </p>
+        ) : (
+          <p className="mt-3 text-[13px] text-texto-2">Esperando la tirada del jugador… Si no está conectado, márcalo a mano.</p>
+        )}
         <div className="mt-4 space-y-2">
-          <Boton tamano="lg" onClick={() => resolver('fallo')}><Equis size={18} /> La falló: efecto completo</Boton>
-          <p className="text-[12px] font-semibold uppercase tracking-[.06em] text-texto-2 pt-2">La superó</p>
-          <div className="grid grid-cols-3 gap-2">
-            <Boton variante="tintado" onClick={() => resolver('completo')}>Completo</Boton>
-            <Boton variante="tintado" onClick={() => resolver('mitad')}>Mitad</Boton>
-            <Boton variante="tintado" onClick={() => resolver('nada')}>Nada</Boton>
-          </div>
+          {(!respuesta || !supera) && (
+            <Boton tamano="lg" variante={respuesta ? 'relleno' : 'tintado'} onClick={() => resolver('fallo')}>
+              <Equis size={18} /> {respuesta ? 'Aplicar efecto completo' : 'La falló: efecto completo'}
+            </Boton>
+          )}
+          {(!respuesta || supera) && (
+            <>
+              <p className="text-[12px] font-semibold uppercase tracking-[.06em] text-texto-2 pt-2">La superó: ¿qué le hace?</p>
+              <div className="grid grid-cols-3 gap-2">
+                <Boton variante="tintado" onClick={() => resolver('completo')}>Completo</Boton>
+                <Boton variante="tintado" onClick={() => resolver('mitad')}>Mitad</Boton>
+                <Boton variante="tintado" onClick={() => resolver('nada')}>Nada</Boton>
+              </div>
+            </>
+          )}
         </div>
       </Hoja>
     )

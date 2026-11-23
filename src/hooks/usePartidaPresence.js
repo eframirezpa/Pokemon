@@ -66,6 +66,9 @@ export function usePartidaPresence(partidaId, userInfo) {
   // pierde y hay que repetirla, que es lo de menos para algo de un segundo-.
   const [swapPropuesta, setSwapPropuesta] = useState(null) // { deClave, deNombre, deTotal, aClave, aTotal } o null
   const [swapRespuesta, setSwapRespuesta] = useState(null) // { deClave, aClave, aceptado, at }
+  // Tirada de salvación que pide el DM al jugador dueño del objetivo (etapa 5C)
+  const [salvacionPedida, setSalvacionPedida] = useState(null)       // jugador: { id, personaje_id, atributo, dc, bono, ... }
+  const [salvacionResultado, setSalvacionResultado] = useState(null) // DM: { id, d20, bono, total, at }
 
   const channelRef  = useRef(null)
   const userInfoRef = useRef(userInfo)
@@ -269,6 +272,15 @@ export function usePartidaPresence(partidaId, userInfo) {
       .on('broadcast', { event: 'iniciativa_swap_propuesta' }, ({ payload }) => {
         const miClave = `u${userInfoRef.current?.user_id}`
         if (payload?.aClave === miClave) setSwapPropuesta(payload)
+      })
+      .on('broadcast', { event: 'salvacion_pedida' }, ({ payload }) => {
+        // Solo al jugador del personaje objetivo (el suyo o el de su invocado)
+        if (payload?.personaje_id != null && String(payload.personaje_id) === String(userInfoRef.current?.personaje_id)) {
+          setSalvacionPedida(payload)
+        }
+      })
+      .on('broadcast', { event: 'salvacion_resultado' }, ({ payload }) => {
+        if (userInfoRef.current?.role === 'master') setSalvacionResultado({ ...payload, at: Date.now() })
       })
       .on('broadcast', { event: 'iniciativa_swap_respuesta' }, ({ payload }) => {
         const miClave = `u${userInfoRef.current?.user_id}`
@@ -530,11 +542,19 @@ export function usePartidaPresence(partidaId, userInfo) {
     channelRef.current?.send({ type: 'broadcast', event: 'iniciativa_swap_propuesta', payload })
   }, [])
 
+  // Salvación: el DM la pide, el jugador responde con su tirada
+  const sendSalvacionPedida = useCallback((payload) => {
+    channelRef.current?.send({ type: 'broadcast', event: 'salvacion_pedida', payload })
+  }, [])
+  const sendSalvacionResultado = useCallback((payload) => {
+    channelRef.current?.send({ type: 'broadcast', event: 'salvacion_resultado', payload })
+  }, [])
+
   // Responde una propuesta (aceptar o rechazar). paraClave es quien la mandó,
   // que es quien tiene que reaccionar a la respuesta.
   const sendSwapRespuesta = useCallback((payload) => {
     channelRef.current?.send({ type: 'broadcast', event: 'iniciativa_swap_respuesta', payload })
   }, [])
 
-  return { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, partyLocalAt, sendPartyUpdate, sendPartyUpdateTotal, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, capturaAuto, setCapturaAuto, sendCapturaAuto, capturaFx, setCapturaFx, sendCapturaFx, removePokemonLocal, iniciativa, setIniciativa, sendIniciativa, setIniciativaLocal, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta }
+  return { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, partyLocalAt, sendPartyUpdate, sendPartyUpdateTotal, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, capturaAuto, setCapturaAuto, sendCapturaAuto, capturaFx, setCapturaFx, sendCapturaFx, removePokemonLocal, iniciativa, setIniciativa, sendIniciativa, setIniciativaLocal, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta, salvacionPedida, setSalvacionPedida, sendSalvacionPedida, salvacionResultado, sendSalvacionResultado }
 }

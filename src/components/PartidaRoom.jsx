@@ -15,6 +15,7 @@ import { apiFetch } from '../api'
 import { registrarIntervencion, crearXpPendiente } from '../lib/xpMesa'
 import RepartoXpDm from './partida/RepartoXpDm'
 import AtaqueDm from './partida/AtaqueDm'
+import TiradaSalvacion from './partida/TiradaSalvacion'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import { useSalaDeJuego } from '../hooks/useSalaDeJuego'
 import Hoja from './ui/Hoja'
@@ -214,7 +215,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, partyLocalAt, sendPartyUpdate, sendPartyUpdateTotal, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, capturaAuto, setCapturaAuto, sendCapturaAuto, capturaFx, setCapturaFx, sendCapturaFx, removePokemonLocal, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta } = usePartidaPresence(id, userInfo)
+  const { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, partyLocalAt, sendPartyUpdate, sendPartyUpdateTotal, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, capturaAuto, setCapturaAuto, sendCapturaAuto, capturaFx, setCapturaFx, sendCapturaFx, removePokemonLocal, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta, salvacionPedida, setSalvacionPedida, sendSalvacionPedida, salvacionResultado, sendSalvacionResultado } = usePartidaPresence(id, userInfo)
 
   // ── Atrapar Pokémon: pokébolas del trainer, panel de lanzamiento y animación ──
   const [pokeballs, setPokeballs]   = useState([])   // items tipo pokeball con cantidad > 0
@@ -1088,7 +1089,14 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             sendAttack({ ...ataque, soloFx: true })
           }}
           onAplicado={sendPartyUpdate}
+          sendSalvacionPedida={sendSalvacionPedida} salvacionResultado={salvacionResultado}
           onCerrar={() => setAtaqueDm(null)} />
+      )}
+
+      {/* Salvación que pide el DM a este jugador */}
+      {!isMaster && salvacionPedida && (
+        <TiradaSalvacion key={salvacionPedida.id} pedida={salvacionPedida}
+          onResponder={(r) => { sendSalvacionResultado(r); setSalvacionPedida(null) }} />
       )}
 
       {confirmarSalir && (
