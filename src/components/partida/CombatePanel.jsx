@@ -8,13 +8,17 @@ import MoveInfoModal from '../MoveInfoModal'
 import TypeEffectivenessView from '../TypeEffectivenessView'
 import ItemsPanel from '../ItemsPanel'
 import BotonDado from '../dados/BotonDado'
+import DanoArmaModal from './DanoArmaModal'
+import { AvisoDesventaja } from '../dados/BotonDado'
+import { desventajaAtaque, danoMenorDeDos, velocidadAMitad, mitadVelocidad } from '../../lib/estados'
+import { esCompatible, elementoDeProyectil } from '../../lib/proyectiles'
 import WeaponPanel from '../WeaponPanel'
 import { InspiradoInfoButton } from '../InspiradoAura'
 import { EstadoTrigger } from '../EstadosControl'
 import { ICONO_REDONDO } from '../../lib/trainerCombatShared'
 import { apiFetch } from '../../api'
 import { armaFx, spriteArma } from '../../lib/armasFx'
-import { usaMunicion, dadosArma, tiradaArma, danoArma, statDeArma, GOLPE_SIN_ARMA, TIPO_GOLPE_SIN_ARMA } from '../../lib/armaDano'
+import { usaMunicion, dadosArma, statDeArma, GOLPE_SIN_ARMA, TIPO_GOLPE_SIN_ARMA } from '../../lib/armaDano'
 import ObjetivoSelector from '../ObjetivoSelector'
 
 
@@ -219,7 +223,7 @@ function AcordeonPath({ rasgos, className = '' }) {
   )
 }
 
-export function CombatePanel({ title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, onAtaque = null, onTmAprendido = null, recursosFeat = [],
+export function CombatePanel({ estados = null, title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, onAtaque = null, onTmAprendido = null, recursosFeat = [],
                        elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], getObjetivos = null, onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond, inspirado = false, onInspiradoInfo = null, onEstados = null, estadosTitle = 'Estados', partidaId = null, onCurado = null, getPresentes = null }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
@@ -257,9 +261,9 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
   // Ventana para cambiar de arma (la lista de la Mochila, sin agregar)
   const [eligiendoArma, setEligiendoArma] = useState(false)
   const [avisoArma, setAvisoArma] = useState('')
-  // Daño del arma: lo que sumaron los dados (texto, '' = sin escribir).
-  // No es obligatorio: se puede atacar sin anunciar daño.
-  const [danoValor, setDanoValor] = useState('')
+  // Ataque ya tirado que espera su daño: { total, datos, dados, tipo, mod, statKey }.
+  // El daño no es obligatorio: "Sin daño" lo anuncia igual.
+  const [danoPend, setDanoPend] = useState(null)
   // Munición: los proyectiles de la mochila. municionSel = id_personaje_equipo,
   // o 'otra' para lo que no está en el inventario (la resortera tira lo que
   // encuentre) y entonces no se descuenta nada.
@@ -311,7 +315,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
       }
       await recargarArmas()
     }
-    setArmaSel(w ? w.id_personaje_weapon : 'ninguna'); setProfManual(null); setStatManual(null); setDanoValor('')
+    setArmaSel(w ? w.id_personaje_weapon : 'ninguna'); setProfManual(null); setStatManual(null)
     setEligiendoArma(false)
   }
   const alternarEnUso = async (w) => {
@@ -346,6 +350,13 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-velo"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      {danoPend && (
+        <DanoArmaModal arma={danoPend.datos.arma} dados={danoPend.dados} tipo={danoPend.tipo} elemental={danoPend.elemental}
+          menorDeDos={danoMenorDeDos(estados)}
+          mod={danoPend.mod} statKey={danoPend.statKey} critico={danoPend.datos.critico}
+          onConfirmar={dano => { onAtaque?.(danoPend.total, { ...danoPend.datos, dano }); setDanoPend(null) }}
+          onOmitir={() => { onAtaque?.(danoPend.total, { ...danoPend.datos, dano: null }); setDanoPend(null) }} />
+      )}
       {/* max-h + scroll: en pantallas bajas el panel se recortaba por abajo */}
       <div ref={panelRef} className={`animate-hoja bg-fondo text-texto rounded-t-hoja sm:rounded-hoja p-4 shadow-hoja max-h-[90dvh] overflow-y-auto w-full ${(moves && moves.length > 0) || recursos ? 'sm:w-[26rem]' : 'sm:w-72'}`}>
         <div className="flex items-center justify-between mb-2">
@@ -488,10 +499,14 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                 único los nombres no caben sin recortarse. */}
             {(v.speeds || []).length > 0 && (
               <div className="mt-2 space-y-1">
+                {/* Paralizado: se mueve a la mitad (solo se muestra así; la ficha no cambia) */}
                 {v.speeds.map(([nombre, valor]) => (
-                  <div key={nombre} className="flex items-center justify-between gap-2 bg-superficie rounded-lg px-2 py-1 min-w-0">
+                  <div key={nombre} className="flex items-center justify-between gap-2 bg-superficie rounded-lg px-2 py-1 min-w-0"
+                    title={velocidadAMitad(estados) ? `Paralizado: a la mitad (normal ${valor})` : undefined}>
                     <span className="text-[10px] font-black text-texto-2 uppercase truncate">{nombre}</span>
-                    <span className="text-[10px] font-black text-white shrink-0">{valor}</span>
+                    {velocidadAMitad(estados)
+                      ? <span className="text-[10px] font-black text-amber-300 shrink-0">⚡ {mitadVelocidad(valor)}</span>
+                      : <span className="text-[10px] font-black text-white shrink-0">{valor}</span>}
                   </div>
                 ))}
               </div>
@@ -921,13 +936,13 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                 // Sin arma: 1 + STR, bludgeoning, sin dados (no hay crítico que doblar)
                 const dadosArmaSel = armaElegida ? dadosArma(armaElegida) : GOLPE_SIN_ARMA
                 const tipoDano = armaElegida ? armaElegida.weapon_type_damage_type : TIPO_GOLPE_SIN_ARMA
-                const tiradaDano = tiradaArma(dadosArmaSel, critico)
-                const danoCalc = danoArma(dadosArmaSel, { valor: danoValor, mod: modStat, critico })
-                const dano = danoCalc ? { ...danoCalc, tipo: tipoDano || null } : null
-                const danoFuera = !!tiradaDano && danoValor !== '' && !dano
                 // Munición elegida; por defecto el primer proyectil de la mochila
+                // Solo los proyectiles que dispara esta arma (flechas → arcos…)
+                const municionesArma = municiones.filter(m => esCompatible(m, armaElegida))
                 const municionElegida = municionSel === 'otra' ? null
-                  : (municiones.find(m => m.id_personaje_equipo === municionSel) || municiones[0] || null)
+                  : (municionesArma.find(m => m.id_personaje_equipo === municionSel) || municionesArma[0] || null)
+                // Proyectil elemental: conserva el daño del arma y cambia su tipo
+                const elementoMunicion = usaMunicion(armaElegida) ? elementoDeProyectil(municionElegida) : null
                 return (
                   <div className="mt-4 border-t border-separador pt-4">
                     {/* El lado derecho va en su propio grupo: si no cabe, la fila
@@ -967,6 +982,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                           critico ? 'border-tinte/60' : 'border-separador'}`} />
                       {/* Solo el d20: el resto lo suma la fórmula */}
                       <BotonDado notacion="1d20" usar="dado" etiqueta="Ataque" className="w-9 h-9 rounded-xl"
+                        modo={desventajaAtaque(estados) ? 'desventaja' : null} motivo={desventajaAtaque(estados)}
                         onResultado={v => setDado(String(v))} />
 
                       <span className="text-texto-2 font-black shrink-0 text-xs">+</span>
@@ -1053,6 +1069,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                         ¡Golpe crítico!
                       </p>
                     )}
+                    {onAtaque && <AvisoDesventaja motivo={desventajaAtaque(estados)} texto="Ataque con desventaja" className="mt-2" />}
 
                     {/* Atacar cierra la fórmula y lo anuncia a la partida. Pide el
                         dado: sin tirada no hay ataque, y un 'poder de 0' en el
@@ -1064,7 +1081,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                           const activa = a ? armaElegida?.id_personaje_weapon === a.id_personaje_weapon : !armaElegida
                           return (
                             <button key={a ? a.id_personaje_weapon : 'ninguna'}
-                              onClick={() => { setArmaSel(a ? a.id_personaje_weapon : 'ninguna'); setProfManual(null); setStatManual(null); setDanoValor('') }}
+                              onClick={() => { setArmaSel(a ? a.id_personaje_weapon : 'ninguna'); setProfManual(null); setStatManual(null) }}
                               className={`flex items-center gap-1 rounded-lg pl-1 pr-2 py-0.5 text-[11px] font-bold transition-colors ${
                                 activa ? 'bg-tinte/15 ring-1 ring-tinte/60 text-tinte' : 'bg-superficie text-texto hover:bg-relleno-2'}`}>
                               <img src={spriteArma(armaFx(a).sprite)} alt="" className="w-5 h-5" />
@@ -1127,61 +1144,12 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                       </div>
                     )}
 
-                    {/* Daño del arma: sus dados más el mismo stat del ataque. En
-                        un crítico se tiran el doble de dados; en una pifia no
-                        hay daño. No hace falta llenarlo para atacar. */}
-                    {onAtaque && dadosArmaSel && n20 !== 1 && (
-                      <div className="mt-3 border-t border-separador pt-3">
-                        <p className="text-center text-[10px] font-black uppercase tracking-widest text-texto-2 mb-1.5">
-                          Daño{tipoDano ? ` · ${tipoDano}` : ''}{critico && tiradaDano ? ' · doble de dados' : ''}{!armaElegida ? ' · sin arma: 1 + STR' : ''}
-                        </p>
-                        <div className="flex items-center justify-center gap-0.5 flex-wrap">
-                          <div className={`w-11 h-9 rounded-xl border-2 flex items-center justify-center font-black text-base tabular-nums
-                                          ${dano ? 'border-peligro/70 text-peligro' : 'border-separador text-texto-2'}`}>
-                            {dano ? dano.total : '—'}
-                          </div>
-                          <span className="text-texto-2 font-black shrink-0 text-xs">=</span>
-                          {tiradaDano ? (
-                            <>
-                              <input type="number" value={danoValor} onChange={e => setDanoValor(e.target.value)}
-                                placeholder={tiradaDano.notacion}
-                                title={`Entre ${tiradaDano.min} y ${tiradaDano.max}`}
-                                className={`shrink-0 w-12 h-9 text-center rounded-xl border-2 bg-superficie font-black tabular-nums
-                                            text-white placeholder:text-texto-2 placeholder:font-bold placeholder:text-xs
-                                            focus:outline-none focus:ring-2 focus:ring-red-400/60 ${
-                                  danoFuera ? 'border-acento' : critico ? 'border-tinte/60' : 'border-separador'}`} />
-                              <BotonDado notacion={tiradaDano.notacion} usar="dado" className="w-9 h-9 rounded-xl"
-                                etiqueta={`Daño${armaElegida ? ` de ${armaElegida.weapon_type_name}` : ''}`}
-                                onResultado={v => setDanoValor(String(v))} />
-                            </>
-                          ) : (
-                            <span className="shrink-0 h-9 px-3 rounded-xl border-2 border-separador flex items-center font-black text-white tabular-nums">
-                              {dadosArmaSel.valor}
-                            </span>
-                          )}
-                          <span className="text-texto-2 font-black shrink-0 text-xs">+</span>
-                          <span className={`shrink-0 h-9 min-w-[2rem] px-0.5 rounded-xl border-2 font-black tabular-nums
-                                            flex items-center justify-center ${
-                            statSel ? `bg-sky-500/15 border-sky-500/60 ${modStat < 0 ? 'text-tinte' : 'text-sky-200'}`
-                                    : 'bg-superficie border-separador border-dashed text-texto text-xs'}`}
-                            title={statSel ? `Modificador de ${statSel.key}` : 'Elige el stat arriba'}>
-                            {statSel ? signo(modStat) : '—'}
-                          </span>
-                        </div>
-                        {danoFuera && (
-                          <p className="mt-1 text-center text-[11px] text-tinte font-medium">
-                            Con {tiradaDano.notacion} sale entre {tiradaDano.min} y {tiradaDano.max}.
-                          </p>
-                        )}
-                      </div>
-                    )}
-
                     {/* Munición: solo armas con Ammunition. Opcional: "Otra"
                         no descuenta nada (piedras, lo que haya a mano). */}
                     {onAtaque && usaMunicion(armaElegida) && (
                       <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
                         <span className="text-[10px] font-black uppercase tracking-widest text-texto-2">Munición</span>
-                        {[...municiones, null].map(m => {
+                        {[...municionesArma, null].map(m => {
                           const clave = m ? m.id_personaje_equipo : 'otra'
                           const activa = municionElegida ? municionElegida.id_personaje_equipo === clave : clave === 'otra'
                           return (
@@ -1190,6 +1158,7 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
                                 activa ? 'bg-tinte/15 ring-1 ring-tinte/60 text-tinte' : 'bg-superficie text-texto hover:bg-relleno-2'}`}>
                               {m?.item_media_sprite && <img src={m.item_media_sprite} alt="" className="w-4 h-4 object-contain" />}
                               {m ? `${m.item_name} ×${m.cantidad}` : 'Otra (no descuenta)'}
+                              {elementoDeProyectil(m) && <span className="text-[9px] font-black uppercase opacity-70">· tipo {elementoDeProyectil(m)}</span>}
                             </button>
                           )
                         })}
@@ -1204,19 +1173,20 @@ export function CombatePanel({ title, switchSprite = null, switchLabel = '', onS
 
                     {onAtaque && (
                       <button onClick={() => {
-                          onAtaque(total, {
-                            critico, arma: armaElegida, pifia: n20 === 1, objetivo,
-                            dano: n20 === 1 ? null : dano,
-                            municion: usaMunicion(armaElegida) ? municionElegida : null,
-                          })
+                          const municion = usaMunicion(armaElegida) ? municionElegida : null
+                          const datos = { critico, arma: armaElegida, pifia: n20 === 1, objetivo, municion }
                           // La munición gastada sale de la lista de inmediato
-                          if (usaMunicion(armaElegida) && municionElegida) {
-                            setMuniciones(ms => ms.map(m => m.id_personaje_equipo === municionElegida.id_personaje_equipo
+                          if (municion) {
+                            setMuniciones(ms => ms.map(m => m.id_personaje_equipo === municion.id_personaje_equipo
                               ? { ...m, cantidad: Number(m.cantidad) - 1 } : m).filter(m => Number(m.cantidad) > 0))
                           }
-                          setDanoValor('')
                           setObjetivo(null)
                           setVerFormula(null)
+                          // Como los movimientos: primero el ataque y después, en su
+                          // propia ventana, el daño. Una pifia o un arma sin daño
+                          // propio (la red) se anuncian directo.
+                          if (n20 === 1 || !dadosArmaSel) { onAtaque(total, { ...datos, dano: null }); return }
+                          setDanoPend({ total, datos, dados: dadosArmaSel, tipo: elementoMunicion || tipoDano || null, elemental: !!elementoMunicion, mod: modStat, statKey: statSel?.key || null })
                         }}
                         disabled={dado === '' || !objetivo}
                         title={dado === '' ? 'Escribe primero el resultado del d20'

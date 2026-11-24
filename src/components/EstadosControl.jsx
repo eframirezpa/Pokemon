@@ -1,5 +1,8 @@
-import { X } from 'lucide-react'
-import { ESTADOS, leerEstados } from '../lib/estados'
+import { useState } from 'react'
+import Hoja from './ui/Hoja'
+import Boton from './ui/Boton'
+import { textoSobreColor } from '../lib/partidaShared'
+import { ESTADOS, leerEstados, clavesEstados, alternarEstado, enGracia } from '../lib/estados'
 
 /**
  * Los estados de alguien, en pequeño y de solo lectura (party, tarjetas).
@@ -50,8 +53,8 @@ export function EstadosChips({ estados, size = 'normal', iconPx }) {
 export function EstadoTrigger({ size = 22, onClick, title = 'Estados' }) {
   return (
     <button onClick={onClick} title={title}
-      className="flex items-center justify-center rounded-full bg-gray-800/90 border border-gray-600
-                 hover:border-amber-400 hover:bg-gray-700 transition-colors shrink-0 text-yellow-400"
+      className="flex items-center justify-center rounded-full bg-relleno border border-separador
+                 hover:border-tinte hover:bg-relleno-2 transition-colors shrink-0 text-amber-400"
       style={{ width: size, height: size, fontSize: Math.round(size * 0.62), lineHeight: 1 }}>
       ☣
     </button>
@@ -59,59 +62,94 @@ export function EstadoTrigger({ size = 22, onClick, title = 'Estados' }) {
 }
 
 /**
- * Botonera para ponerse y quitarse el estado. Un ser vivo tiene un solo estado
- * a la vez: elegir otro reemplaza al que tenía, pulsar el que ya tiene lo
- * quita y "Ninguno" lo limpia. No hay guardar: en mesa el estado cambia a
- * mitad de un turno y nadie va a confirmar un formulario para decir que se quemó.
+ * Botonera para poner y quitar estados. Puede tener uno no volátil y uno
+ * volátil (Confuso, Retroceso) a la vez: elegir otro de la misma clase
+ * reemplaza al que tenía, pulsar el que ya tiene lo quita y "Ninguno" limpia
+ * todo. No hay guardar: en mesa el estado cambia a mitad de un turno.
+ *
+ * inmunes: no se pueden poner por su tipo · meta: sus datos (periodo de
+ * gracia: recién curado, no puede volver a sufrirlo todavía).
+ * Congelado pide el DC para liberarse (dcSugerido de entrada).
+ * onChange(lista, { dc })
+ *
+ * Mismo aspecto que las cápsulas de filtro (ui/Pagina): redondas, en relleno,
+ * y la activa con el color del estado.
  */
-export default function EstadosControl({ estados, onChange, disabled = false }) {
-  // Si quedaron varios de antes, cuenta el primero
-  const actual = leerEstados(estados)[0]?.clave ?? null
+export default function EstadosControl({ estados, meta = null, onChange, disabled = false, inmunes = [], dcSugerido = 12 }) {
+  const actuales = clavesEstados(estados)
+  const [pidiendoDc, setPidiendoDc] = useState(false)
+  const [dc, setDc] = useState(String(dcSugerido))
 
   const elegir = (clave) => {
     if (disabled) return
-    onChange?.(clave && clave !== actual ? [clave] : [])
+    if (clave === 'congelado' && !actuales.includes('congelado')) { setPidiendoDc(true); return }
+    setPidiendoDc(false)
+    onChange?.(clave ? alternarEstado(actuales, clave) : [], {})
   }
 
-  return (
-    <div className="flex flex-wrap gap-1">
-      <button onClick={() => elegir(null)} disabled={disabled} title="Sin estado"
-        className={`flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[10px] font-bold transition-colors disabled:opacity-40 ${
-          actual ? 'border-gray-600 text-gray-400 hover:text-gray-200 hover:border-gray-500'
-                 : 'border-gray-300 bg-gray-200/15 text-white'}`}>
-        <span aria-hidden>⊘</span> Ninguno
+  const capsula = 'shrink-0 h-[30px] px-3 rounded-full text-[13px] inline-flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+  const grupo = (volatil) => ESTADOS.filter(e => !!e.volatil === volatil).map(e => {
+    const on = actuales.includes(e.clave)
+    const inmune = inmunes.includes(e.clave) && !on
+    const gracia = !on && enGracia(meta, e.clave)
+    return (
+      <button key={e.clave} type="button" onClick={() => elegir(e.clave)} disabled={disabled || inmune || gracia} aria-pressed={on}
+        title={inmune ? `Inmune a ${e.label.toLowerCase()} por su tipo`
+          : gracia ? 'Se acaba de recuperar: no puede volver a sufrirlo hasta el final de su siguiente turno'
+          : on ? `Quitar ${e.label.toLowerCase()}` : e.label}
+        style={on ? { backgroundColor: e.color, color: textoSobreColor(e.color) } : undefined}
+        className={`${capsula} ${on ? 'font-semibold' : 'font-medium bg-relleno text-texto hover:bg-relleno-2'} ${inmune ? 'line-through' : ''}`}>
+        <span aria-hidden>{e.icono}</span>{e.label}{gracia && <span aria-hidden>⏳</span>}
       </button>
-      {ESTADOS.map(e => {
-        const on = actual === e.clave
-        return (
-          <button key={e.clave} onClick={() => elegir(e.clave)} disabled={disabled}
-            title={on ? `Quitar ${e.label.toLowerCase()}` : actual ? `Cambiar a ${e.label.toLowerCase()}` : e.label}
-            className={`flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[10px] font-bold
-                        transition-colors disabled:opacity-40 ${on ? '' : 'border-gray-600 text-gray-400 hover:text-gray-200 hover:border-gray-500'}`}
-            style={on ? { color: e.color, borderColor: `${e.color}99`, backgroundColor: `${e.color}26` } : undefined}>
-            <span aria-hidden>{e.icono}</span> {e.label}
+    )
+  })
+  const titulo = 'text-[12px] font-semibold uppercase tracking-[.06em] text-texto-2 mb-1.5'
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className={titulo}>Estado</p>
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={() => elegir(null)} disabled={disabled} aria-pressed={!actuales.length} title="Sin estados"
+            className={`${capsula} ${actuales.length ? 'font-medium bg-relleno text-texto hover:bg-relleno-2' : 'font-semibold bg-acento text-white'}`}>
+            Ninguno
           </button>
-        )
-      })}
+          {grupo(false)}
+        </div>
+      </div>
+      <div>
+        <p className={titulo}>Volátil <span className="normal-case tracking-normal font-normal">· se suma al de arriba</span></p>
+        <div className="flex flex-wrap gap-1.5">{grupo(true)}</div>
+      </div>
+      {pidiendoDc && (
+        <div className="rounded-xl bg-superficie px-3 py-2.5 space-y-2">
+          <p className="text-[15px] font-semibold">❄️ Congelado</p>
+          <label className="flex items-center justify-between gap-3 text-[13px] text-texto-2">
+            DC para liberarse (10 + proficiencia de quien lo congeló)
+            <input type="number" min={1} max={40} inputMode="numeric" value={dc} onChange={e => setDc(e.target.value)} aria-label="DC de Congelado"
+              className="w-16 h-9 rounded-lg bg-relleno text-center text-[15px] font-semibold tabular-nums text-texto focus:outline-none focus:ring-2 focus:ring-tinte/50" />
+          </label>
+          <div className="flex justify-end gap-2">
+            <Boton variante="tintado" onClick={() => setPidiendoDc(false)}>Cancelar</Boton>
+            <Boton onClick={() => { setPidiendoDc(false); onChange?.(alternarEstado(actuales, 'congelado'), { dc: Number(dc) || 12 }) }}>Congelar</Boton>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-/** El selector en un popup, para abrirlo desde la carita junto al avatar. */
-export function EstadosPopup({ titulo, estados, onChange, onClose }) {
+/** El selector en una ventana como las demás (Hoja), para abrirlo desde ☣. */
+export function EstadosPopup({ titulo, estados, meta = null, onChange, onClose, inmunes = [], nota = null, dcSugerido = 12 }) {
   return (
-    <div className="fixed inset-0 z-[95] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-700 flex items-center justify-between">
-          <h3 className="font-bold text-white text-sm">{titulo}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={18} /></button>
-        </div>
-        <div className="px-5 py-4">
-          <EstadosControl estados={estados} onChange={onChange} />
-        </div>
-      </div>
-    </div>
+    <Hoja titulo={titulo} onClose={onClose} ancho="sm:max-w-md" z="z-[95]"
+      pie={<div className="flex items-center justify-between gap-3">
+        <p className="text-[12px] text-texto-2">Los cambios se guardan al tocarlos.</p>
+        <Boton onClick={onClose}>Listo</Boton>
+      </div>}>
+      <EstadosControl estados={estados} meta={meta} onChange={onChange} inmunes={inmunes} dcSugerido={dcSugerido} />
+      {nota && <p className="mt-3 text-[12px] text-texto-2">{nota}</p>}
+    </Hoja>
   )
 }
 

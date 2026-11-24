@@ -14,6 +14,7 @@ import EvolucionModal from './EvolucionModal'
 import AvisoAprobacionDm from './AvisoAprobacionDm'
 import EntrenarFeatPokemon from './EntrenarFeatPokemon'
 import { TypeBadge as TypeBadgeBase } from './partida/TypeBadge'
+import { velocidadAMitad, mitadVelocidad } from '../lib/estados'
 
 // Lo mismo que responde el back cuando el jugador no está en un centro Pokémon
 const NARRATIVA = 'La narrativa no permite hacer esto en este momento.'
@@ -72,7 +73,8 @@ function MoveRow({ m, onClick, pasiva = false }) {
 // ── Detalle de un Pokémon (tipo pokédex, datos persistidos) ──
 // Exportado para reutilizarlo fuera del cinturón/computador (p. ej. party del master).
 // `endpoint` permite apuntar a otra fuente (p. ej. /master/pokemon/:idmp).
-export function PokemonDetailView({ personajeId, idpp, endpoint, master = false, onBack, actionLabel, onAction, onInvoke }) {
+// estados: los del ejemplar en mesa (Paralizado muestra la velocidad a la mitad)
+export function PokemonDetailView({ personajeId, idpp, endpoint, master = false, onBack, actionLabel, onAction, onInvoke, estados = null }) {
   const [d, setD] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -137,9 +139,11 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
   const genero = d.personaje_pokemon_genero
   const mainImg = (d.pokemon_is_shiny && d.pokemon_media_main_shiny) ? d.pokemon_media_main_shiny
     : (d.pokemon_media_main || d.pokemon_media_sprite)
+  const aMitad = velocidadAMitad(estados)
   const speeds = [1, 2, 3, 4]
-    .map(i => d[`personaje_pokemon_speed${i}_name`] && `${d[`personaje_pokemon_speed${i}_value`]} ${d[`personaje_pokemon_speed${i}_name`]}`)
+    .map(i => d[`personaje_pokemon_speed${i}_name`] && `${aMitad ? mitadVelocidad(d[`personaje_pokemon_speed${i}_value`]) : d[`personaje_pokemon_speed${i}_value`]} ${d[`personaje_pokemon_speed${i}_name`]}`)
     .filter(Boolean).join(' · ')
+  const speedsTexto = speeds && aMitad ? `${speeds} (⚡ paralizado: a la mitad)` : speeds
 
   const skills = d.skills || []
   const half = Math.ceil(skills.length / 2)
@@ -248,7 +252,7 @@ export function PokemonDetailView({ personajeId, idpp, endpoint, master = false,
               <p><span className="font-bold text-tinte">Hit Dice Pool</span> {d.pokemon_hit_dice_left ?? 0}/{d.hit_dice_pool ?? 0}</p>
               <p><span className="font-bold text-tinte">Experiencia</span> {(d.pokemon_experiencia ?? 0).toLocaleString()}
                 {d.exp_next != null ? `/${d.exp_next.toLocaleString()}` : ' · Máx'}</p>
-              {speeds && <p><span className="font-bold text-tinte">Velocidad</span> {speeds}</p>}
+              {speedsTexto && <p><span className="font-bold text-tinte">Velocidad</span> {speedsTexto}</p>}
             </div>
             <div className="px-4 py-2 flex justify-around">
               {[['STR', 'str'], ['DEX', 'dex'], ['CON', 'con'], ['INT', 'int'], ['WIS', 'wis'], ['CHA', 'cha']].map(([lbl, k]) => {

@@ -11,8 +11,12 @@ import { getEffectivenessRows, effectivenessByNames, typeNamesByIds } from '../.
 import { construirSkillsTrainer, statModPokemon } from '../../lib/trainerStats'
 import { acDelTrainer } from '../../lib/trainerCombatShared'
 import { hpValues } from '../../lib/hp'
+import { clavesEstados, cambiarEstados, desventajaAtaque, desventajaSalvacion, danoMenorDeDos, alternarEstado, esVolatil, enGracia, estadosInmunes, etiquetaEstado, leerEstados, ESTADOS } from '../../lib/estados'
+import { estadoDeMovimiento } from '../../lib/estadoMovimiento'
 
 const STATS = ['str', 'dex', 'con', 'int', 'wis', 'cha']
+// Id de cada salvación pedida: su respuesta trae el mismo
+const nuevoIdSalvacion = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 
 /**
  * Ataque de un Pokémon del DM contra un jugador (plan-xp-y-mesa, etapa 5).
@@ -64,13 +68,15 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
     const c = (party || []).find(x => String(x.id_personaje) === k)
     if (!c) continue
     objetivos.push({ clave: `t-${k}`, tipo: 'trainer', id_personaje: c.id_personaje, nombre: c.nombre_personaje,
-      sprite: p.avatar_face_url || null, hp: c.personaje_current_hp ?? c.personaje_hp, hpMax: c.personaje_hp })
+      sprite: p.avatar_face_url || null, hp: c.personaje_current_hp ?? c.personaje_hp, hpMax: c.personaje_hp,
+      estados: c.personaje_estados || null, estadosMeta: c.personaje_estados_meta || null })
     const inv = k in invocados ? invocados[k] : p.pokemon_invocado
     const pk = inv != null ? (c.pokemons || []).find(x => String(x.id_personaje_pokemon) === String(inv)) : null
     if (pk) objetivos.push({ clave: `p-${pk.id_personaje_pokemon}`, tipo: 'pokemon', id_personaje: c.id_personaje,
       id_personaje_pokemon: pk.id_personaje_pokemon, nombre: pk.pokemon_apodo, dueno: c.nombre_personaje,
       sprite: (pk.pokemon_is_shiny && pk.pokemon_media_sprite_shiny) || pk.pokemon_media_sprite || pk.pokemon_media_main,
-      hp: pk.pokemon_current_hp ?? pk.pokemon_hp, hpMax: pk.pokemon_hp })
+      hp: pk.pokemon_current_hp ?? pk.pokemon_hp, hpMax: pk.pokemon_hp,
+      estados: pk.personaje_pokemon_estados || null, estadosMeta: pk.personaje_pokemon_estados_meta || null })
   }
 
   // AC, tipos y salvaciones del objetivo elegido: de su ficha, con las mismas
@@ -108,8 +114,43 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
     sprite: atacante.sprite, talla: atacante.talla, objetivo: contra, ...extra,
   })
 
-  // Resta la vida del objetivo y avisa a la mesa
-  const aplicar = async (dano, detalle) => {
+  // ── Estado que causa el movimiento (lib/estadoMovimiento.js) ──
+  // Directo: al acertar (solo ataque) o al fallar la salvación (solo salvación).
+  // Con ataque y salvación: al acertar se pide la salvación para el efecto.
+  const estadoMov = estadoDeMovimiento(move)
+  const modoEstado = (acerto, salv) => {
+    if (!estadoMov) return null
+    if (tieneAtaque) {
+      if (!acerto) return null
+      return move.move_save_attribute && tirada?.dificultad != null ? 'salvacion' : 'directo'
+    }
+    return salv === 'fallo' || salv === 'completo' ? 'directo' : null
+  }
+  // Le pone el estado al objetivo (o explica por qué no) y devuelve el texto para el registro
+  const ponerEstado = async () => {
+    if (!estadoMov) return ''
+    const e = ESTADOS.find(x => x.clave === estadoMov.estado)
+    const nombreE = etiquetaEstado(estadoMov.estado).toLowerCase()
+    if (!estadoMov.auto) return ` · ${nombreE}: revísalo a mano (${estadoMov.motivo})`
+    const cs = clavesEstados(objetivo.estados)
+    if (estadosInmunes(objetivo.tipos || []).includes(estadoMov.estado)) return ` · es inmune a ${nombreE} por su tipo`
+    if (cs.includes(estadoMov.estado)) return ` · ya estaba ${nombreE}`
+    if (enGracia(objetivo.estadosMeta, estadoMov.estado)) return ` · se acaba de recuperar: todavía no puede quedar ${nombreE}`
+    const nvActual = leerEstados(objetivo.estados).find(x => !esVolatil(x.clave))
+    if (!esVolatil(estadoMov.estado) && nvActual) return ` · ya está ${nvActual.label.toLowerCase()}: no puede quedar ${nombreE}`
+    // Congelado: DC 10 + la proficiencia de quien lo congela
+    const r = cambiarEstados({ claves: cs, meta: objetivo.estadosMeta }, alternarEstado(cs, estadoMov.estado), { dc: 10 + prof })
+    const url = objetivo.tipo === 'trainer'
+      ? `/personaje/${objetivo.id_personaje}/estados`
+      : `/personaje/${objetivo.id_personaje}/pokemon/${objetivo.id_personaje_pokemon}/estados`
+    const ok = await apiFetch(url, { method: 'PATCH', body: JSON.stringify({ estados: r.claves, meta: r.meta }) }).then(x => x.ok).catch(() => false)
+    if (!ok) return ` · no se pudo poner ${nombreE}: ponlo a mano`
+    return ` · queda ${nombreE} ${e?.icono || ''}${estadoMov.estado === 'congelado' ? ` (DC ${10 + prof} para liberarse)` : ''}`
+  }
+  const [salvEstado, setSalvEstado] = useState(false) // pidiendo la salvación del efecto
+
+  // Resta la vida del objetivo y avisa a la mesa. modo: lo que pasa con el estado
+  const aplicar = async (dano, detalle, modo = null) => {
     const cur = Number(objetivo.hp) || 0
     const nuevo = Math.max(0, cur - dano)
     const url = objetivo.tipo === 'trainer'
@@ -117,10 +158,35 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
       : `/personaje/${objetivo.id_personaje}/pokemon/${objetivo.id_personaje_pokemon}/combate`
     // Con "Daño automático" apagado se anuncia igual, pero la vida no se toca
     if (restarVida && dano > 0) await apiFetch(url, { method: 'PATCH', body: JSON.stringify({ current_hp: nuevo }) }).catch(() => {})
-    const textoDano = dano <= 0 ? 'sin daño' : restarVida ? `${dano} de daño (vida ${cur} → ${nuevo})` : `${dano} de daño`
+    // Congelado termina si recibe daño de Fuego
+    let deshielo = ''
+    if (dano > 0 && move.move_type === 'Fire' && clavesEstados(objetivo.estados).includes('congelado')) {
+      const r = cambiarEstados({ claves: objetivo.estados, meta: objetivo.estadosMeta }, clavesEstados(objetivo.estados).filter(c => c !== 'congelado'))
+      const urlEst = objetivo.tipo === 'trainer'
+        ? `/personaje/${objetivo.id_personaje}/estados`
+        : `/personaje/${objetivo.id_personaje}/pokemon/${objetivo.id_personaje_pokemon}/estados`
+      await apiFetch(urlEst, { method: 'PATCH', body: JSON.stringify({ estados: r.claves, meta: r.meta }) }).catch(() => {})
+      deshielo = ' · el fuego lo descongela'
+    }
+    const estadoTxt = modo === 'directo' ? await ponerEstado() : ''
+    const textoDano = (dano <= 0 ? 'sin daño' : restarVida ? `${dano} de daño (vida ${cur} → ${nuevo})` : `${dano} de daño`) + deshielo + estadoTxt
     anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}: ${detalle} · ${textoDano}`,
       { dano, critico: !!tirada?.critico })
     onAplicado?.()
+    if (modo === 'salvacion') { pedirSalvacion(tirada.dificultad); setSalvEstado(true); setPaso('salvEstado'); return }
+    onCerrar()
+  }
+
+  // Sin daño: solo el estado (o la salvación para él) y la línea del registro
+  // dc: el de la tirada recién hecha (el estado `tirada` todavía no se actualizó)
+  const soloEfecto = async (texto, modo, extra = {}, dc = tirada?.dificultad) => {
+    if (modo === 'salvacion') {
+      anunciar(texto, extra)
+      pedirSalvacion(dc); setSalvEstado(true); setPaso('salvEstado'); return
+    }
+    const estadoTxt = modo === 'directo' ? await ponerEstado() : ''
+    anunciar(`${texto}${estadoTxt}`, extra)
+    if (estadoTxt) onAplicado?.()
     onCerrar()
   }
 
@@ -147,10 +213,12 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
     return sv ? (Number(sv.mod) || 0) + (sv.prof ? (objetivo.prof || 2) : 0) : 0
   })()
   const pedirSalvacion = (dc) => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const id = nuevoIdSalvacion()
     setIdSalvacion(id)
     sendSalvacionPedida?.({ id, personaje_id: objetivo.id_personaje, objetivo: contra, atacante: nombreAtacante,
-      move: move.move_name, atributo: atributoSalv, dc, bono: bonoSalv })
+      move: move.move_name, atributo: atributoSalv, dc, bono: bonoSalv,
+      // Sus estados le dan desventaja (Dormido, Retroceso; Paralizado en STR/DEX)
+      desventaja: desventajaSalvacion(objetivo.estados, atributoSalv) })
   }
   const respuesta = salvacionResultado && salvacionResultado.id === idSalvacion ? salvacionResultado : null
   const textoTiradaSalv = respuesta ? ` (sacó ${respuesta.total}: d20 ${respuesta.d20} ${respuesta.bono >= 0 ? '+' : '−'} ${Math.abs(respuesta.bono)})` : ''
@@ -164,8 +232,9 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
       onCerrar(); return
     }
     if (!tieneDano(move) || esCuracion(move)) {
-      anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}: acertó (ataque ${ataque} vs AC ${ac})${dificultad != null ? ` · salvación de ${move.move_save_attribute} DC ${dificultad} para su efecto` : ''}`, { ataque, critico })
-      onCerrar(); return
+      const modo = estadoMov ? (move.move_save_attribute && dificultad != null ? 'salvacion' : 'directo') : null
+      soloEfecto(`${nombreAtacante} usó ${move.move_name} contra ${contra}: acertó (ataque ${ataque} vs AC ${ac})${dificultad != null && !modo ? ` · salvación de ${move.move_save_attribute} DC ${dificultad} para su efecto` : ''}`, modo, { ataque, critico }, dificultad)
+      return
     }
     setPaso('dano')
   }
@@ -188,6 +257,7 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
   if (paso === 'formula' && datosAtacante) {
     return (
       <FormulaAtaqueModal move={move} prof={prof} stats={stats} bonoRuta={{ total: 0, detalle: [] }}
+        desventaja={desventajaAtaque(atacante.estados)}
         onClose={onCerrar} onAtacar={trasFormula} />
     )
   }
@@ -195,6 +265,7 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
   if (paso === 'dano') {
     return (
       <DanoMoveModal move={move} nivel={atacante.level} stats={stats} critico={!!tirada?.critico} power={tirada?.power}
+        menorDeDos={danoMenorDeDos(atacante.estados)}
         stab={stab} objetivo={contra} relacion={relacion}
         onOmitir={onCerrar}
         onConfirmar={(r) => {
@@ -205,8 +276,39 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
             salvacion ? (salvacion === 'fallo' ? `falló la salvación de ${atributoSalv}${textoTiradaSalv}` : `superó la salvación${textoTiradaSalv} (${salvacion === 'completo' ? 'daño completo' : salvacion})`) : null,
             etiquetaRelacion(relacion) ? `${etiquetaRelacion(relacion)} ${cuentaRelacion(relacion)}` : null,
           ].filter(Boolean).join(' · ')
-          aplicar(final, partes)
+          aplicar(final, partes, modoEstado(true, salvacion))
         }} />
+    )
+  }
+
+  // Acertó un movimiento con ataque y salvación: la salvación decide el estado
+  if (paso === 'salvEstado' && salvEstado) {
+    const supera = respuesta ? respuesta.total >= Number(tirada.dificultad) : null
+    const nombreE = etiquetaEstado(estadoMov.estado).toLowerCase()
+    const cerrarCon = async (fallo) => {
+      const estadoTxt = fallo ? await ponerEstado() : ' · no le afecta'
+      anunciar(`${contra} ${fallo ? 'falló' : 'superó'} la salvación de ${atributoSalv} contra ${move.move_name} (DC ${tirada.dificultad})${textoTiradaSalv}${estadoTxt}`)
+      if (fallo) onAplicado?.()
+      onCerrar()
+    }
+    return (
+      <Hoja titulo="Salvación por el efecto" z="z-[126]" ancho="sm:max-w-sm" onClose={onCerrar}>
+        <p className="text-[15px]">
+          <b>{move.move_name}</b> acertó. Para no quedar <b>{nombreE}</b>, <b>{contra}</b> tira salvación de <b>{atributoSalv}</b> contra <b>DC {tirada.dificultad}</b>
+          <span className="text-texto-2"> ({bonoSalv >= 0 ? '+' : ''}{bonoSalv})</span>.
+        </p>
+        {respuesta ? (
+          <p className={`mt-3 rounded-xl px-3 py-2 text-[15px] font-semibold ${supera ? 'bg-ok/15 text-ok' : 'bg-peligro/15 text-peligro'}`}>
+            Sacó {respuesta.total} (d20 {respuesta.d20} {respuesta.bono >= 0 ? '+' : '−'} {Math.abs(respuesta.bono)}): {supera ? 'la superó' : 'la falló'}
+          </p>
+        ) : (
+          <p className="mt-3 text-[13px] text-texto-2">Esperando la tirada del jugador… Si no está conectado, márcalo a mano.</p>
+        )}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Boton variante={respuesta && !supera ? 'relleno' : 'tintado'} onClick={() => cerrarCon(true)}><Equis size={16} /> La falló</Boton>
+          <Boton variante={respuesta && supera ? 'relleno' : 'tintado'} onClick={() => cerrarCon(false)}><Check size={16} /> La superó</Boton>
+        </div>
+      </Hoja>
     )
   }
 
@@ -214,8 +316,9 @@ export default function AtaqueDm({ partidaId, atacante, move, presentes = [], in
     const resolver = (s) => {
       setSalvacion(s)
       if (s === 'nada' || !tieneDano(move) || esCuracion(move)) {
-        anunciar(`${nombreAtacante} usó ${move.move_name} contra ${contra}: ${s === 'fallo' ? 'falló' : 'superó'} la salvación de ${atributoSalv} (DC ${tirada.dificultad})${textoTiradaSalv}${s === 'nada' ? ' · sin daño' : ''}`)
-        onCerrar(); return
+        soloEfecto(`${nombreAtacante} usó ${move.move_name} contra ${contra}: ${s === 'fallo' ? 'falló' : 'superó'} la salvación de ${atributoSalv} (DC ${tirada.dificultad})${textoTiradaSalv}${s === 'nada' && tieneDano(move) ? ' · sin daño' : ''}`,
+          modoEstado(false, s))
+        return
       }
       setPaso('dano')
     }

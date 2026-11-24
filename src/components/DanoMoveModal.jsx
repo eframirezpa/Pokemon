@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { X, Swords, HeartPulse } from 'lucide-react'
-import BotonDado from './dados/BotonDado'
+import BotonDado, { AvisoDesventaja } from './dados/BotonDado'
 import {
   esCuracion, dadosPorNivel, parseDados, tirada as calcularTirada, modificadorDano, usaPower, reglaRonda, rondaValida,
   magnitudDe, esFling, danoFling,
@@ -23,7 +23,8 @@ const signo = m => (m >= 0 ? `+${m}` : `${m}`)
 // stab: lo que suma el STAB si el movimiento es de un tipo del Pokémon (0 si no).
 // objetivo + relacion: a quién se ataca y si es vulnerable/resistente/inmune al
 // tipo del movimiento; solo informa, el daño anunciado es el de la tirada.
-export default function DanoMoveModal({ move, nivel, stats = [], critico = false, power = null, heldItems = [], stab = 0, objetivo = null, relacion = 'neutral', onConfirmar, onOmitir }) {
+// menorDeDos: motivo (Quemado) → el daño se tira dos veces y se usa el menor.
+export default function DanoMoveModal({ move, nivel, stats = [], critico = false, power = null, heldItems = [], stab = 0, objetivo = null, relacion = 'neutral', onConfirmar, onOmitir, menorDeDos = null }) {
   const curacion = esCuracion(move)
   // El STAB es del daño: una curación no lo lleva
   const stabN = curacion ? 0 : (Number(stab) || 0)
@@ -179,6 +180,7 @@ export default function DanoMoveModal({ move, nivel, stats = [], critico = false
               ¡Golpe crítico! · doble de dados
             </p>
           )}
+          {!curacion && t && <AvisoDesventaja motivo={menorDeDos} texto="Tira dos veces y usa la menor" />}
 
           {/* Power para el modificador, si no vino de la fórmula */}
           {hayQueElegir && (
@@ -220,6 +222,7 @@ export default function DanoMoveModal({ move, nivel, stats = [], critico = false
                     fueraDeRango ? 'border-acento' : crit ? 'border-tinte/60' : 'border-separador'}`} />
                 {t && (
                   <BotonDado notacion={t.notacion} usar="dado" className="w-10 h-10 rounded-xl"
+                    menorDeDos={!!menorDeDos && !curacion} motivo={menorDeDos}
                     etiqueta={`${curacion ? 'Curación' : 'Daño'} de ${move.move_name}`}
                     onResultado={v => setValor(String(v))} />
                 )}

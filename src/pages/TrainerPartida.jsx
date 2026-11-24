@@ -28,6 +28,7 @@ import HeldItemsModal from '../components/HeldItemsModal'
 import { buildProfs } from '../lib/profs'
 import { construirSkillsTrainer } from '../lib/trainerStats'
 import { EstadosAro, EstadosPopup } from '../components/EstadosControl'
+import { cambiarEstados, estadosInmunes, desventajaAtaque, danoMenorDeDos } from '../lib/estados'
 import { AuraInspirado, InspiradoInfoPopup } from '../components/InspiradoAura'
 import TerrenoPiso from '../components/TerrenoPiso'
 import PokeballSpinner from '../components/PokeballSpinner'
@@ -44,6 +45,7 @@ import DanoMoveModal from '../components/DanoMoveModal'
 import { ObjetivoModal } from '../components/ObjetivoSelector'
 import { getEffectivenessRows, effectivenessByNames, typeNamesByIds } from '../lib/typeEffect'
 import { relacionContra, textoRelacion, aplicaStab } from '../lib/objetivos'
+import { proyectilParaAtaque } from '../lib/proyectiles'
 
 // Exhaust en la mesa: "-N" amarillo a la derecha del icono, solo si hay. Por
 // ahora es un recordatorio: la penalización a skills, ataques y salvaciones
@@ -104,6 +106,9 @@ export default function TrainerPartida() {
   const [charSkills, setCharSkills]   = useState([])    // habilidades del entrenador
   const [charEstados, setCharEstados] = useState(null)  // estados alterados del entrenador
   const [pokeEstados, setPokeEstados] = useState(null)  // ...y los del Pokémon abierto
+  // Datos de los estados (rondas, DC de Congelado, periodo de gracia): lib/estados.js
+  const [charEstadosMeta, setCharEstadosMeta] = useState(null)
+  const [pokeEstadosMeta, setPokeEstadosMeta] = useState(null)
   const [charNombre, setCharNombre]   = useState('')    // nombre del personaje, no del usuario
   const [recursos, setRecursos]       = useState([])    // Extra Points de la ruta
   const [recursosTitulo, setRecursosTitulo] = useState('Trainer')
@@ -197,8 +202,10 @@ export default function TrainerPartida() {
         // Los estados también salen de aquí: sin esto solo se cargaban al abrir
         // el panel de combate, y tras un refresco quedaban ocultos hasta entonces.
         setCharEstados(yo?.personaje_estados ?? null)
+        setCharEstadosMeta(yo?.personaje_estados_meta ?? null)
         const pk = (yo?.pokemons || []).find(p => String(p.id_personaje_pokemon) === String(pokemonInvocado))
         setPokeEstados(pk?.personaje_pokemon_estados ?? null)
+        setPokeEstadosMeta(pk?.personaje_pokemon_estados_meta ?? null)
       })
       .catch(() => {})
   }, [personajeId, id, partyVersion, pokemonInvocado, tickParty])
@@ -475,14 +482,17 @@ export default function TrainerPartida() {
   // blanco todo lo que tardara el servidor.
   // Los estados se guardan al vuelo y se avisa a la party: el resto de la mesa
   // los ve sin recargar nada.
-  const guardarEstados = async (destino, lista) => {
-    const texto = lista.join(',') || null
-    if (destino === 'trainer') setCharEstados(texto); else setPokeEstados(texto)
-    const url = destino === 'trainer'
+  // Lo que se quita entra en periodo de gracia; lo que se pone, con sus datos
+  // (rondas de Dormido/Confuso, DC de Congelado).
+  const guardarEstados = async (destino, lista, { dc = null } = {}) => {
+    const esTrainer = destino === 'trainer'
+    const r = cambiarEstados({ claves: esTrainer ? charEstados : pokeEstados, meta: esTrainer ? charEstadosMeta : pokeEstadosMeta }, lista, { dc })
+    if (esTrainer) { setCharEstados(r.texto); setCharEstadosMeta(r.meta) } else { setPokeEstados(r.texto); setPokeEstadosMeta(r.meta) }
+    const url = esTrainer
       ? `/personaje/${personajeId}/estados`
       : `/personaje/${personajeId}/pokemon/${pokemonInvocado}/estados`
     try {
-      await apiFetch(url, { method: 'PATCH', body: JSON.stringify({ estados: lista }) })
+      await apiFetch(url, { method: 'PATCH', body: JSON.stringify({ estados: r.claves, meta: r.meta }) })
       partidaApiRef.current?.sendPartyUpdate?.()
     } catch { /* si falla, se corrige al volver a abrir el panel */ }
   }
@@ -514,6 +524,7 @@ export default function TrainerPartida() {
       // Ya está todo calculado: recién aquí se hace el cambio, de una sola vez.
       setCharNombre(d.nombre_personaje || '')
       setCharEstados(d.personaje_estados ?? null)
+      setCharEstadosMeta(d.personaje_estados_meta ?? null)
       setCharProfs(profsTrainer)
       setRecursosRasgos(rasgos)
       // Recursos de la ruta y su título: el nombre del path, o "Trainer"
@@ -643,6 +654,7 @@ export default function TrainerPartida() {
     try {
       const d = await apiFetch(`/personaje/${personajeId}/pokemon/${pokemonInvocado}`).then(r => r.json())
       setPokeEstados(d.personaje_pokemon_estados ?? null)
+      setPokeEstadosMeta(d.personaje_pokemon_estados_meta ?? null)
       const moves = Array.isArray(d.moves) ? d.moves : []
 
       // Habilidades con su modificador: misma fórmula que el detalle del Pokémon
@@ -1048,6 +1060,7 @@ export default function TrainerPartida() {
       {formulaMove && (
         <FormulaAtaqueModal
           move={formulaMove}
+          desventaja={desventajaAtaque(pokeEstados)}
           prof={pokeData?.prof}
           stats={pokeData?.stats || []}
           bonoRuta={pokeData?.attack_bonus_path || { total: 0, detalle: [] }}
@@ -1072,6 +1085,7 @@ export default function TrainerPartida() {
       {/* Daño del movimiento: después de los PP y antes de lanzar */}
       {danoPend && (
         <DanoMoveModal move={danoPend.m} nivel={pokeData?.level} stats={pokeData?.stats || []}
+          menorDeDos={danoMenorDeDos(pokeEstados)}
           critico={danoPend.critico} power={danoPend.power} heldItems={danoPend.heldItems}
           stab={stabDe(danoPend.m)} objetivo={objetivoLanzado?.nombreChat || null} relacion={relacionObjetivo(danoPend.m)}
           onConfirmar={(r) => {
@@ -1421,7 +1435,9 @@ export default function TrainerPartida() {
         <EstadosPopup
           titulo={estadosPopup === 'trainer' ? 'Estados del entrenador' : 'Estados del Pokémon'}
           estados={estadosPopup === 'trainer' ? charEstados : pokeEstados}
-          onChange={(l) => guardarEstados(estadosPopup, l)}
+          meta={estadosPopup === 'trainer' ? charEstadosMeta : pokeEstadosMeta}
+          inmunes={estadosPopup === 'pokemon' ? estadosInmunes(tiposInvocado) : []}
+          onChange={(l, o) => guardarEstados(estadosPopup, l, o)}
           onClose={() => setEstadosPopup(null)}
         />
       )}
@@ -1538,8 +1554,12 @@ export default function TrainerPartida() {
             // Experiencia en mesa: intervino el entrenador (sin Pokémon)
             registrarIntervencion(id, objetivo, { personajeId, tipo: 'ataque' })
             // Etapa 7: el DM lo resuelve contra la AC y resta la vida
+            // Proyectil: si es elemental el daño cambia de tipo (cuenta la
+            // efectividad contra Pokémon); si tiene efecto, lo resuelve el DM
+            const proyectil = proyectilParaAtaque(municion)
             partidaApiRef.current?.enviarAtaque?.({
               quien: nombrePj || 'El entrenador', move: arma ? arma.weapon_type_name : 'Sin arma', tipoAtaque: 'arma',
+              moveType: proyectil?.elemento || null, proyectil,
               objetivo: objetivo ? { tipo: objetivo.tipo, uid: objetivo.uid } : null,
               ataque: poder, dificultad: null, critico, pifia, dano: pifia ? null : (dano?.total ?? null),
             })
@@ -1550,6 +1570,12 @@ export default function TrainerPartida() {
             partidaApiRef.current?.anunciar?.(
               `${quien} ha atacado${objetivo?.nombreChat ? ` ${/^el /.test(objetivo.nombreChat) ? objetivo.nombreChat.replace(/^el /, 'al ') : `a ${objetivo.nombreChat}`}` : ''}${arma ? ` con ${arma.weapon_type_name}` : ''}${municion ? ` (${municion.item_name})` : ''} con un poder de ${poder}${critico ? ' ¡crítico!' : ''}${pifia ? ' ¡pifia!' : ''}${textoDano}`,
               null, null, 'ataque')
+            // Proyectil elemental contra un Pokémon: lo que le haría según su tipo
+            if (dano && proyectil?.elemento && objetivo?.tipo === 'pokemon' && efectividades) {
+              const rel = relacionContra(effectivenessByNames(efectividades, objetivo.type1, objetivo.type2), proyectil.elemento)
+              const t = textoRelacion(objetivo.nombreChat || 'el objetivo', rel, proyectil.elemento, dano.total)
+              if (t) partidaApiRef.current?.registrar?.(t, 'ataque')
+            }
             // Munición del inventario: se gasta una
             if (municion && personajeId) {
               apiFetch(`/personaje/${personajeId}/equipo/${municion.id_personaje_equipo}`,
@@ -1590,6 +1616,7 @@ export default function TrainerPartida() {
           onCurado={alCurar}
           onTmAprendido={alAprenderTm}
           estadosTitle="Estados del entrenador"
+          estados={charEstados}
           onPersist={persistChar}
           onClose={closeControl}
         />
@@ -1690,6 +1717,7 @@ export default function TrainerPartida() {
           onHeldItems={() => setHeldOpen(true)}
           onEstados={() => setEstadosPopup('pokemon')}
           estadosTitle="Estados del Pokémon"
+          estados={pokeEstados}
           attackBonos={pokeData.attack_bonos || []}
           recursosTrainer={recursos}
           recursosFeat={recursosFeat}

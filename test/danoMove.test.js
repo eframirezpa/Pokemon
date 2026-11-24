@@ -89,3 +89,15 @@ test('Fling: precio del held item entre 100, o 0', () => {
   assert.strictEqual(danoFling('abc'), 0)
   assert.strictEqual(danoFling(-300), 0)
 })
+
+test('Struggle: 2 fijo + MOVE aunque la tabla no traiga daño', async () => {
+  const { tieneDano, dadosPorNivel, parseDados, modificadorDano, usaPower, tirada } = await import('../src/lib/danoMove.js')
+  const s = { move_id: 705, move_name: 'Struggle', move_type: 'Typeless', move_has_damage: 0, move_damage_level_1: null, move_damage_modifier: null }
+  assert.strictEqual(tieneDano(s), true)
+  assert.strictEqual(dadosPorNivel(s, 20), '2')
+  assert.deepStrictEqual(parseDados(dadosPorNivel(s, 20)), { tipo: 'fijo', valor: 2 })
+  assert.strictEqual(usaPower(s), true)
+  assert.strictEqual(modificadorDano(s, { modMove: 4 }).valor, 4)
+  // Fijo: el crítico no tira dados
+  assert.strictEqual(tirada(parseDados('2'), { critico: true }), null)
+})

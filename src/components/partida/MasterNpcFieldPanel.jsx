@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { ChevronDown, Eye, EyeOff, Minus, Plus, Swords, X } from 'lucide-react'
 import { hpPct, hpColor } from '../../lib/partidaShared'
 import NumerosFlotantes from '../NumerosFlotantes'
+import { EstadoTrigger, EstadosChips } from '../EstadosControl'
 
 /* Tarjeta de un NPC en el panel del master: vida, ojo para revelarlo y ataque */
-function MasterNpcCard({ npc, onHp, onRemove, onToggleHidden, onAttack }) {
+function MasterNpcCard({ npc, onHp, onRemove, onToggleHidden, onAttack, onEstados }) {
   return (
     <div className="relative bg-superficie border border-separador rounded-xl p-3 shadow-lg self-start">
       <NumerosFlotantes valor={npc.hp_current} />
@@ -15,7 +16,12 @@ function MasterNpcCard({ npc, onHp, onRemove, onToggleHidden, onAttack }) {
             onError={e => { e.currentTarget.style.opacity = '0.3' }} />
           <div className="min-w-0">
             <p className="text-white font-bold text-sm truncate">{npc.name}</p>
-            <p className="text-[10px] text-texto-2">Lv.{npc.level}</p>
+            <p className="text-[10px] text-texto-2 flex items-center gap-1 mt-0.5">
+              Lv.{npc.level}
+              {/* Estado alterado: como en la tarjeta del Pokémon, junto al nombre */}
+              {onEstados && <EstadoTrigger size={20} title="Estados del NPC" onClick={() => onEstados(npc)} />}
+              <EstadosChips estados={npc.estados} size="chico" />
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -58,7 +64,7 @@ function MasterNpcCard({ npc, onHp, onRemove, onToggleHidden, onAttack }) {
 }
 
 /* Sección de NPC invocados, debajo de la de Pokémon */
-export function MasterNpcFieldPanel({ npcs, max, onAdd, onHp, onRemove, onToggleHidden, onAttack }) {
+export function MasterNpcFieldPanel({ npcs, max, onAdd, onHp, onRemove, onToggleHidden, onAttack, onEstados = null }) {
   const full = npcs.length >= max
   const [collapsed, setCollapsed] = useState(false)
   return (
@@ -82,7 +88,7 @@ export function MasterNpcFieldPanel({ npcs, max, onAdd, onHp, onRemove, onToggle
         <div className="mt-2 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 overflow-auto resize-y content-start max-h-[75vh]">
           {npcs.map(n => (
             <MasterNpcCard key={n.uid} npc={n} onHp={onHp} onRemove={onRemove}
-              onToggleHidden={onToggleHidden} onAttack={onAttack} />
+              onToggleHidden={onToggleHidden} onAttack={onAttack} onEstados={onEstados} />
           ))}
         </div>
       )}

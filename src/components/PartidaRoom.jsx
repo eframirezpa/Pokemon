@@ -17,6 +17,10 @@ import RepartoXpDm from './partida/RepartoXpDm'
 import AtaqueDm from './partida/AtaqueDm'
 import TiradaSalvacion from './partida/TiradaSalvacion'
 import ResolverAtaques from './partida/ResolverAtaques'
+import { EstadosPopup } from './EstadosControl'
+import EstadosTurno from './partida/EstadosTurno'
+import { criaturasJugador, criaturasDm, hayQueMostrar, resolverSinVentana } from '../lib/estadosTurno'
+import { ESTADOS, estadosInmunes, clavesEstados, cambiarEstados, etiquetaEstado, esVolatil } from '../lib/estados'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import { useSalaDeJuego } from '../hooks/useSalaDeJuego'
 import Hoja from './ui/Hoja'
@@ -111,7 +115,7 @@ const TYPE_ICONS = {
  * el campo guardado al conectarse -misma forma en los dos casos, solo cambia
  * de dónde salen `uid`/`hidden`/`inBall`-.
  */
-function construirEntradaPokemon(d, { uid, master_pokemon_id, hidden, inBall }) {
+function construirEntradaPokemon(d, { uid, master_pokemon_id, hidden, inBall, estados = null, estadosMeta = null }) {
   const moves = (d.moves || []).map(m => ({ ...m, name: m.move_name, type: m.move_type || null }))
   // Healing de feats (ej. Tough 'N per lvl') sumado a la vida
   const lvl = d.pokemon_level || 1
@@ -137,6 +141,8 @@ function construirEntradaPokemon(d, { uid, master_pokemon_id, hidden, inBall }) 
     talla:       d.pokemon_size || null,
     moves,
     hidden,
+    estados: estados || null,
+    estadosMeta: estadosMeta || null,
     ...(inBall ? { inBall: true } : {}),
   }
 }
@@ -712,6 +718,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         hp_current:   Number(n.master_npc_current_hp ?? n.master_npc_hp) || 0,
         avatar:       n.master_npc_avatar,
         hidden:       n.hidden,
+        estados:      n.estados || null,
+        estadosMeta:  n.estados_meta || null,
       })))
 
       const pokemones = await Promise.all((data.pokemones || []).map(async (c) => {
@@ -719,6 +727,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           const d = await apiFetch(`/master/pokemon/${c.id_master_pokemon}`).then(r => r.json())
           return construirEntradaPokemon(d, {
             uid: String(c.id_campo), master_pokemon_id: c.id_master_pokemon, hidden: c.hidden, inBall: c.in_ball,
+            estados: c.estados, estadosMeta: c.estados_meta,
           })
         } catch { return null }
       }))
@@ -797,13 +806,23 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     } catch { /* noop */ }
   }
 
-  const updatePokemon = (uid, patch) =>
-    sendPokemons(activePokemons.map(p => (p.uid === uid ? { ...p, ...patch } : p)))
+  // Lista viva del campo: dos cambios seguidos en el mismo instante (vida y
+  // estado al acertar un proyectil, el daño por turno de varios) parten del
+  // último y no de la foto del render, que pisaría al anterior.
+  const pokemonsVivos = useRef(activePokemons)
+  const npcsVivos = useRef(activeNpcs)
+  useEffect(() => { pokemonsVivos.current = activePokemons }, [activePokemons])
+  useEffect(() => { npcsVivos.current = activeNpcs }, [activeNpcs])
+  const updatePokemon = (uid, patch) => {
+    const l = pokemonsVivos.current.map(p => (p.uid === uid ? { ...p, ...patch } : p))
+    pokemonsVivos.current = l
+    sendPokemons(l)
+  }
 
   // El HP del Pokémon invocado se persiste además de propagarse por presencia:
   // sin esto las bajas se perdían al reloguear o al volver a invocarlo.
   const handleHpChange = (uid, delta) => {
-    const p = activePokemons.find(x => x.uid === uid)
+    const p = pokemonsVivos.current.find(x => x.uid === uid)
     if (!p) return
     const nuevo = Math.max(0, Math.min(p.hp_max, p.hp_current + delta))
     updatePokemon(uid, { hp_current: nuevo })
@@ -922,6 +941,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     const nuevo = !p.inBall
     updatePokemon(uid, { inBall: nuevo })
     apiFetch(`/partida/${id}/campo/${uid}`, { method: 'PATCH', body: JSON.stringify({ in_ball: nuevo }) }).catch(() => {})
+    // Al guardarlo se le van los estados volátiles (Confuso, Retroceso)
+    if (nuevo) quitarVolatilesCampo('pokemon', p)
   }
 
   const handleRemove = (uid) => {
@@ -954,13 +975,16 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     } catch { /* noop */ }
   }
 
-  const updateNpc = (uid, patch) =>
-    sendNpcs(activeNpcs.map(n => (n.uid === uid ? { ...n, ...patch } : n)))
+  const updateNpc = (uid, patch) => {
+    const l = npcsVivos.current.map(n => (n.uid === uid ? { ...n, ...patch } : n))
+    npcsVivos.current = l
+    sendNpcs(l)
+  }
 
   // La vida se guarda además de difundirse: un NPC herido sigue herido al
   // recargar o al volver a invocarlo, igual que un Pokémon del máster.
   const handleNpcHp = (uid, delta) => {
-    const n = activeNpcs.find(x => x.uid === uid)
+    const n = npcsVivos.current.find(x => x.uid === uid)
     if (!n) return
     const nuevo = Math.max(0, Math.min(n.hp_max, n.hp_current + delta))
     updateNpc(uid, { hp_current: nuevo })
@@ -979,6 +1003,172 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
     apiFetch(`/partida/${id}/campo/${uid}`, { method: 'PATCH', body: JSON.stringify({ hidden: ahoraOculto }) }).catch(() => {})
     if (!ahoraOculto) sendActivity(`${n.name} entró en escena`, 'master', 'aparicion')
   }
+
+  // Estados de un Pokémon o NPC del campo: uno no volátil y uno volátil, con
+  // sus datos (meta). Se guardan en la fila del campo y se reparten con la tarjeta.
+  const [estadosCampo, setEstadosCampo] = useState(null) // { tipo: 'pokemon'|'npc', uid }
+  const entidadCampo = (tipo, uid) => (tipo === 'pokemon' ? pokemonsVivos.current : npcsVivos.current).find(x => x.uid === uid)
+  // Guarda un resultado ya calculado ({ texto, meta }); sin registro
+  const guardarEstadoCampo = (tipo, uid, { texto, meta }) => {
+    const patch = { estados: texto || null, estadosMeta: meta || null }
+    if (tipo === 'pokemon') updatePokemon(uid, patch)
+    else updateNpc(uid, patch)
+    apiFetch(`/partida/${id}/campo/${uid}`, {
+      method: 'PATCH', body: JSON.stringify({ estados: texto ? texto.split(',') : [], meta: meta || null }),
+    }).catch(() => {})
+  }
+  // Cambio desde el selector o un efecto: calcula la meta y deja la línea en el registro
+  const setEstadoCampo = (tipo, uid, lista, { dc = null } = {}) => {
+    const ent = entidadCampo(tipo, uid)
+    if (!ent) return
+    const antes = clavesEstados(ent.estados)
+    const r = cambiarEstados({ claves: antes, meta: ent.estadosMeta }, lista, { dc })
+    guardarEstadoCampo(tipo, uid, r)
+    if (!ent.hidden) {
+      const puestos = r.claves.filter(c => !antes.includes(c)).map(c => ESTADOS.find(e => e.clave === c))
+      const quitados = antes.filter(c => !r.claves.includes(c))
+      const partes = [
+        ...puestos.map(e => `está ${e.label.toLowerCase()} ${e.icono}${e.clave === 'congelado' ? ` (DC ${dc || 12} para liberarse)` : ''}`),
+        ...(quitados.length ? [`ya no está ${quitados.map(c => etiquetaEstado(c).toLowerCase()).join(' ni ')}`] : []),
+      ]
+      if (partes.length) sendActivity(`${ent.name} ${partes.join(' y ')}`, 'master', 'ataque')
+    }
+  }
+
+  // ── Estados por turno (EstadosTurno.jsx) ──
+  // Los turnos son por usuario: al terminar el mío se procesan mis criaturas
+  // (el DM: sus Pokémon y NPC; el jugador: su entrenador y su invocado). Cada
+  // fase se procesa una vez (también con la sala abierta en dos pestañas).
+  const [colaEstadosTurno, setColaEstadosTurno] = useState([]) // [{ fase, criaturas, clave }]
+  const turnoVisto = useRef(null)
+  const claveProcesados = `estados-turno-${id}-${user?.user_id}`
+  const yaProcesado = (k) => {
+    try {
+      const l = JSON.parse(localStorage.getItem(claveProcesados) || '[]')
+      if (l.includes(k)) return true
+      localStorage.setItem(claveProcesados, JSON.stringify([...l, k].slice(-30)))
+    } catch { /* sin almacenamiento: se procesa igual */ }
+    return false
+  }
+  const nombreEnChat = (c) => {
+    if (c.tipo === 'campo-pokemon') return pokemonsVivos.current.find(p => p.uid === c.ids.uid)?.hidden ? 'Un Pokémon salvaje' : c.nombre
+    if (c.tipo === 'campo-npc') return npcsVivos.current.find(n => n.uid === c.ids.uid)?.hidden ? 'Alguien' : c.nombre
+    return c.nombre
+  }
+  // Aplica vida y estados ya resueltos; una línea por criatura en el registro
+  const aplicarEstadosTurno = async (items, { silencioso = false } = {}) => {
+    let tocoParty = false
+    for (const { criatura: c, resultado: r } of items) {
+      const cambio = (r.texto || null) !== (c.claves.join(',') || null) || JSON.stringify(r.meta || null) !== JSON.stringify(c.meta || null)
+      const dano = Math.max(0, Number(r.dano) || 0)
+      if (c.tipo === 'campo-pokemon' || c.tipo === 'campo-npc') {
+        const tipo = c.tipo === 'campo-pokemon' ? 'pokemon' : 'npc'
+        if (dano) (tipo === 'pokemon' ? handleHpChange : handleNpcHp)(c.ids.uid, -dano)
+        if (cambio) guardarEstadoCampo(tipo, c.ids.uid, r)
+      } else {
+        const base = c.tipo === 'trainer' ? `/personaje/${c.ids.personajeId}` : `/personaje/${c.ids.personajeId}/pokemon/${c.ids.idpp}`
+        if (dano) {
+          await apiFetch(`${base}/combate`, { method: 'PATCH', body: JSON.stringify({ current_hp: Math.max(0, (Number(c.hp) || 0) - dano) }) }).catch(() => {})
+          tocoParty = true
+        }
+        if (cambio) {
+          await apiFetch(`${base}/estados`, { method: 'PATCH', body: JSON.stringify({ estados: r.claves, meta: r.meta }) }).catch(() => {})
+          tocoParty = true
+        }
+      }
+      // Sin ventana solo se anuncia lo que termina (se despierta, se le pasa…)
+      const textos = silencioso ? r.textos.filter(t => /se le pasa|se despierta|se libera/.test(t)) : r.textos
+      if (textos.length) sendActivity(`${nombreEnChat(c)}: ${textos.join(' · ')}`, isMaster ? 'master' : 'trainer', 'ataque')
+    }
+    if (tocoParty) sendPartyUpdateTotal()
+  }
+  const procesarFaseEstados = async (fase, k) => {
+    if (yaProcesado(k)) return
+    const cs = isMaster
+      ? await criaturasDm({ pokemons: pokemonsVivos.current, npcs: npcsVivos.current })
+      : await criaturasJugador({ personajeId, pokemonInvocado })
+    if (!cs.length) return
+    const sinVentana = cs.filter(c => !hayQueMostrar(c, fase))
+    if (sinVentana.length) await aplicarEstadosTurno(sinVentana.map(c => ({ criatura: c, resultado: resolverSinVentana(c, fase) })), { silencioso: true })
+    const conVentana = cs.filter(c => hayQueMostrar(c, fase))
+    if (conVentana.length) setColaEstadosTurno(q => [...q, { fase, criaturas: conVentana, clave: k }])
+  }
+  // Fuera de combate o al guardar al Pokémon: sin volátiles; al cerrar la
+  // iniciativa además se olvida el periodo de gracia (ya no hay turnos)
+  const quitarVolatilesCampo = (tipo, ent, { gracia = false } = {}) => {
+    const cs = clavesEstados(ent.estados)
+    if (!cs.some(esVolatil) && !(gracia && ent.estadosMeta?.gracia)) return
+    const r = cambiarEstados({ claves: cs, meta: ent.estadosMeta }, cs.filter(c => !esVolatil(c)))
+    if (gracia && r.meta) delete r.meta.gracia
+    guardarEstadoCampo(tipo, ent.uid, { ...r, meta: r.meta && Object.keys(r.meta).length ? r.meta : null })
+  }
+  const limpiarFinDeCombate = async () => {
+    if (isMaster) {
+      for (const p of pokemonsVivos.current) quitarVolatilesCampo('pokemon', p, { gracia: true })
+      for (const n of npcsVivos.current) quitarVolatilesCampo('npc', n, { gracia: true })
+      return
+    }
+    const cs = await criaturasJugador({ personajeId, pokemonInvocado })
+    let toco = false
+    for (const c of cs) {
+      if (!c.claves.some(esVolatil) && !c.meta?.gracia) continue
+      const r = cambiarEstados({ claves: c.claves, meta: c.meta }, c.claves.filter(x => !esVolatil(x)))
+      if (r.meta) delete r.meta.gracia
+      const base = c.tipo === 'trainer' ? `/personaje/${c.ids.personajeId}` : `/personaje/${c.ids.personajeId}/pokemon/${c.ids.idpp}`
+      await apiFetch(`${base}/estados`, { method: 'PATCH', body: JSON.stringify({ estados: r.claves, meta: r.meta && Object.keys(r.meta).length ? r.meta : null }) }).catch(() => {})
+      toco = true
+    }
+    if (toco) sendPartyUpdateTotal()
+  }
+  useEffect(() => {
+    const prev = turnoVisto.current
+    const cur = iniciativa ? {
+      ronda: Number(iniciativa.ronda) || 1, turno: Number(iniciativa.turno) || 0,
+      estado: iniciativa.estado, participantes: iniciativa.participantes || [],
+    } : null
+    turnoVisto.current = cur
+    if (!user?.user_id) return
+    // Combate nuevo (vuelve a la ronda 1): lo procesado del anterior ya no cuenta
+    if (cur?.estado === 'pidiendo' || (prev?.estado === 'activa' && cur?.estado !== 'activa')) {
+      try { localStorage.removeItem(claveProcesados) } catch { /* sin almacenamiento */ }
+    }
+    if (!prev) return
+    if (prev.estado === 'activa' && cur?.estado !== 'activa') { limpiarFinDeCombate(); return }
+    if (cur?.estado !== 'activa') return
+    const yo = String(user.user_id)
+    const tareas = []
+    if (prev.estado === 'activa') {
+      // Solo hacia adelante: "turno anterior" no repite nada
+      if (cur.ronda * 1000 + cur.turno <= prev.ronda * 1000 + prev.turno) return
+      const termino = prev.participantes[prev.turno]
+      if (termino && String(termino.user_id) === yo) tareas.push(['fin', `fin-${prev.ronda}.${prev.turno}`])
+    }
+    const empieza = cur.participantes[cur.turno]
+    if (empieza && String(empieza.user_id) === yo) tareas.push(['inicio', `inicio-${cur.ronda}.${cur.turno}`])
+    ;(async () => { for (const [f, k] of tareas) await procesarFaseEstados(f, k) })()
+  // Solo importa el cambio de la iniciativa; lo demás se lee al momento
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [iniciativa])
+
+  // El jugador cambia de Pokémon: al que vuelve se le van los volátiles
+  const invocadoAntes = useRef(pokemonInvocado)
+  useEffect(() => {
+    const antes = invocadoAntes.current
+    invocadoAntes.current = pokemonInvocado
+    if (isMaster || personajeId == null || antes == null || String(antes) === String(pokemonInvocado)) return
+    apiFetch(`/personaje/${personajeId}/pokemon/${antes}`).then(r => (r.ok ? r.json() : null)).then(d => {
+      const cs = clavesEstados(d?.personaje_pokemon_estados)
+      if (!d || !cs.some(esVolatil)) return
+      const r = cambiarEstados({ claves: cs, meta: d.personaje_pokemon_estados_meta }, cs.filter(c => !esVolatil(c)))
+      return apiFetch(`/personaje/${personajeId}/pokemon/${antes}/estados`, { method: 'PATCH', body: JSON.stringify({ estados: r.claves, meta: r.meta }) })
+        .then(() => sendPartyUpdate())
+    }).catch(() => {})
+  }, [pokemonInvocado, personajeId, isMaster, sendPartyUpdate])
+
+  const entEstadosCampo = estadosCampo
+    ? (estadosCampo.tipo === 'pokemon' ? activePokemons : activeNpcs).find(x => x.uid === estadosCampo.uid) || null
+    : null
+  const inmunesEstadosCampo = entEstadosCampo && estadosCampo.tipo === 'pokemon' ? estadosInmunes([entEstadosCampo.type1, entEstadosCampo.type2]) : []
 
   const handleNpcRemove = (uid) => {
     sendNpcs(activeNpcs.filter(n => n.uid !== uid))
@@ -1112,11 +1302,24 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
 
       {/* Etapa 7: ataques de los jugadores contra lo del DM */}
       {isMaster && ataquesJugador.length > 0 && (
-        <ResolverAtaques cola={ataquesJugador} consumir={consumirAtaqueJugador}
+        <ResolverAtaques cola={ataquesJugador} consumir={consumirAtaqueJugador} onEstado={setEstadoCampo}
           pokemons={activePokemons} npcs={activeNpcs} danoAuto={danoAuto}
           onHpPokemon={handleHpChange} onHpNpc={handleNpcHp}
           anunciar={(texto) => sendActivity(texto, 'master', 'ataque')}
           responder={sendAtaqueResultado} />
+      )}
+      {/* Estado de un Pokémon o NPC del campo (DM) */}
+      {colaEstadosTurno[0] && (
+        <EstadosTurno key={colaEstadosTurno[0].clave} fase={colaEstadosTurno[0].fase} criaturas={colaEstadosTurno[0].criaturas}
+          esDm={isMaster}
+          onConfirmar={res => { aplicarEstadosTurno(res); setColaEstadosTurno(q => q.slice(1)) }} />
+      )}
+      {entEstadosCampo && (
+        <EstadosPopup titulo={`Estados de ${entEstadosCampo.name}`} estados={entEstadosCampo.estados} meta={entEstadosCampo.estadosMeta}
+          inmunes={inmunesEstadosCampo}
+          nota={inmunesEstadosCampo.length ? 'Los estados tachados no le afectan por su tipo.' : null}
+          onChange={(l, o) => setEstadoCampo(estadosCampo.tipo, estadosCampo.uid, l, o)}
+          onClose={() => setEstadosCampo(null)} />
       )}
       {/* El jugador: aviso breve de si acertó */}
       {!isMaster && resultadoAtaque && (
@@ -1414,6 +1617,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onTransfer={abrirTransferencia}
                 onMoveInfo={setMasterMoveInfo}
                 onInspect={setInspectMasterPoke}
+                onEstados={p => setEstadosCampo({ tipo: 'pokemon', uid: p.uid })}
                 capturaAuto={capturaAuto}
                 onCapturaAuto={cambiarCapturaAuto}
                 danoAuto={danoAuto}
@@ -1427,6 +1631,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
                 onRemove={handleNpcRemove}
                 onToggleHidden={handleNpcToggleHidden}
                 onAttack={handleNpcAttack}
+                onEstados={n => setEstadosCampo({ tipo: 'npc', uid: n.uid })}
               />
               <TerrenosMasivoPanel partidaId={id} onAfterChange={() => { sendPartyUpdate(); setTerrenoTick(t => t + 1) }} />
               <ClimaPanel partidaId={id} clima={clima} onCambio={(c) => {
@@ -1792,7 +1997,8 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
               className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-relleno hover:bg-relleno-2 text-texto-2">
               <X size={18} />
             </button>
-            <PokemonDetailView endpoint={`/master/pokemon/${inspectMasterPoke}`} master onBack={() => setInspectMasterPoke(null)} />
+            <PokemonDetailView endpoint={`/master/pokemon/${inspectMasterPoke}`} master onBack={() => setInspectMasterPoke(null)}
+              estados={activePokemons.find(p => String(p.master_pokemon_id) === String(inspectMasterPoke))?.estados} />
           </div>
         </div>
       )}

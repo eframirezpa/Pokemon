@@ -3,6 +3,25 @@ import { POKEBALL_SPRITE, hpPct, hpColor, TYPE_COLORS } from '../../lib/partidaS
 import { TypeBadge, MysteryMark } from './TypeBadge'
 import NumerosFlotantes from '../NumerosFlotantes'
 import { ICONO_REDONDO } from '../../lib/trainerCombatShared'
+import { ICONO_TIPO } from '../../lib/iconoTipo'
+import { EstadosChips } from '../EstadosControl'
+
+/* Aura del color del tipo principal, con su símbolo de fondo (un trueno,
+   una llama…) detrás del sprite. */
+function AuraTipo({ tipo, children }) {
+  const color = TYPE_COLORS[tipo]?.bg ?? '#8E8E93'
+  const Icono = ICONO_TIPO[tipo]
+  return (
+    <span className="relative w-16 h-16 rounded-full shrink-0 grid place-items-center overflow-hidden"
+      style={{ backgroundColor: `color-mix(in srgb, ${color} 42%, transparent)` }}>
+      {Icono && (
+        <Icono aria-hidden size={58} strokeWidth={1.5} className="absolute pointer-events-none"
+          style={{ color, opacity: 0.1, filter: `drop-shadow(0 0 6px ${color})` }} />
+      )}
+      {children}
+    </span>
+  )
+}
 
 /* Tarjeta de vida del Pokémon — vista de trainer/espectador (con imagen) */
 export function PokemonHpCard({ p, onPokeball = null, ballSprite = null, onPokedex = null }) {
@@ -62,11 +81,10 @@ export function PokemonHpCard({ p, onPokeball = null, ballSprite = null, onPoked
           <MysteryMark />
         </div>
       ) : (
-        <span className="w-16 h-16 rounded-full shrink-0 grid place-items-center"
-          style={{ backgroundColor: `color-mix(in srgb, ${TYPE_COLORS[p.type1]?.bg ?? '#8E8E93'} 42%, transparent)` }}>
-          <img src={p.sprite} alt={p.name} className="w-14 h-14 object-contain"
+        <AuraTipo tipo={p.type1}>
+          <img src={p.sprite} alt={p.name} className="relative w-14 h-14 object-contain"
             onError={e => { e.target.style.opacity = '0.2' }} />
-        </span>
+        </AuraTipo>
       )}
 
       <div className="flex-1 min-w-0">
@@ -77,7 +95,7 @@ export function PokemonHpCard({ p, onPokeball = null, ballSprite = null, onPoked
           <span className="text-xs font-bold text-texto shrink-0">Lv.{hidden ? '??' : p.level}</span>
         </div>
         <div className="flex gap-1 my-1 min-h-[14px]">
-          {!hidden && <><TypeBadge type={p.type1} /><TypeBadge type={p.type2} /></>}
+          {!hidden && <><TypeBadge type={p.type1} /><TypeBadge type={p.type2} /><EstadosChips estados={p.estados} size="chico" /></>}
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] font-extrabold tracking-[.04em] text-[#FFD60A]">HP</span>
@@ -119,6 +137,7 @@ export function NpcHpCard({ n }) {
           <span className="font-bold text-texto text-sm truncate">{hidden ? '???' : n.name}</span>
           <span className="text-xs font-bold text-texto shrink-0">Lv.{hidden ? '??' : n.level}</span>
         </div>
+        {!hidden && n.estados && <div className="mt-0.5"><EstadosChips estados={n.estados} size="chico" /></div>}
         <div className="flex items-center gap-1.5 mt-2">
           <span className="text-[10px] font-extrabold tracking-[.04em] text-[#FFD60A]">HP</span>
           {hidden ? (

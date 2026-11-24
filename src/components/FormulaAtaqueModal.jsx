@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { X, Sword, Shield, Check, AlertTriangle } from 'lucide-react'
-import BotonDado from './dados/BotonDado'
+import BotonDado, { AvisoDesventaja } from './dados/BotonDado'
 import { requerimientosEspeciales } from '../lib/movesEspeciales'
 
 // Fórmula(s) del ataque de un movimiento del Pokémon.
@@ -37,8 +37,10 @@ import { requerimientosEspeciales } from '../lib/movesEspeciales'
 const CARACTERISTICAS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
 const signo = m => (m >= 0 ? `+${m}` : `${m}`)
 
+// desventaja: motivo (estado del atacante: Envenenado, Retroceso) o null. El
+// d20 del ataque se tira dos veces y se usa el menor.
 export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRuta = { total: 0, detalle: [] },
-                                            onClose, onAtacar }) {
+                                            onClose, onAtacar, desventaja = null }) {
   const profN = Number(prof) || 0
   const modDe = (key) => {
     const s = stats.find(x => String(x.key || '').toUpperCase() === String(key || '').toUpperCase())
@@ -185,6 +187,7 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
                   entrega solo el dado, la fórmula suma el resto */}
               <BotonDado notacion="1d20" usar="dado" className="w-9 h-9 rounded-xl"
                 etiqueta={`${move?.move_name || 'Ataque'}${f.nombre ? ` (${f.nombre})` : ''}`}
+                modo={desventaja ? 'desventaja' : null} motivo={desventaja}
                 onResultado={v => setDado(f.clave, String(v))} />
             </>
           )}
@@ -275,6 +278,7 @@ export default function FormulaAtaqueModal({ move, prof = 0, stats = [], bonoRut
         </div>
 
         <div className="px-4 py-4">
+          <AvisoDesventaja motivo={desventaja} texto="Ataque con desventaja" className="mb-2" />
           {/* Lo que la app no resuelve sola (varios ataques...): a hablarlo con el DM */}
           {requerimientosEspeciales(move).length > 0 && (
             <div className="mb-3 flex gap-2.5 rounded-xl bg-tinte/10 border border-tinte/40 px-3 py-2.5">

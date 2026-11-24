@@ -4,9 +4,10 @@ import { POKEBALL_SPRITE, hpPct, hpColor } from '../../lib/partidaShared'
 import { xpAlDerrotar, xpAlAtrapar } from '../../lib/xpAtrapar'
 import { TypeBadge } from './TypeBadge'
 import NumerosFlotantes from '../NumerosFlotantes'
+import { EstadoTrigger, EstadosChips } from '../EstadosControl'
 
 /* Card de un Pokémon del master — colapsable (toggle) */
-function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo }) {
+function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo, onEstados }) {
   const [collapsed, setCollapsed] = useState(false)
   return (
     <div className="relative bg-superficie border border-separador rounded-xl p-3 shadow-lg self-start">
@@ -16,11 +17,14 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
         onClick={() => setCollapsed(c => !c)}
         className="flex items-start justify-between gap-2 cursor-pointer select-none"
       >
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <ChevronDown size={14} className={`text-texto-2 shrink-0 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
-            <span className="text-white font-bold text-sm truncate">{pokemon.name}</span>
-            <span className="text-[10px] text-texto-2 shrink-0">Lv.{pokemon.level}</span>
+        <div className="min-w-0 flex-1">
+          {/* Si no cabe todo, los botones bajan a otra línea y el nombre se sigue viendo */}
+          <div className="flex items-center gap-x-1.5 gap-y-1 flex-wrap">
+            <span className="flex items-center gap-1.5 min-w-0 max-w-full">
+              <ChevronDown size={14} className={`text-texto-2 shrink-0 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+              <span className="text-white font-bold text-sm truncate">{pokemon.name}</span>
+              <span className="text-[10px] text-texto-2 shrink-0">Lv.{pokemon.level}</span>
+            </span>
             {/* Guardar/soltar de la pokébola: dentro se ve un rayo para liberarlo */}
             <button
               onClick={e => { e.stopPropagation(); onToggleBall(pokemon.uid) }}
@@ -40,10 +44,17 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
             >
               <ArrowRightLeft size={18} />
             </button>
+            {/* Estado alterado (quemado, envenenado…) */}
+            {onEstados && (
+              <span onClick={e => e.stopPropagation()} className="shrink-0">
+                <EstadoTrigger size={22} title="Estados del Pokémon" onClick={() => onEstados(pokemon)} />
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1 mt-1 pl-5">
             <TypeBadge type={pokemon.type1} />
             <TypeBadge type={pokemon.type2} />
+            <EstadosChips estados={pokemon.estados} size="chico" />
             {/* Lo que otorga al derrotarlo (atraparlo da 1/5). Solo en la tarjeta
                 del master: es un dato que el jugador no debería ver antes de decidir. */}
             {xpAlDerrotar(pokemon.level, pokemon.sr) != null && (
@@ -136,7 +147,7 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
 /* Panel de Pokémon del master — botón + grid de Pokémon (máx. según `max`).
    Se llama "FieldPanel" (y no "MasterPokemonPanel") para no chocar con
    src/components/MasterPokemonPanel.jsx, el modal "Mis Pokémon" del dashboard. */
-export function MasterPokemonFieldPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo, capturaAuto = false, onCapturaAuto = null, danoAuto = true, onDanoAuto = null }) {
+export function MasterPokemonFieldPanel({ pokemons, max = 4, onAdd, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo, onEstados = null, capturaAuto = false, onCapturaAuto = null, danoAuto = true, onDanoAuto = null }) {
   const full = pokemons.length >= max
   const [collapsed, setCollapsed] = useState(false)
   return (
@@ -203,6 +214,7 @@ export function MasterPokemonFieldPanel({ pokemons, max = 4, onAdd, onHp, onRemo
             <MasterPokemonCard
               key={p.uid}
               pokemon={p}
+              onEstados={onEstados}
               onHp={onHp}
               onRemove={onRemove}
               onCast={onCast}

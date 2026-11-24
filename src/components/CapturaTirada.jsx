@@ -5,6 +5,7 @@ import { construirSkillsTrainer, statModPokemon } from '../lib/trainerStats'
 import { claveBola, CONDICION_BOLA, SKILL_BOLA, NOTA_BOLA } from '../lib/captura'
 import { useDados } from './dados/dadosContext'
 import PokeballSpinner from './PokeballSpinner'
+import { desventajaPrueba } from '../lib/estados'
 
 const fmt = (n) => (n >= 0 ? `+${n}` : `${n}`)
 
@@ -27,6 +28,8 @@ export default function CapturaTirada({ partidaId, personajeId, pokemonInvocado 
   const [animal, setAnimal] = useState(0)
   const [bonoBola, setBonoBola] = useState(0)
   const [ventaja, setVentaja] = useState(false)
+  // Envenenado / Retroceso: la prueba va con desventaja (se anulan con la ventaja)
+  const [desvEstado, setDesvEstado] = useState(null)
   const [cumple, setCumple] = useState(false)
   const [turnos, setTurnos] = useState('0')
   const [d20, setD20] = useState('')
@@ -43,6 +46,7 @@ export default function CapturaTirada({ partidaId, personajeId, pokemonInvocado 
       const { skills } = construirSkillsTrainer(d)
       const mod = (nombre) => skills.find(s => s.name?.toLowerCase() === nombre.toLowerCase())?.mod ?? 0
       setAnimal(mod('Animal Handling'))
+      setDesvEstado(desventajaPrueba(d.personaje_estados))
       if (skillBola) setBonoBola(mod(skillBola))
     })
     const pedirPoke = (clave === 'love' && pokemonInvocado != null)
@@ -60,7 +64,7 @@ export default function CapturaTirada({ partidaId, personajeId, pokemonInvocado 
 
   const tirarDado = () => {
     if (!dados) return
-    dados.tirar('1d20', { etiqueta: 'captura', modo: conVentaja ? 'ventaja' : null })
+    dados.tirar('1d20', { etiqueta: 'captura', modo: conVentaja && !desvEstado ? 'ventaja' : !conVentaja && desvEstado ? 'desventaja' : null })
       .then(r => setD20(String(r.usados.reduce((a, v) => a + v, 0))))
       .catch(() => {})
   }
@@ -73,7 +77,7 @@ export default function CapturaTirada({ partidaId, personajeId, pokemonInvocado 
         method: 'POST',
         body: JSON.stringify({
           id_campo: target.uid, id_personaje: personajeId, id_personaje_equipo: ball.id_personaje_equipo,
-          d20: esMaster ? 0 : dado, bono: animal, ventaja: conVentaja,
+          d20: esMaster ? 0 : dado, bono: animal, ventaja: conVentaja && !desvEstado,
           condicion: cumple, turnos: Number(turnos) || 0, bono_bola: bonoBola,
         }),
       })
@@ -160,7 +164,9 @@ export default function CapturaTirada({ partidaId, personajeId, pokemonInvocado 
                       </button>
                     )}
                   </div>
-                  {conVentaja && <p className="mt-1 text-[11px] text-tinte">Con ventaja: tira dos d20 y anota el mayor.</p>}
+                  {conVentaja && !desvEstado && <p className="mt-1 text-[11px] text-tinte">Con ventaja: tira dos d20 y anota el mayor.</p>}
+                  {desvEstado && !conVentaja && <p className="mt-1 text-[11px] text-amber-300">⬇ Desventaja · {desvEstado}: tira dos d20 y anota el menor.</p>}
+                  {desvEstado && conVentaja && <p className="mt-1 text-[11px] text-texto-2">Ventaja y desventaja ({desvEstado}) se anulan: un solo d20.</p>}
                 </div>
 
                 <p className="text-[11px] text-texto-2">

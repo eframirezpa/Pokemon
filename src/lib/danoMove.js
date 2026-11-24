@@ -9,7 +9,13 @@
 // - Casos raros de la tabla: número fijo (Sonic Boom 16), "Rd6" = un dado por
 //   ronda (Outrage, Rollout) y texto libre (Magnitude), que va a mano.
 
-export const tieneDano = (m) => Number(m?.move_has_damage) === 1
+// Struggle no trae daño en la tabla (move_has_damage = 0, sin dados), pero su
+// descripción dice "2 + MOVE typeless damage": daño fijo 2 más el modificador
+// del power (STR o DEX). Fijo, así que el crítico no lo duplica; es Typeless,
+// sin STAB ni efectividad de tipo.
+export const esStruggle = (m) => Number(m?.move_id) === 705 || String(m?.move_name || '').trim().toLowerCase() === 'struggle'
+
+export const tieneDano = (m) => Number(m?.move_has_damage) === 1 || esStruggle(m)
 
 // Fling no tiene daño en la tabla: lanza el held item y el daño es su precio
 // entre 100 (hacia abajo). Sin held item o con un precio raro, 0. Es informativo.
@@ -23,6 +29,7 @@ export const esCuracion = (m) => String(m?.move_damage_type || '').trim().toLowe
 
 // Texto de dados que toca según el nivel
 export const dadosPorNivel = (m, nivel) => {
+  if (esStruggle(m) && !String(m?.move_damage_level_1 ?? '').trim()) return '2'
   const n = Number(nivel) || 1
   const col = n >= 17 ? 'move_damage_level_17' : n >= 10 ? 'move_damage_level_10' : n >= 5 ? 'move_damage_level_5' : 'move_damage_level_1'
   return String(m?.[col] ?? '').trim()
@@ -93,7 +100,7 @@ export const tirada = (dados, { critico = false, ronda = 1, regla = REGLA_POR_DE
 
 // Modificador del daño. modMove = modificador del power elegido (STR, DEX...)
 export const modificadorDano = (m, { modMove = 0, nivel = 1 } = {}) => {
-  const t = String(m?.move_damage_modifier || '').trim().toUpperCase().replace(/\s+/g, ' ')
+  const t = String(m?.move_damage_modifier || (esStruggle(m) ? 'MOVE' : '')).trim().toUpperCase().replace(/\s+/g, ' ')
   if (t === 'MOVE') return { valor: Number(modMove) || 0, etiqueta: 'Move' }
   if (t === 'LEVEL') return { valor: Number(nivel) || 0, etiqueta: 'Nivel' }
   const r = /^MOVE ?\+ ?(\d+)$/.exec(t)
@@ -102,4 +109,4 @@ export const modificadorDano = (m, { modMove = 0, nivel = 1 } = {}) => {
 }
 
 // El modificador depende del power elegido solo con MOVE / MOVE + x
-export const usaPower = (m) => /^MOVE/i.test(String(m?.move_damage_modifier || '').trim())
+export const usaPower = (m) => /^MOVE/i.test(String(m?.move_damage_modifier || (esStruggle(m) ? 'MOVE' : '')).trim())

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { ArrowDown, ArrowUp } from 'lucide-react'
 
 const DURACION_MS = 1400
 let siguienteId = 0 // ids de los números, solo para las keys
@@ -8,7 +9,7 @@ let siguienteId = 0 // ids de los números, solo para las keys
  * Va dentro de un contenedor `relative` (la tarjeta) y no captura clics.
  *
  * mostrarNumero=false es para quien no ve los HP de esa tarjeta (un trainer
- * mirando al Pokémon del máster): sale solo ▼ o ▲, sin delatar cuánto fue.
+ * mirando al Pokémon del máster): sale solo una flecha (abajo o arriba), sin delatar cuánto fue.
  */
 export default function NumerosFlotantes({ valor, mostrarNumero = true, className = '' }) {
   const [previo, setPrevio] = useState(valor)
@@ -50,7 +51,9 @@ export default function NumerosFlotantes({ valor, mostrarNumero = true, classNam
             it.d < 0 ? 'text-red-500' : 'text-green-400'}`}
           // Arranca a media altura: las tarjetas chicas (party) recortan arriba
           style={{ top: '25%', marginLeft: `${(i % 3) * 30 - 30}px` }}>
-          {mostrarNumero ? `${it.d > 0 ? '+' : '−'}${Math.abs(it.d)}` : (it.d < 0 ? '▼' : '▲')}
+          {mostrarNumero ? `${it.d > 0 ? '+' : '−'}${Math.abs(it.d)}`
+            : it.d < 0 ? <ArrowDown size={22} strokeWidth={3} aria-label="Perdió vida" />
+            : <ArrowUp size={22} strokeWidth={3} aria-label="Recuperó vida" />}
         </span>
       ))}
     </div>
