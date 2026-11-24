@@ -16,6 +16,7 @@ import { registrarIntervencion, crearXpPendiente } from '../lib/xpMesa'
 import RepartoXpDm from './partida/RepartoXpDm'
 import AtaqueDm from './partida/AtaqueDm'
 import TiradaSalvacion from './partida/TiradaSalvacion'
+import ResolverAtaques from './partida/ResolverAtaques'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import { useSalaDeJuego } from '../hooks/useSalaDeJuego'
 import Hoja from './ui/Hoja'
@@ -225,7 +226,7 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const isMaster = user?.role === 'master'
 
   const userInfo = useMemo(() => ({ ...user, personaje_id: personajeId ?? null, pokemon_invocado: pokemonInvocado ?? null }), [user, personajeId, pokemonInvocado])
-  const { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, partyLocalAt, sendPartyUpdate, sendPartyUpdateTotal, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, capturaAuto, setCapturaAuto, sendCapturaAuto, capturaFx, setCapturaFx, sendCapturaFx, removePokemonLocal, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta, salvacionPedida, setSalvacionPedida, sendSalvacionPedida, salvacionResultado, sendSalvacionResultado } = usePartidaPresence(id, userInfo)
+  const { presentes, log, setLogLocal, ultimaTirada, sendTirada, masterMessage, sendMasterMessage, activePokemons, sendPokemons, setPokemonsLocal, activeNpcs, sendNpcs, setNpcsLocal, lastAttack, sendAttack, sendActivity, partyUpdatedAt, partyLocalAt, sendPartyUpdate, sendPartyUpdateTotal, invocados, sendInvocado, background, sendBackground, eventActive, eventFlashAt, sendEventState, sendEventFlash, counters, changeCounter, fight, sendFight, clearFight, prize, sendPrize, captura, sendCaptura, eventIntroAt, sendEventIntro, hitAt, sendHitFlash, healAt, sendHealFlash, mapaPin, setMapaPin, sendMapaPin, clima, setClima, sendClima, capturaAuto, setCapturaAuto, sendCapturaAuto, capturaFx, setCapturaFx, sendCapturaFx, removePokemonLocal, iniciativa, setIniciativaLocal, sendIniciativa, swapPropuesta, setSwapPropuesta, sendSwapPropuesta, swapRespuesta, sendSwapRespuesta, salvacionPedida, setSalvacionPedida, sendSalvacionPedida, salvacionResultado, sendSalvacionResultado, ataquesJugador, sendAtaqueJugador, sendAtaqueResultado, consumirAtaqueJugador, resultadoAtaque, setResultadoAtaque } = usePartidaPresence(id, userInfo)
 
   // ── Atrapar Pokémon: pokébolas del trainer, panel de lanzamiento y animación ──
   const [pokeballs, setPokeballs]   = useState([])   // items tipo pokeball con cantidad > 0
@@ -666,13 +667,18 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           sprite: n.hidden || !n.avatar ? null : `/avatars/${n.avatar}`,
         })),
       ],
+      // Etapa 7: el resultado del ataque va a la pantalla del DM, que lo resuelve
+      enviarAtaque: (p) => {
+        if (!['pokemon', 'npc'].includes(p?.objetivo?.tipo)) return
+        sendAtaqueJugador({ ...p, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, user_id: user?.user_id })
+      },
       anunciar: (texto, trainer, pokemon, tipo = null) => {
         sendMasterMessage(texto)
         sendActivity(texto, 'master', tipo)
         if (trainer) sendCaptura(trainer, pokemon, texto)
       },
     }
-  }, [apiRef, sendPartyUpdate, sendAttack, loadPokeballs, presentes, sendMasterMessage, sendActivity, sendCaptura, terminarTurno, activePokemons, activeNpcs])
+  }, [apiRef, sendPartyUpdate, sendAttack, loadPokeballs, presentes, sendMasterMessage, sendActivity, sendCaptura, terminarTurno, activePokemons, activeNpcs, sendAtaqueJugador, user?.user_id])
 
   // Difunde el Pokémon invocado del jugador cuando cambia
   useEffect(() => {
@@ -1102,6 +1108,19 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
           sendSalvacionPedida={sendSalvacionPedida} salvacionResultado={salvacionResultado}
           restarVida={danoAuto}
           onCerrar={() => setAtaqueDm(null)} />
+      )}
+
+      {/* Etapa 7: ataques de los jugadores contra lo del DM */}
+      {isMaster && ataquesJugador.length > 0 && (
+        <ResolverAtaques cola={ataquesJugador} consumir={consumirAtaqueJugador}
+          pokemons={activePokemons} npcs={activeNpcs} danoAuto={danoAuto}
+          onHpPokemon={handleHpChange} onHpNpc={handleNpcHp}
+          anunciar={(texto) => sendActivity(texto, 'master', 'ataque')}
+          responder={sendAtaqueResultado} />
+      )}
+      {/* El jugador: aviso breve de si acertó */}
+      {!isMaster && resultadoAtaque && (
+        <AvisoResultado key={resultadoAtaque.at} r={resultadoAtaque} onFin={() => setResultadoAtaque(null)} />
       )}
 
       {/* Salvación que pide el DM a este jugador */}
@@ -1871,5 +1890,18 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
       )}
     </div>
     </DadosProvider>
+  )
+}
+
+/* Aviso breve al jugador con el resultado de su ataque (etapa 7). Se va solo. */
+function AvisoResultado({ r, onFin }) {
+  useEffect(() => { const t = setTimeout(onFin, 3500); return () => clearTimeout(t) }, [onFin])
+  return (
+    <div role="status" onClick={onFin}
+      className={`modo-oscuro cristal fixed left-1/2 -translate-x-1/2 top-16 z-[88] rounded-full px-4 py-2 animate-event-pop
+                  text-[14px] font-semibold whitespace-nowrap max-w-[calc(100vw-2rem)] truncate cursor-pointer
+                  ${r.acierto ? '!border-ok/60 text-ok' : '!border-peligro/60 text-peligro'}`}>
+      {r.texto}
+    </div>
   )
 }

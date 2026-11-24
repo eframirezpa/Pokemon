@@ -69,13 +69,15 @@ export default function RepartoXpEntrenador({ partidaId, personajeId, pokemonInv
               {r.guardar > 0 && (
                 <p className="flex items-start gap-1.5 text-[13px] text-texto-2">
                   <Archive size={14} className="shrink-0 mt-px" />
-                  {miles(r.guardar)} XP guardada: se sumará cuando complete las mejoras de su nivel.
+                  {miles(r.guardar)} XP guardada: tiene mejoras de nivel por completar; se sumará después.
                 </p>
               )}
               {r.perder > 0 && (
                 <p className="flex items-start gap-1.5 text-[13px] text-aviso">
                   <AlertTriangle size={14} className="shrink-0 mt-px" />
-                  {miles(r.perder)} XP no se pueden sumar: ya está en el nivel 20.
+                  {r.motivo === 'max'
+                    ? `${miles(r.perder)} XP no se pueden sumar: ya está en el nivel 20.`
+                    : `${miles(r.perder)} XP no se suman: una ganancia sube como máximo un nivel.`}
                 </p>
               )}
             </li>
@@ -128,7 +130,7 @@ export default function RepartoXpEntrenador({ partidaId, personajeId, pokemonInv
         }>
         <p className="text-[15px]">
           <b>{guardada.pokemon_apodo}</b> (nv. {guardada.pokemon_level}) tiene <b>{miles(guardada.xp_guardada)} XP</b> guardada
-          de un reparto anterior. Ya completó las mejoras de su nivel, así que se puede sumar.
+          de una ganancia anterior que esperaba sus mejoras de nivel. Ya las completó, así que se puede sumar.
         </p>
       </Hoja>
     )
@@ -214,7 +216,7 @@ function VentanaParte({ parte, candidatos, conInvocado, quedan, busy, error, onC
             })}
           </ul>
           <p className="text-[12px] text-texto-2 mt-1.5">
-            Se suma de a un nivel: si sobra, queda guardada hasta que completes las mejoras de su nivel.
+            Cada ganancia sube como máximo un nivel (puede quedar a 1 punto del siguiente); lo que sobra se pierde.
           </p>
         </div>
       </div>

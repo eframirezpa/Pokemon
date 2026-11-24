@@ -13,8 +13,9 @@ const CONTEOS = [
   ['item', 'Items usados', '#14b8a6'],
   ['tirada', 'Tiradas', '#9ca3af'],
   ['pokemon', 'Liberados / transferidos', '#eab308'],
+  ['feat', 'Feats extra', '#c084fc'],
 ]
-const ICONO = { captura: '⚪', evolucion: '✨', nivel: '⬆️', pokemon: '🔄' }
+const ICONO = { captura: '⚪', evolucion: '✨', nivel: '⬆️', pokemon: '🔄', feat: '🎓' }
 
 const fecha = (iso) => new Date(iso).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })
 

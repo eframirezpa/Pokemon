@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, ArrowDown, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Monitor, ChevronDown, Briefcase } from 'lucide-react'
+import { X, ChevronLeft, Venus, Mars, Check, ArrowUp, ArrowDown, Sparkles, DoorOpen, ArrowRightLeft, AlertTriangle, Monitor, ChevronDown, Briefcase, Pencil } from 'lucide-react'
 import PokeballsIcon from './PokeballsIcon'
 import { apiFetch } from '../api'
 import TypeEffectivenessView from './TypeEffectivenessView'
@@ -11,6 +11,8 @@ import LoadingOverlay from './LoadingOverlay'
 import HeldItemsModal from './HeldItemsModal'
 import ItemDetailPanel from './ItemDetailPanel'
 import EvolucionModal from './EvolucionModal'
+import AvisoAprobacionDm from './AvisoAprobacionDm'
+import EntrenarFeatPokemon from './EntrenarFeatPokemon'
 import { TypeBadge as TypeBadgeBase } from './partida/TypeBadge'
 
 // Lo mismo que responde el back cuando el jugador no está en un centro Pokémon
@@ -551,6 +553,9 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
   // transfiere nada: los botones se ven, pero abren este aviso. El back lo
   // valida igual, por si el máster lo desmarca con la ventana abierta.
   const [avisoNarrativa, setAvisoNarrativa] = useState(false)
+  // Lápiz de feats (solo con edición permitida): primero el aviso del DM, luego el selector
+  const [featAviso, setFeatAviso] = useState(null)
+  const [featFor, setFeatFor] = useState(null)
   const permitido = () => { if (enCentro) return true; setAvisoNarrativa(true); return false }
 
   // Al abrir la transferencia se listan solo los entrenadores CONECTADOS a la
@@ -822,6 +827,18 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
                         </button>
                       )}
 
+                      {/* Femputadora con edición permitida: entrenar feats a mano (lápiz).
+                          Va donde el cinturón tiene "Invocar". */}
+                      {!isBelt && editable && (
+                        <button onClick={e => { e.stopPropagation(); setFeatAviso(p) }}
+                          title="Entrenar feats (con aprobación del DM)" aria-label={`Entrenar feats a ${p.pokemon_apodo}`}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 z-10 shrink-0 flex items-center justify-center
+                                     w-6 h-6 rounded-full bg-acento/20 hover:bg-acento text-tinte hover:text-white shadow
+                                     border border-tinte/40 transition-all">
+                          <Pencil size={11} strokeWidth={2.5} />
+                        </button>
+                      )}
+
                       {/* Solo en la femputadora: liberar (izquierda) y transferir (derecha) */}
                       {!isBelt && (
                         <>
@@ -875,6 +892,18 @@ export default function PokemonBox({ personajeId, partidaId = null, getConectado
         <EvolucionModal personajeId={personajeId} pokemon={evoFor}
           onClose={() => { setEvoFor(null); load() }}
           onEvolved={(r) => onEvolved?.(r, evoFor)} />
+      )}
+
+      {featAviso && (
+        <AvisoAprobacionDm onCancelar={() => setFeatAviso(null)}
+          onAceptar={() => { setFeatFor(featAviso); setFeatAviso(null) }} />
+      )}
+      {featFor && (
+        <EntrenarFeatPokemon personajeId={personajeId} pokemon={featFor} onClose={() => setFeatFor(null)}
+          onEntrenado={(nombreFeat) => {
+            onRegistrar?.(`${nombrePersonaje || 'El entrenador'} entrenó el feat ${nombreFeat} a ${featFor.pokemon_apodo} (aprobado por el DM)`, 'feat')
+            load()
+          }} />
       )}
 
       {avisoNarrativa && (

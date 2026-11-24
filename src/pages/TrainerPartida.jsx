@@ -11,6 +11,7 @@ import PokemonBox from '../components/PokemonBox'
 import FormulaAtaqueModal from '../components/FormulaAtaqueModal'
 import PendingImprovementModal from '../components/PendingImprovementModal'
 import RepartoXpEntrenador from '../components/partida/RepartoXpEntrenador'
+import AvisoAprobacionDm from '../components/AvisoAprobacionDm'
 import EvolucionModal from '../components/EvolucionModal'
 import BotonBandejaDados from '../components/dados/BotonBandejaDados'
 import NumerosFlotantes from '../components/NumerosFlotantes'
@@ -93,6 +94,7 @@ export default function TrainerPartida() {
   const [showPC, setShowPC]           = useState(false)
   const [showEdit, setShowEdit]       = useState(false)
   const [isEditable, setIsEditable]   = useState(false) // personaje_is_editable (lo controla el master)
+  const [avisoEditar, setAvisoEditar] = useState(false) // aviso de aprobación del DM antes del lápiz
   const [enCentro, setEnCentro]       = useState(false) // personaje_en_centro_pokemon (lo controla el master)
   const [isInspirado, setIsInspirado] = useState(false) // personaje_inspirado (lo activa el master)
   const [showInspiradoInfo, setShowInspiradoInfo] = useState(false)
@@ -839,6 +841,12 @@ export default function TrainerPartida() {
     }
     // Experiencia en mesa: este Pokémon intervino contra el del DM
     registrarIntervencion(id, objetivoLanzado, { personajeId, pokemonId: pokemonInvocado, tipo: 'ataque' })
+    // Etapa 7: el DM lo resuelve (AC, salvación de su Pokémon, vida)
+    partidaApiRef.current?.enviarAtaque?.({
+      quien: pokeData?.name || 'Tu Pokémon', move: m.move_name, tipoAtaque: 'move', moveType: m.move_type,
+      saveAttr: m.move_save_attribute || null, objetivo: objetivoLanzado ? { tipo: objetivoLanzado.tipo, uid: objetivoLanzado.uid } : null,
+      ataque, dificultad, critico, pifia, dano: dano?.total ?? null, curacion: !!dano?.curacion,
+    })
     setObjetivoLanzado(null)
     setCastCooldown(true)
     if (castTimer.current) clearTimeout(castTimer.current)
@@ -1349,7 +1357,7 @@ export default function TrainerPartida() {
             {/* Editar jugador: activo solo si el master lo permite a este jugador */}
             {personajeId && (
               <button
-                onClick={() => { if (isEditable) setShowEdit(true) }}
+                onClick={() => { if (isEditable) setAvisoEditar(true) }}
                 disabled={!isEditable}
                 className={`${sideBtn} ${isEditable ? '' : 'opacity-40 cursor-not-allowed hover:bg-relleno-2'}`}
                 title={isEditable ? 'Editar jugador' : 'Editar jugador (deshabilitado por el master)'}
@@ -1483,11 +1491,17 @@ export default function TrainerPartida() {
       )}
 
       {/* Editar jugador (solo si el master lo habilitó) */}
+      {/* Lápiz del entrenador: primero el aviso de que lo aprueba el DM */}
+      {avisoEditar && (
+        <AvisoAprobacionDm onCancelar={() => setAvisoEditar(false)}
+          onAceptar={() => { setAvisoEditar(false); setShowEdit(true) }} />
+      )}
       {showEdit && personajeId && isEditable && (
         <EditarPersonajeModal
           personajeId={personajeId}
           onClose={() => setShowEdit(false)}
           onChanged={() => partidaApiRef.current?.sendPartyUpdate?.()}
+          onFeatAgregado={(nombreFeat) => partidaApiRef.current?.registrar?.(`${nombrePj || 'El entrenador'} entrenó el feat ${nombreFeat} (aprobado por el DM)`, 'feat')}
         />
       )}
 
@@ -1523,6 +1537,12 @@ export default function TrainerPartida() {
             const quien = nombrePj || 'El entrenador'
             // Experiencia en mesa: intervino el entrenador (sin Pokémon)
             registrarIntervencion(id, objetivo, { personajeId, tipo: 'ataque' })
+            // Etapa 7: el DM lo resuelve contra la AC y resta la vida
+            partidaApiRef.current?.enviarAtaque?.({
+              quien: nombrePj || 'El entrenador', move: arma ? arma.weapon_type_name : 'Sin arma', tipoAtaque: 'arma',
+              objetivo: objetivo ? { tipo: objetivo.tipo, uid: objetivo.uid } : null,
+              ataque: poder, dificultad: null, critico, pifia, dano: pifia ? null : (dano?.total ?? null),
+            })
             // Daño: total y de dónde sale (dados + modificador del stat)
             const textoDano = dano
               ? ` · daño ${dano.total}${(dano.tipo || arma?.weapon_type_damage_type) ? ` ${dano.tipo || arma.weapon_type_damage_type}` : ''} (${dano.notacion}: ${dano.dados}${dano.mod ? ` ${dano.mod > 0 ? '+' : '−'} ${Math.abs(dano.mod)}` : ''})`

@@ -9,10 +9,24 @@
 
 export const PARCHES = [
   {
-    // Incluye lo que iba a salir como 1.1.0: esa versión no llegó a la mesa.
-    version: '1.2.0',
+    // Junta lo nuevo con lo de la 1.2.0 (y esta con lo de la 1.1.0), para que
+    // la mesa lo vea todo en una sola ventana.
+    version: '1.3.0',
     fecha: '2026-11-23',
     cambios: [
+      'Atrapar un Pokémon da 1/5 de la experiencia; la Pokédex muestra la de derrotar y la de atrapar.',
+      '"Turno anterior" vuelve a la ronda anterior.',
+      'En el celular: la pantalla no se apaga en la sala, no se recarga al deslizar y vibra en tu turno.',
+      '"Salir" pide confirmación.',
+      'Check "Centro Pokémon" del DM: sin él no se mueve, libera ni transfiere en cinturón y Femputadora.',
+      'Experiencia en mesa: el DM confirma quién intervino y cada jugador reparte su parte entre sus Pokémon.',
+      'Cada ganancia de experiencia sube como máximo un nivel.',
+      'Los Pokémon del DM eligen objetivo, comparan con la AC y restan la vida; las salvaciones las tira el jugador.',
+      'Check "Daño automático" del DM para no restar vida.',
+      'Sin armadura la AC es 10 + DEX.',
+      'Ataque con arma: el stat se elige solo según el arma, botón para cambiar de arma y golpe sin arma (1 + STR).',
+      'Los ataques de los jugadores a lo del DM se resuelven solos y avisan si acertaron.',
+      'Lápiz para entrenar feats a Pokémon en la Femputadora; los feats extra piden aprobación del DM y salen en el resumen de sesión.',
       'El DM tiene Pokédex en su barra lateral.',
       'Atrapar un Pokémon oculto ya no revela cuál era.',
       'La tirada de iniciativa muestra el bono en el chat.',

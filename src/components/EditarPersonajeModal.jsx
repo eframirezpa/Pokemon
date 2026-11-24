@@ -571,7 +571,7 @@ function WeaponPickModal({ llave, count, martialOnly = false, onCancel, onDone }
 
 /* Ventana de edición del jugador. Por ahora solo permite agregar feats (tipo General u Origin).
    onChanged: se llama tras agregar un feat (para refrescar la ficha / party). */
-export default function EditarPersonajeModal({ personajeId, nombre, onClose, onChanged }) {
+export default function EditarPersonajeModal({ personajeId, nombre, onClose, onChanged, onFeatAgregado = null }) {
   const [full, setFull]       = useState(null)   // personaje completo (feats asignados)
   const [catalog, setCatalog] = useState([])     // catálogo de feats (General + Origin) con feat_bonuses
   const [allSkills, setAllSkills] = useState([]) // catálogo de skills
@@ -676,6 +676,7 @@ export default function EditarPersonajeModal({ personajeId, nombre, onClose, onC
       }
       await loadFull()
       onChanged?.()
+      onFeatAgregado?.(feat.feat_name || 'un feat')   // queda en el registro de la partida
       setConfirm(null); setSkilled(null)
     } catch {
       setError('No se pudo agregar el rasgo')
