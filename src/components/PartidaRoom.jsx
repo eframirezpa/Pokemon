@@ -4,7 +4,7 @@ import {
   LogOut, Users, X, Info,
   Zap, Flame, Droplet, Leaf, Snowflake, Swords, Skull, Mountain,
   Feather, Brain, Bug, Gem, Ghost, Sparkles, Moon, Shield, Wand2, Star, Globe, NotebookPen,
-  AlertTriangle, Backpack, ListOrdered, ScrollText, PanelLeftClose, PanelLeftOpen, Smartphone,
+  AlertTriangle, Backpack, ListOrdered, ScrollText, PanelLeftClose, PanelLeftOpen, Smartphone, ChevronRight, ChevronLeft,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import DadosProvider from './dados/DadosProvider'
@@ -184,6 +184,16 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const [ocultarIconos, setOcultarIconos] = useState(() => {
     try { return localStorage.getItem('partida.iconosOcultos') === '1' } catch { return false }
   })
+  // Celular: tarjetas del DM plegadas (solo el icono). Claves 'p:uid' / 'n:uid',
+  // guardadas en este dispositivo por partida.
+  const clavePlegadas = `tarjetas-plegadas-${id}`
+  const [plegadas, setPlegadas] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(clavePlegadas) || '[]')) } catch { return new Set() }
+  })
+  const guardarPlegadas = (s) => {
+    setPlegadas(s)
+    try { localStorage.setItem(clavePlegadas, JSON.stringify([...s])) } catch { /* sin almacenamiento */ }
+  }
   const alternarIconos = () => setOcultarIconos(v => {
     try { localStorage.setItem('partida.iconosOcultos', v ? '0' : '1') } catch { /* sin almacenamiento */ }
     return !v
@@ -1679,16 +1689,57 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
             {/* Tarjetas de vida — parte superior derecha (trainer/espectador).
                 Pokémon y NPC comparten la misma columna: así se apilan solos y
                 no hay que calcularle la altura a nadie. */}
-            {!isMaster && (activePokemons.length > 0 || activeNpcs.length > 0) && (
-              <div className={`absolute top-4 right-4 z-10 flex gap-2 origin-top-right ${isPhone ? 'scale-[0.65]' : 'scale-100'} ${isPhoneLandscape ? 'flex-row-reverse items-start' : 'flex-col items-end'}`}>
-                {activePokemons.map(p => (
-                  <PokemonHpCard key={p.uid} p={p}
-                    onPokeball={hasPokeballs && !p.inBall && capturaFx?.uid !== p.uid ? openThrowPanel : null} ballSprite={ballIcon}
-                    onPokedex={!p.hidden && !p.inBall ? () => { setPokedexInspectListo(false); setPokedexInspectLevel(p.level); setPokedexInspectId(p.pokemon_id) } : null} />
-                ))}
-                {activeNpcs.map(n => <NpcHpCard key={n.uid} n={n} />)}
-              </div>
-            )}
+            {!isMaster && (activePokemons.length > 0 || activeNpcs.length > 0) && (() => {
+              // Celular: cada tarjeta se pliega deslizándola y el botón de
+              // arriba pliega o abre todas. Las de la pokébola no se pliegan.
+              const plegables = [
+                ...activePokemons.filter(p => !p.inBall).map(p => `p:${p.uid}`),
+                ...activeNpcs.map(n => `n:${n.uid}`),
+              ]
+              const todasPlegadas = plegables.length > 0 && plegables.every(k => plegadas.has(k))
+              // Solo se guardan las de lo que hay en el campo (incluida la pokébola)
+              const enCampo = new Set([...activePokemons.map(p => `p:${p.uid}`), ...activeNpcs.map(n => `n:${n.uid}`)])
+              const podar = (s) => new Set([...s].filter(k => enCampo.has(k)))
+              const plegar = (k) => (v) => {
+                const s = podar(plegadas)
+                if (v) s.add(k); else s.delete(k)
+                guardarPlegadas(s)
+              }
+              const alternarTodas = () => {
+                const s = podar(plegadas)
+                plegables.forEach(k => { if (todasPlegadas) s.delete(k); else s.add(k) })
+                guardarPlegadas(s)
+              }
+              const Flecha = todasPlegadas ? ChevronLeft : ChevronRight
+              return (
+                <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-1.5">
+                  {isPhone && plegables.length > 0 && (
+                    <button type="button" onClick={alternarTodas}
+                      aria-label={todasPlegadas ? 'Mostrar todas las tarjetas' : 'Ocultar todas las tarjetas'}
+                      title={todasPlegadas ? 'Mostrar todas' : 'Ocultar todas'}
+                      className="cristal shadow-md rounded-full h-6 w-20 flex items-center justify-center text-texto-2 active:scale-95 transition-transform">
+                      {[0, 1, 2].map(i => (
+                        <Flecha key={i} size={14} strokeWidth={2.5} aria-hidden
+                          className={`-mx-0.5 ${todasPlegadas ? 'animate-flecha-izq' : 'animate-flecha-der'}`}
+                          style={{ animationDelay: `${(todasPlegadas ? 2 - i : i) * 0.15}s` }} />
+                      ))}
+                    </button>
+                  )}
+                  <div className={`flex gap-2 origin-top-right ${isPhone ? 'scale-[0.65]' : 'scale-100'} ${isPhoneLandscape ? 'flex-row-reverse items-start' : 'flex-col items-end'}`}>
+                    {activePokemons.map(p => (
+                      <PokemonHpCard key={p.uid} p={p}
+                        onPokeball={hasPokeballs && !p.inBall && capturaFx?.uid !== p.uid ? openThrowPanel : null} ballSprite={ballIcon}
+                        onPokedex={!p.hidden && !p.inBall ? () => { setPokedexInspectListo(false); setPokedexInspectLevel(p.level); setPokedexInspectId(p.pokemon_id) } : null}
+                        plegada={plegadas.has(`p:${p.uid}`)} onPlegar={isPhone && !p.inBall ? plegar(`p:${p.uid}`) : null} />
+                    ))}
+                    {activeNpcs.map(n => (
+                      <NpcHpCard key={n.uid} n={n}
+                        plegada={plegadas.has(`n:${n.uid}`)} onPlegar={isPhone ? plegar(`n:${n.uid}`) : null} />
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Panel para elegir qué pokébola lanzar — arriba y centrado */}
             {liveThrowTarget && (

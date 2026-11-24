@@ -30,6 +30,7 @@ export const PARCHES = [
       'Estados automáticos: daño por turno, tiradas al inicio y al final del turno, desventajas, velocidad a la mitad con Paralizado y periodo de gracia; nuevos Envenenado grave y Retroceso.',
       'Los Pokémon y NPC del DM tienen estados, y sus movimientos se los ponen a los jugadores al fallar la salvación o recibir el golpe.',
       'Proyectiles elementales: cambian el tipo del daño del arma y cuentan debilidades, resistencias e inmunidades.',
+      'En el celular: las tarjetas de los Pokémon y NPC del DM se pliegan deslizando a la derecha (queda el icono con un aro de vida) y se abren tocándolas o deslizando a la izquierda; botón arriba para plegar o abrir todas.',
       'El DM tiene Pokédex en su barra lateral.',
       'Atrapar un Pokémon oculto ya no revela cuál era.',
       'La tirada de iniciativa muestra el bono en el chat.',
