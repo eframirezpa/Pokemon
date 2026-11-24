@@ -40,3 +40,11 @@ test('efectos no elementales', () => {
   assert.strictEqual(efectoDeProyectil('Fire Arrows'), null)
   assert.strictEqual(proyectilParaAtaque(item('Smoke Pellets', 'Munición para honda. Cada ataque consume un pellet. Al impactar, crea humo.')).descripcion, 'Al impactar, crea humo.')
 })
+
+test('descripciones en inglés (producción)', () => {
+  assert.strictEqual(elementoDeProyectil(item('Fire Arrows', 'Elemental arrows used by bows. Each attack made with a compatible bow consumes one arrow.')), 'Fire')
+  assert.strictEqual(elementoDeProyectil(item('Normal-Type Rifle Rounds', 'Elemental rounds used by rifles. Each attack made with a compatible rifle consumes one round.')), 'Normal')
+  assert.strictEqual(elementoDeProyectil(item('Poison Darts', 'Special darts used by blowguns. Each attack made with a blowgun consumes one dart.')), null)
+  assert.strictEqual(elementoDeProyectil(item('Arrows', 'Arrows used by bows.')), null)
+  assert.strictEqual(proyectilParaAtaque(item('Smoke Pellets', 'Special pellets used by slings. Each attack made with a sling consumes one pellet. On impact, creates smoke.')).descripcion, 'On impact, creates smoke.')
+})

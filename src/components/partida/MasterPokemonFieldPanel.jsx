@@ -5,10 +5,13 @@ import { xpAlDerrotar, xpAlAtrapar } from '../../lib/xpAtrapar'
 import { TypeBadge } from './TypeBadge'
 import NumerosFlotantes from '../NumerosFlotantes'
 import { EstadoTrigger, EstadosChips } from '../EstadosControl'
+import { incapacitado } from '../../lib/estados'
 
 /* Card de un Pokémon del master — colapsable (toggle) */
 function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, onInspect, onToggleBall, onTransfer, onMoveInfo, onEstados }) {
   const [collapsed, setCollapsed] = useState(false)
+  // Dormido, Congelado o Paralizado con 1: no puede lanzar movimientos
+  const bloqueo = incapacitado(pokemon.estados, pokemon.estadosMeta)
   return (
     <div className="relative bg-superficie border border-separador rounded-xl p-3 shadow-lg self-start">
       <NumerosFlotantes valor={pokemon.hp_current} />
@@ -117,6 +120,7 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
           {pokemon.moves?.length > 0 && (
             <div className="mt-3 border-t border-separador pt-2">
               <p className="text-[10px] font-bold text-texto-2 uppercase tracking-widest mb-1.5">Movimientos</p>
+              {bloqueo && <p className="mb-1.5 text-[11px] font-semibold text-aviso">⛔ {bloqueo}</p>}
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {pokemon.moves.map((m, i) => (
                   <div key={i} className="flex items-center justify-between gap-2 bg-superficie rounded-lg px-2 py-1.5">
@@ -128,8 +132,8 @@ function MasterPokemonCard({ pokemon, onHp, onRemove, onCast, onToggleHidden, on
                       <TypeBadge type={m.type} />
                     </div>
                     <button
-                      onClick={() => onCast(pokemon, m.name, m.type)}
-                      className="shrink-0 text-[10px] font-bold text-white bg-acento hover:bg-acento-hover px-2.5 py-1 rounded-md transition-colors"
+                      onClick={() => onCast(pokemon, m.name, m.type)} disabled={!!bloqueo} title={bloqueo || undefined}
+                      className="shrink-0 text-[10px] font-bold text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 rounded-md transition-colors"
                     >
                       Lanzar
                     </button>

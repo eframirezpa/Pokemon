@@ -70,3 +70,20 @@ test('sin volátiles al salir de combate', () => {
   assert.deepStrictEqual(sinVolatiles({ claves: 'quemado,confuso', meta: { confuso: { restantes: 2 } } }).claves, ['quemado'])
   assert.strictEqual(sinVolatiles({ claves: 'quemado', meta: null }), null)
 })
+
+test('incapacitado: dormido, congelado y paralizado con 1', async () => {
+  const { incapacitado, fueraDeCombate } = await import('../src/lib/estados.js')
+  assert.match(incapacitado('dormido', null), /Dormido/)
+  assert.match(incapacitado('congelado,confuso', null), /Congelado/)
+  assert.strictEqual(incapacitado('paralizado', null), null)
+  let r = resolverInicioTurno({ claves: 'paralizado', meta: null }, { paralizado: 1 })
+  assert.deepStrictEqual(r.meta, { paralizado: { incapacitado: true } })
+  assert.match(incapacitado(r.texto, r.meta), /Paralizado/)
+  // El siguiente inicio de turno vuelve a tirar: con otro número ya puede actuar
+  r = resolverInicioTurno({ claves: 'paralizado', meta: r.meta }, { paralizado: 3 })
+  assert.strictEqual(incapacitado(r.texto, r.meta), null)
+  // Fuera de combate se va la incapacidad de un turno, los volátiles y la gracia
+  const f = fueraDeCombate({ claves: 'paralizado,confuso', meta: { paralizado: { incapacitado: true }, confuso: { restantes: 2 }, gracia: { dormido: 1 } } })
+  assert.deepStrictEqual([f.claves, f.meta], [['paralizado'], null])
+  assert.strictEqual(fueraDeCombate({ claves: 'quemado', meta: null }), null)
+})

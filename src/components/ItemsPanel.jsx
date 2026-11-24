@@ -46,7 +46,8 @@ function FilaObjetivo({ nombre, sub, cur, max, deshabilitado, motivo, elegido, o
   )
 }
 
-export default function ItemsPanel({ personajeId, partidaId = null, onCurado = null, onTmAprendido = null, getPresentes = null }) {
+// bloqueado: motivo (estado que le impide actuar) → "Usar" queda apagado
+export default function ItemsPanel({ personajeId, partidaId = null, onCurado = null, onTmAprendido = null, getPresentes = null, bloqueado = null }) {
   const [items, setItems]     = useState(null)
   const [abierto, setAbierto] = useState(null) // id con el detalle desplegado
   const [usando, setUsando]   = useState(null) // item en confirmación
@@ -177,8 +178,8 @@ export default function ItemsPanel({ personajeId, partidaId = null, onCurado = n
               </span>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-[10px] font-black tabular-nums text-texto">x{i.cantidad}</span>
-                <button onClick={() => abrirUso(i)}
-                  className="text-[10px] font-bold uppercase tracking-wide text-white bg-acento hover:bg-acento-hover px-2 py-1 rounded-md transition-colors">
+                <button onClick={() => abrirUso(i)} disabled={!!bloqueado} title={bloqueado || undefined}
+                  className="text-[10px] font-bold uppercase tracking-wide text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 rounded-md transition-colors">
                   Usar
                 </button>
               </div>

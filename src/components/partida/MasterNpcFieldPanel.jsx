@@ -3,6 +3,7 @@ import { ChevronDown, Eye, EyeOff, Minus, Plus, Swords, X } from 'lucide-react'
 import { hpPct, hpColor } from '../../lib/partidaShared'
 import NumerosFlotantes from '../NumerosFlotantes'
 import { EstadoTrigger, EstadosChips } from '../EstadosControl'
+import { incapacitado } from '../../lib/estados'
 
 /* Tarjeta de un NPC en el panel del master: vida, ojo para revelarlo y ataque */
 function MasterNpcCard({ npc, onHp, onRemove, onToggleHidden, onAttack, onEstados }) {
@@ -54,8 +55,13 @@ function MasterNpcCard({ npc, onHp, onRemove, onToggleHidden, onAttack, onEstado
         </button>
       </div>
 
-      <button onClick={() => onAttack(npc)}
+      {/* Dormido, Congelado o Paralizado con 1: no puede atacar */}
+      {incapacitado(npc.estados, npc.estadosMeta) && (
+        <p className="mt-2 text-[11px] font-semibold text-aviso">⛔ {incapacitado(npc.estados, npc.estadosMeta)}</p>
+      )}
+      <button onClick={() => onAttack(npc)} disabled={!!incapacitado(npc.estados, npc.estadosMeta)}
         className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 bg-elevada hover:bg-acento-hover
+                   disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-elevada
                    text-texto hover:text-white text-xs font-bold rounded-lg transition-colors">
         <Swords size={14} /> Atacar
       </button>

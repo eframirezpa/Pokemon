@@ -17,15 +17,23 @@ export const TIPOS_POKEMON = ['Normal', 'Fire', 'Water', 'Grass', 'Electric', 'I
 
 const nombreDe = (item) => String(item?.item_name ?? item ?? '').trim()
 
+const confirmaElemental = (desc, tipo) => {
+  const d = String(desc)
+  return /^\s*elemental\b/i.test(d)
+    || new RegExp(`(cambia su tipo a|changes? (its|the) (damage )?type to|deals? ${tipo}[- ]type)\\s*${tipo}?\\b`, 'i').test(d)
+}
+
 /** Tipo Pokémon del proyectil ('Fire'…) o null si no es elemental. */
 export const elementoDeProyectil = (item) => {
   const r = /^([A-Za-z]+)(?:-Type)?\s+\S/.exec(nombreDe(item))
   if (!r) return null
   const tipo = TIPOS_POKEMON.find(t => t.toLowerCase() === r[1].toLowerCase())
   if (!tipo) return null
-  // La descripción tiene que confirmarlo (si viene)
+  // La descripción tiene que confirmarlo (si viene). En la base local está en
+  // español ("cambia su tipo a Fire"); en producción, en inglés ("Elemental
+  // arrows used by bows…"; Poison Darts dice "Special darts…").
   const desc = item?.item_description
-  if (desc != null && !new RegExp(`(cambia su tipo a|changes? (its|the) (damage )?type to)\\s+${tipo}\\b`, 'i').test(desc)) return null
+  if (desc != null && !confirmaElemental(desc, tipo)) return null
   return tipo
 }
 
@@ -93,6 +101,8 @@ export const proyectilParaAtaque = (item) => {
     elemento: elementoDeProyectil(item),
     efecto,
     // El texto del efecto narrativo, para el registro
-    descripcion: efecto?.nota ? String(item.item_description || '').replace(/^Munición[^.]*\.\s*Cada ataque consume[^.]*\.\s*/i, '') : null,
+    descripcion: efecto?.nota ? String(item.item_description || '')
+      .replace(/^Munición[^.]*\.\s*Cada ataque consume[^.]*\.\s*/i, '')
+      .replace(/^[^.]*\bused by\b[^.]*\.\s*Each attack[^.]*\.\s*/i, '') : null,
   }
 }

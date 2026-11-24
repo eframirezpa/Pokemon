@@ -20,7 +20,7 @@ import ResolverAtaques from './partida/ResolverAtaques'
 import { EstadosPopup } from './EstadosControl'
 import EstadosTurno from './partida/EstadosTurno'
 import { criaturasJugador, criaturasDm, hayQueMostrar, resolverSinVentana } from '../lib/estadosTurno'
-import { ESTADOS, estadosInmunes, clavesEstados, cambiarEstados, etiquetaEstado, esVolatil } from '../lib/estados'
+import { ESTADOS, estadosInmunes, clavesEstados, cambiarEstados, etiquetaEstado, esVolatil, fueraDeCombate } from '../lib/estados'
 import { usePartidaPresence } from '../hooks/usePartidaPresence'
 import { useSalaDeJuego } from '../hooks/useSalaDeJuego'
 import Hoja from './ui/Hoja'
@@ -148,7 +148,7 @@ function construirEntradaPokemon(d, { uid, master_pokemon_id, hidden, inBall, es
 }
 
 
-export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null, onPartyVersion = null, nombreJugador = null, onIniciativa = null, onPartyLocal = null, onClima = null }) {
+export default function PartidaRoom({ children, personajeId = null, apiRef = null, pokemonInvocado = null, onFight = null, onPartyVersion = null, nombreJugador = null, onIniciativa = null, onPartyLocal = null, onClima = null, bloqueoEntrenador = null }) {
   const { id }      = useParams()
   const navigate    = useNavigate()
   // Pantalla encendida y sin "deslizar para recargar" mientras se juega
@@ -352,7 +352,13 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   const hasPokeballs = !isMaster && personajeId != null && pokeballs.length > 0
 
   // Al abrir el panel se recarga la mochila: las cantidades pudieron cambiar
-  const openThrowPanel = (p) => { loadPokeballs(); setThrowTarget(p) }
+  // Lanzar una pokébola es una acción: incapacitado (Dormido, Congelado,
+  // Paralizado con 1) no puede, y se le dice por qué
+  const [avisoBloqueo, setAvisoBloqueo] = useState(null)
+  const openThrowPanel = (p) => {
+    if (bloqueoEntrenador) { setAvisoBloqueo(bloqueoEntrenador); return }
+    loadPokeballs(); setThrowTarget(p)
+  }
 
   // El panel se cierra solo si el master guarda al Pokémon o lo quita del campo
   const liveThrowTarget = throwTarget && activePokemons.some(p => p.uid === throwTarget.uid && !p.inBall)
@@ -1095,27 +1101,26 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
   }
   // Fuera de combate o al guardar al Pokémon: sin volátiles; al cerrar la
   // iniciativa además se olvida el periodo de gracia (ya no hay turnos)
-  const quitarVolatilesCampo = (tipo, ent, { gracia = false } = {}) => {
+  const quitarVolatilesCampo = (tipo, ent, { combate = false } = {}) => {
     const cs = clavesEstados(ent.estados)
-    if (!cs.some(esVolatil) && !(gracia && ent.estadosMeta?.gracia)) return
-    const r = cambiarEstados({ claves: cs, meta: ent.estadosMeta }, cs.filter(c => !esVolatil(c)))
-    if (gracia && r.meta) delete r.meta.gracia
-    guardarEstadoCampo(tipo, ent.uid, { ...r, meta: r.meta && Object.keys(r.meta).length ? r.meta : null })
+    // Al cerrar la iniciativa: también gracia e incapacidad de un turno
+    const r = combate ? fueraDeCombate({ claves: cs, meta: ent.estadosMeta })
+      : (cs.some(esVolatil) ? cambiarEstados({ claves: cs, meta: ent.estadosMeta }, cs.filter(c => !esVolatil(c))) : null)
+    if (r) guardarEstadoCampo(tipo, ent.uid, r)
   }
   const limpiarFinDeCombate = async () => {
     if (isMaster) {
-      for (const p of pokemonsVivos.current) quitarVolatilesCampo('pokemon', p, { gracia: true })
-      for (const n of npcsVivos.current) quitarVolatilesCampo('npc', n, { gracia: true })
+      for (const p of pokemonsVivos.current) quitarVolatilesCampo('pokemon', p, { combate: true })
+      for (const n of npcsVivos.current) quitarVolatilesCampo('npc', n, { combate: true })
       return
     }
     const cs = await criaturasJugador({ personajeId, pokemonInvocado })
     let toco = false
     for (const c of cs) {
-      if (!c.claves.some(esVolatil) && !c.meta?.gracia) continue
-      const r = cambiarEstados({ claves: c.claves, meta: c.meta }, c.claves.filter(x => !esVolatil(x)))
-      if (r.meta) delete r.meta.gracia
+      const r = fueraDeCombate({ claves: c.claves, meta: c.meta })
+      if (!r) continue
       const base = c.tipo === 'trainer' ? `/personaje/${c.ids.personajeId}` : `/personaje/${c.ids.personajeId}/pokemon/${c.ids.idpp}`
-      await apiFetch(`${base}/estados`, { method: 'PATCH', body: JSON.stringify({ estados: r.claves, meta: r.meta && Object.keys(r.meta).length ? r.meta : null }) }).catch(() => {})
+      await apiFetch(`${base}/estados`, { method: 'PATCH', body: JSON.stringify({ estados: r.claves, meta: r.meta }) }).catch(() => {})
       toco = true
     }
     if (toco) sendPartyUpdateTotal()
@@ -1313,6 +1318,12 @@ export default function PartidaRoom({ children, personajeId = null, apiRef = nul
         <EstadosTurno key={colaEstadosTurno[0].clave} fase={colaEstadosTurno[0].fase} criaturas={colaEstadosTurno[0].criaturas}
           esDm={isMaster}
           onConfirmar={res => { aplicarEstadosTurno(res); setColaEstadosTurno(q => q.slice(1)) }} />
+      )}
+      {avisoBloqueo && (
+        <Hoja titulo="No puedes actuar" onClose={() => setAvisoBloqueo(null)} ancho="sm:max-w-sm" z="z-[96]"
+          pie={<div className="flex justify-end"><Boton onClick={() => setAvisoBloqueo(null)}>Aceptar</Boton></div>}>
+          <p className="text-[15px]">{avisoBloqueo}</p>
+        </Hoja>
       )}
       {entEstadosCampo && (
         <EstadosPopup titulo={`Estados de ${entEstadosCampo.name}`} estados={entEstadosCampo.estados} meta={entEstadosCampo.estadosMeta}

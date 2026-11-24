@@ -28,7 +28,7 @@ import HeldItemsModal from '../components/HeldItemsModal'
 import { buildProfs } from '../lib/profs'
 import { construirSkillsTrainer } from '../lib/trainerStats'
 import { EstadosAro, EstadosPopup } from '../components/EstadosControl'
-import { cambiarEstados, estadosInmunes, desventajaAtaque, danoMenorDeDos } from '../lib/estados'
+import { cambiarEstados, estadosInmunes, desventajaAtaque, danoMenorDeDos, incapacitado } from '../lib/estados'
 import { AuraInspirado, InspiradoInfoPopup } from '../components/InspiradoAura'
 import TerrenoPiso from '../components/TerrenoPiso'
 import PokeballSpinner from '../components/PokeballSpinner'
@@ -436,19 +436,6 @@ export default function TrainerPartida() {
   const urlDados = tipo => tipo === 'hd-trainer'
     ? `/personaje/${personajeId}/hit-dice`
     : `/personaje/${personajeId}/pokemon/${pokemonInvocado}/hit-dice`
-
-  // Gastar un dado: optimista y con reconciliación, igual que los Extra Points
-  const gastarDado = async (tipo) => {
-    const set = tipo === 'hd-trainer' ? setHdTrainer : setHdPoke
-    const previo = tipo === 'hd-trainer' ? hdTrainer : hdPoke
-    if (!previo || previo.actual <= 0) return
-    set({ ...previo, actual: previo.actual - 1 })
-    try {
-      const res = await apiFetch(urlDados(tipo), { method: 'PATCH', body: JSON.stringify({ cantidad: 1 }) })
-      const j = await res.json()
-      set({ actual: j.actual ?? previo.actual, maximo: j.maximo ?? previo.maximo })
-    } catch { set(previo) }
-  }
 
   // Puntos de vínculo del Pokémon invocado: mismo patrón que los Extra Points
   const urlBond = () => `/personaje/${personajeId}/pokemon/${pokemonInvocado}/bond-points`
@@ -988,7 +975,8 @@ export default function TrainerPartida() {
   const hideBottomIcons = fight.active && !fight.players.some(p => String(p.id_personaje) === String(personajeId))
 
   return (
-    <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion} nombreJugador={nombrePj || null} onIniciativa={setIniciativa} onPartyLocal={setTickParty} onClima={setClima}>
+    <PartidaRoom roleLabel="Trainer" personajeId={personajeId} apiRef={partidaApiRef} pokemonInvocado={pokemonInvocado} onFight={setFight} onPartyVersion={setPartyVersion} nombreJugador={nombrePj || null} onIniciativa={setIniciativa} onPartyLocal={setTickParty} onClima={setClima}
+      bloqueoEntrenador={incapacitado(charEstados, charEstadosMeta)}>
       {/* Mejora obligatoria por subida de nivel (una a la vez, no se puede cerrar) */}
       {pending.length > 0 && personajeId && (
         <PendingImprovementModal key={pending[0].id} personajeId={personajeId} pending={pending[0]}
@@ -1605,7 +1593,6 @@ export default function TrainerPartida() {
           onSpendRecurso={gastarRecurso}
           onManageRecurso={r => { setRecursoEdit(r); setRecursoVal(r.actual) }}
           hitDice={hdTrainer}
-          onSpendHitDice={() => gastarDado('hd-trainer')}
           onManageHitDice={() => abrirLapizDados('hd-trainer')}
           personajeId={personajeId}
           inspirado={isInspirado}
@@ -1617,6 +1604,7 @@ export default function TrainerPartida() {
           onTmAprendido={alAprenderTm}
           estadosTitle="Estados del entrenador"
           estados={charEstados}
+          estadosMeta={charEstadosMeta}
           onPersist={persistChar}
           onClose={closeControl}
         />
@@ -1718,6 +1706,7 @@ export default function TrainerPartida() {
           onEstados={() => setEstadosPopup('pokemon')}
           estadosTitle="Estados del Pokémon"
           estados={pokeEstados}
+          estadosMeta={pokeEstadosMeta}
           attackBonos={pokeData.attack_bonos || []}
           recursosTrainer={recursos}
           recursosFeat={recursosFeat}
@@ -1736,7 +1725,6 @@ export default function TrainerPartida() {
           recursosRasgos={recursosRasgos}
           onSpendBond={gastarBond}
           onManageBond={abrirLapizBond}
-          onSpendHitDice={() => gastarDado('hd-poke')}
           onManageHitDice={() => abrirLapizDados('hd-poke')}
           personajeId={personajeId}
           partidaId={id}

@@ -128,6 +128,32 @@ export const danoMenorDeDos = (claves) => primero(claves, ['quemado'])
 /** Paralizado: se mueve a la mitad de velocidad. */
 export const velocidadAMitad = (claves) => clavesEstados(claves).includes('paralizado')
 
+/**
+ * ¿Puede actuar? Incapacitado (sin acciones, acciones adicionales ni
+ * reacciones): Dormido y Congelado mientras duren; Paralizado si sacó 1 en
+ * el d4 al inicio de su turno, hasta el inicio del siguiente. Devuelve el
+ * motivo para mostrarlo, o null si puede actuar.
+ */
+export const incapacitado = (claves, meta) => {
+  const cs = clavesEstados(claves)
+  if (cs.includes('dormido')) return 'Dormido: no puede actuar mientras siga dormido.'
+  if (cs.includes('congelado')) return 'Congelado: no puede actuar hasta liberarse.'
+  if (cs.includes('paralizado') && meta?.paralizado?.incapacitado) return 'Paralizado (sacó 1 en el d4): no puede actuar hasta el inicio de su siguiente turno.'
+  return null
+}
+
+/** Fuera de combate: sin volátiles, sin gracia y sin la incapacidad de un turno. */
+export const fueraDeCombate = ({ claves, meta }) => {
+  const cs = clavesEstados(claves)
+  const r = cambiarEstados({ claves: cs, meta }, cs.filter(c => !esVolatil(c)))
+  const m = { ...(r.meta || {}) }
+  delete m.gracia
+  if (m.paralizado) { m.paralizado = { ...m.paralizado }; delete m.paralizado.incapacitado }
+  const limpio = limpiarMeta(m)
+  const cambio = r.texto !== (cs.join(',') || null) || JSON.stringify(limpio) !== JSON.stringify(meta || null)
+  return cambio ? { ...r, meta: limpio } : null
+}
+
 /** "30 ft" → "15 ft" (la mitad, hacia abajo). Sin número, igual. */
 export const mitadVelocidad = (valor) => String(valor ?? '').replace(/\d+/, n => String(Math.floor(Number(n) / 2)))
 
@@ -247,6 +273,10 @@ export const resolverInicioTurno = (c, resultados = {}) => {
   if (st.claves.includes('paralizado')) {
     const v = Number(resultados.paralizado)
     textos.push(v === 1 ? `Paralizado (d4 = 1): no puede actuar hasta el inicio de su siguiente turno` : `Paralizado (d4 = ${v}): puede actuar`)
+    // Con 1 queda incapacitado hasta el próximo inicio de turno (que vuelve a tirar)
+    const resto = { ...(st.meta.paralizado || {}) }
+    delete resto.incapacitado
+    st.meta.paralizado = v === 1 ? { ...resto, incapacitado: true } : resto
   }
   if (st.claves.includes('confuso')) {
     const v = Number(resultados.confuso)

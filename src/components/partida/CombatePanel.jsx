@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Backpack, Check, ChevronDown, ChevronUp, Pencil, RefreshCw, Sword, X } from 'lucide-react'
+import { Backpack, Check, ChevronDown, ChevronUp, Pencil, RefreshCw, Sword, X, Ban } from 'lucide-react'
 import PokeballIcon from '../PokeballIcon'
 import BarraHP from '../ui/BarraHP'
 import Paso from '../ui/Paso'
@@ -10,7 +10,7 @@ import ItemsPanel from '../ItemsPanel'
 import BotonDado from '../dados/BotonDado'
 import DanoArmaModal from './DanoArmaModal'
 import { AvisoDesventaja } from '../dados/BotonDado'
-import { desventajaAtaque, danoMenorDeDos, velocidadAMitad, mitadVelocidad } from '../../lib/estados'
+import { desventajaAtaque, danoMenorDeDos, velocidadAMitad, mitadVelocidad, incapacitado } from '../../lib/estados'
 import { esCompatible, elementoDeProyectil } from '../../lib/proyectiles'
 import WeaponPanel from '../WeaponPanel'
 import { InspiradoInfoButton } from '../InspiradoAura'
@@ -113,7 +113,7 @@ function AcordeonEspecialidades({ especialidades, className = '' }) {
 // Lo usan los Extra Points de la ruta, los del Pokémon (bond) y los que dan los
 // feats ("Lucky Points"): son la misma fila con distinto origen, así que vive
 // aquí en vez de repetida en cada pestaña.
-function FilaRecurso({ r, onManage, onSpend, onFeat }) {
+function FilaRecurso({ r, onManage, onSpend, onFeat, bloqueado = false }) {
   const vacio = r.actual <= 0
   // Los de un feat llevan su ficha detrás del nombre; los de ruta no tienen
   // nada que abrir y se quedan como texto.
@@ -140,7 +140,7 @@ function FilaRecurso({ r, onManage, onSpend, onFeat }) {
             {(r.etiqueta || r.nombre).toUpperCase()} {r.actual}/{r.maximo}
           </span>
         </div>
-        <button onClick={() => onSpend?.(r)} disabled={vacio} title="Gastar un punto"
+        <button onClick={() => onSpend?.(r)} disabled={vacio || bloqueado} title={bloqueado ? 'No puede actuar' : 'Gastar un punto'}
           className="shrink-0 flex items-center justify-center text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors">
           Usar
         </button>
@@ -223,10 +223,13 @@ function AcordeonPath({ rasgos, className = '' }) {
   )
 }
 
-export function CombatePanel({ estados = null, title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, onAtaque = null, onTmAprendido = null, recursosFeat = [],
-                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], getObjetivos = null, onSpendRecurso, onManageRecurso, hitDice = null, onSpendHitDice, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond, inspirado = false, onInspiradoInfo = null, onEstados = null, estadosTitle = 'Estados', partidaId = null, onCurado = null, getPresentes = null }) {
+export function CombatePanel({ estados = null, estadosMeta = null, title, switchSprite = null, switchLabel = '', onSwitch, onHeldItems = null, onAtaque = null, onTmAprendido = null, recursosFeat = [],
+                       elementos = [], weaponProfs = null, attackBonos = [], bonoRuta = { total: 0, detalle: [] }, recursosTrainer = [], initial, moves, pasivas = [], skills = [], onCastRequest, onManagePP, castDisabled = false, onPersist, onReturn, onClose, recursos = null, recursosTitulo = '', recursosRasgos = [], especialidades = [], getObjetivos = null, onSpendRecurso, onManageRecurso, hitDice = null, onManageHitDice, personajeId = null, recursosPokemon = null, onSpendBond, onManageBond, inspirado = false, onInspiradoInfo = null, onEstados = null, estadosTitle = 'Estados', partidaId = null, onCurado = null, getPresentes = null }) {
   const [tabPanel, setTabPanel] = useState('moves')
   const [v, setV] = useState(initial)
+  // Incapacitado (Dormido, Congelado, Paralizado con 1): sin acciones. Los
+  // botones se ven pero quedan apagados, con el motivo arriba.
+  const bloqueo = incapacitado(estados, estadosMeta)
   useEffect(() => { setV(initial) }, [initial])
   const [moveInfo, setMoveInfo] = useState(null) // movimiento cuyo detalle se muestra
   const [abilityInfo, setAbilityInfo] = useState(null) // pasiva cuyo detalle se muestra
@@ -371,10 +374,18 @@ export function CombatePanel({ estados = null, title, switchSprite = null, switc
           </div>
         </div>
 
+        {bloqueo && (
+          <div role="status" className="mb-3 flex items-start gap-2 rounded-xl bg-aviso/15 px-3 py-2 text-[13px] text-aviso">
+            <Ban size={16} className="shrink-0 mt-px" />
+            <span><b>No puede actuar.</b> {bloqueo} Ataques, movimientos, items y recursos quedan apagados.</span>
+          </div>
+        )}
+
         {/* Dados de golpe a la izquierda y el atajo al otro panel a la derecha */}
         {(hitDice || switchSprite || onHeldItems || (recursos && skills.length > 0)) && (
           <div className="flex items-center gap-2 mb-3">
-            {/* Dados de golpe: mismo control que los Extra Points de la ruta */}
+            {/* Dados de golpe: solo se informan (y el lápiz los ajusta). No se
+                gastan en combate: por regla se usan en el descanso corto. */}
             {hitDice && (
               <div className="flex items-center justify-between gap-2 bg-superficie rounded-lg px-2 py-1.5 min-w-0">
                 <div className="flex items-center gap-1 min-w-0">
@@ -387,10 +398,6 @@ export function CombatePanel({ estados = null, title, switchSprite = null, switc
                     HIT DICE {hitDice.actual}/{hitDice.maximo}
                   </span>
                 </div>
-                <button onClick={() => onSpendHitDice?.()} disabled={hitDice.actual <= 0} title="Gastar un dado"
-                  className="shrink-0 flex items-center justify-center text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors">
-                  Usar
-                </button>
               </div>
             )}
 
@@ -657,13 +664,13 @@ export function CombatePanel({ estados = null, title, switchSprite = null, switc
                     lo que es solo del Pokémon no aparece en el panel del
                     entrenador. */}
                 {recursosTrainer.map(r => (
-                  <FilaRecurso key={`t-${r.id}`} r={r} onManage={onManageRecurso} onSpend={onSpendRecurso}
+                  <FilaRecurso bloqueado={!!bloqueo} key={`t-${r.id}`} r={r} onManage={onManageRecurso} onSpend={onSpendRecurso}
                     onFeat={setFeatInfo} />
                 ))}
                 {/* Los que dan los feats del entrenador (Lucky Points): son
                     suyos igual que los de ruta, así que van con ellos. */}
                 {recursosFeat.map(r => (
-                  <FilaRecurso key={`ft-${r.id}`} r={r} onManage={onManageRecurso} onSpend={onSpendRecurso}
+                  <FilaRecurso bloqueado={!!bloqueo} key={`ft-${r.id}`} r={r} onManage={onManageRecurso} onSpend={onSpendRecurso}
                     onFeat={setFeatInfo} />
                 ))}
 
@@ -710,7 +717,7 @@ export function CombatePanel({ estados = null, title, switchSprite = null, switc
                 {/* Mismo control que los Extra Points del entrenador: lápiz para
                     ajustar y flecha roja para gastar de a uno. */}
                 {recursosPokemon.map(r => (
-                  <FilaRecurso key={r.id} r={r} onManage={onManageBond} onSpend={onSpendBond} />
+                  <FilaRecurso bloqueado={!!bloqueo} key={r.id} r={r} onManage={onManageBond} onSpend={onSpendBond} />
                 ))}
 
                 {/* Los rasgos de la ruta, los mismos que ve el entrenador. Se
@@ -722,7 +729,7 @@ export function CombatePanel({ estados = null, title, switchSprite = null, switc
 
             {/* Items del entrenador: equipo y medicinas, para gastarlos en mesa */}
             {tabPanel === 'items' && personajeId && (
-              <ItemsPanel personajeId={personajeId} partidaId={partidaId} getPresentes={getPresentes}
+              <ItemsPanel personajeId={personajeId} partidaId={partidaId} getPresentes={getPresentes} bloqueado={bloqueo}
                 onCurado={(r, obj, item) => {
                   // Si se curó a sí mismo, este panel aún tiene el HP anterior
                   if (obj.tipo === 'personaje' && String(obj.id_personaje) === String(personajeId)) {
@@ -746,12 +753,12 @@ export function CombatePanel({ estados = null, title, switchSprite = null, switc
             ) : (
               <div className="space-y-1">
                 {recursos.map(r => (
-                  <FilaRecurso key={r.id} r={r} onManage={onManageRecurso} onSpend={onSpendRecurso}
+                  <FilaRecurso bloqueado={!!bloqueo} key={r.id} r={r} onManage={onManageRecurso} onSpend={onSpendRecurso}
                     onFeat={setFeatInfo} />
                 ))}
                 {/* Los que dan sus feats, junto a los de la ruta */}
                 {recursosFeat.map(r => (
-                  <FilaRecurso key={`f-${r.id}`} r={r} onManage={onManageRecurso} onSpend={onSpendRecurso}
+                  <FilaRecurso bloqueado={!!bloqueo} key={`f-${r.id}`} r={r} onManage={onManageRecurso} onSpend={onSpendRecurso}
                     onFeat={setFeatInfo} />
                 ))}
               </div>
@@ -808,7 +815,7 @@ export function CombatePanel({ estados = null, title, switchSprite = null, switc
                           PP {unlimited ? '∞' : `${pp}/${maxPP}`}
                         </span>
                       </div>
-                      <button onClick={() => onCastRequest?.(m)} disabled={disabled || castDisabled} title="Lanzar"
+                      <button onClick={() => onCastRequest?.(m)} disabled={disabled || castDisabled || !!bloqueo} title={bloqueo || 'Lanzar'}
                         className="shrink-0 flex items-center justify-center text-white bg-acento hover:bg-acento-hover disabled:opacity-40 disabled:cursor-not-allowed h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors">
                         Lanzar
                       </button>
@@ -1188,8 +1195,8 @@ export function CombatePanel({ estados = null, title, switchSprite = null, switc
                           if (n20 === 1 || !dadosArmaSel) { onAtaque(total, { ...datos, dano: null }); return }
                           setDanoPend({ total, datos, dados: dadosArmaSel, tipo: elementoMunicion || tipoDano || null, elemental: !!elementoMunicion, mod: modStat, statKey: statSel?.key || null })
                         }}
-                        disabled={dado === '' || !objetivo}
-                        title={dado === '' ? 'Escribe primero el resultado del d20'
+                        disabled={dado === '' || !objetivo || !!bloqueo}
+                        title={bloqueo || dado === '' ? (bloqueo || 'Escribe primero el resultado del d20')
                           : !objetivo ? 'Elige a quién atacas' : 'Anunciar el ataque a la partida'}
                         className="mt-3 w-full flex items-center justify-center gap-1.5 h-10 rounded-xl
                                    text-xs font-black uppercase tracking-widest text-white transition-colors
