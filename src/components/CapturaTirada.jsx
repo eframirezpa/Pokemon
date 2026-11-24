@@ -5,7 +5,7 @@ import { construirSkillsTrainer, statModPokemon } from '../lib/trainerStats'
 import { claveBola, CONDICION_BOLA, SKILL_BOLA, NOTA_BOLA } from '../lib/captura'
 import { useDados } from './dados/dadosContext'
 import PokeballSpinner from './PokeballSpinner'
-import { desventajaPrueba } from '../lib/estados'
+import { desventajaPrueba, leerEstados } from '../lib/estados'
 
 const fmt = (n) => (n >= 0 ? `+${n}` : `${n}`)
 
@@ -27,17 +27,22 @@ export default function CapturaTirada({ partidaId, personajeId, pokemonInvocado 
   const [cargando, setCargando] = useState(true)
   const [animal, setAnimal] = useState(0)
   const [bonoBola, setBonoBola] = useState(0)
-  const [ventaja, setVentaja] = useState(false)
+  // Estado alterado del Pokémon: la app lo sabe (lo pone el DM en el campo),
+  // así que la ventaja ya no se marca a mano, solo se avisa
+  const estadosTarget = leerEstados(target?.estados)
+  const ventaja = estadosTarget.length > 0
   // Envenenado / Retroceso: la prueba va con desventaja (se anulan con la ventaja)
   const [desvEstado, setDesvEstado] = useState(null)
-  const [cumple, setCumple] = useState(false)
+  // Dream Ball: "está dormido" también lo sabe la app
+  const dormido = estadosTarget.some(e => e.clave === 'dormido')
+  const [cumpleManual, setCumple] = useState(false)
+  const cumple = clave === 'dream' ? dormido : cumpleManual
   const [turnos, setTurnos] = useState('0')
   const [d20, setD20] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  // Dormido es un estado alterado: con la Dream Ball, marcarlo también da ventaja
-  const conVentaja = ventaja || (clave === 'dream' && cumple)
+  const conVentaja = ventaja
 
   useEffect(() => {
     let cancelado = false
@@ -118,15 +123,24 @@ export default function CapturaTirada({ partidaId, personajeId, pokemonInvocado 
 
             {!esMaster && (
               <>
-                <label className="flex items-start gap-2 text-xs text-texto cursor-pointer">
-                  <input type="checkbox" checked={conVentaja} disabled={clave === 'dream' && cumple}
-                    onChange={e => setVentaja(e.target.checked)} className="mt-0.5 accent-red-600" />
-                  <span>El Pokémon tiene un estado alterado <span className="text-texto-2">(tiras con ventaja)</span></span>
-                </label>
+                {ventaja ? (
+                  <p className="text-xs text-ok">
+                    {/* Oculto: no se dice cuál, para no revelar nada del Pokémon */}
+                    ✔ {target?.hidden ? 'Tiene' : `${estadosTarget.map(e => `${e.icono} ${e.label}`).join(' · ')}: tiene`} un estado alterado, tiras con ventaja.
+                  </p>
+                ) : (
+                  <p className="text-xs text-texto-2">Sin estado alterado: tirada normal.</p>
+                )}
 
-                {condicion && (
+                {clave === 'dream' && (
+                  <p className={`text-xs ${dormido ? 'text-ok' : 'text-texto-2'}`}>
+                    {dormido ? `✔ Está dormido: DC −${condicion.descuento}.` : 'No está dormido: la Dream Ball no descuenta.'}
+                  </p>
+                )}
+
+                {condicion && clave !== 'dream' && (
                   <label className="flex items-start gap-2 text-xs text-texto cursor-pointer">
-                    <input type="checkbox" checked={cumple} onChange={e => setCumple(e.target.checked)} className="mt-0.5 accent-red-600" />
+                    <input type="checkbox" checked={cumpleManual} onChange={e => setCumple(e.target.checked)} className="mt-0.5 accent-red-600" />
                     <span>{condicion.texto} <span className="text-texto-2">(DC −{condicion.descuento})</span></span>
                   </label>
                 )}
